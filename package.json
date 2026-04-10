@@ -1,0 +1,25 @@
+{
+  "name": "koop-gen-hes",
+  "version": "1.0.0",
+  "description": "S.S. ÖZDE Konut Yapı Kooperatifi - Genel Hesap Yönetim Sistemi",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "cd client && npm run dev",
+    "dev:server": "cd server && npm run dev",
+    "install:all": "npm install && cd client && npm install && cd ../server && npm install",
+    "build": "cd client && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "supabase": "^2.87.2"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^6.1.1",
+    "@supabase/supabase-js": "^2.102.0",
+    "@tanstack/react-query": "^5.96.2",
+    "antd": "^6.3.5",
+    "axios": "^1.14.0",
+    "react-router-dom": "^7.14.0"
+  }
+}
