@@ -1,14 +1,28 @@
 import React, { useState } from 'react'
-import { Button, Select, Space, Tag, Modal, Form, Input, InputNumber, DatePicker, message } from 'antd'
+import { Button, Select, Space, Tag, Modal, Form, Input, InputNumber, DatePicker, message, Row, Col, Divider, Typography } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { PlusOutlined, DeleteOutlined, ScheduleOutlined } from '@ant-design/icons'
+import { PlusOutlined, DeleteOutlined, ScheduleOutlined, EditOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
 import { DataTable } from '../../components/common/DataTable'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { ConfirmDelete } from '../../components/common/ConfirmDelete'
+
+const { Text } = Typography
+
+interface FaturaKalemi {
+  id?: string
+  kalem_adi: string
+  birim: string
+  miktar: number
+  birim_fiyat: number
+  kdv_orani: number
+  ara_toplam: number
+  kdv_tutar: number
+  toplam_tutar: number
+}
 
 interface Fatura {
   id: string
@@ -17,16 +31,17 @@ interface Fatura {
   fatura_tarihi: string
   vade_tarihi?: string
   ara_toplam: number
-  kdv_orani: number
   kdv_tutar: number
   toplam_tutar: number
   durum: string
   firmalar?: { unvan: string }
+  fatura_kalemleri: FaturaKalemi[]
 }
 
 const tipLabel: Record<string, string> = { gelen: 'Gelen', giden: 'Giden' }
 const durumLabel: Record<string, string> = { bekliyor: 'Bekliyor', odendi: 'Ödendi', kismi_odendi: 'Kısmi Ödendi', iptal: 'İptal' }
 const durumRenk: Record<string, string> = { bekliyor: 'blue', odendi: 'green', kismi_odendi: 'orange', iptal: 'red' }
+const BIRIMLER = ['Adet', 'Metre', 'Kg', 'm2', 'm3', 'Ton', 'Litre', 'Set', 'Hizmet']
 
 export const FaturaListPage: React.FC = () => {
   const navigate = useNavigate()
@@ -34,6 +49,7 @@ export const FaturaListPage: React.FC = () => {
   const [filterTip, setFilterTip] = useState<string | undefined>(undefined)
   const [filterDurum, setFilterDurum] = useState<string | undefined>(undefined)
   const [modalOpen, setModalOpen] = useState(false)
+  const [editingFatura, setEditingFatura] = useState<Fatura | null>(null)
   const [form] = Form.useForm()
 
   const { data: firmalar } = useQuery({
@@ -55,21 +71,24 @@ export const FaturaListPage: React.FC = () => {
     },
   })
 
-  const createMutation = useMutation({
-    mutationFn: async (values: Record<string, unknown>) => {
+  const saveMutation = useMutation({
+    mutationFn: async (values: any) => {
       const payload = {
         ...values,
-        fatura_tarihi: (values.fatura_tarihi as dayjs.Dayjs).format('YYYY-MM-DD'),
-        vade_tarihi: values.vade_tarihi ? (values.vade_tarihi as dayjs.Dayjs).format('YYYY-MM-DD') : null,
+        fatura_tarihi: values.fatura_tarihi.format('YYYY-MM-DD'),
+        vade_tarihi: values.vade_tarihi ? values.vade_tarihi.format('YYYY-MM-DD') : null,
       }
-      const { data } = await api.post('/faturalar', payload)
-      return data
+      if (editingFatura) {
+        return await api.put(`/faturalar/${editingFatura.id}`, payload)
+      }
+      return await api.post('/faturalar', payload)
     },
     onSuccess: () => {
-      message.success('Fatura oluşturuldu')
+      message.success('Fatura kaydedildi')
       queryClient.invalidateQueries({ queryKey: ['faturalar'] })
       setModalOpen(false)
       form.resetFields()
+      setEditingFatura(null)
     },
     onError: (err: any) => message.error(err.message || 'Hata oluştu'),
   })
@@ -83,12 +102,24 @@ export const FaturaListPage: React.FC = () => {
     onError: (err: any) => message.error(err.message || 'Hata oluştu'),
   })
 
-  // KDV otomatik hesaplama
-  const handleAraToplam = () => {
-    const araToplam = form.getFieldValue('ara_toplam') || 0
-    const kdvOrani = form.getFieldValue('kdv_orani') || 20
-    const kdvTutar = araToplam * (kdvOrani / 100)
-    form.setFieldsValue({ kdv_tutar: Math.round(kdvTutar * 100) / 100, toplam_tutar: Math.round((araToplam + kdvTutar) * 100) / 100 })
+  // Toplamları kalemlerden hesapla
+  const calculateTotals = () => {
+    const kalemler = form.getFieldValue('kalemler') || []
+    let araToplam = 0
+    let kdvTutar = 0
+    
+    kalemler.forEach((k: any) => {
+      const lineAra = (k.miktar || 0) * (k.birim_fiyat || 0)
+      const lineKdv = lineAra * ((k.kdv_orani || 0) / 100)
+      araToplam += lineAra
+      kdvTutar += lineKdv
+    })
+
+    form.setFieldsValue({
+      ara_toplam: Math.round(araToplam * 100) / 100,
+      kdv_tutar: Math.round(kdvTutar * 100) / 100,
+      toplam_tutar: Math.round((araToplam + kdvTutar) * 100) / 100
+    })
   }
 
   const columns = [
@@ -113,13 +144,6 @@ export const FaturaListPage: React.FC = () => {
       render: (d: string) => dayjs(d).format('DD.MM.YYYY'),
     },
     {
-      title: 'Vade',
-      dataIndex: 'vade_tarihi',
-      key: 'vade_tarihi',
-      width: 110,
-      render: (d: string) => d ? dayjs(d).format('DD.MM.YYYY') : '-',
-    },
-    {
       title: 'Toplam',
       dataIndex: 'toplam_tutar',
       key: 'toplam_tutar',
@@ -136,16 +160,30 @@ export const FaturaListPage: React.FC = () => {
     {
       title: 'İşlem',
       key: 'action',
-      width: 100,
+      width: 120,
       render: (_: unknown, r: Fatura) => (
         <Space>
+          <Button 
+            size="small" 
+            icon={<EditOutlined />} 
+            onClick={() => {
+              setEditingFatura(r)
+              form.setFieldsValue({
+                ...r,
+                fatura_tarihi: dayjs(r.fatura_tarihi),
+                vade_tarihi: r.vade_tarihi ? dayjs(r.vade_tarihi) : null,
+                kalemler: r.fatura_kalemleri
+              })
+              setModalOpen(true)
+            }}
+          />
           <Button 
             size="small" 
             icon={<ScheduleOutlined />} 
             onClick={() => navigate(`/faturalar/${r.id}/odeme-plani`)}
             title="Ödeme Planı"
           />
-          <ConfirmDelete title="Fatura silinecek, emin misiniz?" onConfirm={() => deleteMutation.mutate(r.id)} />
+          <ConfirmDelete onConfirm={() => deleteMutation.mutate(r.id)} />
         </Space>
       ),
     },
@@ -167,7 +205,7 @@ export const FaturaListPage: React.FC = () => {
               <Select.Option value="kismi_odendi">Kısmi Ödendi</Select.Option>
               <Select.Option value="iptal">İptal</Select.Option>
             </Select>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingFatura(null); form.resetFields(); form.setFieldsValue({ kalemler: [{ kalem_adi: '', birim: 'Adet', miktar: 1, birim_fiyat: 0, kdv_orani: 20 }] }); setModalOpen(true) }}>
               Yeni Fatura
             </Button>
           </Space>
@@ -183,55 +221,120 @@ export const FaturaListPage: React.FC = () => {
       />
 
       <Modal
-        title="Yeni Fatura"
+        title={editingFatura ? 'Fatura Düzenle' : 'Yeni Fatura'}
         open={modalOpen}
-        onCancel={() => { setModalOpen(false); form.resetFields() }}
+        onCancel={() => { setModalOpen(false); setEditingFatura(null); form.resetFields() }}
         onOk={() => form.submit()}
-        confirmLoading={createMutation.isPending}
-        width={640}
+        confirmLoading={saveMutation.isPending}
+        width={900}
       >
-        <Form form={form} layout="vertical" onFinish={(v) => createMutation.mutate(v)} initialValues={{ kdv_orani: 20 }}>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item name="firma_id" label="Firma" rules={[{ required: true }]} style={{ flex: 2 }}>
-              <Select showSearch placeholder="Firma seçin" optionFilterProp="children">
-                {firmalar?.map(f => <Select.Option key={f.id} value={f.id}>{f.unvan}</Select.Option>)}
-              </Select>
-            </Form.Item>
-            <Form.Item name="fatura_tipi" label="Tip" rules={[{ required: true }]} style={{ flex: 1 }}>
-              <Select>
-                <Select.Option value="gelen">Gelen</Select.Option>
-                <Select.Option value="giden">Giden</Select.Option>
-              </Select>
-            </Form.Item>
-          </div>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item name="fatura_no" label="Fatura No" rules={[{ required: true }]} style={{ flex: 1 }}>
-              <Input />
-            </Form.Item>
-            <Form.Item name="fatura_tarihi" label="Fatura Tarihi" rules={[{ required: true }]} style={{ flex: 1 }}>
-              <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
-            </Form.Item>
-            <Form.Item name="vade_tarihi" label="Vade Tarihi" style={{ flex: 1 }}>
-              <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
-            </Form.Item>
-          </div>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item name="ara_toplam" label="Ara Toplam (TL)" rules={[{ required: true }]} style={{ flex: 1 }}>
-              <InputNumber min={0} style={{ width: '100%' }} onChange={handleAraToplam} />
-            </Form.Item>
-            <Form.Item name="kdv_orani" label="KDV %" style={{ flex: 1 }}>
-              <InputNumber min={0} max={100} style={{ width: '100%' }} onChange={handleAraToplam} />
-            </Form.Item>
-            <Form.Item name="kdv_tutar" label="KDV Tutar" style={{ flex: 1 }}>
-              <InputNumber disabled style={{ width: '100%' }} />
-            </Form.Item>
-            <Form.Item name="toplam_tutar" label="Toplam" rules={[{ required: true }]} style={{ flex: 1 }}>
-              <InputNumber disabled style={{ width: '100%' }} />
-            </Form.Item>
-          </div>
-          <Form.Item name="aciklama" label="Açıklama">
-            <Input.TextArea rows={2} />
-          </Form.Item>
+        <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)} onValuesChange={calculateTotals}>
+          <Row gutter={16}>
+            <Col span={10}>
+              <Form.Item name="firma_id" label="Firma" rules={[{ required: true }]}>
+                <Select showSearch placeholder="Firma seçin" optionFilterProp="children">
+                  {firmalar?.map(f => <Select.Option key={f.id} value={f.id}>{f.unvan}</Select.Option>)}
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={4}>
+              <Form.Item name="fatura_tipi" label="Tip" rules={[{ required: true }]}>
+                <Select>
+                  <Select.Option value="gelen">Gelen</Select.Option>
+                  <Select.Option value="giden">Giden</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={5}>
+              <Form.Item name="fatura_no" label="Fatura No" rules={[{ required: true }]}>
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={5}>
+              <Form.Item name="fatura_tarihi" label="Fatura Tarihi" rules={[{ required: true }]}>
+                <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Divider orientation="left">Fatura Kalemleri</Divider>
+          
+          <Form.List name="kalemler">
+            {(fields, { add, remove }) => (
+              <>
+                {fields.map(({ key, name, ...restField }) => (
+                  <Row key={key} gutter={8} align="middle" style={{ marginBottom: 8 }}>
+                    <Col span={8}>
+                      <Form.Item {...restField} name={[name, 'kalem_adi']} rules={[{ required: true }]} noStyle>
+                        <Input placeholder="Ürün/Hizmet Adı" />
+                      </Form.Item>
+                    </Col>
+                    <Col span={3}>
+                      <Form.Item {...restField} name={[name, 'birim']} rules={[{ required: true }]} noStyle>
+                        <Select placeholder="Birim">
+                          {BIRIMLER.map(b => <Select.Option key={b} value={b}>{b}</Select.Option>)}
+                        </Select>
+                      </Form.Item>
+                    </Col>
+                    <Col span={3}>
+                      <Form.Item {...restField} name={[name, 'miktar']} rules={[{ required: true }]} noStyle>
+                        <InputNumber placeholder="Miktar" style={{ width: '100%' }} min={0.001} />
+                      </Form.Item>
+                    </Col>
+                    <Col span={4}>
+                      <Form.Item {...restField} name={[name, 'birim_fiyat']} rules={[{ required: true }]} noStyle>
+                        <InputNumber placeholder="B.Fiyat" style={{ width: '100%' }} min={0} />
+                      </Form.Item>
+                    </Col>
+                    <Col span={3}>
+                      <Form.Item {...restField} name={[name, 'kdv_orani']} rules={[{ required: true }]} noStyle>
+                        <InputNumber placeholder="KDV%" style={{ width: '100%' }} min={0} max={100} />
+                      </Form.Item>
+                    </Col>
+                    <Col span={2}>
+                      <Button type="text" danger icon={<DeleteOutlined />} onClick={() => remove(name)} />
+                    </Col>
+                  </Row>
+                ))}
+                <Form.Item>
+                  <Button type="dashed" onClick={() => add({ birim: 'Adet', miktar: 1, birim_fiyat: 0, kdv_orani: 20 })} block icon={<PlusOutlined />}>
+                    Kalem Ekle
+                  </Button>
+                </Form.Item>
+              </>
+            )}
+          </Form.List>
+
+          <Row gutter={16} justify="end">
+            <Col span={6}>
+              <Form.Item name="ara_toplam" label="Ara Toplam">
+                <InputNumber disabled style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item name="kdv_tutar" label="KDV Toplam">
+                <InputNumber disabled style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item name="toplam_tutar" label="Genel Toplam">
+                <InputNumber disabled style={{ width: '100%', fontWeight: 'bold' }} />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="vade_tarihi" label="Vade Tarihi">
+                <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+              </Form.Item>
+            </Col>
+            <Col span={16}>
+              <Form.Item name="aciklama" label="Açıklama">
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
         </Form>
       </Modal>
     </div>

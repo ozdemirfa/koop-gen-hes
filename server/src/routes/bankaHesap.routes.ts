@@ -21,6 +21,13 @@ router.post('/hesaplar', validate({ body: bankaHesapSchema }), async (req: AuthR
   } catch (err) { next(err) }
 })
 
+router.put('/hesaplar/:id', validate({ body: bankaHesapSchema }), async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const data = await bankaHesapService.updateHesap(req.params.id, req.body)
+    res.json({ success: true, data })
+  } catch (err) { next(err) }
+})
+
 // Banka hareketleri
 router.get('/hareketler', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {

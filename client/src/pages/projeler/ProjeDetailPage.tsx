@@ -2,7 +2,7 @@ import React from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Row, Col, Card, Statistic, Tag, Button, Space, Divider, Typography, Spin, Empty } from 'antd'
-import { CalendarOutlined, ProjectOutlined, ArrowLeftOutlined, EditOutlined, BarChartOutlined } from '@ant-design/icons'
+import { CalendarOutlined, ProjectOutlined, ArrowLeftOutlined, EditOutlined, BarChartOutlined, HomeOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
@@ -47,6 +47,12 @@ export const ProjeDetailPage: React.FC = () => {
         onBack={() => navigate('/projeler')}
         extra={
           <Space>
+            <Button 
+              icon={<HomeOutlined />} 
+              onClick={() => navigate(`/projeler/${id}/serefiye`)}
+            >
+              Şerefiye Tablosu
+            </Button>
             <Button 
               icon={<BarChartOutlined />} 
               onClick={() => navigate(`/projeler/${id}/yillik-plan/${dayjs().year()}`)}

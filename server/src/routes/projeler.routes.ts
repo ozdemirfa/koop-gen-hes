@@ -78,4 +78,41 @@ router.put('/yillik-plan-kalemleri/:id', validate({ body: yillikPlanKalemiSchema
   } catch (err) { next(err) }
 })
 
+// Yardımcı endpoint'ler (Üye formu vb. için)
+router.get('/aktif/bloklar', async (_req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const data = await projeService.getAktifProje()
+    res.json({ success: true, data })
+  } catch (err) { next(err) }
+})
+
+router.get('/bloklar/:blokId/musait-daireler', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const data = await projeService.getMusaitDaireler(req.params.blokId)
+    res.json({ success: true, data })
+  } catch (err) { next(err) }
+})
+
+// Şerefiye Yönetimi
+router.get('/:id/serefiye', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const data = await projeService.getSerefiye(req.params.id)
+    res.json({ success: true, data })
+  } catch (err) { next(err) }
+})
+
+router.post('/:id/generate-serefiye', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const data = await projeService.generateSerefiye(req.params.id)
+    res.json({ success: true, data })
+  } catch (err) { next(err) }
+})
+
+router.put('/serefiye/:serefiyeId', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const data = await projeService.updateSerefiye(req.params.serefiyeId, req.body)
+    res.json({ success: true, data })
+  } catch (err) { next(err) }
+})
+
 export default router

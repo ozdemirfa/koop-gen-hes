@@ -1,9 +1,15 @@
-import React from 'react'
-import { Form, Input, InputNumber, Select, Button, message, Card } from 'antd'
+import React, { useState, useEffect } from 'react'
+import { Form, Input, InputNumber, Select, Button, message, Card, Space } from 'antd'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
+
+interface SerefiyeDaire {
+  id: string
+  daire_no: string
+  serefiye_orani?: number
+}
 
 export const UyeFormPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -11,13 +17,26 @@ export const UyeFormPage: React.FC = () => {
   const queryClient = useQueryClient()
   const [form] = Form.useForm()
   const isEditing = !!id
+  const [selectedBlokId, setSelectedBlokId] = useState<string | undefined>(undefined)
 
-  const { data: bloklar } = useQuery({
-    queryKey: ['bloklar'],
+  // Aktif projenin bloklarını getir
+  const { data: aktifProje } = useQuery({
+    queryKey: ['aktif-proje-bloklar'],
     queryFn: async () => {
-      const { data } = await api.get('/bloklar')
-      return data.data as { id: string; blok_adi: string }[]
+      const { data } = await api.get('/projeler/aktif/bloklar')
+      return data.data
     },
+  })
+
+  // Seçilen bloğa ait müsait daireleri getir
+  const { data: musaitDaireler, isLoading: daireLoading } = useQuery({
+    queryKey: ['musait-daireler', selectedBlokId],
+    queryFn: async () => {
+      if (!selectedBlokId) return []
+      const { data } = await api.get(`/projeler/bloklar/${selectedBlokId}/musait-daireler`)
+      return data.data as SerefiyeDaire[]
+    },
+    enabled: !!selectedBlokId,
   })
 
   // Eğer düzenleme modundaysa üye bilgilerini getir ve formu doldur
@@ -26,6 +45,7 @@ export const UyeFormPage: React.FC = () => {
     queryFn: async () => {
       const { data } = await api.get(`/uyeler/${id}`)
       form.setFieldsValue(data.data)
+      if (data.data.blok_id) setSelectedBlokId(data.data.blok_id)
       return data.data
     },
     enabled: isEditing,
@@ -39,7 +59,7 @@ export const UyeFormPage: React.FC = () => {
       }))
       form.setFields(fields)
     } else {
-      message.error(err.message || 'Hata oluştu')
+      message.error(err.error || err.message || 'Hata oluştu')
     }
   }
 
@@ -61,15 +81,24 @@ export const UyeFormPage: React.FC = () => {
     onError: setServerErrors,
   })
 
+  const handleDaireChange = (serefiyeId: string) => {
+    const daire = musaitDaireler?.find(d => d.id === serefiyeId)
+    if (daire) {
+      form.setFieldsValue({
+        daire_no: daire.daire_no,
+        serefiye_orani: daire.serefiye_orani || 1.000
+      })
+    }
+  }
+
   return (
     <div>
       <PageHeader 
         title={isEditing ? "Üye Düzenle" : "Yeni Üye Ekle"} 
-        showBack 
-        backPath="/uyeler"
+        onBack={() => navigate('/uyeler')}
       />
 
-      <Card loading={isEditing && uyeLoading}>
+      <Card loading={(isEditing && uyeLoading)}>
         <Form 
           form={form} 
           layout="vertical" 
@@ -105,15 +134,37 @@ export const UyeFormPage: React.FC = () => {
 
           <div style={{ display: 'flex', gap: 16 }}>
             <Form.Item name="blok_id" label="Blok" style={{ flex: 1 }}>
-              <Select allowClear placeholder="Blok seçin">
-                {bloklar?.map((b) => (
+              <Select 
+                allowClear 
+                placeholder="Blok seçin" 
+                onChange={(val) => {
+                  setSelectedBlokId(val)
+                  form.setFieldsValue({ serefiye_id: undefined, daire_no: undefined })
+                }}
+              >
+                {aktifProje?.bloklar?.map((b: any) => (
                   <Select.Option key={b.id} value={b.id}>{b.blok_adi}</Select.Option>
                 ))}
               </Select>
             </Form.Item>
-            <Form.Item name="daire_no" label="Daire No" style={{ flex: 1 }}>
-              <Input />
+            <Form.Item name="serefiye_id" label="Daire No" style={{ flex: 1 }} rules={[{ required: true, message: 'Daire no seçilmeli' }]}>
+              <Select 
+                placeholder="Önce blok seçin" 
+                loading={daireLoading}
+                disabled={!selectedBlokId}
+                onChange={handleDaireChange}
+              >
+                {/* Mevcut daire */}
+                {isEditing && form.getFieldValue('serefiye_id') && !musaitDaireler?.find(d => d.id === form.getFieldValue('serefiye_id')) && (
+                  <Select.Option value={form.getFieldValue('serefiye_id')}>{form.getFieldValue('daire_no')}</Select.Option>
+                )}
+                {musaitDaireler?.map((d) => (
+                  <Select.Option key={d.id} value={d.id}>{d.daire_no}</Select.Option>
+                ))}
+              </Select>
             </Form.Item>
+            {/* Gizli alan: daire_no (Backend'e daire no string olarak da lazım olabilir) */}
+            <Form.Item name="daire_no" hidden><Input /></Form.Item>
           </div>
 
           <div style={{ display: 'flex', gap: 16 }}>
@@ -123,8 +174,8 @@ export const UyeFormPage: React.FC = () => {
                 <Select.Option value="kadin">Kadın</Select.Option>
               </Select>
             </Form.Item>
-            <Form.Item name="hisse_orani" label="Hisse Oranı" initialValue={1} style={{ flex: 1 }}>
-              <InputNumber min={0} step={0.01} style={{ width: '100%' }} />
+            <Form.Item name="serefiye_orani" label="Şerefiye Oranı" initialValue={1} style={{ flex: 1 }}>
+              <InputNumber min={0} step={0.001} style={{ width: '100%' }} precision={3} />
             </Form.Item>
             <Form.Item name="durum" label="Durum" initialValue="aktif" style={{ flex: 1 }}>
               <Select>
@@ -145,12 +196,14 @@ export const UyeFormPage: React.FC = () => {
           </Form.Item>
 
           <Form.Item>
-            <Button type="primary" htmlType="submit" loading={mutation.isPending}>
-              {isEditing ? 'Güncelle' : 'Kaydet'}
-            </Button>
-            <Button style={{ marginLeft: 8 }} onClick={() => navigate('/uyeler')}>
-              İptal
-            </Button>
+            <Space>
+              <Button type="primary" htmlType="submit" loading={mutation.isPending}>
+                {isEditing ? 'Güncelle' : 'Kaydet'}
+              </Button>
+              <Button onClick={() => navigate('/uyeler')}>
+                İptal
+              </Button>
+            </Space>
           </Form.Item>
         </Form>
       </Card>

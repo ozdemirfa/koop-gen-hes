@@ -102,5 +102,36 @@ export const sozlesmeService = {
       .eq('id', id)
 
     if (error) throw error
+  },
+
+  async delete(id: string) {
+    // Bağımlılık kontrolü: hakediş var mı?
+    const { count: hakedisCount, error: hakedisError } = await supabaseAdmin
+      .from('hakedisler')
+      .select('id', { count: 'exact', head: true })
+      .eq('sozlesme_id', id)
+
+    if (hakedisError) throw hakedisError
+    if (hakedisCount && hakedisCount > 0) {
+      throw ApiError.badRequest('Bu sözleşmeye ait hakediş kayıtları bulunduğu için silinemez.')
+    }
+
+    // İş kalemlerini kontrol et
+    const { count: kalemCount, error: kalemError } = await supabaseAdmin
+      .from('sozlesme_is_kalemleri')
+      .select('id', { count: 'exact', head: true })
+      .eq('sozlesme_id', id)
+
+    if (kalemError) throw kalemError
+    if (kalemCount && kalemCount > 0) {
+      throw ApiError.badRequest('Bu sözleşmeye ait iş kalemleri bulunduğu için silinemez. Önce kalemleri silmelisiniz.')
+    }
+
+    const { error } = await supabaseAdmin
+      .from('sozlesmeler')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
   }
 }

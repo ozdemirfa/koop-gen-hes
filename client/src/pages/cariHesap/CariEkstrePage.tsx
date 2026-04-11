@@ -1,11 +1,13 @@
 import React, { useState } from 'react'
-import { Card, Space, Select, DatePicker, Statistic, Row, Col, Tag } from 'antd'
+import { Card, Space, Select, DatePicker, Statistic, Row, Col, Tag, Button, message } from 'antd'
+import { DownloadOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
 import { DataTable } from '../../components/common/DataTable'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
+import { formatMoney } from '../../lib/format'
 
 const { RangePicker } = DatePicker
 
@@ -45,6 +47,18 @@ export const CariEkstrePage: React.FC = () => {
       const { data } = await api.get('/cari-hareketler', { params })
       return data.data as CariHareket[]
     },
+  })
+
+  // Birikmiş Teminat Sorgusu
+  const { data: teminatData } = useQuery({
+    queryKey: ['birikmis-teminat', firmaId],
+    queryFn: async () => {
+      if (!firmaId) return 0
+      const { data } = await api.get('/hakedisler', { params: { firma_id: firmaId, durum: 'onaylandi', limit: 1000 } })
+      const list = data.data as any[]
+      return list.reduce((sum, h) => sum + Number(h.teminat_kesintisi || 0), 0)
+    },
+    enabled: !!firmaId
   })
 
   const totals = hareketler?.reduce(
@@ -90,12 +104,40 @@ export const CariEkstrePage: React.FC = () => {
     },
   ]
 
+  const exportToCSV = () => {
+    if (!hareketler || hareketler.length === 0) {
+      message.warning('Dışa aktarılacak veri bulunamadı')
+      return
+    }
+    
+    const headers = ['Tarih', 'Firma', 'Açıklama', 'Belge No', 'Tip', 'Tutar']
+    const rows = hareketler.map(h => [
+      dayjs(h.tarih).format('DD.MM.YYYY'),
+      h.firmalar?.unvan || '',
+      h.aciklama || '',
+      h.belge_no || '',
+      h.hareket_tipi === 'borc' ? 'Borç' : 'Alacak',
+      formatMoney(h.tutar).replace(/\./g, '')
+    ])
+
+    const csvContent = "\uFEFF" + [headers, ...rows].map(e => e.join(";")).join("\n")
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.setAttribute("href", url)
+    link.setAttribute("download", `cari_ekstre_${dayjs().format('YYYYMMDD')}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   return (
     <div>
       <PageHeader
         title="Genel Cari Ekstre"
         extra={
           <Space>
+            <Button icon={<DownloadOutlined />} onClick={exportToCSV}>CSV İndir</Button>
             <Select
               showSearch
               placeholder="Firma Filtresi"
@@ -121,7 +163,7 @@ export const CariEkstrePage: React.FC = () => {
       />
 
       <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={8}>
+        <Col span={6}>
           <Card bordered={false}>
             <Statistic
               title="Toplam Borç"
@@ -132,7 +174,7 @@ export const CariEkstrePage: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col span={8}>
+        <Col span={6}>
           <Card bordered={false}>
             <Statistic
               title="Toplam Alacak"
@@ -143,13 +185,24 @@ export const CariEkstrePage: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col span={8}>
+        <Col span={6}>
           <Card bordered={false}>
             <Statistic
               title="Net Bakiye"
               value={totals.alacak - totals.borc}
               precision={2}
               valueStyle={{ color: totals.alacak - totals.borc >= 0 ? '#3f8600' : '#cf1322' }}
+              suffix="TL"
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card bordered={false}>
+            <Statistic
+              title="Birikmiş Teminat"
+              value={teminatData || 0}
+              precision={2}
+              valueStyle={{ color: '#1890ff' }}
               suffix="TL"
             />
           </Card>

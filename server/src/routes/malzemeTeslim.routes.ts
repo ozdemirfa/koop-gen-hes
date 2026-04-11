@@ -1,15 +1,15 @@
 import { Router, Response, NextFunction } from 'express'
 import { AuthRequest } from '../middleware/auth'
 import { validate } from '../middleware/validate'
-import { malzemeTeslimSchema, updateMalzemeTeslimSchema } from '../schemas/malzemeTeslim.schema'
+import { irsaliyeSchema, updateIrsaliyeSchema } from '../schemas/malzemeTeslim.schema'
 import { malzemeTeslimService } from '../services/malzemeTeslim.service'
 
 const router = Router()
 
 router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const result = await malzemeTeslimService.list(req.query as Record<string, any>)
-    res.json({ success: true, ...result })
+    const data = await malzemeTeslimService.list(req.query as Record<string, any>)
+    res.json({ success: true, ...data })
   } catch (err) { next(err) }
 })
 
@@ -20,14 +20,14 @@ router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) =
   } catch (err) { next(err) }
 })
 
-router.post('/', validate({ body: malzemeTeslimSchema }), async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.post('/', validate({ body: irsaliyeSchema }), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const data = await malzemeTeslimService.create(req.body)
     res.status(201).json({ success: true, data })
   } catch (err) { next(err) }
 })
 
-router.put('/:id', validate({ body: updateMalzemeTeslimSchema }), async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.put('/:id', validate({ body: updateIrsaliyeSchema }), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const data = await malzemeTeslimService.update(req.params.id, req.body)
     res.json({ success: true, data })
@@ -37,8 +37,9 @@ router.put('/:id', validate({ body: updateMalzemeTeslimSchema }), async (req: Au
 router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     await malzemeTeslimService.delete(req.params.id)
-    res.json({ success: true, message: 'Teslim kaydı silindi' })
+    res.json({ success: true })
   } catch (err) { next(err) }
 })
 
 export default router
+

@@ -134,17 +134,17 @@ export const hakedisService = {
     if (insertErr) throw insertErr
 
     // Hakediş toplamlarını hesapla
-    const toplamTutar = yeniKalemler?.reduce((sum, k) => sum + Number(k.bu_ay_tutar || 0), 0) || 0
+    const brutTutar = yeniKalemler?.reduce((sum, k) => sum + Number(k.bu_ay_tutar || 0), 0) || 0
     const sozlesme = hakedis.sozlesmeler as any
-    const teminatKesintisi = toplamTutar * (Number(sozlesme?.teminat_orani || 0) / 100)
-    const stopajKesintisi = toplamTutar * (Number(sozlesme?.stopaj_orani || 0) / 100)
+    const teminatKesintisi = brutTutar * (Number(sozlesme?.teminat_orani || 0) / 100)
+    const stopajKesintisi = brutTutar * (Number(sozlesme?.stopaj_orani || 0) / 100)
     const digerKesintiler = Number((hakedis as any).diger_kesintiler || 0)
-    const netTutar = toplamTutar - teminatKesintisi - stopajKesintisi - digerKesintiler
+    const netTutar = brutTutar - teminatKesintisi - stopajKesintisi - digerKesintiler
 
     await supabaseAdmin
       .from('hakedisler')
       .update({
-        toplam_tutar: toplamTutar,
+        brut_tutar: brutTutar,
         teminat_kesintisi: teminatKesintisi,
         stopaj_kesintisi: stopajKesintisi,
         net_tutar: netTutar

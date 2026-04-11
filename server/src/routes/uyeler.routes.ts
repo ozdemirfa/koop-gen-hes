@@ -3,6 +3,7 @@ import { AuthRequest } from '../middleware/auth'
 import { validate } from '../middleware/validate'
 import { createUyeSchema, updateUyeSchema } from '../schemas/uye.schema'
 import { uyeService } from '../services/uye.service'
+import { aidatService } from '../services/aidat.service'
 
 const router = Router()
 
@@ -50,6 +51,14 @@ router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction
 router.get('/:id/aidatlar', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const data = await uyeService.getAidatlar(req.params.id, req.query as Record<string, any>)
+    res.json({ success: true, data })
+  } catch (err) { next(err) }
+})
+
+// POST /api/uyeler/:id/toplu-odeme
+router.post('/:id/toplu-odeme', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const data = await aidatService.recordBulkPayment(req.params.id, req.body)
     res.json({ success: true, data })
   } catch (err) { next(err) }
 })

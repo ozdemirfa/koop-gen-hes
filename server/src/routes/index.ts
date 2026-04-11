@@ -15,6 +15,7 @@ import malzemeTeslimRoutes from './malzemeTeslim.routes'
 import projelerRoutes from './projeler.routes'
 import dashboardRoutes from './dashboard.routes'
 import raporlarRoutes from './raporlar.routes'
+import ceklerRoutes from './cekler.routes'
 
 const router = Router()
 
@@ -36,5 +37,6 @@ router.use('/malzeme-teslimleri', malzemeTeslimRoutes)
 router.use('/projeler', projelerRoutes)
 router.use('/dashboard', dashboardRoutes)
 router.use('/raporlar', raporlarRoutes)
+router.use('/cekler', ceklerRoutes)
 
 export default router

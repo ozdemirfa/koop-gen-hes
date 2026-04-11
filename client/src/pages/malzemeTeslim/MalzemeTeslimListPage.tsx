@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Button, Modal, Form, Input, InputNumber, DatePicker, Select, Space, message, Tag } from 'antd'
+import { Button, Modal, Form, Input, InputNumber, DatePicker, Select, Space, message, Card, Row, Col, Divider, Typography } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
@@ -9,24 +9,35 @@ import { DataTable } from '../../components/common/DataTable'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { ConfirmDelete } from '../../components/common/ConfirmDelete'
 
-interface MalzemeTeslim {
-  id: string
+const { Text } = Typography
+
+interface IrsaliyeKalemi {
+  id?: string
   malzeme_adi: string
-  malzeme_tipi?: string
   birim: string
   miktar: number
   birim_fiyat: number
   toplam_tutar: number
-  teslim_tarihi: string
-  irsaliye_no?: string
-  firmalar?: { unvan: string }
-  sozlesmeler?: { konu: string }
 }
+
+interface Irsaliye {
+  id: string
+  firma_id: string
+  proje_id?: string
+  irsaliye_no?: string
+  teslim_tarihi: string
+  teslim_alan?: string
+  notlar?: string
+  firmalar?: { unvan: string }
+  irsaliye_kalemleri: IrsaliyeKalemi[]
+}
+
+const BIRIMLER = ['Adet', 'Metre', 'Kg', 'm2', 'm3', 'Ton', 'Litre', 'Set']
 
 export const MalzemeTeslimListPage: React.FC = () => {
   const queryClient = useQueryClient()
   const [modalOpen, setModalOpen] = useState(false)
-  const [editingTeslim, setEditingTeslim] = useState<MalzemeTeslim | null>(null)
+  const [editingIrsaliye, setEditingIrsaliye] = useState<Irsaliye | null>(null)
   const [form] = Form.useForm()
 
   const { data: firmalar } = useQuery({
@@ -37,8 +48,8 @@ export const MalzemeTeslimListPage: React.FC = () => {
     },
   })
 
-  const { data: teslimData, isLoading } = useQuery({
-    queryKey: ['malzeme-teslimleri'],
+  const { data: irsaliyeData, isLoading } = useQuery({
+    queryKey: ['irsaliyeler'],
     queryFn: async () => {
       const { data } = await api.get('/malzeme-teslimleri')
       return data
@@ -49,19 +60,19 @@ export const MalzemeTeslimListPage: React.FC = () => {
     mutationFn: async (values: any) => {
       const payload = {
         ...values,
-        teslim_tarihi: (values.teslim_tarihi as dayjs.Dayjs).format('YYYY-MM-DD'),
+        teslim_tarihi: values.teslim_tarihi.format('YYYY-MM-DD'),
       }
-      if (editingTeslim) {
-        return await api.put(`/malzeme-teslimleri/${editingTeslim.id}`, payload)
+      if (editingIrsaliye) {
+        return await api.put(`/malzeme-teslimleri/${editingIrsaliye.id}`, payload)
       }
       return await api.post('/malzeme-teslimleri', payload)
     },
     onSuccess: () => {
-      message.success('Teslim kaydı kaydedildi')
-      queryClient.invalidateQueries({ queryKey: ['malzeme-teslimleri'] })
+      message.success('İrsaliye kaydedildi')
+      queryClient.invalidateQueries({ queryKey: ['irsaliyeler'] })
       setModalOpen(false)
       form.resetFields()
-      setEditingTeslim(null)
+      setEditingIrsaliye(null)
     },
     onError: (err: any) => message.error(err.message || 'Hata oluştu'),
   })
@@ -69,8 +80,8 @@ export const MalzemeTeslimListPage: React.FC = () => {
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => { await api.delete(`/malzeme-teslimleri/${id}`) },
     onSuccess: () => {
-      message.success('Teslim kaydı silindi')
-      queryClient.invalidateQueries({ queryKey: ['malzeme-teslimleri'] })
+      message.success('İrsaliye silindi')
+      queryClient.invalidateQueries({ queryKey: ['irsaliyeler'] })
     },
     onError: (err: any) => message.error(err.message || 'Hata oluştu'),
   })
@@ -83,42 +94,37 @@ export const MalzemeTeslimListPage: React.FC = () => {
       width: 110,
       render: (d: string) => dayjs(d).format('DD.MM.YYYY'),
     },
-    { title: 'Malzeme Adı', dataIndex: 'malzeme_adi', key: 'malzeme_adi' },
-    { title: 'Firma', key: 'firma', render: (_: any, r: MalzemeTeslim) => r.firmalar?.unvan || '-' },
+    { title: 'İrsaliye No', dataIndex: 'irsaliye_no', key: 'no' },
+    { title: 'Firma', key: 'firma', render: (_: any, r: Irsaliye) => r.firmalar?.unvan || '-' },
     {
-      title: 'Miktar',
-      key: 'miktar',
-      width: 120,
-      render: (_: any, r: MalzemeTeslim) => (
-        <span>{r.miktar} {r.birim}</span>
-      ),
+      title: 'Kalem Sayısı',
+      key: 'kalemler',
+      render: (_: any, r: Irsaliye) => r.irsaliye_kalemleri?.length || 0,
     },
     {
-      title: 'Birim Fiyat',
-      dataIndex: 'birim_fiyat',
-      key: 'birim_fiyat',
-      width: 120,
-      render: (v: number) => <MoneyDisplay amount={v} />,
-    },
-    {
-      title: 'Toplam',
-      dataIndex: 'toplam_tutar',
-      key: 'toplam_tutar',
-      width: 130,
-      render: (v: number) => <MoneyDisplay amount={v} />,
+      title: 'Toplam Tutar',
+      key: 'toplam',
+      render: (_: any, r: Irsaliye) => {
+        const total = r.irsaliye_kalemleri?.reduce((sum, k) => sum + (k.miktar * (k.birim_fiyat || 0)), 0) || 0
+        return <MoneyDisplay amount={total} />
+      }
     },
     {
       title: 'İşlem',
       key: 'action',
       width: 100,
-      render: (_: any, r: MalzemeTeslim) => (
+      render: (_: any, r: Irsaliye) => (
         <Space>
           <Button
             icon={<EditOutlined />}
             size="small"
             onClick={() => {
-              setEditingTeslim(r)
-              form.setFieldsValue({ ...r, teslim_tarihi: dayjs(r.teslim_tarihi) })
+              setEditingIrsaliye(r)
+              form.setFieldsValue({ 
+                ...r, 
+                teslim_tarihi: dayjs(r.teslim_tarihi),
+                kalemler: r.irsaliye_kalemleri 
+              })
               setModalOpen(true)
             }}
           />
@@ -131,89 +137,137 @@ export const MalzemeTeslimListPage: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title="Malzeme Teslimatları"
+        title="İrsaliye Girişi"
         extra={
           <Button
             type="primary"
             icon={<PlusOutlined />}
             onClick={() => {
-              setEditingTeslim(null)
+              setEditingIrsaliye(null)
               form.resetFields()
+              form.setFieldsValue({ kalemler: [{ malzeme_adi: '', birim: 'Adet', miktar: 1, birim_fiyat: 0 }] })
               setModalOpen(true)
             }}
           >
-            Yeni Teslimat
+            Yeni İrsaliye
           </Button>
         }
       />
 
       <DataTable
         columns={columns}
-        dataSource={teslimData?.data}
+        dataSource={irsaliyeData?.data}
         rowKey="id"
         loading={isLoading}
-        totalItems={teslimData?.pagination?.total}
+        totalItems={irsaliyeData?.pagination?.total}
       />
 
       <Modal
-        title={editingTeslim ? 'Teslimat Düzenle' : 'Yeni Malzeme Teslimatı'}
+        title={editingIrsaliye ? 'İrsaliye Düzenle' : 'Yeni İrsaliye Girişi'}
         open={modalOpen}
         onCancel={() => {
           setModalOpen(false)
-          setEditingTeslim(null)
+          setEditingIrsaliye(null)
         }}
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
-        width={640}
+        width={800}
       >
         <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)}>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item name="firma_id" label="Firma" rules={[{ required: true }]} style={{ flex: 1 }}>
-              <Select showSearch placeholder="Firma seçin" optionFilterProp="children">
-                {firmalar?.map(f => <Select.Option key={f.id} value={f.id}>{f.unvan}</Select.Option>)}
-              </Select>
-            </Form.Item>
-            <Form.Item name="teslim_tarihi" label="Teslim Tarihi" rules={[{ required: true }]} style={{ flex: 1 }}>
-              <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
-            </Form.Item>
-          </div>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item name="malzeme_adi" label="Malzeme Adı" rules={[{ required: true }]} style={{ flex: 2 }}>
-              <Input />
-            </Form.Item>
-            <Form.Item name="malzeme_tipi" label="Tip" style={{ flex: 1 }}>
-              <Input />
-            </Form.Item>
-          </div>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item name="miktar" label="Miktar" rules={[{ required: true }]} style={{ flex: 1 }}>
-              <InputNumber style={{ width: '100%' }} min={0} />
-            </Form.Item>
-            <Form.Item name="birim" label="Birim" rules={[{ required: true }]} style={{ flex: 1 }}>
-              <Select>
-                <Select.Option value="Adet">Adet</Select.Option>
-                <Select.Option value="Metre">Metre</Select.Option>
-                <Select.Option value="Kg">Kg</Select.Option>
-                <Select.Option value="m2">m2</Select.Option>
-                <Select.Option value="m3">m3</Select.Option>
-                <Select.Option value="Ton">Ton</Select.Option>
-              </Select>
-            </Form.Item>
-            <Form.Item name="birim_fiyat" label="Birim Fiyat (TL)" rules={[{ required: true }]} style={{ flex: 1 }}>
-              <InputNumber style={{ width: '100%' }} min={0} />
-            </Form.Item>
-          </div>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item name="irsaliye_no" label="İrsaliye No" style={{ flex: 1 }}>
-              <Input />
-            </Form.Item>
-            <Form.Item name="teslim_alan" label="Teslim Alan" style={{ flex: 1 }}>
-              <Input />
-            </Form.Item>
-          </div>
-          <Form.Item name="notlar" label="Notlar">
-            <Input.TextArea rows={2} />
-          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="firma_id" label="Firma" rules={[{ required: true }]}>
+                <Select showSearch placeholder="Firma seçin" optionFilterProp="children">
+                  {firmalar?.map(f => <Select.Option key={f.id} value={f.id}>{f.unvan}</Select.Option>)}
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item name="teslim_tarihi" label="Teslim Tarihi" rules={[{ required: true }]}>
+                <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item name="irsaliye_no" label="İrsaliye No">
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+          
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="teslim_alan" label="Teslim Alan">
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="notlar" label="Notlar">
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Divider orientation="left">Malzemeler</Divider>
+          
+          <Form.List name="kalemler">
+            {(fields, { add, remove }) => (
+              <>
+                {fields.map(({ key, name, ...restField }) => (
+                  <Row key={key} gutter={8} align="middle" style={{ marginBottom: 8 }}>
+                    <Col span={10}>
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'malzeme_adi']}
+                        rules={[{ required: true, message: 'Zorunlu' }]}
+                        noStyle
+                      >
+                        <Input placeholder="Malzeme Adı" />
+                      </Form.Item>
+                    </Col>
+                    <Col span={4}>
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'birim']}
+                        rules={[{ required: true }]}
+                        noStyle
+                      >
+                        <Select placeholder="Birim">
+                          {BIRIMLER.map(b => <Select.Option key={b} value={b}>{b}</Select.Option>)}
+                        </Select>
+                      </Form.Item>
+                    </Col>
+                    <Col span={4}>
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'miktar']}
+                        rules={[{ required: true }]}
+                        noStyle
+                      >
+                        <InputNumber placeholder="Miktar" style={{ width: '100%' }} min={0.001} />
+                      </Form.Item>
+                    </Col>
+                    <Col span={4}>
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'birim_fiyat']}
+                        noStyle
+                      >
+                        <InputNumber placeholder="Fiyat" style={{ width: '100%' }} min={0} />
+                      </Form.Item>
+                    </Col>
+                    <Col span={2}>
+                      <Button type="text" danger icon={<DeleteOutlined />} onClick={() => remove(name)} />
+                    </Col>
+                  </Row>
+                ))}
+                <Form.Item>
+                  <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+                    Malzeme Ekle
+                  </Button>
+                </Form.Item>
+              </>
+            )}
+          </Form.List>
         </Form>
       </Modal>
     </div>

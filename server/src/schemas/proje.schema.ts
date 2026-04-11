@@ -9,9 +9,13 @@ export const projeSchema = z.object({
   toplam_butce: z.number().min(0).optional(),
   aktif: z.boolean().optional(),
   durum: z.enum(IS_KALEMI_DURUMLARI).optional(),
-  blok_sayisi: z.number().int().min(0).optional(),
-  daire_sayisi_per_blok: z.number().int().min(0).optional(),
-  daire_kodlama_sistemi: z.string().optional().nullable()
+  bloklar: z.array(z.object({
+    id: z.string().uuid().optional(),
+    blok_adi: z.string().min(1, 'Blok adı zorunlu'),
+    toplam_daire: z.number().int().min(1, 'Daire sayısı en az 1 olmalı'),
+    daire_baslangic_no: z.number().int().min(0).optional(),
+    aciklama: z.string().optional().nullable()
+  })).optional()
 })
 
 export const updateProjeSchema = projeSchema.partial()

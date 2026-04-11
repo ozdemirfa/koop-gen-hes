@@ -7,6 +7,7 @@ import api from '../../lib/api'
 import { useDebounce } from '../../hooks/useDebounce'
 import { PageHeader } from '../../components/common/PageHeader'
 import { DataTable } from '../../components/common/DataTable'
+import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 
 interface Firma {
   id: string
@@ -21,6 +22,8 @@ interface Firma {
   yetkili_kisi?: string
   notlar?: string
   aktif: boolean
+  guncel_bakiye?: number
+  toplam_teminat?: number
 }
 
 export const FirmaListPage: React.FC = () => {
@@ -82,16 +85,30 @@ export const FirmaListPage: React.FC = () => {
       title: 'Tip',
       dataIndex: 'firma_tipi',
       key: 'firma_tipi',
-      width: 120,
+      width: 100,
       render: (t: string) => (
         <Tag color={t === 'yuklenici' ? 'blue' : 'purple'}>
           {t === 'yuklenici' ? 'Yüklenici' : 'Tedarikçi'}
         </Tag>
       ),
     },
-    { title: 'Vergi No', dataIndex: 'vergi_no', key: 'vergi_no', width: 120 },
-    { title: 'Telefon', dataIndex: 'telefon', key: 'telefon', width: 140 },
-    { title: 'Yetkili', dataIndex: 'yetkili_kisi', key: 'yetkili_kisi' },
+    {
+      title: 'Cari Bakiye',
+      dataIndex: 'guncel_bakiye',
+      key: 'bakiye',
+      align: 'right' as const,
+      width: 130,
+      render: (v: number) => <MoneyDisplay amount={v} colored />
+    },
+    {
+      title: 'Birikmiş Teminat',
+      dataIndex: 'toplam_teminat',
+      key: 'teminat',
+      align: 'right' as const,
+      width: 140,
+      render: (v: number) => <MoneyDisplay amount={v} />
+    },
+    { title: 'Telefon', dataIndex: 'telefon', key: 'telefon', width: 130 },
     {
       title: 'Durum',
       dataIndex: 'aktif',

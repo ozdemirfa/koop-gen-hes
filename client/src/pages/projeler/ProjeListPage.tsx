@@ -1,11 +1,22 @@
 import React, { useState } from 'react'
-import { Button, Modal, Form, Input, Space, message, Tag, DatePicker, Card, Row, Col, Select, InputNumber, Spin, Empty } from 'antd'
-import { PlusOutlined, EditOutlined, ArrowRightOutlined, ProjectOutlined } from '@ant-design/icons'
+import { Button, Modal, Form, Input, Space, message, Tag, DatePicker, Card, Row, Col, Select, InputNumber, Spin, Empty, Divider, Typography } from 'antd'
+import { PlusOutlined, EditOutlined, ArrowRightOutlined, ProjectOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
+import { trNumberFormatter, trNumberParser } from '../../lib/format'
+
+const { Text } = Typography
+
+interface Blok {
+  id?: string
+  blok_adi: string
+  toplam_daire: number
+  daire_baslangic_no?: number
+  aciklama?: string
+}
 
 interface Proje {
   id: string
@@ -15,9 +26,7 @@ interface Proje {
   bitis_tarihi?: string
   toplam_butce?: number
   durum: 'planli' | 'devam_ediyor' | 'tamamlandi' | 'iptal'
-  blok_sayisi?: number
-  daire_sayisi_per_blok?: number
-  daire_kodlama_sistemi?: string
+  bloklar?: Blok[]
 }
 
 const durumRenkleri: Record<string, string> = {
@@ -68,8 +77,34 @@ export const ProjeListPage: React.FC = () => {
       form.resetFields()
       setEditingProje(null)
     },
-    onError: (err: any) => message.error(err.message || 'Hata oluştu'),
+    onError: (err: any) => {
+      if (err.details && Array.isArray(err.details)) {
+        form.setFields(err.details.map((detail: any) => ({
+          name: detail.field.includes('.') ? detail.field.split('.') : detail.field,
+          errors: [detail.message]
+        })))
+      } else {
+        message.error(err.error || err.message || 'Hata oluştu')
+      }
+    },
   })
+
+  const openEditModal = async (proje: Proje) => {
+    // Proje detayını bloklarla birlikte çek
+    try {
+      const { data } = await api.get(`/projeler/${proje.id}`)
+      const fullProje = data.data as Proje
+      setEditingProje(fullProje)
+      form.setFieldsValue({
+        ...fullProje,
+        baslangic_tarihi: fullProje.baslangic_tarihi ? dayjs(fullProje.baslangic_tarihi) : null,
+        bitis_tarihi: fullProje.bitis_tarihi ? dayjs(fullProje.bitis_tarihi) : null,
+      })
+      setModalOpen(true)
+    } catch (err) {
+      message.error('Proje detayları yüklenemedi')
+    }
+  }
 
   return (
     <div>
@@ -82,6 +117,7 @@ export const ProjeListPage: React.FC = () => {
             onClick={() => {
               setEditingProje(null)
               form.resetFields()
+              form.setFieldsValue({ bloklar: [{ blok_adi: '', toplam_daire: 0, daire_baslangic_no: 1 }] })
               setModalOpen(true)
             }}
           >
@@ -105,13 +141,7 @@ export const ProjeListPage: React.FC = () => {
                     key="edit"
                     onClick={(e) => {
                       e.stopPropagation()
-                      setEditingProje(p)
-                      form.setFieldsValue({
-                        ...p,
-                        baslangic_tarihi: p.baslangic_tarihi ? dayjs(p.baslangic_tarihi) : null,
-                        bitis_tarihi: p.bitis_tarihi ? dayjs(p.bitis_tarihi) : null,
-                      })
-                      setModalOpen(true)
+                      openEditModal(p)
                     }}
                   />,
                   <ArrowRightOutlined key="view" onClick={() => navigate(`/projeler/${p.id}`)} />,
@@ -144,34 +174,16 @@ export const ProjeListPage: React.FC = () => {
         }}
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
-        width={600}
+        width={800}
       >
-        <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)} initialValues={{ durum: 'planli', blok_sayisi: 0, daire_sayisi_per_blok: 0 }}>
-          <Form.Item name="proje_adi" label="Proje Adı" rules={[{ required: true }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="aciklama" label="Açıklama">
-            <Input.TextArea rows={2} />
-          </Form.Item>
+        <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)} initialValues={{ durum: 'planli' }}>
           <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="baslangic_tarihi" label="Başlangıç Tarihi">
-                <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+            <Col span={16}>
+              <Form.Item name="proje_adi" label="Proje Adı" rules={[{ required: true }]}>
+                <Input />
               </Form.Item>
             </Col>
-            <Col span={12}>
-              <Form.Item name="bitis_tarihi" label="Bitiş Tarihi">
-                <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="toplam_butce" label="Toplam Bütçe">
-                <InputNumber style={{ width: '100%' }} min={0} formatter={(v) => `₺ ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
+            <Col span={8}>
               <Form.Item name="durum" label="Durum" rules={[{ required: true }]}>
                 <Select>
                   <Select.Option value="planli">Planlı</Select.Option>
@@ -182,25 +194,96 @@ export const ProjeListPage: React.FC = () => {
               </Form.Item>
             </Col>
           </Row>
+          
+          <Form.Item name="aciklama" label="Açıklama">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          
           <Row gutter={16}>
             <Col span={8}>
-              <Form.Item name="blok_sayisi" label="Blok Sayısı">
-                <InputNumber style={{ width: '100%' }} min={0} />
+              <Form.Item name="baslangic_tarihi" label="Başlangıç Tarihi">
+                <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="daire_sayisi_per_blok" label="Bloktaki Daire">
-                <InputNumber style={{ width: '100%' }} min={0} />
+              <Form.Item name="bitis_tarihi" label="Bitiş Tarihi">
+                <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="daire_kodlama_sistemi" label="Kodlama (örn: 1-20)">
-                <Input />
+              <Form.Item name="toplam_butce" label="Toplam Bütçe">
+                <InputNumber 
+                  style={{ width: '100%' }} 
+                  min={0} 
+                  formatter={trNumberFormatter}
+                  parser={trNumberParser}
+                />
               </Form.Item>
             </Col>
           </Row>
+
+          <Divider orientation="left">Bloklar</Divider>
+          
+          <Form.List name="bloklar">
+            {(fields, { add, remove }) => (
+              <>
+                {fields.map(({ key, name, ...restField }) => (
+                  <Card size="small" key={key} style={{ marginBottom: 16 }} extra={
+                    fields.length > 1 && <Button type="text" danger icon={<DeleteOutlined />} onClick={() => remove(name)} />
+                  }>
+                    <Row gutter={12}>
+                      <Col span={5}>
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'blok_adi']}
+                          label="Blok Adı"
+                          rules={[{ required: true, message: 'Zorunlu' }]}
+                        >
+                          <Input placeholder="Örn: A Blok" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={4}>
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'toplam_daire']}
+                          label="Daire"
+                          rules={[{ required: true, message: 'Zorunlu' }]}
+                        >
+                          <InputNumber min={1} style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                      <Col span={4}>
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'daire_baslangic_no']}
+                          label="Baş. No"
+                        >
+                          <InputNumber min={0} style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                      <Col span={11}>
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'aciklama']}
+                          label="Blok Açıklaması"
+                        >
+                          <Input />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                  </Card>
+                ))}
+                <Form.Item>
+                  <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+                    Yeni Blok Ekle
+                  </Button>
+                </Form.Item>
+              </>
+            )}
+          </Form.List>
         </Form>
       </Modal>
     </div>
   )
 }
+

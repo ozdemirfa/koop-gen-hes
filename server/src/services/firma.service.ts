@@ -20,7 +20,34 @@ export const firmaService = {
       .range(from, to)
 
     if (error) throw error
-    return { data, pagination: paginationMeta(pagination, count || 0) }
+
+    // Bakiyeleri ve teminatları ekle
+    const updatedData = await Promise.all((data || []).map(async (firma) => {
+      // Bakiye
+      const { data: hareketler } = await supabaseAdmin
+        .from('cari_hareketler')
+        .select('tutar, hareket_tipi')
+        .eq('firma_id', firma.id)
+      
+      let bakiye = 0
+      hareketler?.forEach(h => {
+        if (h.hareket_tipi === 'borc') bakiye += Number(h.tutar)
+        else bakiye -= Number(h.tutar)
+      })
+
+      // Teminat
+      const { data: hakedisler } = await supabaseAdmin
+        .from('hakedisler')
+        .select('teminat_kesintisi')
+        .eq('firma_id', firma.id)
+        .eq('durum', 'onaylandi')
+      
+      const toplamTeminat = hakedisler?.reduce((sum, h) => sum + Number(h.teminat_kesintisi || 0), 0) || 0
+
+      return { ...firma, guncel_bakiye: bakiye, toplam_teminat: toplamTeminat }
+    }))
+
+    return { data: updatedData, pagination: paginationMeta(pagination, count || 0) }
   },
 
   async getById(id: string) {

@@ -1,17 +1,22 @@
 import { z } from 'zod'
 
-export const malzemeTeslimSchema = z.object({
-  firma_id: z.string().uuid().optional().nullable(),
-  sozlesme_id: z.string().uuid().optional().nullable(),
-  teslim_tarihi: z.string().optional(),
+export const irsaliyeKalemiSchema = z.object({
+  id: z.string().uuid().optional(),
   malzeme_adi: z.string().min(1, 'Malzeme adı zorunlu'),
-  malzeme_tipi: z.string().optional().nullable(),
   birim: z.string().min(1, 'Birim zorunlu'),
   miktar: z.number().positive('Miktar pozitif olmalı'),
-  birim_fiyat: z.number().min(0),
-  teslim_alan: z.string().optional().nullable(),
-  irsaliye_no: z.string().optional().nullable(),
-  notlar: z.string().optional().nullable()
+  birim_fiyat: z.number().min(0).optional().default(0)
 })
 
-export const updateMalzemeTeslimSchema = malzemeTeslimSchema.partial()
+export const irsaliyeSchema = z.object({
+  firma_id: z.string().uuid('Firma seçimi zorunlu'),
+  sozlesme_id: z.string().uuid().optional().nullable(),
+  proje_id: z.string().uuid().optional().nullable(),
+  teslim_tarihi: z.string().optional(),
+  irsaliye_no: z.string().optional().nullable(),
+  teslim_alan: z.string().optional().nullable(),
+  notlar: z.string().optional().nullable(),
+  kalemler: z.array(irsaliyeKalemiSchema).min(1, 'En az bir kalem eklenmelidir')
+})
+
+export const updateIrsaliyeSchema = irsaliyeSchema.partial()

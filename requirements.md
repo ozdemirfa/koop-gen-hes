@@ -12,6 +12,7 @@ Konut Yapı Kooperatifi - Genel Hesap Yönetim Sistemi
 | Rol | Tek rol - Yönetim Kurulu (tam yetki) |
 | Dil | Sadece Türkçe |
 | Para birimi | TL |
+| Sayı Formatı | Türkiye Standartları (Binlik ayıracı ".", Ondalık ayıracı ",", örn: 1.234,56) |
 | Frontend | React + Vite + Ant Design |
 | Backend | Node.js + Express |
 | Veritabanı | Supabase (PostgreSQL) |
@@ -22,159 +23,125 @@ Konut Yapı Kooperatifi - Genel Hesap Yönetim Sistemi
 ## Modül 1: Üye Yönetimi
 
 ### Açıklama
-Kooperatif üyelerinin kaydı, bilgi güncelleme ve daire/blok ataması.
+Kooperatif üyelerinin kaydı, mali geçmiş takibi ve daire/blok ataması.
 
 ### Gereksinimler
-- Üye kaydı: TC kimlik no, ad, soyad, cinsiyet, telefon, email, adres
-- Blok tanımlama (blok adı, toplam daire sayısı)
-- Üyeye blok ve daire no ataması (bir dairede tek aktif üye)
-- Üyelik durumu yönetimi: aktif, pasif, ihraç, istifa
-- Üye detay sayfasında aidat geçmişi görüntüleme
-- Üye listesinde blok, durum ve isim bazlı filtreleme/arama
+- **Üye Kaydı:** TC kimlik no, ad, soyad, cinsiyet, telefon, email, adres, şerefiye oranı (3 ondalık basamaklı).
+- **Üye Durumu:** aktif, pasif, ihraç, istifa. Üye "Aktif" dışına çekildiğinde bağlı olduğu daire otomatik boşa çıkar.
+- **Daire Ataması:** Projedeki blok ve daire seçeneklerinden seçim yapılır. Bir dairede tek aktif üye bulunabilir.
+- **Üye Detay Sayfası (Sekmeli):**
+  - **Aidat Hesabı:** Ödenen, geciken ve gelecek aidatların özeti ve listesi.
+  - **Ödemeler:** Üyenin yaptığı tüm ödemelerin listesi (tarih, tutar, yöntem, makbuz no).
+  - **Bilgiler:** Üye profil ve iletişim bilgileri.
+- **Aidat Kapama (FIFO):** Toplu ödeme girişinde tutar en eski borçtan başlayarak otomatik olarak aidatları kapatır (kısmi ödeme desteği ile).
+- **Filtreleme:** Blok, durum ve isim bazlı gelişmiş arama.
 
 ---
 
 ## Modül 2: Aidat Yönetimi
 
 ### Açıklama
-Aylık üye aidatlarının tanımlanması, takibi, tahsilatı ve gecikme faizi hesaplaması.
+Aylık aidat tanımlama, otomatik borçlandırma ve tahsilat takibi.
 
 ### Gereksinimler
-- Aylık aidat tanımı oluşturma: yıl, ay, tutar, son ödeme günü, gecikme faiz oranı (%)
-- Aidat tanımı oluşturulduğunda tüm aktif üyelere otomatik aidat kaydı oluşturma
-- Ödeme kaydı: tutar, tarih, ödeme yöntemi (nakit, havale, EFT, kredi kartı, diğer), makbuz no
-- Kısmi ödeme desteği
-- Gecikme faizi otomatik hesaplama (aylık oran x geciken ay sayısı)
-- Aidat durumu: bekliyor, ödendi, gecikti, iptal
-- Özet görünüm: toplam tahsilat, bekleyen, geciken tutarlar
-- Üye bazında borç/alacak takibi
+- **Aylık Aidat Tanımı:** Yıl, ay, tutar, son ödeme günü, gecikme faiz oranı (%) tanımlama.
+- **Otomatik Borçlandırma:** Tanım oluşturulduğunda tüm aktif üyelere otomatik aidat kaydı oluşturulur.
+- **Ödeme Kaydı:** Tutar, tarih, ödeme yöntemi (nakit, havale, EFT, kredi kartı, çek vb.), makbuz no.
+- **Entegrasyon:** Aidat ödemesi girildiğinde hem üye mali geçmişine hem de gelir tablosuna (kaynak: aidat) otomatik yansır.
+- **Gecikme Faizi:** Aylık oran üzerinden gün bazlı veya ay bazlı otomatik hesaplama.
 
 ---
 
 ## Modül 3: Gelir/Gider Takibi
 
 ### Açıklama
-Kooperatifin tüm gelir ve giderlerinin kategorili olarak kaydedilmesi ve raporlanması.
+Kooperatifin tüm nakit akışının kategorili ve kaynak bazlı takibi.
 
 ### Gereksinimler
-- Hiyerarşik gelir/gider kategorileri (ana kategori → alt kategori)
-- Gelir/gider kaydı: tip (gelir/gider), kategori, tutar, tarih, açıklama, belge no, ilgili firma
-- Tarih aralığı, tip ve kategori bazlı filtreleme
-- Kategori yönetim sayfası (ekleme, düzenleme)
+- **Hiyerarşik Kategoriler:** Gelir ve giderler için ana ve alt kategori yapısı.
+- **Gelir Kaydı:** `uye_id` bağlantısı ile üye bazlı gelir takibi. Aidat ödemeleri otomatik gelir olarak kaydedilir (`kaynak_tipi='aidat'`).
+- **Gider Kaydı:** `firma_id` bağlantısı ile firma bazlı gider takibi.
+- **İzlenebilirlik:** Her kayıt için `kaynak_tipi` (manuel, aidat, fatura, hakediş) ve `kaynak_id` bilgisi tutulur.
+- **Görünüm:** Tarih aralığı, tip, kategori ve proje bazlı filtreleme.
 
 ---
 
-## Modül 4: Yüklenici/Tedarikçi Hakediş
+## Modül 4: Yüklenici / Tedarikçi Yönetimi
 
 ### Açıklama
-Yüklenici ve tedarikçi firmalarla yapılan sözleşmelerin yönetimi ve detaylı hakediş takibi.
+Firma sözleşmeleri, hakedişler ve hiyerarşik iş kalemlerinin yönetimi.
 
 ### Gereksinimler
-
-#### Firma Yönetimi
-- Firma kaydı: tip (yüklenici/tedarikçi), ünvan, vergi no, vergi dairesi, telefon, email, adres, IBAN, yetkili kişi
-- Firma aktif/pasif durumu
-
-#### Sözleşme Yönetimi
-- Sözleşme kaydı: firma, sözleşme no, konu, toplam tutar, başlangıç/bitiş tarihi
-- Teminat oranı (%) ve stopaj oranı (%) tanımlama
-- İş kalemleri: poz no, tanım, birim (m2, m3, kg, adet vb.), miktar, birim fiyat
-
-#### Detaylı Hakediş
-- Hakediş oluşturma: sözleşme seçimi, dönem, hakediş no (otomatik artan)
-- İş kalemi bazında ilerleme girişi (bu ay miktarı)
-- Kümülatif takip: önceki toplam miktar otomatik önceki hakediş'ten alınır
-- Hesaplamalar:
-  - Bu ay tutar = bu ay miktar × birim fiyat
-  - Toplam tutar = (önceki + bu ay) × birim fiyat
-  - Teminat kesintisi = toplam × teminat oranı
-  - Stopaj kesintisi = toplam × stopaj oranı
-  - Net tutar = toplam - teminat - stopaj - diğer kesintiler
-- Hakediş durumu: taslak → onaylandı → ödendi / iptal
-- Hakediş onaylandığında otomatik cari hareket oluşturma
-- Hakediş PDF çıktısı
+- **Firma Kartı:** Ünvan, vergi no, iletişim bilgileri, IBAN ve cari bakiye/birikmiş teminat özeti.
+- **Sözleşme Yönetimi:**
+  - Sözleşme no, konu, tutar, teminat/stopaj oranları.
+  - **İş Kalemleri:** Poz no (arama destekli), tanım, birim (m2, m3, adet vb.), miktar, birim fiyat. 10'arlı artan otomatik sıra no.
+  - Silme kısıtı: Altında iş kalemi veya hakediş olan sözleşmeler silinemez.
+- **Detaylı Hakediş:**
+  - Dönemlik ilerleme girişi (bu ay miktarı), kümülatif takip.
+  - **Hesaplamalar:** Brüt tutar, teminat kesintisi (otomatik), stopaj, net tutar.
+  - Onaylandığında otomatik cari hareket (alacak) oluşturur.
+- **Mali Özet:** Firma bazında hakediş toplamı, birikmiş teminatlar, cari ödemeler, kesilen faturalar ve "fatura açığı" (hakediş - fatura) takibi.
 
 ---
 
-## Modül 5: Cari Hesap & Fatura
+## Modül 5: Cari Hesap, Fatura & Çek
 
 ### Açıklama
-Firma bazında borç-alacak takibi, fatura yönetimi, ödeme planları ve banka mutabakatı.
+Firma bazlı borç-alacak takibi, fatura yönetimi ve değerli evrak takibi.
 
 ### Gereksinimler
-
-#### Fatura Yönetimi
-- Fatura kaydı: firma, tip (gelen/giden), fatura no, tarih, vade tarihi
-- Tutar hesaplama: ara toplam, KDV oranı, KDV tutar, toplam tutar
-- Fatura durumu: bekliyor, ödendi, kısmi ödendi, iptal
-- Hakediş ile fatura ilişkilendirme (opsiyonel)
-- Fatura kaydında otomatik cari hareket oluşturma
-
-#### Ödeme Planı
-- Faturaya taksit planı oluşturma: taksit no, tutar, vade tarihi
-- Taksit ödeme kaydı ve takibi
-
-#### Cari Hesap
-- Firma bazında cari hesap ekstresi (borç-alacak-bakiye listesi)
-- Manuel cari hareket girişi
-- Çalışan bakiye hesaplama
-
-#### Banka Hesapları & Mutabakat
-- Banka hesabı tanımlama: banka adı, şube, hesap no, IBAN
-- Banka hareketi kaydı: tarih, tutar, işlem tipi (gelir/gider), açıklama
-- Banka hareketi ↔ cari hareket eşleştirme (mutabakat)
+- **Fatura Yönetimi:**
+  - **Çoklu Satır Desteği:** Tek faturada birden fazla kalem (ürün/hizmet) girişi.
+  - Ara toplam, KDV ve genel toplam otomatik hesaplama.
+  - **Cari Mantığı:** Faturalar cari ekstreyi doğrudan etkilemez (çift sayımı önlemek için). Cari ekstre hakedişler ve ödemeler üzerinden yürür.
+- **İrsaliye Girişi:** Çoklu satır desteği. İrsaliye kaydı cari hesaba borç olarak yansır.
+- **Ödeme Planı:** Fatura bazlı taksitlendirme, vade takibi ve ödeme durumu.
+- **Çek Takibi:** Kesilen ve alınan çeklerin vade, tutar ve durum takibi. Kesilen çekler otomatik cari harekete işlenir.
+- **Cari Ekstre:** Borç, alacak ve bakiye listesi. Birikmiş teminat bilgisi üstte özetlenir. Filtrelenmiş verinin CSV olarak indirilmesi.
 
 ---
 
-## Modül 6: Malzeme/Ürün Teslim Takibi
+## Modül 6: Banka Hesapları & Uzlaştırma
 
 ### Açıklama
-Kooperatife teslim edilen her türlü malzeme ve ürünün kayıt altına alınması.
+Banka hareketlerinin takibi ve muhasebe kayıtları ile mutabakatı.
 
 ### Gereksinimler
-- Teslim kaydı: firma, sözleşme (opsiyonel), teslim tarihi
-- Malzeme bilgileri: malzeme adı, tipi, birim, miktar, birim fiyat
-- Toplam tutar otomatik hesaplama (miktar × birim fiyat)
-- İrsaliye no, teslim alan kişi bilgisi
-- Firma ve sözleşme bazlı filtreleme
+- **Banka Hesapları:** Banka, şube, IBAN ve güncel bakiye takibi.
+- **Banka Uzlaştırma (Mutabakat):**
+  - Manuel girilen banka hareketlerini cari hareketlerle (ödemeler) eşleştirme.
+  - Tutar ve tarih (±3 gün) toleransı ile otomatik eşleştirme önerileri.
+  - Eşleşmemiş kalemlerin "mutabakatsız" olarak vurgulanması.
 
 ---
 
-## Modül 7: Proje Yönetimi
+## Modül 7: Proje ve Şerefiye Yönetimi
 
 ### Açıklama
-Kooperatif projelerinin iş kalemleri bazında planlanması ve yıllık harcama planlarının oluşturulması.
+Çoklu proje desteği (Workspace) ve teknik detayların (blok/daire/şerefiye) yönetimi.
 
 ### Gereksinimler
-- Proje tanımlama: proje adı, açıklama, başlangıç/bitiş tarihi, toplam bütçe
--Proje blok sayısı, her bloktaki daire sayısı, daire kodlama sistemi (kaçtan başlayacak kaça kadar) // bu bilgiler üyelere daire ataması yapılırken referans alınacak
-- Hiyerarşik iş kalemleri (ana kalem → alt kalemler, ağaç yapısı)
-  - Her kalem: kalem kodu, tanım, birim, miktar, birim fiyat, bütçe tutarı
-  - Kalem durumu: planlı, devam ediyor, tamamlandı, iptal
-- Yıllık harcama planı oluşturma:
-  - Proje ve yıl seçimi
-  - 12 aylık grid görünümünde iş kalemi bazında planlanan tutar girişi
-  - Gerçekleşen tutar takibi
-  - Planlanan vs gerçekleşen karşılaştırma
+- **Proje Tanımlama:** Proje adı, süre, bütçe ve `proje_id` bazlı veri izolasyonu.
+- **Dinamik Blok Yapısı:** Her proje için sınırsız blok tanımlama. Her blok için:
+  - Blok kodu (A, B, 1...), daire sayısı, başlangıç no.
+  - Daire no formatı: `{BlokKodu}-{SıraNo}` (örn: A-101).
+- **Şerefiye Yönetimi:**
+  - Proje bazlı tüm dairelerin listesi.
+  - Her daire için şerefiye oranı girişi (3 ondalık basamak).
+  - Üye kaydında bu tablodan veri çekilmesi.
+- **İş Kalemleri Ağacı:** Hiyerarşik proje iş kalemleri, bütçe planlama ve gerçekleşen takibi.
 
 ---
 
 ## Modül 8: Raporlama & Dashboard
 
 ### Açıklama
-Kooperatifin mali durumunu özetleyen gösterge paneli ve detaylı raporlar.
+Mali durumun görselleştirilmesi ve PDF/CSV çıktıları.
 
 ### Gereksinimler
-
-#### Dashboard
-- Özet kartlar: toplam üye sayısı, toplanan aidat, bekleyen aidat, toplam gider
-- Aylık gelir/gider grafiği (çizgi veya çubuk grafik)
-- Aidat tahsilat durumu grafiği (pasta grafik)
-- Son işlemler tablosu
-
-#### Raporlar
-- Aylık mali rapor (yıl + ay seçimi)
-- Yıllık mali rapor (yıl seçimi)
-- Üye borç listesi (tüm üyelerin borç durumu)
-- Hakediş özet raporu
-- Tüm raporlarda PDF çıktı desteği
+- **Dashboard:** Toplam üye/aidat/gider özetleri, aylık grafikler, son işlemler.
+- **Mali Raporlar:** Aylık/Yıllık gelir-gider tabloları, mizan.
+- **Üye Borç Listesi:** Tüm üyelerin güncel borç ve gecikme durumu raporu.
+- **Hakediş ve Cari Raporlar:** Firma bazlı özetler ve PDF dökümleri.
+- **Validasyon:** Form girişlerinde alan bazlı inline hata gösterimi (kırmızı uyarı mesajları).

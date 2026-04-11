@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import api from '../lib/api'
 import dayjs from 'dayjs'
+import { MoneyDisplay } from '../components/common/MoneyDisplay'
+import { trNumberFormatter, trNumberParser } from '../lib/format'
 
 const { Title } = Typography
 
@@ -21,8 +23,11 @@ interface GelirGider {
   tarih: string
   aciklama?: string
   belge_no?: string
-  ilgili_firma?: string
+  uye_id?: string
+  firma_id?: string
   gelir_gider_kategorileri?: { ad: string; tip: string }
+  uyeler?: { ad: string; soyad: string; uye_no: string }
+  firmalar?: { unvan: string }
 }
 
 export const GelirGider: React.FC = () => {
@@ -40,6 +45,24 @@ export const GelirGider: React.FC = () => {
     queryFn: async () => {
       const { data } = await api.get('/gelir-gider/kategoriler')
       return data.data as Kategori[]
+    },
+  })
+
+  // Üyeler (Gelir için)
+  const { data: uyeler } = useQuery({
+    queryKey: ['uyeler-select'],
+    queryFn: async () => {
+      const { data } = await api.get('/uyeler', { params: { limit: 1000 } })
+      return data.data as any[]
+    },
+  })
+
+  // Firmalar (Gider için)
+  const { data: firmalar } = useQuery({
+    queryKey: ['firmalar-select'],
+    queryFn: async () => {
+      const { data } = await api.get('/firmalar', { params: { limit: 1000 } })
+      return data.data as any[]
     },
   })
 
@@ -118,6 +141,13 @@ export const GelirGider: React.FC = () => {
 
   const columns = [
     {
+      title: 'Tarih',
+      dataIndex: 'tarih',
+      key: 'tarih',
+      width: 110,
+      render: (d: string) => dayjs(d).format('DD.MM.YYYY')
+    },
+    {
       title: 'Tip',
       dataIndex: 'tip',
       key: 'tip',
@@ -130,17 +160,21 @@ export const GelirGider: React.FC = () => {
       render: (_: unknown, r: GelirGider) => r.gelir_gider_kategorileri?.ad || '-',
     },
     {
+      title: 'İlgili Kişi / Firma',
+      key: 'related',
+      render: (_: unknown, r: GelirGider) => {
+        if (r.uyeler) return `${r.uyeler.ad} ${r.uyeler.soyad} (${r.uyeler.uye_no})`
+        if (r.firmalar) return r.firmalar.unvan
+        return '-'
+      }
+    },
+    {
       title: 'Tutar',
       dataIndex: 'tutar',
       key: 'tutar',
-      render: (v: number, r: GelirGider) => (
-        <span style={{ color: r.tip === 'gelir' ? '#3f8600' : '#cf1322', fontWeight: 'bold' }}>
-          {v.toLocaleString('tr-TR')} TL
-        </span>
-      ),
+      align: 'right' as const,
+      render: (v: number, r: GelirGider) => <MoneyDisplay amount={v} colored={true} />
     },
-    { title: 'Tarih', dataIndex: 'tarih', key: 'tarih' },
-    { title: 'Belge No', dataIndex: 'belge_no', key: 'belge_no' },
     { title: 'Açıklama', dataIndex: 'aciklama', key: 'aciklama', ellipsis: true },
     {
       title: 'İşlem',
@@ -194,42 +228,91 @@ export const GelirGider: React.FC = () => {
         onCancel={closeModal}
         onOk={() => form.submit()}
         confirmLoading={createMutation.isPending || updateMutation.isPending}
-        width={600}
+        width={640}
       >
-        <Form form={form} layout="vertical" onFinish={handleSubmit}>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item name="tip" label="Tip" rules={[{ required: true }]} style={{ flex: 1 }}>
-              <Select>
-                <Select.Option value="gelir">Gelir</Select.Option>
-                <Select.Option value="gider">Gider</Select.Option>
-              </Select>
-            </Form.Item>
-            <Form.Item name="kategori_id" label="Kategori" rules={[{ required: true }]} style={{ flex: 2 }}>
-              <Select placeholder="Kategori seçin" showSearch optionFilterProp="children">
-                {filteredKategoriler?.map(k => (
-                  <Select.Option key={k.id} value={k.id}>{k.ad}</Select.Option>
-                ))}
-              </Select>
-            </Form.Item>
-          </div>
+        <Form form={form} layout="vertical" onFinish={handleSubmit} initialValues={{ tip: 'gelir', tarih: dayjs() }}>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="tip" label="Tip" rules={[{ required: true }]}>
+                <Select onChange={() => {
+                  form.setFieldValue('kategori_id', undefined)
+                  form.setFieldValue('uye_id', undefined)
+                  form.setFieldValue('firma_id', undefined)
+                }}>
+                  <Select.Option value="gelir">Gelir</Select.Option>
+                  <Select.Option value="gider">Gider</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={16}>
+              <Form.Item name="kategori_id" label="Kategori" rules={[{ required: true }]}>
+                <Select placeholder="Kategori seçin" showSearch optionFilterProp="children">
+                  {filteredKategoriler?.map(k => (
+                    <Select.Option key={k.id} value={k.id}>{k.ad}</Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
 
-          <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item name="tutar" label="Tutar (TL)" rules={[{ required: true }]} style={{ flex: 1 }}>
-              <InputNumber min={0} step={100} style={{ width: '100%' }} />
-            </Form.Item>
-            <Form.Item name="tarih" label="Tarih" rules={[{ required: true }]} initialValue={dayjs()} style={{ flex: 1 }}>
-              <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
-            </Form.Item>
-          </div>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="tutar" label="Tutar (TL)" rules={[{ required: true }]}>
+                <InputNumber 
+                  min={0} 
+                  style={{ width: '100%' }} 
+                  formatter={trNumberFormatter}
+                  parser={trNumberParser}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="tarih" label="Tarih" rules={[{ required: true }]}>
+                <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+              </Form.Item>
+            </Col>
+          </Row>
 
-          <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item name="belge_no" label="Belge No" style={{ flex: 1 }}>
-              <Input />
-            </Form.Item>
-            <Form.Item name="ilgili_firma" label="İlgili Firma" style={{ flex: 1 }}>
-              <Input />
-            </Form.Item>
-          </div>
+          <Row gutter={16}>
+            {selectedTip === 'gelir' ? (
+              <Col span={24}>
+                <Form.Item name="uye_id" label="İlgili Üye">
+                  <Select 
+                    placeholder="Üye seçin" 
+                    showSearch 
+                    optionFilterProp="children" 
+                    allowClear
+                    filterOption={(input, option) =>
+                      (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                    }
+                    options={uyeler?.map(u => ({
+                      value: u.id,
+                      label: `${u.ad} ${u.soyad} (${u.uye_no})`
+                    }))}
+                  />
+                </Form.Item>
+              </Col>
+            ) : (
+              <Col span={24}>
+                <Form.Item name="firma_id" label="İlgili Firma">
+                  <Select 
+                    placeholder="Firma seçin" 
+                    showSearch 
+                    optionFilterProp="children" 
+                    allowClear
+                    options={firmalar?.map(f => ({
+                      value: f.id,
+                      label: f.unvan
+                    }))}
+                  />
+                </Form.Item>
+              </Col>
+            )}
+          </Row>
+
+          <Form.Item name="belge_no" label="Belge No">
+            <Input placeholder="Fatura, Makbuz no vb." />
+          </Form.Item>
 
           <Form.Item name="aciklama" label="Açıklama">
             <Input.TextArea rows={2} />
@@ -239,3 +322,4 @@ export const GelirGider: React.FC = () => {
     </div>
   )
 }
+

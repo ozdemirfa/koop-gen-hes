@@ -47,10 +47,26 @@ export const uyeService = {
       if (error.code === '23505') throw ApiError.conflict('Bu üye no veya TC kimlik zaten kayıtlı')
       throw error
     }
+
+    // Eğer bir daire atandıysa şerefiye tablosunu güncelle
+    if (data.serefiye_id && data.durum === 'aktif') {
+      await supabaseAdmin
+        .from('serefiye_tablosu')
+        .update({ durum: 'dolu' })
+        .eq('id', data.serefiye_id)
+    }
+
     return data
   },
 
   async update(id: string, body: Record<string, any>) {
+    // Mevcut üyeyi al (önceki serefiye_id'yi kontrol etmek için)
+    const { data: oldUye } = await supabaseAdmin
+      .from('uyeler')
+      .select('serefiye_id, durum')
+      .eq('id', id)
+      .single()
+
     const { data, error } = await supabaseAdmin
       .from('uyeler')
       .update(body)
@@ -63,6 +79,38 @@ export const uyeService = {
       throw error
     }
     if (!data) throw ApiError.notFound('Üye bulunamadı')
+
+    // Şerefiye durumu güncelleme mantığı
+    if (oldUye && oldUye.serefiye_id !== data.serefiye_id) {
+      // Eski daireyi boşalt
+      if (oldUye.serefiye_id) {
+        await supabaseAdmin
+          .from('serefiye_tablosu')
+          .update({ durum: 'bos' })
+          .eq('id', oldUye.serefiye_id)
+      }
+      // Yeni daireyi doldur
+      if (data.serefiye_id && data.durum === 'aktif') {
+        await supabaseAdmin
+          .from('serefiye_tablosu')
+          .update({ durum: 'dolu' })
+          .eq('id', data.serefiye_id)
+      }
+    } else if (oldUye && oldUye.serefiye_id && oldUye.durum !== data.durum) {
+      // Sadece durum değiştiyse (Trigger zaten hallediyor ama burada da garantiye alabiliriz)
+      if (data.durum === 'aktif') {
+        await supabaseAdmin
+          .from('serefiye_tablosu')
+          .update({ durum: 'dolu' })
+          .eq('id', data.serefiye_id)
+      } else {
+        await supabaseAdmin
+          .from('serefiye_tablosu')
+          .update({ durum: 'bos' })
+          .eq('id', data.serefiye_id)
+      }
+    }
+
     return data
   },
 

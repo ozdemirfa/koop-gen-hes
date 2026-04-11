@@ -24,7 +24,7 @@ export const BankaHesapListPage: React.FC = () => {
   const { data: hesaplar, isLoading } = useQuery({
     queryKey: ['banka-hesaplari'],
     queryFn: async () => {
-      const { data } = await api.get('/banka-hesaplari/hesaplar')
+      const { data } = await api.get('/banka/hesaplar')
       return data.data as BankaHesap[]
     },
   })
@@ -32,11 +32,9 @@ export const BankaHesapListPage: React.FC = () => {
   const saveMutation = useMutation({
     mutationFn: async (values: any) => {
       if (editingHesap) {
-        // Edit logic if available on server (need to check if update endpoint exists)
-        // For now, let's assume create works for new ones
-        return await api.post('/banka-hesaplari/hesaplar', values)
+        return await api.put(`/banka/hesaplar/${editingHesap.id}`, values)
       }
-      return await api.post('/banka-hesaplari/hesaplar', values)
+      return await api.post('/banka/hesaplar', values)
     },
     onSuccess: () => {
       message.success('Banka hesabı kaydedildi')
@@ -45,7 +43,16 @@ export const BankaHesapListPage: React.FC = () => {
       form.resetFields()
       setEditingHesap(null)
     },
-    onError: (err: any) => message.error(err.message || 'Hata oluştu'),
+    onError: (err: any) => {
+      if (err.details && Array.isArray(err.details)) {
+        form.setFields(err.details.map((detail: any) => ({
+          name: detail.field,
+          errors: [detail.message]
+        })))
+      } else {
+        message.error(err.error || err.message || 'Hata oluştu')
+      }
+    },
   })
 
   const columns = [

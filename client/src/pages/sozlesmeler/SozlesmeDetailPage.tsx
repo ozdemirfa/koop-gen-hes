@@ -8,6 +8,7 @@ import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { ConfirmDelete } from '../../components/common/ConfirmDelete'
+import { trNumberFormatter, trNumberParser } from '../../lib/format'
 
 interface IsKalemi {
   id: string
@@ -73,6 +74,19 @@ export const SozlesmeDetailPage: React.FC = () => {
     onError: (err: any) => message.error(err.message || 'Hata oluştu'),
   })
 
+  const deleteSozlesmeMutation = useMutation({
+    mutationFn: async () => {
+      await api.delete(`/sozlesmeler/${id}`)
+    },
+    onSuccess: () => {
+      message.success('Sözleşme silindi')
+      queryClient.invalidateQueries({ queryKey: ['sozlesmeler'] })
+      if (sozlesme) navigate(`/firmalar/${sozlesme.firma_id}`)
+      else navigate('/firmalar')
+    },
+    onError: (err: any) => message.error(err.error || err.message || 'Hata oluştu'),
+  })
+
   const closeKalemModal = () => {
     setIsKalemiModalOpen(false)
     setEditingKalem(null)
@@ -136,9 +150,17 @@ export const SozlesmeDetailPage: React.FC = () => {
         showBack
         backPath={sozlesme ? `/firmalar/${sozlesme.firma_id}` : '/firmalar'}
         extra={
-          <Button onClick={() => navigate(`/sozlesmeler/${id}/duzenle`)}>
-            Sözleşmeyi Düzenle
-          </Button>
+          <Space>
+            <Button onClick={() => navigate(`/sozlesmeler/${id}/duzenle`)}>
+              Sözleşmeyi Düzenle
+            </Button>
+            <ConfirmDelete
+              title="Sözleşme TAMAMEN silinecek. Emin misiniz?"
+              onConfirm={() => deleteSozlesmeMutation.mutate()}
+            >
+              <Button danger>Sözleşmeyi Sil</Button>
+            </ConfirmDelete>
+          </Space>
         }
       />
 
@@ -227,10 +249,22 @@ export const SozlesmeDetailPage: React.FC = () => {
               <Input placeholder="m2, m3, kg, adet..." />
             </Form.Item>
             <Form.Item name="miktar" label="Miktar" rules={[{ required: true, message: 'Miktar zorunlu' }]} style={{ flex: 1 }}>
-              <InputNumber min={0} step={0.001} style={{ width: '100%' }} />
+              <InputNumber 
+                min={0} 
+                step={0.001} 
+                style={{ width: '100%' }}
+                formatter={trNumberFormatter}
+                parser={trNumberParser}
+              />
             </Form.Item>
             <Form.Item name="birim_fiyat" label="Birim Fiyat (TL)" rules={[{ required: true, message: 'Fiyat zorunlu' }]} style={{ flex: 1 }}>
-              <InputNumber min={0} step={0.01} style={{ width: '100%' }} />
+              <InputNumber 
+                min={0} 
+                step={0.01} 
+                style={{ width: '100%' }}
+                formatter={trNumberFormatter}
+                parser={trNumberParser}
+              />
             </Form.Item>
           </div>
         </Form>

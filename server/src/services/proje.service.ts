@@ -15,7 +15,7 @@ export const projeService = {
   async getById(id: string) {
     const { data, error } = await supabaseAdmin
       .from('projeler')
-      .select('*, proje_is_kalemleri(*)')
+      .select('*, proje_is_kalemleri(*), bloklar(*)')
       .eq('id', id)
       .single()
 
@@ -30,27 +30,56 @@ export const projeService = {
   },
 
   async create(body: Record<string, any>) {
-    const { data, error } = await supabaseAdmin
+    const { bloklar, ...projeData } = body
+    
+    const { data: proje, error: projeError } = await supabaseAdmin
       .from('projeler')
-      .insert([body])
+      .insert([projeData])
       .select()
       .single()
 
-    if (error) throw error
-    return data
+    if (projeError) throw projeError
+
+    if (bloklar && bloklar.length > 0) {
+      const bloklarWithProjeId = bloklar.map((b: any) => ({ ...b, proje_id: proje.id }))
+      const { error: blokError } = await supabaseAdmin
+        .from('bloklar')
+        .insert(bloklarWithProjeId)
+      
+      if (blokError) throw blokError
+    }
+
+    return proje
   },
 
   async update(id: string, body: Record<string, any>) {
-    const { data, error } = await supabaseAdmin
+    const { bloklar, ...projeData } = body
+
+    const { data: proje, error: projeError } = await supabaseAdmin
       .from('projeler')
-      .update(body)
+      .update(projeData)
       .eq('id', id)
       .select()
       .single()
 
-    if (error) throw error
-    if (!data) throw ApiError.notFound('Proje bulunamadı')
-    return data
+    if (projeError) throw projeError
+    if (!proje) throw ApiError.notFound('Proje bulunamadı')
+
+    if (bloklar) {
+      // Basit yaklaşım: Mevcut blokları sil ve yenileri ekle 
+      // (Eğer üye atanmışsa silme hatası verecektir, bu durumda sadece yeni eklenenleri veya güncellenenleri işlemek gerekir)
+      // Şimdilik sadece yeni eklenenleri ve mevcutları güncellemeyi destekleyelim veya hata verirse kullanıcıyı uyaralım.
+      
+      for (const blok of bloklar) {
+        if (blok.id) {
+          await supabaseAdmin.from('bloklar').update(blok).eq('id', blok.id)
+        } else {
+          await supabaseAdmin.from('bloklar').insert([{ ...blok, proje_id: id }])
+        }
+      }
+    }
+
+    return proje
   },
 
   // İş kalemleri
@@ -150,6 +179,108 @@ export const projeService = {
 
     if (error) throw error
     if (!data) throw ApiError.notFound('Plan kalemi bulunamadı')
+    return data
+  },
+
+  async getAktifProje() {
+    // Durumu 'devam_ediyor' olan veya en son oluşturulan aktif projeyi getir
+    const { data, error } = await supabaseAdmin
+      .from('projeler')
+      .select('*, bloklar(*)')
+      .eq('aktif', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (error) throw error
+    return data
+  },
+
+  async getMusaitDaireler(blokId: string) {
+    // Blok bilgilerini al
+    const { data: blok, error: blokError } = await supabaseAdmin
+      .from('bloklar')
+      .select('*')
+      .eq('id', blokId)
+      .single()
+
+    if (blokError) throw blokError
+
+    // Bu bloktaki boş daireleri şerefiye tablosundan al
+    const { data: daireler, error: daireError } = await supabaseAdmin
+      .from('serefiye_tablosu')
+      .select('id, daire_no')
+      .eq('blok_id', blokId)
+      .eq('durum', 'bos')
+
+    if (daireError) throw daireError
+    return daireler
+  },
+
+  // Şerefiye Yönetimi
+  async getSerefiye(projeId: string) {
+    const { data, error } = await supabaseAdmin
+      .from('serefiye_tablosu')
+      .select('*, bloklar(blok_adi)')
+      .eq('proje_id', projeId)
+      .order('daire_no')
+
+    if (error) throw error
+    return data
+  },
+
+  async generateSerefiye(projeId: string) {
+    // Tekrar üretime karşı koruma — mevcut kayıt varsa conflict dön
+    const { count: existingCount, error: countError } = await supabaseAdmin
+      .from('serefiye_tablosu')
+      .select('id', { count: 'exact', head: true })
+      .eq('proje_id', projeId)
+
+    if (countError) throw countError
+    if ((existingCount || 0) > 0) {
+      throw ApiError.badRequest('Bu proje için şerefiye tablosu zaten oluşturulmuş. Önce mevcut kayıtları temizleyin.')
+    }
+
+    // Proje bloklarını al
+    const { data: bloklar, error: blokError } = await supabaseAdmin
+      .from('bloklar')
+      .select('*')
+      .eq('proje_id', projeId)
+
+    if (blokError) throw blokError
+
+    const rows: any[] = []
+    for (const blok of bloklar) {
+      for (let i = 0; i < blok.toplam_daire; i++) {
+        const daireSiraNo = (blok.daire_baslangic_no || 1) + i
+        rows.push({
+          proje_id: projeId,
+          blok_id: blok.id,
+          daire_sira_no: daireSiraNo,
+          daire_no: `${blok.blok_adi}.${daireSiraNo}`,
+          serefiye_orani: 1.000,
+          durum: 'bos'
+        })
+      }
+    }
+
+    if (rows.length > 0) {
+      const { error } = await supabaseAdmin.from('serefiye_tablosu').insert(rows)
+      if (error) throw error
+    }
+
+    return { generated: rows.length }
+  },
+
+  async updateSerefiye(id: string, body: Record<string, any>) {
+    const { data, error } = await supabaseAdmin
+      .from('serefiye_tablosu')
+      .update(body)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
     return data
   }
 }

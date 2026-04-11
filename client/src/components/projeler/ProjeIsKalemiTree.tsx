@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Tree, Button, Modal, Form, Input, InputNumber, Select, Space, message, Popconfirm, Card, Typography } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined, NodeIndexOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, DeleteOutlined, NodeIndexOutlined, SearchOutlined } from '@ant-design/icons'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
 
@@ -25,6 +25,8 @@ interface Props {
   projeId: string
   data: ProjeIsKalemi[]
 }
+
+const BIRIMLER = ['m2', 'm3', 'mt', 'adet', 'ton', 'kg', 'litre', 'set', 'gun', 'saat', 'ls']
 
 export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
   const queryClient = useQueryClient()
@@ -65,6 +67,28 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
     onError: (err: any) => message.error(err.message || 'Hata oluştu')
   })
 
+  // Sonraki sıra numarasını bul
+  const getNextSiraNo = (items: ProjeIsKalemi[], parentId?: string) => {
+    let siblings: ProjeIsKalemi[] = []
+    if (!parentId) {
+      siblings = items
+    } else {
+      const findParent = (list: ProjeIsKalemi[]): ProjeIsKalemi | undefined => {
+        for (const item of list) {
+          if (item.id === parentId) return item
+          if (item.children) {
+            const found = findParent(item.children)
+            if (found) return found
+          }
+        }
+      }
+      const p = findParent(items)
+      siblings = p?.children || []
+    }
+    const maxSira = siblings.reduce((max, curr) => Math.max(max, curr.sira_no || 0), 0)
+    return maxSira + 10 // 10'arlı artış esneklik sağlar
+  }
+
   const renderTitle = (node: ProjeIsKalemi) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', minWidth: 400 }}>
       <Space>
@@ -82,6 +106,7 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
             setParentKalem(node)
             setEditingKalem(null)
             form.resetFields()
+            form.setFieldsValue({ sira_no: getNextSiraNo(data, node.id) })
             setModalOpen(true)
           }} 
         />
@@ -134,6 +159,7 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
           setParentKalem(null)
           setEditingKalem(null)
           form.resetFields()
+          form.setFieldsValue({ sira_no: getNextSiraNo(data) })
           setModalOpen(true)
         }}>
           Ana Kalem Ekle
@@ -161,8 +187,8 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
       >
         <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)} initialValues={{ durum: 'planli', sira_no: 0 }}>
           <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item name="kalem_kodu" label="Kalem Kodu" style={{ flex: 1 }}>
-              <Input placeholder="Örn: 1.1" />
+            <Form.Item name="kalem_kodu" label="Poz No / Kalem Kodu" style={{ flex: 1 }}>
+              <Input placeholder="Arama yapmak için yazın..." suffix={<SearchOutlined />} />
             </Form.Item>
             <Form.Item name="sira_no" label="Sıra No" style={{ flex: 1 }}>
               <InputNumber style={{ width: '100%' }} />
@@ -173,7 +199,9 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
           </Form.Item>
           <div style={{ display: 'flex', gap: 16 }}>
             <Form.Item name="birim" label="Birim" style={{ flex: 1 }}>
-              <Input placeholder="m2, m3, kg vb." />
+              <Select placeholder="Seçiniz..." showSearch>
+                {BIRIMLER.map(b => <Select.Option key={b} value={b}>{b}</Select.Option>)}
+              </Select>
             </Form.Item>
             <Form.Item name="miktar" label="Miktar" style={{ flex: 1 }}>
               <InputNumber style={{ width: '100%' }} />

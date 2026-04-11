@@ -20,7 +20,8 @@ export const createUyeSchema = z.object({
   adres: z.union([z.string(), z.null(), z.undefined()]).transform(v => v === '' ? null : v).optional().nullable(),
   blok_id: z.union([z.string().uuid(), z.literal(''), z.null(), z.undefined()]).transform(v => v === '' ? null : v).optional().nullable(),
   daire_no: z.union([z.string(), z.null(), z.undefined()]).transform(v => v === '' ? null : v).optional().nullable(),
-  hisse_orani: z.number().min(0).max(100).optional(),
+  serefiye_id: z.union([z.string().uuid(), z.literal(''), z.null(), z.undefined()]).transform(v => v === '' ? null : v).optional().nullable(),
+  serefiye_orani: z.number().min(0).max(100).optional(),
   uyelik_tarihi: z.string().optional(),
   durum: z.enum(UYELIK_DURUMLARI).optional(),
   notlar: z.union([z.string(), z.null(), z.undefined()]).transform(v => v === '' ? null : v).optional().nullable()

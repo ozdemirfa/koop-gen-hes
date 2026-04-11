@@ -63,4 +63,11 @@ router.delete('/is-kalemleri/:id', async (req: AuthRequest, res: Response, next:
   } catch (err) { next(err) }
 })
 
+router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    await sozlesmeService.delete(req.params.id)
+    res.json({ success: true, message: 'Sözleşme silindi' })
+  } catch (err) { next(err) }
+})
+
 export default router

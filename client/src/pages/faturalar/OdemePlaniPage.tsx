@@ -1,12 +1,14 @@
 import React, { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Card, Table, Button, Space, message, Spin, Empty, InputNumber, DatePicker, Form, Row, Col, Statistic, Divider } from 'antd'
+import { Card, Table, Button, Space, message, Spin, Empty, InputNumber, DatePicker, Form, Row, Col, Statistic, Divider, Typography } from 'antd'
 import { PlusOutlined, SaveOutlined, DeleteOutlined, CalculatorOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
+
+const { Text } = Typography
 
 export const OdemePlaniPage: React.FC = () => {
   const { id: faturaId } = useParams<{ id: string }>()

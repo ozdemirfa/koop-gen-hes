@@ -23,6 +23,19 @@ export const bankaHesapService = {
     return data
   },
 
+  async updateHesap(id: string, body: Record<string, any>) {
+    const { data, error } = await supabaseAdmin
+      .from('banka_hesaplari')
+      .update(body)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    if (!data) throw ApiError.notFound('Banka hesabı bulunamadı')
+    return data
+  },
+
   async listHareketler(query: Record<string, any>) {
     let q = supabaseAdmin
       .from('banka_hareketleri')

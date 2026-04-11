@@ -18,6 +18,10 @@ export interface AuthRequest extends Request {
   }
 }
 
+const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: { persistSession: false, autoRefreshToken: false }
+})
+
 export async function authMiddleware(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization
 
@@ -30,11 +34,7 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
   const token = authHeader.split(' ')[1]
 
   try {
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: `Bearer ${token}` } }
-    })
-
-    const { data: { user }, error } = await supabase.auth.getUser()
+    const { data: { user }, error } = await authClient.auth.getUser(token)
 
     if (error || !user) {
       console.log(`[AUTH] getUser HATA - ${req.method} ${req.path}:`, error?.message || 'user null')

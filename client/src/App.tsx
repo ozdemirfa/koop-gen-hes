@@ -27,7 +27,9 @@ import { BankaUzlastirmaPage } from './pages/bankaHesap/BankaUzlastirmaPage'
 import { MalzemeTeslimListPage } from './pages/malzemeTeslim/MalzemeTeslimListPage'
 import { ProjeListPage } from './pages/projeler/ProjeListPage'
 import { ProjeDetailPage } from './pages/projeler/ProjeDetailPage'
+import { SerefiyePage } from './pages/projeler/SerefiyePage'
 import { YillikPlanPage } from './pages/projeler/YillikPlanPage'
+import { CekTakibiPage } from './pages/cariHesap/CekTakibiPage'
 import { AylikRaporPage } from './pages/raporlar/AylikRaporPage'
 import { YillikRaporPage } from './pages/raporlar/YillikRaporPage'
 import { UyeBorcRaporPage } from './pages/raporlar/UyeBorcRaporPage'
@@ -74,11 +76,13 @@ const App: React.FC = () => {
                 <Route path="faturalar" element={<FaturaListPage />} />
                 <Route path="faturalar/:id/odeme-plani" element={<OdemePlaniPage />} />
                 <Route path="cari-hesaplar" element={<CariEkstrePage />} />
+                <Route path="cek-takibi" element={<CekTakibiPage />} />
                 <Route path="banka-hesaplari" element={<BankaHesapListPage />} />
                 <Route path="banka-uzlastirma" element={<BankaUzlastirmaPage />} />
-                <Route path="malzeme-teslimat" element={<MalzemeTeslimListPage />} />
+                <Route path="fatura-irsaliye" element={<MalzemeTeslimListPage />} />
                 <Route path="projeler" element={<ProjeListPage />} />
                 <Route path="projeler/:id" element={<ProjeDetailPage />} />
+                <Route path="projeler/:id/serefiye" element={<SerefiyePage />} />
                 <Route path="projeler/:id/yillik-plan/:yil" element={<YillikPlanPage />} />
                 <Route path="raporlar/aylik" element={<AylikRaporPage />} />
                 <Route path="raporlar/yillik" element={<YillikRaporPage />} />

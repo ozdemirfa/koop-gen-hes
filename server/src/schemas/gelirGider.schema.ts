@@ -14,7 +14,10 @@ export const gelirGiderSchema = z.object({
   tarih: z.string().optional(),
   aciklama: z.string().optional().nullable(),
   belge_no: z.string().optional().nullable(),
-  ilgili_firma: z.string().optional().nullable()
+  uye_id: z.string().uuid().optional().nullable(),
+  firma_id: z.string().uuid().optional().nullable(),
+  kaynak_tipi: z.string().optional().nullable(),
+  kaynak_id: z.string().uuid().optional().nullable()
 })
 
 export const updateGelirGiderSchema = gelirGiderSchema.partial()

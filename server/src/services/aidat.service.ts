@@ -29,7 +29,7 @@ export const aidatTanimiService = {
     // Tüm aktif üyeleri çek
     const { data: uyeler, error: uyeError } = await supabaseAdmin
       .from('uyeler')
-      .select('id, hisse_orani')
+      .select('id, serefiye_orani')
       .eq('durum', 'aktif')
 
     if (uyeError) throw uyeError
@@ -40,7 +40,7 @@ export const aidatTanimiService = {
       const aidatlar = uyeler.map(uye => ({
         uye_id: uye.id,
         aidat_tanimi_id: tanim.id,
-        tutar: Number(body.katsayi_tutari) * (Number(uye.hisse_orani) || 1.00),
+        tutar: Number(body.katsayi_tutari) * (Number(uye.serefiye_orani) || 1.00),
         son_odeme_tarihi: sonOdemeTarihi
       }))
 
@@ -60,28 +60,41 @@ export const aidatTanimiService = {
     // Aktif üyeleri çek
     const { data: uyeler, error: uyeError } = await supabaseAdmin
       .from('uyeler')
-      .select('id, hisse_orani')
+      .select('id, serefiye_orani')
       .eq('durum', 'aktif')
-      
+
     if (uyeError) throw uyeError
 
-    // Mevcut yılın tanımlarını temizle (Cascade sayesinde aidatlar da silinir)
-    // NOT: Ödeme yapılmış aidatlar varsa silme işlemi DB seviyesinde hata verebilir (FK kısıtları)
-    // Bu yüzden önce kontrol edip ödeme olanları silmemek veya uyarmak gerekebilir.
-    // Şimdilik temiz bir başlangıç için siliyoruz, eğer ödeme varsa hata dönecektir.
+    // Silmeden önce ödenmiş aidat var mı kontrol et — cascade delete veri kaybına yol açmasın
+    const { data: mevcutTanimlar, error: tanimError } = await supabaseAdmin
+      .from('aidat_tanimlari')
+      .select('id')
+      .eq('yil', yil)
+      .eq('tur', 'normal')
+
+    if (tanimError) throw tanimError
+
+    if (mevcutTanimlar && mevcutTanimlar.length > 0) {
+      const tanimIds = mevcutTanimlar.map(t => t.id)
+      const { count: odenmisCount, error: odenmisError } = await supabaseAdmin
+        .from('aidatlar')
+        .select('id', { count: 'exact', head: true })
+        .in('aidat_tanimi_id', tanimIds)
+        .or('durum.eq.odendi,odenen_tutar.gt.0')
+
+      if (odenmisError) throw odenmisError
+      if ((odenmisCount || 0) > 0) {
+        throw ApiError.badRequest('Bu yıla ait ödeme yapılmış aidatlar bulunduğu için plan güncellenemez. Lütfen manuel düzenleme yapın.')
+      }
+    }
+
     const { error: deleteError } = await supabaseAdmin
       .from('aidat_tanimlari')
       .delete()
       .eq('yil', yil)
-      .eq('tur', 'normal') // Sadece normal tanımları temizle, özel ara ödemeler kalabilir mi? 
-      // Plan genellikle tüm yılı kapsadığı için normal olanları temizlemek mantıklı.
+      .eq('tur', 'normal')
 
-    if (deleteError) {
-      if (deleteError.code === '23503') {
-        throw ApiError.badRequest('Bu yıla ait ödeme yapılmış aidatlar bulunduğu için plan güncellenemez. Lütfen manuel düzenleme yapın.')
-      }
-      throw deleteError
-    }
+    if (deleteError) throw deleteError
 
     let olusturulanTanim = 0
     let olusturulanAidat = 0
@@ -103,7 +116,7 @@ export const aidatTanimiService = {
           const aidatlar = uyeler.map(uye => ({
             uye_id: uye.id,
             aidat_tanimi_id: tanim.id,
-            tutar: Number(kalem.katsayi_tutari) * (Number(uye.hisse_orani) || 1.00),
+            tutar: Number(kalem.katsayi_tutari) * (Number(uye.serefiye_orani) || 1.00),
             son_odeme_tarihi: sonOdemeTarihi
           }))
 
@@ -191,9 +204,11 @@ export const aidatService = {
     if (aidat.durum === 'iptal') throw ApiError.badRequest('İptal edilmiş aidat için ödeme yapılamaz')
 
     // Ödeme kaydı oluştur
-    const { error: odemeError } = await supabaseAdmin
+    const { data: odeme, error: odemeError } = await supabaseAdmin
       .from('aidat_odemeleri')
       .insert([{ aidat_id: aidatId, ...body }])
+      .select()
+      .single()
 
     if (odemeError) throw odemeError
 
@@ -210,6 +225,17 @@ export const aidatService = {
       .single()
 
     if (updateError) throw updateError
+
+    // Otomatik gelir kaydı oluştur
+    await createGelirKaydi({
+      tutar: body.tutar,
+      tarih: body.odeme_tarihi,
+      uye_id: aidat.uye_id,
+      kaynak_tipi: 'aidat',
+      kaynak_id: odeme.id,
+      aciklama: `${aidat.aidat_tanimlari.ay}/${aidat.aidat_tanimlari.yil} Aidat Tahsilatı`
+    })
+
     return updated
   },
 
@@ -246,5 +272,106 @@ export const aidatService = {
     const { error } = await supabaseAdmin.rpc('hesapla_gecikme_faizi')
     if (error) throw error
     return { message: 'Gecikme faizleri hesaplandı' }
+  },
+
+  async recordBulkPayment(uyeId: string, body: { tutar: number, odeme_tarihi: string, odeme_yontemi: string, makbuz_no?: string, aciklama?: string }) {
+    const { tutar, ...odemeMeta } = body
+    let kalanTutar = tutar
+
+    // Üyenin açık aidatlarını vade tarihine göre getir
+    const { data: acikAidatlar, error: getError } = await supabaseAdmin
+      .from('aidatlar')
+      .select('*, aidat_tanimlari(yil, ay)')
+      .eq('uye_id', uyeId)
+      .in('durum', ['bekliyor', 'gecikti'])
+      .order('son_odeme_tarihi', { ascending: true })
+
+    if (getError) throw getError
+    if (!acikAidatlar || acikAidatlar.length === 0) throw ApiError.badRequest('Üyenin açık aidat borcu bulunmamaktadır')
+
+    const sonuclar = []
+
+    for (const aidat of acikAidatlar) {
+      if (kalanTutar <= 0) break
+
+      const aidatToplamBorc = Number(aidat.tutar) + Number(aidat.gecikme_faizi || 0)
+      const aidatKalanBorc = aidatToplamBorc - Number(aidat.odenen_tutar || 0)
+      
+      const odenecekTutar = Math.min(kalanTutar, aidatKalanBorc)
+      
+      // Ödeme kaydı oluştur
+      const { data: odeme, error: odemeError } = await supabaseAdmin
+        .from('aidat_odemeleri')
+        .insert([{ 
+          aidat_id: aidat.id, 
+          tutar: odenecekTutar,
+          ...odemeMeta
+        }])
+        .select()
+        .single()
+
+      if (odemeError) throw odemeError
+
+      // Otomatik gelir kaydı oluştur
+      await createGelirKaydi({
+        tutar: odenecekTutar,
+        tarih: odemeMeta.odeme_tarihi,
+        uye_id: uyeId,
+        kaynak_tipi: 'aidat',
+        kaynak_id: odeme.id,
+        aciklama: `${aidat.aidat_tanimlari.ay}/${aidat.aidat_tanimlari.yil} Aidat Tahsilatı`
+      })
+
+      // Aidat durumunu güncelle
+      const yeniOdenenTutar = Number(aidat.odenen_tutar || 0) + odenecekTutar
+      const yeniDurum = yeniOdenenTutar >= aidatToplamBorc ? 'odendi' : aidat.durum
+
+      await supabaseAdmin
+        .from('aidatlar')
+        .update({ odenen_tutar: yeniOdenenTutar, durum: yeniDurum })
+        .eq('id', aidat.id)
+
+      kalanTutar = Math.round((kalanTutar - odenecekTutar) * 100) / 100
+      sonuclar.push({ aidat_id: aidat.id, donem: `${aidat.aidat_tanimlari.ay}/${aidat.aidat_tanimlari.yil}`, odenen: odenecekTutar })
+    }
+
+    return { 
+      toplam_odenen: tutar - kalanTutar, 
+      kalan_avans: kalanTutar, // Eğer tüm aidatlar kapandıysa ve para arttıysa
+      kapatilan_kalemler: sonuclar 
+    }
+  }
+}
+
+/**
+ * Aidat ödemesi yapıldığında otomatik gelir kaydı oluşturur
+ */
+async function createGelirKaydi(params: { tutar: number, tarih: string, uye_id: string, kaynak_tipi: string, kaynak_id: string, aciklama: string }) {
+  try {
+    // Önce "Aidat Gelirleri" kategorisini bul
+    const { data: kategori } = await supabaseAdmin
+      .from('gelir_gider_kategorileri')
+      .select('id')
+      .eq('ad', 'Aidat Gelirleri')
+      .eq('tip', 'gelir')
+      .single()
+
+    const kategori_id = kategori?.id
+
+    await supabaseAdmin
+      .from('gelir_giderler')
+      .insert([{
+        tip: 'gelir',
+        kategori_id,
+        tutar: params.tutar,
+        tarih: params.tarih,
+        uye_id: params.uye_id,
+        kaynak_tipi: params.kaynak_tipi,
+        kaynak_id: params.kaynak_id,
+        aciklama: params.aciklama
+      }])
+  } catch (err) {
+    console.error('Otomatik gelir kaydı oluşturulamadı:', err)
+    // Kritik bir hata değil, ana işlemi bozmasın
   }
 }

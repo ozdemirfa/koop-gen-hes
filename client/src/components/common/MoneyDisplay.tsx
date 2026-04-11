@@ -1,5 +1,6 @@
 import React from 'react'
 import { Typography } from 'antd'
+import { formatMoney } from '../../lib/format'
 
 const { Text } = Typography
 
@@ -16,7 +17,7 @@ export const MoneyDisplay: React.FC<MoneyDisplayProps> = ({
 }) => {
   if (amount == null) return <span>-</span>;
   
-  const formatted = amount.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const formatted = formatMoney(amount)
   
   let color = 'inherit'
   if (colored) {
