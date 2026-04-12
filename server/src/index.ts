@@ -33,9 +33,17 @@ app.use(cors({
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
-// Health check (auth gerektirmez)
-app.get('/api/health', (_req: Request, res: Response) => {
-  res.json({ status: 'ok', message: 'KoopGenHes API is running' })
+import { supabaseAdmin } from './config/supabase'
+
+// Health check (DB bağlantısını da kontrol eder)
+app.get('/api/health', async (_req: Request, res: Response) => {
+  try {
+    const { error } = await supabaseAdmin.from('uyeler').select('id').limit(1)
+    if (error) throw error
+    res.json({ status: 'ok', database: 'connected', message: 'KoopGenHes API is running' })
+  } catch (err: any) {
+    res.status(500).json({ status: 'error', database: 'disconnected', error: err.message })
+  }
 })
 
 // API Routes (auth middleware route aggregator içinde)

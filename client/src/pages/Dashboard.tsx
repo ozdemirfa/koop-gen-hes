@@ -12,9 +12,17 @@ export const Dashboard: React.FC = () => {
   const { data: ozet, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['dashboard-ozet'],
     queryFn: async () => {
-      const { data } = await api.get('/dashboard/ozet')
-      return data.data
+      console.log('Fetching dashboard summary...')
+      const response = await api.get('/dashboard/ozet')
+      console.log('Dashboard response:', response.data)
+      
+      if (!response.data || !response.data.data) {
+        throw new Error('API başarılı döndü ancak "data" alanı boş geldi.')
+      }
+      
+      return response.data.data
     },
+    retry: 1
   })
 
   if (isLoading) return <LoadingState fullHeight />
