@@ -6,6 +6,7 @@ import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
 import { DataTable } from '../../components/common/DataTable'
+import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { ConfirmDelete } from '../../components/common/ConfirmDelete'
 
@@ -48,7 +49,7 @@ export const MalzemeTeslimListPage: React.FC = () => {
     },
   })
 
-  const { data: irsaliyeData, isLoading } = useQuery({
+  const { data: irsaliyeData, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['irsaliyeler'],
     queryFn: async () => {
       const { data } = await api.get('/malzeme-teslimleri')
@@ -154,13 +155,18 @@ export const MalzemeTeslimListPage: React.FC = () => {
         }
       />
 
-      <DataTable
-        columns={columns}
-        dataSource={irsaliyeData?.data}
-        rowKey="id"
-        loading={isLoading}
-        totalItems={irsaliyeData?.pagination?.total}
-      />
+      {isError ? (
+        <ErrorState error={error} onRetry={() => refetch()} />
+      ) : (
+        <DataTable
+          columns={columns}
+          dataSource={irsaliyeData?.data}
+          rowKey="id"
+          loading={isLoading}
+          totalItems={irsaliyeData?.pagination?.total}
+          emptyDescription="Kayıtlı teslim/irsaliye bulunamadı"
+        />
+      )}
 
       <Modal
         title={editingIrsaliye ? 'İrsaliye Düzenle' : 'Yeni İrsaliye Girişi'}
@@ -207,7 +213,7 @@ export const MalzemeTeslimListPage: React.FC = () => {
             </Col>
           </Row>
 
-          <Divider orientation="left">Malzemeler</Divider>
+          <Divider orientation={"left" as any}>Malzemeler</Divider>
           
           <Form.List name="kalemler">
             {(fields, { add, remove }) => (

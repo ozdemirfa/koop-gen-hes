@@ -33,12 +33,14 @@ import { CekTakibiPage } from './pages/cariHesap/CekTakibiPage'
 import { AylikRaporPage } from './pages/raporlar/AylikRaporPage'
 import { YillikRaporPage } from './pages/raporlar/YillikRaporPage'
 import { UyeBorcRaporPage } from './pages/raporlar/UyeBorcRaporPage'
+import { ErrorBoundary } from './components/common/ErrorBoundary'
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
       staleTime: 30_000,
+      refetchOnWindowFocus: false,
     },
   },
 })
@@ -53,6 +55,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const App: React.FC = () => {
   return (
     <ConfigProvider locale={trTR}>
+      <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <Router>
@@ -92,6 +95,7 @@ const App: React.FC = () => {
           </Router>
         </AuthProvider>
       </QueryClientProvider>
+      </ErrorBoundary>
     </ConfigProvider>
   )
 }

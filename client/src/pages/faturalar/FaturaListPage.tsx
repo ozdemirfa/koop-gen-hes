@@ -7,6 +7,7 @@ import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
 import { DataTable } from '../../components/common/DataTable'
+import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { ConfirmDelete } from '../../components/common/ConfirmDelete'
 
@@ -60,7 +61,7 @@ export const FaturaListPage: React.FC = () => {
     },
   })
 
-  const { data: faturaData, isLoading } = useQuery({
+  const { data: faturaData, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['faturalar', filterTip, filterDurum],
     queryFn: async () => {
       const params: Record<string, string> = {}
@@ -90,7 +91,15 @@ export const FaturaListPage: React.FC = () => {
       form.resetFields()
       setEditingFatura(null)
     },
-    onError: (err: any) => message.error(err.message || 'Hata oluştu'),
+    onError: (err: any) => {
+      if (err?.details && Array.isArray(err.details)) {
+        form.setFields(err.details.map((d: any) => ({ name: d.field, errors: [d.message] })))
+      } else if (err?.error?.includes?.('unique') || err?.message?.includes?.('unique')) {
+        form.setFields([{ name: 'fatura_no', errors: ['Bu fatura no zaten kullanılmış'] }])
+      } else {
+        message.error(err?.error || err?.message || 'Hata oluştu')
+      }
+    },
   })
 
   const deleteMutation = useMutation({
@@ -99,7 +108,7 @@ export const FaturaListPage: React.FC = () => {
       message.success('Fatura silindi')
       queryClient.invalidateQueries({ queryKey: ['faturalar'] })
     },
-    onError: (err: any) => message.error(err.message || 'Hata oluştu'),
+    onError: (err: any) => message.error(err?.error || err?.message || 'Hata oluştu'),
   })
 
   // Toplamları kalemlerden hesapla
@@ -212,13 +221,18 @@ export const FaturaListPage: React.FC = () => {
         }
       />
 
-      <DataTable
-        columns={columns}
-        dataSource={faturaData?.data}
-        rowKey="id"
-        loading={isLoading}
-        totalItems={faturaData?.pagination?.total}
-      />
+      {isError ? (
+        <ErrorState error={error} onRetry={() => refetch()} />
+      ) : (
+        <DataTable
+          columns={columns}
+          dataSource={faturaData?.data}
+          rowKey="id"
+          loading={isLoading}
+          totalItems={faturaData?.pagination?.total}
+          emptyDescription="Kayıtlı fatura bulunamadı"
+        />
+      )}
 
       <Modal
         title={editingFatura ? 'Fatura Düzenle' : 'Yeni Fatura'}
@@ -257,7 +271,7 @@ export const FaturaListPage: React.FC = () => {
             </Col>
           </Row>
 
-          <Divider orientation="left">Fatura Kalemleri</Divider>
+          <Divider orientation={"left" as any}>Fatura Kalemleri</Divider>
           
           <Form.List name="kalemler">
             {(fields, { add, remove }) => (

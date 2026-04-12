@@ -1,10 +1,12 @@
 import React, { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Table, InputNumber, Button, Space, message, Card, Typography, Spin, Empty, Row, Col, Statistic } from 'antd'
+import { Table, InputNumber, Button, Space, message, Card, Typography, Empty, Row, Col, Statistic } from 'antd'
 import { SaveOutlined, ArrowLeftOutlined, CalendarOutlined } from '@ant-design/icons'
 import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
+import { LoadingState } from '../../components/common/LoadingState'
+import { ErrorState } from '../../components/common/ErrorState'
 
 const { Text } = Typography
 
@@ -14,7 +16,7 @@ export const YillikPlanPage: React.FC = () => {
   const queryClient = useQueryClient()
   const [editingValues, setEditingValues] = useState<Record<string, number>>({})
 
-  const { data: plan, isLoading, error } = useQuery({
+  const { data: plan, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['proje-plan', projeId, yil],
     queryFn: async () => {
       try {
@@ -50,7 +52,8 @@ export const YillikPlanPage: React.FC = () => {
     onError: (err: any) => message.error(err.message || 'Hata oluştu')
   })
 
-  if (isLoading) return <div style={{ textAlign: 'center', padding: '50px' }}><Spin size="large" /></div>
+  if (isLoading) return <LoadingState fullHeight />
+  if (isError) return <ErrorState error={error} onRetry={() => refetch()} />
 
   if (!plan) {
     return (
@@ -116,7 +119,7 @@ export const YillikPlanPage: React.FC = () => {
         <div>
           <Text strong>{record.kalem_kodu}</Text>
           <br />
-          <Text size="small">{text}</Text>
+          <Text style={{ fontSize: '12px' }}>{text}</Text>
         </div>
       )
     },

@@ -489,7 +489,7 @@ En karmaşık modül.
 - [x] `CariEkstrePage` (Genel ekstre ve bakiye özeti)
 - [x] `BankaHesapListPage` (Banka hesap yönetimi)
 - [x] `BankaUzlastirmaPage` (Banka hareketleri ile cari hareketleri eşleştirme)
-- [ ] `OdemePlaniPage` + `OdemePlaniTable` (İleride eklenecek)
+- [x] `OdemePlaniPage` (tek sayfa olarak implemente edildi, ayrı Table bileşeni gerekmedi)
 
 ### Faz 9: Malzeme Teslim - TAMAMLANDI
 
@@ -523,12 +523,19 @@ En karmaşık modül.
 
 **Bağımlılık:** Tüm fazlar
 
-- [ ] Hata durumları (error states) tüm sayfalarda
-- [ ] Boş durum (empty states)
-- [ ] Yükleniyor durumları (loading states)
-- [ ] Form validasyon tamamlama
-- [ ] Responsive kontrolleri
-- [ ] Uçtan uca manuel test
+- [x] Hata durumları (`ErrorState` + `ErrorBoundary`) tüm list ve detail sayfalarında
+- [x] Boş durum (`EmptyState`, DataTable `locale.emptyText` ile entegre)
+- [x] Yükleniyor durumları (`LoadingState`, sayfalar inline `Spin` yerine)
+- [x] Form validasyon tamamlama (Uye TC/tel, Sozlesme tarih/tutar, Fatura unique)
+- [x] Responsive kontrolleri (Sider drawer breakpoint, Table `scroll={{ x: 'max-content' }}`, Row/Col `xs/md/lg`)
+- [x] Uçtan uca manuel test checklist'i → `manual-test-checklist.md`
+
+### Rev2 Ek Modüller
+
+development.md başlangıç planına sonradan eklenen modüller:
+
+- [x] `pages/cariHesap/CekTakibiPage.tsx` — Çek takibi
+- [x] `pages/projeler/SerefiyePage.tsx` — Şerefiye yönetimi
 
 ---
 

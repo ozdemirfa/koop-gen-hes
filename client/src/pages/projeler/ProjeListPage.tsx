@@ -1,11 +1,14 @@
 import React, { useState } from 'react'
-import { Button, Modal, Form, Input, Space, message, Tag, DatePicker, Card, Row, Col, Select, InputNumber, Spin, Empty, Divider, Typography } from 'antd'
+import { Button, Modal, Form, Input, Space, message, Tag, DatePicker, Card, Row, Col, Select, InputNumber, Divider, Typography } from 'antd'
 import { PlusOutlined, EditOutlined, ArrowRightOutlined, ProjectOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
+import { LoadingState } from '../../components/common/LoadingState'
+import { EmptyState } from '../../components/common/EmptyState'
+import { ErrorState } from '../../components/common/ErrorState'
 import { trNumberFormatter, trNumberParser } from '../../lib/format'
 
 const { Text } = Typography
@@ -50,7 +53,7 @@ export const ProjeListPage: React.FC = () => {
   const [editingProje, setEditingProje] = useState<Proje | null>(null)
   const [form] = Form.useForm()
 
-  const { data: projeler, isLoading } = useQuery({
+  const { data: projeler, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['projeler'],
     queryFn: async () => {
       const { data } = await api.get('/projeler')
@@ -128,9 +131,11 @@ export const ProjeListPage: React.FC = () => {
 
       <Row gutter={[16, 16]}>
         {isLoading ? (
-          <Col span={24} style={{ textAlign: 'center', padding: 50 }}><Spin size="large" /></Col>
+          <Col span={24}><LoadingState fullHeight /></Col>
+        ) : isError ? (
+          <Col span={24}><ErrorState error={error} onRetry={() => refetch()} /></Col>
         ) : projeler?.length === 0 ? (
-          <Col span={24}><Empty description="Henüz proje eklenmemiş" /></Col>
+          <Col span={24}><EmptyState description="Henüz proje eklenmemiş" /></Col>
         ) : (
           projeler?.map((p) => (
             <Col xs={24} sm={12} lg={8} key={p.id}>
@@ -222,7 +227,7 @@ export const ProjeListPage: React.FC = () => {
             </Col>
           </Row>
 
-          <Divider orientation="left">Bloklar</Divider>
+          <Divider orientation={"left" as any}>Bloklar</Divider>
           
           <Form.List name="bloklar">
             {(fields, { add, remove }) => (

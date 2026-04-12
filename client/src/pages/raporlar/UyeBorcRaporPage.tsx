@@ -1,18 +1,20 @@
 import React from 'react'
-import { Card, Table, Button, Space, Typography, Spin, Empty, Statistic } from 'antd'
+import { Card, Table, Button, Space, Typography, Statistic } from 'antd'
 import { FilePdfOutlined, UserOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
+import { LoadingState } from '../../components/common/LoadingState'
+import { ErrorState } from '../../components/common/ErrorState'
 
 const { Text } = Typography
 
 export const UyeBorcRaporPage: React.FC = () => {
   const navigate = useNavigate()
 
-  const { data: list, isLoading } = useQuery({
+  const { data: list, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['uye-borc-listesi'],
     queryFn: async () => {
       const { data } = await api.get('/raporlar/uye-borc-listesi')
@@ -36,7 +38,8 @@ export const UyeBorcRaporPage: React.FC = () => {
     }
   ]
 
-  if (isLoading) return <div style={{ textAlign: 'center', padding: '50px' }}><Spin size="large" /></div>
+  if (isLoading) return <LoadingState fullHeight />
+  if (isError) return <ErrorState error={error} onRetry={() => refetch()} />
 
   const genelToplamBorc = list?.reduce((s: number, r: any) => s + r.toplam_borc, 0) || 0
 

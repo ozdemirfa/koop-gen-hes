@@ -8,6 +8,7 @@ import { useDebounce } from '../../hooks/useDebounce'
 import { PageHeader } from '../../components/common/PageHeader'
 import { DataTable } from '../../components/common/DataTable'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
+import { ErrorState } from '../../components/common/ErrorState'
 
 interface Firma {
   id: string
@@ -38,7 +39,7 @@ export const FirmaListPage: React.FC = () => {
   const [editing, setEditing] = useState<Firma | null>(null)
   const [form] = Form.useForm()
 
-  const { data: firmaData, isLoading } = useQuery({
+  const { data: firmaData, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['firmalar', debouncedSearch, filterTip, filterAktif],
     queryFn: async () => {
       const params: Record<string, string> = {}
@@ -169,13 +170,18 @@ export const FirmaListPage: React.FC = () => {
         }
       />
 
-      <DataTable
-        columns={columns}
-        dataSource={firmaData?.data}
-        rowKey="id"
-        loading={isLoading}
-        totalItems={firmaData?.pagination?.total}
-      />
+      {isError ? (
+        <ErrorState error={error} onRetry={() => refetch()} />
+      ) : (
+        <DataTable
+          columns={columns}
+          dataSource={firmaData?.data}
+          rowKey="id"
+          loading={isLoading}
+          totalItems={firmaData?.pagination?.total}
+          emptyDescription="Kayıtlı firma bulunamadı"
+        />
+      )}
 
       <Modal
         title={editing ? 'Firma Düzenle' : 'Yeni Firma'}

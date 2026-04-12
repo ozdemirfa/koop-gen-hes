@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
 import { DataTable } from '../../components/common/DataTable'
+import { ErrorState } from '../../components/common/ErrorState'
 
 interface BankaHesap {
   id: string
@@ -21,7 +22,7 @@ export const BankaHesapListPage: React.FC = () => {
   const [editingHesap, setEditingHesap] = useState<BankaHesap | null>(null)
   const [form] = Form.useForm()
 
-  const { data: hesaplar, isLoading } = useQuery({
+  const { data: hesaplar, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['banka-hesaplari'],
     queryFn: async () => {
       const { data } = await api.get('/banka/hesaplar')
@@ -104,13 +105,18 @@ export const BankaHesapListPage: React.FC = () => {
         }
       />
 
-      <DataTable
-        columns={columns}
-        dataSource={hesaplar}
-        rowKey="id"
-        loading={isLoading}
-        pagination={false}
-      />
+      {isError ? (
+        <ErrorState error={error} onRetry={() => refetch()} />
+      ) : (
+        <DataTable
+          columns={columns}
+          dataSource={hesaplar}
+          rowKey="id"
+          loading={isLoading}
+          pagination={false}
+          emptyDescription="Banka hesabı eklenmemiş"
+        />
+      )}
 
       <Modal
         title={editingHesap ? 'Hesap Düzenle' : 'Yeni Banka Hesabı'}

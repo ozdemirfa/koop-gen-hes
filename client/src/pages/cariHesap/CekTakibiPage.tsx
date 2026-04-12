@@ -6,6 +6,7 @@ import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
 import { DataTable } from '../../components/common/DataTable'
+import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 
 interface Cek {
@@ -31,7 +32,7 @@ export const CekTakibiPage: React.FC = () => {
   const [filter, setFilter] = useState('all')
   const [form] = Form.useForm()
 
-  const { data: cekler, isLoading } = useQuery({
+  const { data: cekler, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['cekler', filter],
     queryFn: async () => {
       const { data } = await api.get('/cekler', { params: { filter: filter !== 'all' ? filter : undefined } })
@@ -161,12 +162,17 @@ export const CekTakibiPage: React.FC = () => {
         </Radio.Group>
       </Card>
 
-      <DataTable
-        columns={columns}
-        dataSource={cekler}
-        rowKey="id"
-        loading={isLoading}
-      />
+      {isError ? (
+        <ErrorState error={error} onRetry={() => refetch()} />
+      ) : (
+        <DataTable
+          columns={columns}
+          dataSource={cekler}
+          rowKey="id"
+          loading={isLoading}
+          emptyDescription="Kayıtlı çek bulunamadı"
+        />
+      )}
 
       <Modal
         title={editingCek ? 'Çek Düzenle' : 'Yeni Çek Kaydı'}

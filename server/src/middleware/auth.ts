@@ -2,11 +2,11 @@ import { Request, Response, NextFunction } from 'express'
 import { createClient } from '@supabase/supabase-js'
 import { ApiError } from '../utils/ApiError'
 
-const supabaseUrl = process.env.SUPABASE_URL!
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY!
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || ''
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('[AUTH] SUPABASE_URL veya SUPABASE_ANON_KEY eksik!')
+  console.error('[AUTH] SUPABASE_URL veya SUPABASE_ANON_KEY eksik! (VITE_ prefixed versiyonlarını da kontrol edin)')
 }
 
 console.log(`[AUTH] Middleware init - URL: ${supabaseUrl?.substring(0, 30)}...`)

@@ -106,7 +106,15 @@ export const SozlesmeFormPage: React.FC = () => {
             <Form.Item name="sozlesme_no" label="Sözleşme No" style={{ flex: 1 }}>
               <Input />
             </Form.Item>
-            <Form.Item name="toplam_tutar" label="Toplam Tutar (TL)" rules={[{ required: true, message: 'Tutar zorunlu' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="toplam_tutar"
+              label="Toplam Tutar (TL)"
+              rules={[
+                { required: true, message: 'Tutar zorunlu' },
+                { type: 'number', min: 0.01, message: 'Tutar sıfırdan büyük olmalı' },
+              ]}
+              style={{ flex: 1 }}
+            >
               <InputNumber min={0} style={{ width: '100%' }} />
             </Form.Item>
           </div>
@@ -116,10 +124,32 @@ export const SozlesmeFormPage: React.FC = () => {
           </Form.Item>
 
           <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item name="baslangic_tarihi" label="Başlangıç Tarihi" style={{ flex: 1 }}>
+            <Form.Item
+              name="baslangic_tarihi"
+              label="Başlangıç Tarihi"
+              rules={[{ required: true, message: 'Başlangıç tarihi zorunlu' }]}
+              style={{ flex: 1 }}
+            >
               <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
             </Form.Item>
-            <Form.Item name="bitis_tarihi" label="Bitiş Tarihi" style={{ flex: 1 }}>
+            <Form.Item
+              name="bitis_tarihi"
+              label="Bitiş Tarihi"
+              dependencies={['baslangic_tarihi']}
+              rules={[
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    const bas = getFieldValue('baslangic_tarihi') as dayjs.Dayjs | undefined
+                    if (!value || !bas) return Promise.resolve()
+                    if ((value as dayjs.Dayjs).isBefore(bas)) {
+                      return Promise.reject(new Error('Bitiş tarihi başlangıçtan önce olamaz'))
+                    }
+                    return Promise.resolve()
+                  },
+                }),
+              ]}
+              style={{ flex: 1 }}
+            >
               <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
             </Form.Item>
           </div>

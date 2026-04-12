@@ -7,6 +7,7 @@ import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
 import { DataTable } from '../../components/common/DataTable'
+import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 
 interface Hakedis {
@@ -53,7 +54,7 @@ export const HakedisListPage: React.FC = () => {
     },
   })
 
-  const { data: hakedisData, isLoading } = useQuery({
+  const { data: hakedisData, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['hakedisler', filterDurum],
     queryFn: async () => {
       const params: Record<string, string> = {}
@@ -171,13 +172,18 @@ export const HakedisListPage: React.FC = () => {
         }
       />
 
-      <DataTable
-        columns={columns}
-        dataSource={hakedisData?.data}
-        rowKey="id"
-        loading={isLoading}
-        totalItems={hakedisData?.pagination?.total}
-      />
+      {isError ? (
+        <ErrorState error={error} onRetry={() => refetch()} />
+      ) : (
+        <DataTable
+          columns={columns}
+          dataSource={hakedisData?.data}
+          rowKey="id"
+          loading={isLoading}
+          totalItems={hakedisData?.pagination?.total}
+          emptyDescription="Kayıtlı hakediş bulunamadı"
+        />
+      )}
 
       <Modal
         title="Yeni Hakediş Oluştur"

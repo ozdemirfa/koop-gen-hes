@@ -1,12 +1,15 @@
 import React from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Row, Col, Card, Statistic, Tag, Button, Space, Divider, Typography, Spin, Empty } from 'antd'
+import { Row, Col, Card, Statistic, Tag, Button, Space, Divider, Typography } from 'antd'
 import { CalendarOutlined, ProjectOutlined, ArrowLeftOutlined, EditOutlined, BarChartOutlined, HomeOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
 import { ProjeIsKalemiTree } from '../../components/projeler/ProjeIsKalemiTree'
+import { LoadingState } from '../../components/common/LoadingState'
+import { EmptyState } from '../../components/common/EmptyState'
+import { ErrorState } from '../../components/common/ErrorState'
 
 const { Title, Paragraph, Text } = Typography
 
@@ -28,7 +31,7 @@ export const ProjeDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
-  const { data: proje, isLoading, error } = useQuery({
+  const { data: proje, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['proje', id],
     queryFn: async () => {
       const { data } = await api.get(`/projeler/${id}`)
@@ -37,8 +40,9 @@ export const ProjeDetailPage: React.FC = () => {
     enabled: !!id
   })
 
-  if (isLoading) return <div style={{ textAlign: 'center', padding: '50px' }}><Spin size="large" /></div>
-  if (error || !proje) return <Empty description="Proje bulunamadı" />
+  if (isLoading) return <LoadingState fullHeight />
+  if (isError) return <ErrorState error={error} onRetry={() => refetch()} />
+  if (!proje) return <EmptyState description="Proje bulunamadı" />
 
   return (
     <div>

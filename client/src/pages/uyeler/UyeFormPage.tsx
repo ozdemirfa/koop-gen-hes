@@ -109,7 +109,14 @@ export const UyeFormPage: React.FC = () => {
             <Form.Item name="uye_no" label="Üye No" style={{ flex: 1 }}>
               <Input disabled placeholder="Otomatik Oluşturulacak" />
             </Form.Item>
-            <Form.Item name="tc_kimlik" label="TC Kimlik" rules={[{ len: 11, message: 'TC Kimlik 11 haneli olmalı' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="tc_kimlik"
+              label="TC Kimlik"
+              rules={[
+                { pattern: /^[1-9][0-9]{10}$/, message: 'TC Kimlik 11 haneli sayısal olmalı' },
+              ]}
+              style={{ flex: 1 }}
+            >
               <Input maxLength={11} />
             </Form.Item>
           </div>
@@ -124,8 +131,15 @@ export const UyeFormPage: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item name="telefon" label="Telefon" style={{ flex: 1 }}>
-              <Input />
+            <Form.Item
+              name="telefon"
+              label="Telefon"
+              rules={[
+                { pattern: /^[0-9 +()-]{10,20}$/, message: 'Geçerli bir telefon girin' },
+              ]}
+              style={{ flex: 1 }}
+            >
+              <Input placeholder="05xx xxx xx xx" />
             </Form.Item>
             <Form.Item name="email" label="E-posta" rules={[{ type: 'email', message: 'Geçerli bir e-posta girin' }]} style={{ flex: 1 }}>
               <Input />

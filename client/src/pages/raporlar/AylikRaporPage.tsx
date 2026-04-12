@@ -1,18 +1,20 @@
 import React, { useState } from 'react'
-import { Card, Table, Row, Col, Statistic, DatePicker, Button, Space, Typography, Spin, Empty, Tag } from 'antd'
+import { Card, Table, Row, Col, Statistic, DatePicker, Button, Space, Typography, Tag } from 'antd'
 import { FilePdfOutlined, SearchOutlined, RiseOutlined, FallOutlined, DollarOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
+import { LoadingState } from '../../components/common/LoadingState'
+import { ErrorState } from '../../components/common/ErrorState'
 
 const { Title, Text } = Typography
 
 export const AylikRaporPage: React.FC = () => {
   const [targetDate, setTargetDate] = useState(dayjs())
 
-  const { data: rapor, isLoading, error } = useQuery({
+  const { data: rapor, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['aylik-rapor', targetDate.year(), targetDate.month() + 1],
     queryFn: async () => {
       const { data } = await api.get(`/raporlar/aylik-rapor?yil=${targetDate.year()}&ay=${targetDate.month() + 1}`)
@@ -33,7 +35,8 @@ export const AylikRaporPage: React.FC = () => {
     { title: 'Tutar', dataIndex: 'tutar', key: 'tutar', align: 'right' as const, render: (v: number) => <MoneyDisplay amount={v} /> }
   ]
 
-  if (isLoading) return <div style={{ textAlign: 'center', padding: '50px' }}><Spin size="large" /></div>
+  if (isLoading) return <LoadingState fullHeight />
+  if (isError) return <ErrorState error={error} onRetry={() => refetch()} />
 
   return (
     <div>

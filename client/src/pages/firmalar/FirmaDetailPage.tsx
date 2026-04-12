@@ -1,8 +1,8 @@
 import React from 'react'
-import { Card, Descriptions, Tabs, Tag, Table, Button, Space, Row, Col, Statistic, Divider } from 'antd'
+import { Card, Descriptions, Tabs, Tag, Table, Button, Space, Row, Col, Statistic } from 'antd'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { PlusOutlined, FileTextOutlined, DollarOutlined, SolutionOutlined, FileSearchOutlined } from '@ant-design/icons'
+import { PlusOutlined, FileTextOutlined, DollarOutlined, SolutionOutlined, FileSearchOutlined, EditOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
@@ -17,16 +17,6 @@ interface Sozlesme {
   bitis_tarihi?: string
   teminat_orani: number
   stopaj_orani: number
-}
-
-interface CariHareket {
-  id: string
-  hareket_tipi: 'borc' | 'alacak'
-  tutar: number
-  tarih: string
-  aciklama?: string
-  belge_no?: string
-  bakiye: number
 }
 
 export const FirmaDetailPage: React.FC = () => {
@@ -186,7 +176,7 @@ export const FirmaDetailPage: React.FC = () => {
 
   // Finansal Özet Hesaplamaları
   const toplamBrutHakedis = hakedisler?.filter(h => h.durum === 'onaylandi' || h.durum === 'odendi').reduce((s, h) => s + Number(h.brut_tutar), 0) || 0
-  const toplamNetHakedis = hakedisler?.filter(h => h.durum === 'onaylandi' || h.durum === 'odendi').reduce((s, h) => s + Number(h.net_tutar), 0) || 0
+  const toplamOdenen = hakedisler?.filter(h => h.durum === 'odendi').reduce((s, h) => s + Number(h.net_tutar), 0) || 0
   const toplamFatura = faturalar?.filter(f => f.fatura_tipi === 'gelen').reduce((s, f) => s + Number(f.toplam_tutar), 0) || 0
   const birikmisTeminat = hakedisler?.filter(h => h.durum === 'onaylandi' || h.durum === 'odendi').reduce((s, h) => s + Number(h.teminat_kesintisi || 0), 0) || 0
   const faturaAcigi = toplamBrutHakedis - toplamFatura

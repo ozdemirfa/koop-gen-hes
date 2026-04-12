@@ -6,6 +6,7 @@ import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
 import { DataTable } from '../../components/common/DataTable'
+import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { formatMoney } from '../../lib/format'
 
@@ -37,7 +38,7 @@ export const CariEkstrePage: React.FC = () => {
     },
   })
 
-  const { data: hareketler, isLoading } = useQuery({
+  const { data: hareketler, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['cari-ekstre-genel', dates, firmaId],
     queryFn: async () => {
       const params: any = {}
@@ -209,13 +210,18 @@ export const CariEkstrePage: React.FC = () => {
         </Col>
       </Row>
 
-      <DataTable
-        columns={columns}
-        dataSource={hareketler}
-        rowKey="id"
-        loading={isLoading}
-        pagination={false}
-      />
+      {isError ? (
+        <ErrorState error={error} onRetry={() => refetch()} />
+      ) : (
+        <DataTable
+          columns={columns}
+          dataSource={hareketler}
+          rowKey="id"
+          loading={isLoading}
+          pagination={false}
+          emptyDescription="Seçilen dönem için cari hareket bulunamadı"
+        />
+      )}
     </div>
   )
 }

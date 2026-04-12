@@ -1,12 +1,10 @@
 import React, { useState } from 'react'
-import { Button, Table, Modal, Form, Input, InputNumber, Select, Space, message, Card, Row, Col, Typography } from 'antd'
-import { PlusOutlined, EditOutlined, HomeOutlined, BuildOutlined } from '@ant-design/icons'
+import { Button, Table, Modal, Form, Input, InputNumber, Select, message, Card, Row, Col, Typography, Tag } from 'antd'
+import { EditOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
-
-const { Text } = Typography
 
 interface Serefiye {
   id: string
@@ -29,7 +27,7 @@ export const SerefiyePage: React.FC = () => {
   const [editingSerefiye, setEditingSerefiye] = useState<Serefiye | null>(null)
   const [form] = Form.useForm()
 
-  const { data: proje, isLoading: projeLoading } = useQuery({
+  const { data: proje } = useQuery({
     queryKey: ['proje', projeId],
     queryFn: async () => {
       const { data } = await api.get(`/projeler/${projeId}`)

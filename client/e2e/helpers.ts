@@ -11,7 +11,9 @@ export async function login(page: Page) {
   await page.getByPlaceholder('ornek@kooperatif.com').fill(E2E_USER!)
   await page.getByPlaceholder('Şifre').fill(E2E_PASSWORD!)
   await page.getByRole('button', { name: /giriş yap/i }).click()
-  await expect(page).toHaveURL(/\/$|\/\w+/, { timeout: 10_000 })
+
+  await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 15_000 })
+  await expect(page.locator('.ant-layout-sider, aside').first()).toBeVisible({ timeout: 15_000 })
 }
 
 export function uniqueSuffix() {

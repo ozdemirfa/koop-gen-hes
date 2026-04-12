@@ -9,6 +9,7 @@ import { useDebounce } from '../../hooks/useDebounce'
 import { PageHeader } from '../../components/common/PageHeader'
 import { DataTable } from '../../components/common/DataTable'
 import { ConfirmDelete } from '../../components/common/ConfirmDelete'
+import { ErrorState } from '../../components/common/ErrorState'
 
 interface Uye {
   id: string
@@ -38,7 +39,7 @@ export const UyeListPage: React.FC = () => {
     },
   })
 
-  const { data: uyeData, isLoading } = useQuery({
+  const { data: uyeData, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['uyeler', debouncedSearch, filterDurum, filterBlok],
     queryFn: async () => {
       const params: Record<string, string> = {}
@@ -152,13 +153,22 @@ export const UyeListPage: React.FC = () => {
         }
       />
 
-      <DataTable
-        columns={columns}
-        dataSource={uyeData?.data}
-        rowKey="id"
-        loading={isLoading}
-        totalItems={uyeData?.pagination?.total}
-      />
+      {isError ? (
+        <ErrorState error={error} onRetry={() => refetch()} />
+      ) : (
+        <DataTable
+          columns={columns}
+          dataSource={uyeData?.data}
+          rowKey="id"
+          loading={isLoading}
+          totalItems={uyeData?.pagination?.total}
+          emptyDescription="Kayıtlı üye bulunamadı"
+          onRow={(record: Uye) => ({
+            onClick: () => navigate(`/uyeler/${record.id}`),
+            style: { cursor: 'pointer' }
+          })}
+        />
+      )}
     </div>
   )
 }

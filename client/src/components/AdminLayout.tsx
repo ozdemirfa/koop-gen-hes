@@ -7,7 +7,6 @@ import {
   BankOutlined,
   TransactionOutlined,
   ShopOutlined,
-  FileTextOutlined,
   TruckOutlined,
   ProjectOutlined,
   PieChartOutlined,
@@ -70,7 +69,14 @@ export const AdminLayout: React.FC = () => {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider collapsible collapsed={collapsed} onCollapse={(value) => setCollapsed(value)} theme="dark">
+      <Sider
+        collapsible
+        collapsed={collapsed}
+        onCollapse={(value) => setCollapsed(value)}
+        breakpoint="lg"
+        collapsedWidth={window.innerWidth < 768 ? 0 : 80}
+        theme="dark"
+      >
         <div style={{ height: 32, margin: 16, background: 'rgba(255, 255, 255, 0.2)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <span style={{ color: 'white', fontWeight: 'bold' }}>{collapsed ? 'KG' : 'KoopGenHes'}</span>
         </div>
@@ -88,7 +94,7 @@ export const AdminLayout: React.FC = () => {
             Çıkış Yap
           </Button>
         </Header>
-        <Content style={{ margin: '24px 16px', padding: 24, minHeight: 280, background: token.colorBgContainer, borderRadius: 8 }}>
+        <Content style={{ margin: '16px 8px', padding: 16, minHeight: 280, background: token.colorBgContainer, borderRadius: 8, overflowX: 'auto' }}>
           <Outlet />
         </Content>
       </Layout>

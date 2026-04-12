@@ -1,13 +1,15 @@
 import React from 'react'
-import { Typography, Card, Row, Col, Statistic, Spin } from 'antd'
+import { Typography, Card, Row, Col, Statistic } from 'antd'
 import { UserOutlined, DollarOutlined, RiseOutlined, FallOutlined, BankOutlined, WarningOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import api from '../lib/api'
+import { LoadingState } from '../components/common/LoadingState'
+import { ErrorState } from '../components/common/ErrorState'
 
 const { Title } = Typography
 
 export const Dashboard: React.FC = () => {
-  const { data: ozet, isLoading } = useQuery({
+  const { data: ozet, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['dashboard-ozet'],
     queryFn: async () => {
       const { data } = await api.get('/dashboard/ozet')
@@ -15,9 +17,8 @@ export const Dashboard: React.FC = () => {
     },
   })
 
-  if (isLoading) {
-    return <div style={{ textAlign: 'center', padding: 100 }}><Spin size="large" /></div>
-  }
+  if (isLoading) return <LoadingState fullHeight />
+  if (isError) return <ErrorState error={error} onRetry={() => refetch()} />
 
   return (
     <div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Table, Button, Modal, Form, Input, InputNumber, Select, message, Popconfirm, Card, Typography, Tag, Space, DatePicker } from 'antd'
+import { Table, Button, Modal, Form, Input, InputNumber, Select, message, Popconfirm, Card, Typography, Tag, Space, DatePicker, Row, Col } from 'antd'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import api from '../lib/api'
@@ -117,6 +117,23 @@ export const GelirGider: React.FC = () => {
     onError: (err: any) => message.error(err.message || 'Hata oluştu'),
   })
 
+  const [isKategoriModalOpen, setIsKategoriModalOpen] = useState(false)
+  const [kategoriForm] = Form.useForm()
+
+  const kategoriCreateMutation = useMutation({
+    mutationFn: async (values: { ad: string; tip: 'gelir' | 'gider' }) => {
+      const { data } = await api.post('/gelir-gider/kategoriler', values)
+      return data
+    },
+    onSuccess: () => {
+      message.success('Kategori eklendi')
+      queryClient.invalidateQueries({ queryKey: ['gelir-gider-kategoriler'] })
+      setIsKategoriModalOpen(false)
+      kategoriForm.resetFields()
+    },
+    onError: (err: any) => message.error(err.message || 'Hata oluştu'),
+  })
+
   const closeModal = () => {
     setIsModalOpen(false)
     setEditing(null)
@@ -206,11 +223,35 @@ export const GelirGider: React.FC = () => {
             <Select.Option value="gelir">Gelirler</Select.Option>
             <Select.Option value="gider">Giderler</Select.Option>
           </Select>
+          <Button icon={<PlusOutlined />} onClick={() => setIsKategoriModalOpen(true)}>
+            Yeni Kategori
+          </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
             Yeni Kayıt
           </Button>
         </Space>
       </div>
+
+      {/* Kategori Modalı */}
+      <Modal
+        title="Yeni Kategori"
+        open={isKategoriModalOpen}
+        onCancel={() => setIsKategoriModalOpen(false)}
+        onOk={() => kategoriForm.submit()}
+        confirmLoading={kategoriCreateMutation.isPending}
+      >
+        <Form form={kategoriForm} layout="vertical" onFinish={(v) => kategoriCreateMutation.mutate(v)} initialValues={{ tip: 'gider' }}>
+          <Form.Item name="tip" label="Tip" rules={[{ required: true }]}>
+            <Select>
+              <Select.Option value="gelir">Gelir</Select.Option>
+              <Select.Option value="gider">Gider</Select.Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="ad" label="Kategori Adı" rules={[{ required: true }]}>
+            <Input placeholder="Örn: Kırtasiye, Tamirat" />
+          </Form.Item>
+        </Form>
+      </Modal>
 
       <Card styles={{ body: { padding: 0 } }}>
         <Table

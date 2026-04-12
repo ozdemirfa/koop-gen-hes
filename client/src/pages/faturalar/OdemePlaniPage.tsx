@@ -1,37 +1,50 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Card, Table, Button, Space, message, Spin, Empty, InputNumber, DatePicker, Form, Row, Col, Statistic, Divider, Typography } from 'antd'
+import { Card, Table, Button, message, InputNumber, DatePicker, Form, Row, Col, Statistic, Divider, Typography } from 'antd'
 import { PlusOutlined, SaveOutlined, DeleteOutlined, CalculatorOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
+import { LoadingState } from '../../components/common/LoadingState'
+import { EmptyState } from '../../components/common/EmptyState'
+import { ErrorState } from '../../components/common/ErrorState'
 
 const { Text } = Typography
+
+interface Fatura {
+  id: string
+  fatura_no: string
+  toplam_tutar: number
+  firmalar?: {
+    unvan: string
+  }
+  odeme_planlari?: any[]
+}
 
 export const OdemePlaniPage: React.FC = () => {
   const { id: faturaId } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [form] = Form.useForm()
   const [taksitler, setTaksitler] = useState<any[]>([])
 
-  const { data: fatura, isLoading } = useQuery({
+  const { data: fatura, isLoading, isError, error, refetch } = useQuery<Fatura>({
     queryKey: ['fatura', faturaId],
     queryFn: async () => {
       const { data } = await api.get(`/faturalar/${faturaId}`)
       return data.data
-    },
-    onSuccess: (data) => {
-      if (data.odeme_planlari && data.odeme_planlari.length > 0) {
-        setTaksitler(data.odeme_planlari.map((t: any) => ({
-          ...t,
-          vade_tarihi: dayjs(t.vade_tarihi)
-        })))
-      }
     }
   })
+
+  useEffect(() => {
+    if (fatura?.odeme_planlari && fatura.odeme_planlari.length > 0) {
+      setTaksitler(fatura.odeme_planlari.map((t: any) => ({
+        ...t,
+        vade_tarihi: dayjs(t.vade_tarihi)
+      })))
+    }
+  }, [fatura])
 
   const saveMutation = useMutation({
     mutationFn: async (values: any[]) => {
@@ -84,8 +97,9 @@ export const OdemePlaniPage: React.FC = () => {
     setTaksitler(newTaksitler)
   }
 
-  if (isLoading) return <div style={{ textAlign: 'center', padding: '50px' }}><Spin size="large" /></div>
-  if (!fatura) return <Empty description="Fatura bulunamadı" />
+  if (isLoading) return <LoadingState fullHeight />
+  if (isError) return <ErrorState error={error} onRetry={() => refetch()} />
+  if (!fatura) return <EmptyState description="Fatura bulunamadı" />
 
   const planToplam = taksitler.reduce((s, t) => s + (t.tutar || 0), 0)
   const kalan = Math.round((fatura.toplam_tutar - planToplam) * 100) / 100
@@ -143,8 +157,8 @@ export const OdemePlaniPage: React.FC = () => {
         }
       />
 
-      <Row gutter={16}>
-        <Col span={8}>
+      <Row gutter={[16, 16]}>
+        <Col xs={24} lg={8}>
           <Card title="Fatura Özeti">
             <Statistic title="Firma" value={fatura.firmalar?.unvan} valueStyle={{ fontSize: 16 }} />
             <Divider style={{ margin: '12px 0' }} />
@@ -178,7 +192,7 @@ export const OdemePlaniPage: React.FC = () => {
           </Card>
         </Col>
 
-        <Col span={16}>
+        <Col xs={24} lg={16}>
           <Card 
             title="Taksitler" 
             extra={<Button icon={<PlusOutlined />} onClick={handleAddTaksit}>Taksit Ekle</Button>}
