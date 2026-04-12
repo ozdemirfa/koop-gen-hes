@@ -6,28 +6,28 @@ import { projeService } from '../services/proje.service'
 
 const router = Router()
 
-router.get('/', async (_req: AuthRequest, res: Response, next: NextFunction) => {
+router.get('/', async (_req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
     const data = await projeService.list()
     res.json({ success: true, data })
   } catch (err) { next(err) }
 })
 
-router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.get('/:id', async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
     const data = await projeService.getById(req.params.id)
     res.json({ success: true, data })
   } catch (err) { next(err) }
 })
 
-router.post('/', validate({ body: projeSchema }), async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.post('/', validate({ body: projeSchema }), async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
     const data = await projeService.create(req.body)
     res.status(201).json({ success: true, data })
   } catch (err) { next(err) }
 })
 
-router.put('/:id', validate({ body: updateProjeSchema }), async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.put('/:id', validate({ body: updateProjeSchema }), async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
     const data = await projeService.update(req.params.id, req.body)
     res.json({ success: true, data })
@@ -35,21 +35,21 @@ router.put('/:id', validate({ body: updateProjeSchema }), async (req: AuthReques
 })
 
 // İş kalemleri
-router.post('/:id/is-kalemleri', validate({ body: projeIsKalemiSchema }), async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.post('/:id/is-kalemleri', validate({ body: projeIsKalemiSchema }), async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
     const data = await projeService.addIsKalemi(req.params.id, req.body)
     res.status(201).json({ success: true, data })
   } catch (err) { next(err) }
 })
 
-router.put('/is-kalemleri/:id', validate({ body: projeIsKalemiSchema.partial() }), async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.put('/is-kalemleri/:id', validate({ body: projeIsKalemiSchema.partial() }), async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
     const data = await projeService.updateIsKalemi(req.params.id, req.body)
     res.json({ success: true, data })
   } catch (err) { next(err) }
 })
 
-router.delete('/is-kalemleri/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.delete('/is-kalemleri/:id', async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
     await projeService.deleteIsKalemi(req.params.id)
     res.json({ success: true, message: 'İş kalemi silindi' })
@@ -57,21 +57,21 @@ router.delete('/is-kalemleri/:id', async (req: AuthRequest, res: Response, next:
 })
 
 // Yıllık plan
-router.get('/:id/yillik-plan/:yil', async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.get('/:id/yillik-plan/:yil', async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
     const data = await projeService.getYillikPlan(req.params.id, parseInt(req.params.yil))
     res.json({ success: true, data })
   } catch (err) { next(err) }
 })
 
-router.post('/:id/yillik-plan', validate({ body: yillikPlanSchema }), async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.post('/:id/yillik-plan', validate({ body: yillikPlanSchema }), async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
     const data = await projeService.createYillikPlan(req.params.id, req.body)
     res.status(201).json({ success: true, data })
   } catch (err) { next(err) }
 })
 
-router.put('/yillik-plan-kalemleri/:id', validate({ body: yillikPlanKalemiSchema }), async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.put('/yillik-plan-kalemleri/:id', validate({ body: yillikPlanKalemiSchema }), async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
     const data = await projeService.updatePlanKalemi(req.params.id, req.body)
     res.json({ success: true, data })
@@ -79,14 +79,14 @@ router.put('/yillik-plan-kalemleri/:id', validate({ body: yillikPlanKalemiSchema
 })
 
 // Yardımcı endpoint'ler (Üye formu vb. için)
-router.get('/aktif/bloklar', async (_req: AuthRequest, res: Response, next: NextFunction) => {
+router.get('/aktif/bloklar', async (_req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
     const data = await projeService.getAktifProje()
     res.json({ success: true, data })
   } catch (err) { next(err) }
 })
 
-router.get('/bloklar/:blokId/musait-daireler', async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.get('/bloklar/:blokId/musait-daireler', async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
     const data = await projeService.getMusaitDaireler(req.params.blokId)
     res.json({ success: true, data })
@@ -94,21 +94,21 @@ router.get('/bloklar/:blokId/musait-daireler', async (req: AuthRequest, res: Res
 })
 
 // Şerefiye Yönetimi
-router.get('/:id/serefiye', async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.get('/:id/serefiye', async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
     const data = await projeService.getSerefiye(req.params.id)
     res.json({ success: true, data })
   } catch (err) { next(err) }
 })
 
-router.post('/:id/generate-serefiye', async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.post('/:id/generate-serefiye', async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
     const data = await projeService.generateSerefiye(req.params.id)
     res.json({ success: true, data })
   } catch (err) { next(err) }
 })
 
-router.put('/serefiye/:serefiyeId', async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.put('/serefiye/:serefiyeId', async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
     const data = await projeService.updateSerefiye(req.params.serefiyeId, req.body)
     res.json({ success: true, data })

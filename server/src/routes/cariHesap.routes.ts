@@ -6,14 +6,14 @@ import { cariHesapService } from '../services/cariHesap.service'
 
 const router = Router()
 
-router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.get('/', async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
     const data = await cariHesapService.list(req.query as Record<string, any>)
     res.json({ success: true, data })
   } catch (err) { next(err) }
 })
 
-router.post('/', validate({ body: cariHareketSchema }), async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.post('/', validate({ body: cariHareketSchema }), async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
     const data = await cariHesapService.create(req.body)
     res.status(201).json({ success: true, data })

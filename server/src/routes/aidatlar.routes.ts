@@ -9,7 +9,7 @@ const router = Router()
 // === AİDAT TANIMLARI ===
 
 // GET /api/aidat-tanimlari
-router.get('/tanimlar', async (_req: AuthRequest, res: Response, next: NextFunction) => {
+router.get('/tanimlar', async (_req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
     const data = await aidatTanimiService.list()
     res.json({ success: true, data })
@@ -17,7 +17,7 @@ router.get('/tanimlar', async (_req: AuthRequest, res: Response, next: NextFunct
 })
 
 // POST /api/aidatlar/tanimlar
-router.post('/tanimlar', validate({ body: createAidatTanimiSchema }), async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.post('/tanimlar', validate({ body: createAidatTanimiSchema }), async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
     const data = await aidatTanimiService.create(req.body)
     res.status(201).json({ success: true, data })
@@ -25,7 +25,7 @@ router.post('/tanimlar', validate({ body: createAidatTanimiSchema }), async (req
 })
 
 // POST /api/aidatlar/yillik-plan
-router.post('/yillik-plan', validate({ body: yillikPlanSchema }), async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.post('/yillik-plan', validate({ body: yillikPlanSchema }), async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
     const data = await aidatTanimiService.createYillikPlan(req.body)
     res.status(201).json({ success: true, data })
@@ -33,7 +33,7 @@ router.post('/yillik-plan', validate({ body: yillikPlanSchema }), async (req: Au
 })
 
 // PUT /api/aidatlar/tanimlar/:id
-router.put('/tanimlar/:id', validate({ body: updateAidatTanimiSchema }), async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.put('/tanimlar/:id', validate({ body: updateAidatTanimiSchema }), async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
     const data = await aidatTanimiService.update(req.params.id, req.body)
     res.json({ success: true, data })
@@ -43,7 +43,7 @@ router.put('/tanimlar/:id', validate({ body: updateAidatTanimiSchema }), async (
 // === AİDATLAR ===
 
 // GET /api/aidatlar
-router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.get('/', async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
     const result = await aidatService.list(req.query as Record<string, any>)
     res.json({ success: true, ...result })
@@ -51,7 +51,7 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
 })
 
 // GET /api/aidatlar/ozet
-router.get('/ozet', async (_req: AuthRequest, res: Response, next: NextFunction) => {
+router.get('/ozet', async (_req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
     const data = await aidatService.getSummary()
     res.json({ success: true, data })
@@ -59,7 +59,7 @@ router.get('/ozet', async (_req: AuthRequest, res: Response, next: NextFunction)
 })
 
 // POST /api/aidatlar/gecikme-hesapla
-router.post('/gecikme-hesapla', async (_req: AuthRequest, res: Response, next: NextFunction) => {
+router.post('/gecikme-hesapla', async (_req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
     const data = await aidatService.calculateLateFees()
     res.json({ success: true, data })
@@ -67,7 +67,7 @@ router.post('/gecikme-hesapla', async (_req: AuthRequest, res: Response, next: N
 })
 
 // GET /api/aidatlar/:id
-router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.get('/:id', async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
     const data = await aidatService.getById(req.params.id)
     res.json({ success: true, data })
@@ -75,7 +75,7 @@ router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) =
 })
 
 // POST /api/aidatlar/:id/odeme
-router.post('/:id/odeme', validate({ body: aidatOdemeSchema }), async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.post('/:id/odeme', validate({ body: aidatOdemeSchema }), async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
     const data = await aidatService.recordPayment(req.params.id, req.body)
     res.json({ success: true, data })
