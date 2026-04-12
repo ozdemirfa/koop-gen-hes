@@ -17,7 +17,8 @@ export const raporService = {
       if (giderRes.error) console.error('Error fetching giderler:', giderRes.error)
 
       const aidatOzet = { tahsilat: 0, bekleyen: 0, geciken: 0 }
-      aidatRes.data?.forEach(a => {
+      const aidatData = aidatRes.data || []
+      aidatData.forEach(a => {
         aidatOzet.tahsilat += Number(a.odenen_tutar || 0)
         if (a.durum === 'bekliyor') aidatOzet.bekleyen += Number(a.tutar || 0)
         if (a.durum === 'gecikti') aidatOzet.geciken += Number(a.tutar || 0) + Number(a.gecikme_faizi || 0)
@@ -33,7 +34,7 @@ export const raporService = {
         aidat_geciken: aidatOzet.geciken,
         toplam_gelir: toplamGelir + aidatOzet.tahsilat,
         toplam_gider: toplamGider,
-        net_bakiye: toplamGelir + aidatOzet.tahsilat - toplamGider
+        net_bakiye: (toplamGelir + aidatOzet.tahsilat) - toplamGider
       }
     } catch (err) {
       console.error('Fatal error in dashboardOzet:', err)
