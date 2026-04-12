@@ -20,7 +20,9 @@ test.describe('Çek Takibi', () => {
     
     // Vade Tarihi
     await page.locator('#vade_tarihi').click()
-    await page.locator('.ant-picker-today-btn').click()
+    // Ant Design date picker "Today" button can be tricky, try text or specific class
+    const todayBtn = page.getByText('Today').or(page.locator('.ant-picker-today-btn'))
+    await todayBtn.click()
     
     await page.getByRole('button', { name: 'OK', exact: true }).click()
     
@@ -39,7 +41,8 @@ test.describe('Çek Takibi', () => {
   })
 
   test('should filter checks', async ({ page }) => {
-    await page.getByLabel('Bekleyenler').click()
+    // Ant Design Radio.Button often hides the input, use text or specific class
+    await page.getByText('Bekleyenler').click()
     // Verify all visible rows are BEKLEMEDE
     const rows = page.locator('.ant-table-row')
     const count = await rows.count()

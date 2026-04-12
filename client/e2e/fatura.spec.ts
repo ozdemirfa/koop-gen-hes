@@ -40,7 +40,7 @@ test.describe('Fatura & Ödeme Planı', () => {
     
     // Check saved or validation messages
     await expect(
-      page.getByText(/fatura kaydedildi/i).or(page.getByText(faturaNo))
+      page.getByText(/fatura kaydedildi/i).or(page.getByText(faturaNo)).first()
     ).toBeVisible({ timeout: 10_000 })
   })
 

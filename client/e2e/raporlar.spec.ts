@@ -19,12 +19,10 @@ test.describe('Raporlar', () => {
     await page.locator('.ant-picker-month-panel .ant-picker-cell-inner').first().click()
     
     // Verify it still loads
-    await expect(page.locator('.ant-table')).toBeVisible()
+    await expect(page.locator('.ant-table').first()).toBeVisible()
   })
 
   test('should load yıllık rapor', async ({ page }) => {
-    await page.goto('/raporlar/yallik') // Check App.tsx route
-    // Wait, App.tsx says: <Route path="raporlar/yillik" element={<YillikRaporPage />} />
     await page.goto('/raporlar/yillik')
     await expect(page.getByText(/yıllık mali rapor/i)).toBeVisible()
   })
@@ -32,7 +30,7 @@ test.describe('Raporlar', () => {
   test('should load üye borç raporu', async ({ page }) => {
     await page.goto('/raporlar/uye-borc')
     await expect(page.getByText(/üye borç listesi/i)).toBeVisible()
-    await expect(page.locator('.ant-table')).toBeVisible()
+    await expect(page.locator('.ant-table').first()).toBeVisible()
   })
 
   test('should show empty state when no data', async ({ page }) => {

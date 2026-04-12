@@ -25,22 +25,21 @@ test.describe('Proje Yönetimi', () => {
     await expect(page.getByText(projeAdi)).toBeVisible()
   })
 
-  test('should navigate to project detail and see tabs', async ({ page }) => {
+  test('should navigate to project detail and see content', async ({ page }) => {
     // Click on the first project card
     await page.locator('.ant-card-head-title').first().click()
     
     await expect(page.url()).toContain('/projeler/')
-    await expect(page.getByRole('tab', { name: /genel/i })).toBeVisible()
-    await expect(page.getByRole('tab', { name: /iş kalemleri/i })).toBeVisible()
-    await expect(page.getByRole('tab', { name: /bloklar/i })).toBeVisible()
+    // Actual UI has cards, not tabs
+    await expect(page.getByText('Proje Bilgileri', { exact: true })).toBeVisible()
+    await expect(page.getByText('İş Kalemleri (Ağaç Yapısı)', { exact: true })).toBeVisible()
   })
 
   test('should see iş kalemi tree in project detail', async ({ page }) => {
     // Navigate to a project detail
     await page.locator('.ant-card-head-title').first().click()
-    await page.getByRole('tab', { name: /iş kalemleri/i }).click()
     
-    // Check for Tree structure or table
-    await expect(page.locator('.ant-table')).toBeVisible()
+    // Check for Tree structure or empty state
+    await expect(page.locator('.ant-tree').or(page.getByText(/henüz iş kalemi eklenmemiş/i))).toBeVisible()
   })
 })

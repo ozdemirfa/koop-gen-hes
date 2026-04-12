@@ -12,14 +12,17 @@ test.describe('Firmalar & Sözleşmeler', () => {
     
     await page.getByRole('button', { name: /yeni firma/i }).click()
     
+    // Select Tip
     await page.locator('#firma_tipi').click()
-    await page.getByTitle('Yüklenici', { exact: true }).click()
+    await page.locator('.ant-select-item-option:has-text("Yüklenici")').first().click()
     
     await page.locator('#unvan').fill(unvan)
     await page.locator('#vergi_no').fill('1234567890')
     await page.locator('#telefon').fill('05554443322')
     
-    await page.getByRole('button', { name: 'OK', exact: true }).click()
+    // Ant Design modal footer usually has the primary button for OK
+    const okBtn = page.locator('.ant-modal-footer button').filter({ hasText: /OK|Tamam|Kaydet/i }).first()
+    await okBtn.click()
     
     await expect(page.getByText(/firma eklendi/i)).toBeVisible({ timeout: 10_000 })
     await expect(page.getByText(unvan)).toBeVisible()

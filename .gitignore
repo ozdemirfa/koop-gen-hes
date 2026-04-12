@@ -25,6 +25,10 @@ Thumbs.db
 
 # Test artifacts
 coverage/
+bug-report.md
+bug*.md
+test-results/
+playwright-report/
 
 # Project Specific
 .agents/
