@@ -14,6 +14,9 @@
   "type": "commonjs",
   "dependencies": {
     "@supabase/supabase-js": "^2.102.0",
+    "@types/express": "^5.0.6",
+    "@types/cors": "^2.8.19",
+    "@types/node": "^25.5.2",
     "cors": "^2.8.6",
     "dayjs": "^1.11.20",
     "dotenv": "^17.4.1",
@@ -22,9 +25,6 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.6",
-    "@types/node": "^25.5.2",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2"
   }

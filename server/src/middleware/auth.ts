@@ -22,6 +22,10 @@ export interface AuthRequest<
     id: string
     email?: string
   }
+  // Miras alma hatalarına karşı zorunlu alanları buraya da ekliyoruz
+  body: ReqBody
+  params: P
+  query: ReqQuery
 }
 
 const authClient = createClient(supabaseUrl, supabaseAnonKey, {
