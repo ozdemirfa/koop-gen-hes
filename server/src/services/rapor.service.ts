@@ -2,31 +2,42 @@ import { supabaseAdmin } from '../config/supabase'
 
 export const raporService = {
   async dashboardOzet() {
-    const [uyeRes, aidatRes, gelirRes, giderRes] = await Promise.all([
-      supabaseAdmin.from('uyeler').select('id', { count: 'exact' }).eq('durum', 'aktif'),
-      supabaseAdmin.from('aidatlar').select('durum, tutar, gecikme_faizi, odenen_tutar'),
-      supabaseAdmin.from('gelir_giderler').select('tutar').eq('tip', 'gelir'),
-      supabaseAdmin.from('gelir_giderler').select('tutar').eq('tip', 'gider')
-    ])
+    try {
+      const [uyeRes, aidatRes, gelirRes, giderRes] = await Promise.all([
+        supabaseAdmin.from('uyeler').select('id', { count: 'exact' }).eq('durum', 'aktif'),
+        supabaseAdmin.from('aidatlar').select('durum, tutar, gecikme_faizi, odenen_tutar'),
+        supabaseAdmin.from('gelir_giderler').select('tutar').eq('tip', 'gelir'),
+        supabaseAdmin.from('gelir_giderler').select('tutar').eq('tip', 'gider')
+      ])
 
-    const aidatOzet = { tahsilat: 0, bekleyen: 0, geciken: 0 }
-    aidatRes.data?.forEach(a => {
-      aidatOzet.tahsilat += Number(a.odenen_tutar || 0)
-      if (a.durum === 'bekliyor') aidatOzet.bekleyen += Number(a.tutar)
-      if (a.durum === 'gecikti') aidatOzet.geciken += Number(a.tutar) + Number(a.gecikme_faizi || 0)
-    })
+      // Check for errors in individual responses
+      if (uyeRes.error) console.error('Error fetching uyeler:', uyeRes.error)
+      if (aidatRes.error) console.error('Error fetching aidatlar:', aidatRes.error)
+      if (gelirRes.error) console.error('Error fetching gelirler:', gelirRes.error)
+      if (giderRes.error) console.error('Error fetching giderler:', giderRes.error)
 
-    const toplamGelir = (gelirRes.data || []).reduce((s, r) => s + Number(r.tutar), 0)
-    const toplamGider = (giderRes.data || []).reduce((s, r) => s + Number(r.tutar), 0)
+      const aidatOzet = { tahsilat: 0, bekleyen: 0, geciken: 0 }
+      aidatRes.data?.forEach(a => {
+        aidatOzet.tahsilat += Number(a.odenen_tutar || 0)
+        if (a.durum === 'bekliyor') aidatOzet.bekleyen += Number(a.tutar || 0)
+        if (a.durum === 'gecikti') aidatOzet.geciken += Number(a.tutar || 0) + Number(a.gecikme_faizi || 0)
+      })
 
-    return {
-      aktif_uye_sayisi: uyeRes.count || 0,
-      aidat_tahsilat: aidatOzet.tahsilat,
-      aidat_bekleyen: aidatOzet.bekleyen,
-      aidat_geciken: aidatOzet.geciken,
-      toplam_gelir: toplamGelir + aidatOzet.tahsilat,
-      toplam_gider: toplamGider,
-      net_bakiye: toplamGelir + aidatOzet.tahsilat - toplamGider
+      const toplamGelir = (gelirRes.data || []).reduce((s, r) => s + Number(r.tutar || 0), 0)
+      const toplamGider = (giderRes.data || []).reduce((s, r) => s + Number(r.tutar || 0), 0)
+
+      return {
+        aktif_uye_sayisi: uyeRes.count || 0,
+        aidat_tahsilat: aidatOzet.tahsilat,
+        aidat_bekleyen: aidatOzet.bekleyen,
+        aidat_geciken: aidatOzet.geciken,
+        toplam_gelir: toplamGelir + aidatOzet.tahsilat,
+        toplam_gider: toplamGider,
+        net_bakiye: toplamGelir + aidatOzet.tahsilat - toplamGider
+      }
+    } catch (err) {
+      console.error('Fatal error in dashboardOzet:', err)
+      throw err
     }
   },
 
