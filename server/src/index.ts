@@ -12,6 +12,10 @@ const port = process.env.PORT || 3001
 
 // Middlewares
 app.use(helmet())
+app.use((req, _res, next) => {
+  console.log(`[REQUEST] ${req.method} ${req.path} - Origin: ${req.headers.origin}`)
+  next()
+})
 app.use(cors({
   origin: (origin, callback) => {
     const allowedOrigins = [
