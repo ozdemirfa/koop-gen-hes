@@ -8,15 +8,15 @@ import { aidatService } from '../services/aidat.service'
 const router = Router()
 
 // GET /api/uyeler
-router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.get('/', async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
-    const result = await uyeService.list(req.query as Record<string, any>)
+    const result = await uyeService.list(req.query)
     res.json({ success: true, ...result })
   } catch (err) { next(err) }
 })
 
 // GET /api/uyeler/:id
-router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.get('/:id', async (req: AuthRequest<{ id: string }>, res: Response, next: NextFunction) => {
   try {
     const data = await uyeService.getById(req.params.id)
     res.json({ success: true, data })
@@ -32,7 +32,7 @@ router.post('/', validate({ body: createUyeSchema }), async (req: AuthRequest, r
 })
 
 // PUT /api/uyeler/:id
-router.put('/:id', validate({ body: updateUyeSchema }), async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.put('/:id', validate({ body: updateUyeSchema }), async (req: AuthRequest<{ id: string }>, res: Response, next: NextFunction) => {
   try {
     const data = await uyeService.update(req.params.id, req.body)
     res.json({ success: true, data })
@@ -40,7 +40,7 @@ router.put('/:id', validate({ body: updateUyeSchema }), async (req: AuthRequest,
 })
 
 // DELETE /api/uyeler/:id
-router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.delete('/:id', async (req: AuthRequest<{ id: string }>, res: Response, next: NextFunction) => {
   try {
     await uyeService.delete(req.params.id)
     res.json({ success: true, message: 'Üye pasif yapıldı' })
@@ -48,15 +48,15 @@ router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction
 })
 
 // GET /api/uyeler/:id/aidatlar
-router.get('/:id/aidatlar', async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.get('/:id/aidatlar', async (req: AuthRequest<{ id: string }>, res: Response, next: NextFunction) => {
   try {
-    const data = await uyeService.getAidatlar(req.params.id, req.query as Record<string, any>)
+    const data = await uyeService.getAidatlar(req.params.id, req.query)
     res.json({ success: true, data })
   } catch (err) { next(err) }
 })
 
 // POST /api/uyeler/:id/toplu-odeme
-router.post('/:id/toplu-odeme', async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.post('/:id/toplu-odeme', async (req: AuthRequest<{ id: string }>, res: Response, next: NextFunction) => {
   try {
     const data = await aidatService.recordBulkPayment(req.params.id, req.body)
     res.json({ success: true, data })

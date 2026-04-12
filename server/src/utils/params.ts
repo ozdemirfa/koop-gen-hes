@@ -5,7 +5,8 @@ import { Request } from 'express'
  * Bu helper tek bir string parametre döndürür.
  */
 export function getParam(req: Request, name: string): string {
-  const value = req.params[name]
+  const params = req.params as any
+  const value = params[name]
   if (Array.isArray(value)) return value[0]
   return value as string
 }
