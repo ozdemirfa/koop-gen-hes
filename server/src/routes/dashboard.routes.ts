@@ -6,9 +6,14 @@ const router = Router()
 
 router.get('/ozet', async (_req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
   try {
+    console.log('[DASHBOARD] Fetching ozet data...')
     const data = await raporService.dashboardOzet()
+    console.log('[DASHBOARD] Ozet data fetched successfully:', !!data)
     res.json({ success: true, data })
-  } catch (err) { next(err) }
+  } catch (err) { 
+    console.error('[DASHBOARD] Error fetching ozet:', err)
+    next(err) 
+  }
 })
 
 router.get('/aylik-gelir-gider', async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
