@@ -47,7 +47,7 @@ RETURNS BOOLEAN AS $$
     SELECT 1 FROM public.user_roles 
     WHERE user_id = auth.uid() AND role = 'admin'
   );
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE sql SECURITY DEFINER;
 
 CREATE OR REPLACE FUNCTION public.is_staff() 
 RETURNS BOOLEAN AS $$
@@ -55,7 +55,7 @@ RETURNS BOOLEAN AS $$
     SELECT 1 FROM public.user_roles 
     WHERE user_id = auth.uid() AND role IN ('admin', 'staff')
   );
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE sql SECURITY DEFINER;
 
 -- Mevcut blanket policy'leri kaldır ve yenilerini ekle
 DO $$
