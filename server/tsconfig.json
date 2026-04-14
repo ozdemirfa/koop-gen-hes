@@ -3,7 +3,6 @@
     "target": "es2022",
     "module": "commonjs",
     "moduleResolution": "node",
-    "ignoreDeprecations": "6.0",
     "typeRoots": ["./node_modules/@types"],
     "rootDir": "./src",
     "outDir": "./dist",
