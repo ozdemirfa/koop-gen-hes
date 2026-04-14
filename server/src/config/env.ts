@@ -1,4 +1,8 @@
 import dotenv from 'dotenv'
 import path from 'path'
 
-dotenv.config({ path: path.resolve(__dirname, '../../../.env') })
+// Local development için root'daki .env dosyasını yükle (varsa)
+// Render/Vercel gibi ortamlarda environment variable'lar doğrudan process.env'de olur.
+dotenv.config()
+dotenv.config({ path: path.resolve(process.cwd(), '.env') })
+dotenv.config({ path: path.resolve(process.cwd(), '../.env') })
