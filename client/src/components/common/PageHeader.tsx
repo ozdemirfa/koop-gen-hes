@@ -31,21 +31,34 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   }
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-      <Space direction="vertical" size={0}>
+    <div className="page-header">
+      <Space direction="vertical" size={2}>
         <Space align="center" size="middle">
           {(showBack || onBack || backPath) && (
             <Button 
               type="text" 
               icon={<ArrowLeftOutlined />} 
-              onClick={handleBack} 
+              onClick={handleBack}
+              style={{ 
+                marginRight: 8,
+                borderRadius: '50%',
+                width: 32,
+                height: 32,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
             />
           )}
-          <Title level={3} style={{ margin: 0 }}>{title}</Title>
+          <Title level={3} style={{ margin: 0, fontWeight: 700 }}>{title}</Title>
         </Space>
-        {subtitle && <Typography.Text type="secondary">{subtitle}</Typography.Text>}
+        {subtitle && (
+          <Typography.Text type="secondary" style={{ marginLeft: (showBack || onBack || backPath) ? 40 : 0 }}>
+            {subtitle}
+          </Typography.Text>
+        )}
       </Space>
-      {extra && <Space>{extra}</Space>}
+      {extra && <Space wrap>{extra}</Space>}
     </div>
   )
 }

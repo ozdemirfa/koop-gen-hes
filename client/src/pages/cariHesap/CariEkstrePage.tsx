@@ -136,6 +136,7 @@ export const CariEkstrePage: React.FC = () => {
     <div>
       <PageHeader
         title="Genel Cari Ekstre"
+        subtitle="Firmaların borç, alacak ve bakiye durumlarını detaylı olarak inceleyin"
         extra={
           <Space>
             <Button icon={<DownloadOutlined />} onClick={exportToCSV}>CSV İndir</Button>
@@ -165,7 +166,7 @@ export const CariEkstrePage: React.FC = () => {
 
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={6}>
-          <Card bordered={false}>
+          <Card bordered={false} className="stat-card">
             <Statistic
               title="Toplam Borç"
               value={totals.borc}
@@ -176,7 +177,7 @@ export const CariEkstrePage: React.FC = () => {
           </Card>
         </Col>
         <Col span={6}>
-          <Card bordered={false}>
+          <Card bordered={false} className="stat-card">
             <Statistic
               title="Toplam Alacak"
               value={totals.alacak}
@@ -187,18 +188,18 @@ export const CariEkstrePage: React.FC = () => {
           </Card>
         </Col>
         <Col span={6}>
-          <Card bordered={false}>
+          <Card bordered={false} className="stat-card">
             <Statistic
               title="Net Bakiye"
-              value={totals.alacak - totals.borc}
+              value={Math.abs(totals.alacak - totals.borc)}
               precision={2}
               valueStyle={{ color: totals.alacak - totals.borc >= 0 ? '#3f8600' : '#cf1322' }}
-              suffix="TL"
+              suffix={totals.alacak - totals.borc >= 0 ? 'TL (A)' : 'TL (B)'}
             />
           </Card>
         </Col>
         <Col span={6}>
-          <Card bordered={false}>
+          <Card bordered={false} className="stat-card">
             <Statistic
               title="Birikmiş Teminat"
               value={teminatData || 0}

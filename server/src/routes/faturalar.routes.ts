@@ -1,51 +1,15 @@
-import { Router, Response, NextFunction } from 'express'
-import { AuthRequest } from '../middleware/auth'
+import { Router } from 'express'
 import { validate } from '../middleware/validate'
 import { createFaturaSchema, updateFaturaSchema, odemePlaniSchema } from '../schemas/fatura.schema'
-import { faturaService } from '../services/fatura.service'
+import * as faturaController from '../controllers/faturalar.controller'
 
 const router = Router()
 
-router.get('/', async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
-  try {
-    const result = await faturaService.list(req.query as Record<string, any>)
-    res.json({ success: true, ...result })
-  } catch (err) { next(err) }
-})
-
-router.get('/:id', async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
-  try {
-    const data = await faturaService.getById(req.params.id)
-    res.json({ success: true, data })
-  } catch (err) { next(err) }
-})
-
-router.post('/', validate({ body: createFaturaSchema }), async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
-  try {
-    const data = await faturaService.create(req.body)
-    res.status(201).json({ success: true, data })
-  } catch (err) { next(err) }
-})
-
-router.put('/:id', validate({ body: updateFaturaSchema }), async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
-  try {
-    const data = await faturaService.update(req.params.id, req.body)
-    res.json({ success: true, data })
-  } catch (err) { next(err) }
-})
-
-router.delete('/:id', async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
-  try {
-    await faturaService.delete(req.params.id)
-    res.json({ success: true, message: 'Fatura silindi' })
-  } catch (err) { next(err) }
-})
-
-router.post('/:id/odeme-plani', validate({ body: odemePlaniSchema }), async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
-  try {
-    const data = await faturaService.createOdemePlani(req.params.id, req.body.taksitler)
-    res.status(201).json({ success: true, data })
-  } catch (err) { next(err) }
-})
+router.get('/', faturaController.getFaturalar)
+router.get('/:id', faturaController.getFaturaById)
+router.post('/', validate({ body: createFaturaSchema }), faturaController.createFatura)
+router.put('/:id', validate({ body: updateFaturaSchema }), faturaController.updateFatura)
+router.delete('/:id', faturaController.deleteFatura)
+router.post('/:id/odeme-plani', validate({ body: odemePlaniSchema }), faturaController.createOdemePlani)
 
 export default router

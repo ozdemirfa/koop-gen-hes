@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Card, Descriptions, Table, Button, InputNumber, Tag, Row, Col, Statistic, Space, message, Popconfirm } from 'antd'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { CheckOutlined, SaveOutlined } from '@ant-design/icons'
+import { CheckOutlined, SaveOutlined, FilePdfOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
@@ -217,32 +217,40 @@ export const HakedisDetailPage: React.FC = () => {
         showBack
         backPath="/hakedisler"
         extra={
-          isTaslak && (
-            <Space>
-              <Button
-                type="primary"
-                icon={<SaveOutlined />}
-                onClick={() => saveMutation.mutate()}
-                loading={saveMutation.isPending}
-                disabled={!hasChanges}
-              >
-                Kaydet
-              </Button>
-              <Popconfirm
-                title="Hakediş onaylanacak ve cari hareket oluşturulacak. Onaylıyor musunuz?"
-                onConfirm={() => approveMutation.mutate()}
-                okText="Onayla"
-                cancelText="Vazgeç"
-              >
+          <Space>
+            <Button
+              icon={<FilePdfOutlined />}
+              onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'}/hakedisler/${id}/pdf`, '_blank')}
+            >
+              PDF İndir
+            </Button>
+            {isTaslak && (
+              <>
                 <Button
-                  icon={<CheckOutlined />}
-                  loading={approveMutation.isPending}
+                  type="primary"
+                  icon={<SaveOutlined />}
+                  onClick={() => saveMutation.mutate()}
+                  loading={saveMutation.isPending}
+                  disabled={!hasChanges}
                 >
-                  Onayla
+                  Kaydet
                 </Button>
-              </Popconfirm>
-            </Space>
-          )
+                <Popconfirm
+                  title="Hakediş onaylanacak ve cari hareket oluşturulacak. Onaylıyor musunuz?"
+                  onConfirm={() => approveMutation.mutate()}
+                  okText="Onayla"
+                  cancelText="Vazgeç"
+                >
+                  <Button
+                    icon={<CheckOutlined />}
+                    loading={approveMutation.isPending}
+                  >
+                    Onayla
+                  </Button>
+                </Popconfirm>
+              </>
+            )}
+          </Space>
         }
       />
 

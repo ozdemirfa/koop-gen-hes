@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '../config/supabase'
 import { ApiError } from '../utils/ApiError'
 import { parsePagination, toSupabaseRange, paginationMeta } from '../utils/pagination'
+import logger from '../utils/logger'
 
 export const uyeService = {
   async list(query: Record<string, any>) {
@@ -21,7 +22,10 @@ export const uyeService = {
       .order('created_at', { ascending: false })
       .range(from, to)
 
-    if (error) throw error
+    if (error) {
+      logger.error('Üye listeleme hatası:', error)
+      throw error
+    }
     return { data, pagination: paginationMeta(pagination, count || 0) }
   },
 
@@ -32,7 +36,10 @@ export const uyeService = {
       .eq('id', id)
       .single()
 
-    if (error) throw ApiError.notFound('Üye bulunamadı')
+    if (error) {
+      logger.error(`Üye getirme hatası (ID: ${id}):`, error)
+      throw ApiError.notFound('Üye bulunamadı')
+    }
     return data
   },
 
@@ -44,18 +51,22 @@ export const uyeService = {
       .single()
 
     if (error) {
+      logger.error('Üye oluşturma hatası:', error)
       if (error.code === '23505') throw ApiError.conflict('Bu üye no veya TC kimlik zaten kayıtlı')
       throw error
     }
 
     // Eğer bir daire atandıysa şerefiye tablosunu güncelle
     if (data.serefiye_id && data.durum === 'aktif') {
-      await supabaseAdmin
+      const { error: sError } = await supabaseAdmin
         .from('serefiye_tablosu')
         .update({ durum: 'dolu' })
         .eq('id', data.serefiye_id)
+      
+      if (sError) logger.error('Şerefiye güncelleme hatası:', sError)
     }
 
+    logger.info(`Yeni üye oluşturuldu: ${data.ad} ${data.soyad} (${data.id})`)
     return data
   },
 
@@ -75,6 +86,7 @@ export const uyeService = {
       .single()
 
     if (error) {
+      logger.error(`Üye güncelleme hatası (ID: ${id}):`, error)
       if (error.code === '23505') throw ApiError.conflict('Bu üye no veya TC kimlik zaten kayıtlı')
       throw error
     }
@@ -97,25 +109,18 @@ export const uyeService = {
           .eq('id', data.serefiye_id)
       }
     } else if (oldUye && oldUye.serefiye_id && oldUye.durum !== data.durum) {
-      // Sadece durum değiştiyse (Trigger zaten hallediyor ama burada da garantiye alabiliriz)
       if (data.durum === 'aktif') {
-        await supabaseAdmin
-          .from('serefiye_tablosu')
-          .update({ durum: 'dolu' })
-          .eq('id', data.serefiye_id)
+        await supabaseAdmin.from('serefiye_tablosu').update({ durum: 'dolu' }).eq('id', data.serefiye_id)
       } else {
-        await supabaseAdmin
-          .from('serefiye_tablosu')
-          .update({ durum: 'bos' })
-          .eq('id', data.serefiye_id)
+        await supabaseAdmin.from('serefiye_tablosu').update({ durum: 'bos' }).eq('id', data.serefiye_id)
       }
     }
 
+    logger.info(`Üye güncellendi: ${id}`)
     return data
   },
 
   async delete(id: string) {
-    // Soft delete: durumu pasif yap
     const { data, error } = await supabaseAdmin
       .from('uyeler')
       .update({ durum: 'pasif' })
@@ -123,8 +128,13 @@ export const uyeService = {
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      logger.error(`Üye silme (pasife alma) hatası (ID: ${id}):`, error)
+      throw error
+    }
     if (!data) throw ApiError.notFound('Üye bulunamadı')
+    
+    logger.info(`Üye pasif yapıldı: ${id}`)
     return data
   },
 
@@ -137,7 +147,10 @@ export const uyeService = {
     if (query.yil) q = q.eq('aidat_tanimlari.yil', query.yil)
 
     const { data, error } = await q.order('created_at', { ascending: false })
-    if (error) throw error
+    if (error) {
+      logger.error(`Üye aidatları çekme hatası (UyeID: ${uyeId}):`, error)
+      throw error
+    }
     return data
   }
 }
@@ -161,6 +174,7 @@ export const blokService = {
       .single()
 
     if (error) throw error
+    logger.info(`Yeni blok oluşturuldu: ${data.blok_adi}`)
     return data
   },
 
@@ -187,5 +201,6 @@ export const blokService = {
       if (error.code === '23503') throw ApiError.badRequest('Bu bloka atanmış üyeler var, önce üyeleri çıkarın')
       throw error
     }
+    logger.info(`Blok silindi: ${id}`)
   }
 }

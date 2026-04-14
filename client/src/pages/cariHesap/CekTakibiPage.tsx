@@ -128,6 +128,7 @@ export const CekTakibiPage: React.FC = () => {
     <div>
       <PageHeader
         title="Çek Takibi"
+        subtitle="Verilen çeklerin vade, tutar ve ödeme durumlarını yönetin"
         extra={
           <Button
             type="primary"
@@ -145,10 +146,26 @@ export const CekTakibiPage: React.FC = () => {
 
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={12}>
-          <Card><Statistic title="Bekleyen Çekler Toplamı" value={totalBekleyen} prefix="₺" precision={2} valueStyle={{ color: '#1890ff' }} /></Card>
+          <Card className="stat-card">
+            <Statistic 
+              title="Bekleyen Çekler Toplamı" 
+              value={totalBekleyen} 
+              suffix="TL" 
+              precision={2} 
+              valueStyle={{ color: '#1890ff' }} 
+            />
+          </Card>
         </Col>
         <Col span={12}>
-          <Card><Statistic title="Ödenen Çekler Toplamı" value={totalOdendi} prefix="₺" precision={2} valueStyle={{ color: '#52c41a' }} /></Card>
+          <Card className="stat-card">
+            <Statistic 
+              title="Ödenen Çekler Toplamı" 
+              value={totalOdendi} 
+              suffix="TL" 
+              precision={2} 
+              valueStyle={{ color: '#52c41a' }} 
+            />
+          </Card>
         </Col>
       </Row>
 

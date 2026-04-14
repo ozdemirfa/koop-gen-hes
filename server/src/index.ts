@@ -3,6 +3,8 @@ import './config/env' // dotenv EN BAŞTA yüklenmeli (import hoisting yüzünde
 import express, { Request, Response } from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
+import morgan from 'morgan'
+import logger from './utils/logger'
 
 import apiRoutes from './routes/index'
 import { errorHandler } from './middleware/errorHandler'
@@ -12,10 +14,8 @@ const port = process.env.PORT || 3001
 
 // Middlewares
 app.use(helmet())
-app.use((req, _res, next) => {
-  console.log(`[REQUEST] ${req.method} ${req.path} - Origin: ${req.headers.origin}`)
-  next()
-})
+app.use(morgan('combined', { stream: { write: (message) => logger.info(message.trim()) } }))
+
 app.use(cors({
   origin: (origin, callback) => {
     const allowedOrigins = [
@@ -62,6 +62,6 @@ export default app
 // Sadece Vercel dışında manuel çalıştığında dinlesin
 if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
   app.listen(port, () => {
-    console.log(`[server]: Server is running at http://localhost:${port}`)
+    logger.info(`[server]: Server is running at http://localhost:${port}`)
   })
 }

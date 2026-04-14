@@ -202,6 +202,7 @@ export const FaturaListPage: React.FC = () => {
     <div>
       <PageHeader
         title="Fatura Yönetimi"
+        subtitle="Gelen ve giden faturaların takibi, ödeme planlarının oluşturulması"
         extra={
           <Space>
             <Select placeholder="Tip" value={filterTip} onChange={setFilterTip} allowClear style={{ width: 110 }}>
@@ -241,8 +242,17 @@ export const FaturaListPage: React.FC = () => {
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
         width={900}
+        destroyOnClose
+        okText="Kaydet"
+        cancelText="İptal"
       >
-        <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)} onValuesChange={calculateTotals}>
+        <Form 
+          form={form} 
+          layout="vertical" 
+          onFinish={(v) => saveMutation.mutate(v)} 
+          onValuesChange={calculateTotals}
+          style={{ marginTop: 16 }}
+        >
           <Row gutter={16}>
             <Col span={10}>
               <Form.Item name="firma_id" label="Firma" rules={[{ required: true }]}>

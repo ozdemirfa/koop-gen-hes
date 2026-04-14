@@ -14,17 +14,22 @@
   "type": "commonjs",
   "dependencies": {
     "@supabase/supabase-js": "^2.102.0",
-    "@types/express": "^5.0.6",
     "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
     "@types/node": "^25.5.2",
     "cors": "^2.8.6",
     "dayjs": "^1.11.20",
     "dotenv": "^17.4.1",
     "express": "^5.2.1",
     "helmet": "^8.1.0",
+    "morgan": "^1.10.1",
+    "pdfmake": "^0.3.7",
+    "winston": "^3.19.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@types/morgan": "^1.9.10",
+    "@types/pdfmake": "^0.3.2",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2"
   }

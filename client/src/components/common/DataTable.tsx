@@ -38,13 +38,24 @@ export function DataTable<T extends object>({
       locale={mergedLocale}
       pagination={mergedPagination}
       scroll={{ x: 'max-content' }}
+      bordered={false}
+      style={{
+        borderRadius: 8,
+        overflow: 'hidden'
+      }}
     />
   )
 
   if (hideCard) return tableContent
 
   return (
-    <Card styles={{ body: { padding: 0 } }}>
+    <Card 
+      styles={{ body: { padding: 0 } }} 
+      style={{ 
+        boxShadow: 'var(--shadow-sm)',
+        border: '1px solid var(--border-color)'
+      }}
+    >
       {tableContent}
     </Card>
   )

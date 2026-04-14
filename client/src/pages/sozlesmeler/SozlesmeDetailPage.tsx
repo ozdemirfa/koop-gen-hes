@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Card, Descriptions, Table, Button, Modal, Form, Input, InputNumber, Space, Tag, message } from 'antd'
+import { Card, Descriptions, Table, Button, Modal, Form, Input, InputNumber, Space, Tag, message, Row, Col } from 'antd'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
@@ -147,6 +147,7 @@ export const SozlesmeDetailPage: React.FC = () => {
     <div>
       <PageHeader
         title={sozlesme ? `Sözleşme: ${sozlesme.konu}` : 'Sözleşme Detayı'}
+        subtitle="Sözleşme kapsamındaki iş kalemlerini ve mali detayları yönetin"
         showBack
         backPath={sozlesme ? `/firmalar/${sozlesme.firma_id}` : '/firmalar'}
         extra={
@@ -168,9 +169,9 @@ export const SozlesmeDetailPage: React.FC = () => {
         {sozlesme && (
           <Descriptions bordered column={{ xxl: 3, xl: 3, lg: 3, md: 2, sm: 1, xs: 1 }}>
             <Descriptions.Item label="Firma">
-              <a onClick={() => navigate(`/firmalar/${sozlesme.firma_id}`)}>
+              <Button type="link" onClick={() => navigate(`/firmalar/${sozlesme.firma_id}`)} style={{ padding: 0, height: 'auto' }}>
                 {sozlesme.firmalar?.unvan}
-              </a>
+              </Button>
             </Descriptions.Item>
             <Descriptions.Item label="Sözleşme No">{sozlesme.sozlesme_no || '-'}</Descriptions.Item>
             <Descriptions.Item label="Toplam Tutar">
@@ -233,40 +234,50 @@ export const SozlesmeDetailPage: React.FC = () => {
         width={600}
       >
         <Form form={kalemForm} layout="vertical" onFinish={(v) => saveKalemMutation.mutate(v)}>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item name="sira_no" label="Sıra No" style={{ flex: 1 }}>
-              <InputNumber min={0} style={{ width: '100%' }} />
-            </Form.Item>
-            <Form.Item name="poz_no" label="Poz No" style={{ flex: 1 }}>
-              <Input />
-            </Form.Item>
-          </div>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="sira_no" label="Sıra No">
+                <InputNumber min={0} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="poz_no" label="Poz No">
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
           <Form.Item name="tanim" label="Tanım" rules={[{ required: true, message: 'Tanım zorunlu' }]}>
             <Input.TextArea rows={2} />
           </Form.Item>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item name="birim" label="Birim" rules={[{ required: true, message: 'Birim zorunlu' }]} style={{ flex: 1 }}>
-              <Input placeholder="m2, m3, kg, adet..." />
-            </Form.Item>
-            <Form.Item name="miktar" label="Miktar" rules={[{ required: true, message: 'Miktar zorunlu' }]} style={{ flex: 1 }}>
-              <InputNumber 
-                min={0} 
-                step={0.001} 
-                style={{ width: '100%' }}
-                formatter={trNumberFormatter}
-                parser={trNumberParser}
-              />
-            </Form.Item>
-            <Form.Item name="birim_fiyat" label="Birim Fiyat (TL)" rules={[{ required: true, message: 'Fiyat zorunlu' }]} style={{ flex: 1 }}>
-              <InputNumber 
-                min={0} 
-                step={0.01} 
-                style={{ width: '100%' }}
-                formatter={trNumberFormatter}
-                parser={trNumberParser}
-              />
-            </Form.Item>
-          </div>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="birim" label="Birim" rules={[{ required: true, message: 'Birim zorunlu' }]}>
+                <Input placeholder="m2, m3..." />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="miktar" label="Miktar" rules={[{ required: true, message: 'Miktar zorunlu' }]}>
+                <InputNumber 
+                  min={0} 
+                  step={0.001} 
+                  style={{ width: '100%' }}
+                  formatter={trNumberFormatter}
+                  parser={trNumberParser}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="birim_fiyat" label="Birim Fiyat (TL)" rules={[{ required: true, message: 'Fiyat zorunlu' }]}>
+                <InputNumber 
+                  min={0} 
+                  step={0.01} 
+                  style={{ width: '100%' }}
+                  formatter={trNumberFormatter}
+                  parser={trNumberParser}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
         </Form>
       </Modal>
     </div>

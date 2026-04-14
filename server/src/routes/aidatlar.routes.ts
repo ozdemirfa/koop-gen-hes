@@ -1,85 +1,39 @@
-import { Router, Response, NextFunction } from 'express'
-import { AuthRequest } from '../middleware/auth'
+import { Router } from 'express'
 import { validate } from '../middleware/validate'
 import { createAidatTanimiSchema, updateAidatTanimiSchema, aidatOdemeSchema, yillikPlanSchema } from '../schemas/aidat.schema'
-import { aidatTanimiService, aidatService } from '../services/aidat.service'
+import * as aidatController from '../controllers/aidat.controller'
 
 const router = Router()
 
 // === AİDAT TANIMLARI ===
 
-// GET /api/aidat-tanimlari
-router.get('/tanimlar', async (_req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
-  try {
-    const data = await aidatTanimiService.list()
-    res.json({ success: true, data })
-  } catch (err) { next(err) }
-})
+// GET /api/aidatlar/tanimlar
+router.get('/tanimlar', aidatController.getAidatTanimlari)
 
 // POST /api/aidatlar/tanimlar
-router.post('/tanimlar', validate({ body: createAidatTanimiSchema }), async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
-  try {
-    const data = await aidatTanimiService.create(req.body)
-    res.status(201).json({ success: true, data })
-  } catch (err) { next(err) }
-})
+router.post('/tanimlar', validate({ body: createAidatTanimiSchema }), aidatController.createAidatTanimi)
 
 // POST /api/aidatlar/yillik-plan
-router.post('/yillik-plan', validate({ body: yillikPlanSchema }), async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
-  try {
-    const data = await aidatTanimiService.createYillikPlan(req.body)
-    res.status(201).json({ success: true, data })
-  } catch (err) { next(err) }
-})
+router.post('/yillik-plan', validate({ body: yillikPlanSchema }), aidatController.createYillikPlan)
 
 // PUT /api/aidatlar/tanimlar/:id
-router.put('/tanimlar/:id', validate({ body: updateAidatTanimiSchema }), async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
-  try {
-    const data = await aidatTanimiService.update(req.params.id, req.body)
-    res.json({ success: true, data })
-  } catch (err) { next(err) }
-})
+router.put('/tanimlar/:id', validate({ body: updateAidatTanimiSchema }), aidatController.updateAidatTanimi)
 
 // === AİDATLAR ===
 
 // GET /api/aidatlar
-router.get('/', async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
-  try {
-    const result = await aidatService.list(req.query as Record<string, any>)
-    res.json({ success: true, ...result })
-  } catch (err) { next(err) }
-})
+router.get('/', aidatController.getAidatlar)
 
 // GET /api/aidatlar/ozet
-router.get('/ozet', async (_req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
-  try {
-    const data = await aidatService.getSummary()
-    res.json({ success: true, data })
-  } catch (err) { next(err) }
-})
+router.get('/ozet', aidatController.getAidatOzet)
 
 // POST /api/aidatlar/gecikme-hesapla
-router.post('/gecikme-hesapla', async (_req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
-  try {
-    const data = await aidatService.calculateLateFees()
-    res.json({ success: true, data })
-  } catch (err) { next(err) }
-})
+router.post('/gecikme-hesapla', aidatController.calculateLateFees)
 
 // GET /api/aidatlar/:id
-router.get('/:id', async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
-  try {
-    const data = await aidatService.getById(req.params.id)
-    res.json({ success: true, data })
-  } catch (err) { next(err) }
-})
+router.get('/:id', aidatController.getAidatById)
 
 // POST /api/aidatlar/:id/odeme
-router.post('/:id/odeme', validate({ body: aidatOdemeSchema }), async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
-  try {
-    const data = await aidatService.recordPayment(req.params.id, req.body)
-    res.json({ success: true, data })
-  } catch (err) { next(err) }
-})
+router.post('/:id/odeme', validate({ body: aidatOdemeSchema }), aidatController.recordPayment)
 
 export default router

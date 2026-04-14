@@ -181,67 +181,106 @@ export const UyeDetailPage: React.FC = () => {
     <div>
       <PageHeader 
         title={uye ? `${uye.ad} ${uye.soyad}` : "Üye Detayı"} 
+        subtitle={uye ? `Üye No: ${uye.uye_no} | ${uye.bloklar?.blok_adi || '-'} Blok / Daire ${uye.daire_no || '-'}` : ""}
         onBack={() => navigate('/uyeler')}
         extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setOdemeModalOpen(true)}>
+          <Button type="primary" size="large" icon={<PlusOutlined />} onClick={() => setOdemeModalOpen(true)}>
             Yeni Ödeme Al
           </Button>
         }
       />
 
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={8}>
-          <Card><Statistic title="Toplam Tahakkuk" value={toplamBorc} prefix="₺" precision={2} /></Card>
+      <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
+        <Col xs={24} sm={8}>
+          <Card className="stat-card">
+            <Statistic 
+              title="Toplam Tahakkuk" 
+              value={toplamBorc} 
+              prefix="₺" 
+              precision={2} 
+              valueStyle={{ fontWeight: 700 }}
+            />
+          </Card>
         </Col>
-        <Col span={8}>
-          <Card><Statistic title="Toplam Ödeme" value={toplamOdenen} prefix="₺" precision={2} valueStyle={{ color: '#3f8600' }} /></Card>
+        <Col xs={24} sm={8}>
+          <Card className="stat-card">
+            <Statistic 
+              title="Toplam Ödeme" 
+              value={toplamOdenen} 
+              prefix="₺" 
+              precision={2} 
+              valueStyle={{ color: 'var(--success)', fontWeight: 700 }} 
+            />
+          </Card>
         </Col>
-        <Col span={8}>
-          <Card><Statistic title="Güncel Borç" value={kalanBakiye} prefix="₺" precision={2} valueStyle={{ color: kalanBakiye > 0 ? '#cf1322' : '#3f8600' }} /></Card>
+        <Col xs={24} sm={8}>
+          <Card className="stat-card">
+            <Statistic 
+              title="Güncel Borç" 
+              value={kalanBakiye} 
+              prefix="₺" 
+              precision={2} 
+              valueStyle={{ 
+                color: kalanBakiye > 0 ? 'var(--error)' : 'var(--success)',
+                fontWeight: 700 
+              }} 
+            />
+          </Card>
         </Col>
       </Row>
 
-      <Card styles={{ body: { padding: 0 } }}>
+      <Card 
+        styles={{ body: { padding: 0 } }}
+        style={{ overflow: 'hidden' }}
+      >
         <Tabs
           defaultActiveKey="1"
+          type="line"
+          size="large"
           style={{ padding: '0 24px 24px' }}
           items={[
             {
               key: '1',
               label: <Space><DollarOutlined />Aidat Hesapları</Space>,
               children: (
-                <DataTable
-                  columns={aidatColumns}
-                  dataSource={aidatlar}
-                  rowKey="id"
-                  loading={aidatLoading}
-                  hideCard
-                  size="small"
-                  pagination={false}
-                />
+                <div style={{ paddingTop: 16 }}>
+                  <DataTable
+                    columns={aidatColumns}
+                    dataSource={aidatlar}
+                    rowKey="id"
+                    loading={aidatLoading}
+                    hideCard
+                    pagination={false}
+                  />
+                </div>
               ),
             },
             {
               key: '2',
               label: <Space><HistoryOutlined />Ödemeler / Makbuzlar</Space>,
               children: (
-                <DataTable
-                  columns={odemeColumns}
-                  dataSource={odemeler}
-                  rowKey="id"
-                  loading={odemeLoading}
-                  hideCard
-                  size="small"
-                />
+                <div style={{ paddingTop: 16 }}>
+                  <DataTable
+                    columns={odemeColumns}
+                    dataSource={odemeler}
+                    rowKey="id"
+                    loading={odemeLoading}
+                    hideCard
+                  />
+                </div>
               ),
             },
             {
               key: '3',
               label: <Space><UserOutlined />Profil Bilgileri</Space>,
               children: (
-                <div style={{ paddingTop: 16 }}>
+                <div style={{ paddingTop: 24 }}>
                   {uye && (
-                    <Descriptions bordered column={{ xxl: 3, xl: 3, lg: 2, md: 2, sm: 1, xs: 1 }}>
+                    <Descriptions 
+                      bordered 
+                      column={{ xxl: 3, xl: 3, lg: 2, md: 2, sm: 1, xs: 1 }}
+                      labelStyle={{ background: '#f8fafc', fontWeight: 600, width: '150px' }}
+                    >
                       <Descriptions.Item label="Üye No">{uye.uye_no}</Descriptions.Item>
                       <Descriptions.Item label="TC Kimlik">{uye.tc_kimlik || '-'}</Descriptions.Item>
                       <Descriptions.Item label="Durum">

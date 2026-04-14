@@ -11,44 +11,47 @@ test.describe('P2 — Uye yonetimi', () => {
     const suffix = uniqueSuffix()
     const ad = `Test${suffix}`
     const soyad = `Uye${suffix}`
+    const tc = `1${Math.floor(Math.random() * 1000000000).toString().padStart(10, '0')}`
 
     await page.goto('/uyeler/yeni')
-    await page.getByLabel(/^Ad$/i).fill(ad)
-    await page.getByLabel(/Soyad/i).fill(soyad)
+    
+    // Ant Design inputlarını id veya label ile bulma
+    await page.fill('#ad', ad)
+    await page.fill('#soyad', soyad)
+    await page.fill('#tc_kimlik', tc)
 
-    // Blok ve Daire zorunlu: aktif projede bir blok seçilip müsait daire atanmalı
-    await page.locator('#blok_id').click()
-    // Wait for dropdown and press enter on first option
-    await page.waitForSelector('.ant-select-dropdown:not(.ant-select-dropdown-hidden)')
+    // Blok ve Daire seçimi
+    await page.click('#blok_id')
+    await page.waitForSelector('.ant-select-item-option-content')
     await page.keyboard.press('ArrowDown')
     await page.keyboard.press('Enter')
     
-    // Stability wait for daire options to load (triggered by blok change)
-    await page.waitForTimeout(2000)
+    // Dairelerin yüklenmesini bekle
+    await page.waitForTimeout(1000)
     
-    // Open daire select
-    await page.locator('#serefiye_id').click()
-    await page.waitForSelector('.ant-select-dropdown:not(.ant-select-dropdown-hidden)')
+    await page.click('#serefiye_id')
+    await page.waitForSelector('.ant-select-item-option-content')
     await page.keyboard.press('ArrowDown')
     await page.keyboard.press('Enter')
 
-    // Use a more specific button selector
-    const saveBtn = page.locator('.ant-card button').filter({ hasText: /Kaydet/i }).first()
-    await saveBtn.click()
+    // Kaydet butonu
+    await page.click('button[type="submit"]')
 
-    // Başarı toast'u veya listeye yönlendirme
-    await expect(page.getByText(/üye eklendi/i).or(page.getByText(/üye güncellendi/i))).toBeVisible({ timeout: 15_000 })
+    // Başarı mesajını bekle
+    await expect(page.locator('.ant-message-notice')).toContainText(/eklendi|güncellendi/i)
 
+    // Listede kontrol et
     await page.goto('/uyeler')
-    await page.getByPlaceholder(/ara/i).fill(ad)
-    await expect(page.getByText(new RegExp(`${ad}\\s+${soyad}`))).toBeVisible({ timeout: 15_000 })
+    await page.fill('input[placeholder*="Ara"]', ad)
+    await expect(page.locator('table')).toContainText(ad)
+    await expect(page.locator('table')).toContainText(soyad)
   })
 
   test('uye detay sayfasi acilir', async ({ page }) => {
     await page.goto('/uyeler')
+    await page.waitForSelector('.ant-table-row')
     const firstRow = page.locator('.ant-table-row').first()
-    await expect(firstRow).toBeVisible()
     await firstRow.click()
-    await expect(page).toHaveURL(/\/uyeler\/[^/]+$/)
+    await expect(page).toHaveURL(/\/uyeler\/[0-9a-f-]+/)
   })
 })

@@ -42,6 +42,7 @@ export const AylikRaporPage: React.FC = () => {
     <div>
       <PageHeader
         title="Aylık Mali Rapor"
+        subtitle={`${targetDate.format('MMMM YYYY')} dönemi için gelir, gider ve aidat özeti`}
         extra={
           <Space>
             <DatePicker
@@ -50,14 +51,19 @@ export const AylikRaporPage: React.FC = () => {
               onChange={(v) => v && setTargetDate(v)}
               format="MMMM YYYY"
             />
-            <Button icon={<FilePdfOutlined />} disabled>PDF İndir</Button>
+            <Button 
+              icon={<FilePdfOutlined />} 
+              onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'}/raporlar/aylik-rapor/pdf?yil=${targetDate.year()}&ay=${targetDate.month() + 1}`, '_blank')}
+            >
+              PDF İndir
+            </Button>
           </Space>
         }
       />
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col span={8}>
-          <Card>
+          <Card className="stat-card">
             <Statistic
               title="Toplam Aidat Tahsilatı"
               value={rapor?.toplam_aidat_tahsilat || 0}
@@ -69,7 +75,7 @@ export const AylikRaporPage: React.FC = () => {
           </Card>
         </Col>
         <Col span={8}>
-          <Card>
+          <Card className="stat-card">
             <Statistic
               title="Diğer Gelirler"
               value={rapor?.toplam_gelir || 0}
@@ -81,7 +87,7 @@ export const AylikRaporPage: React.FC = () => {
           </Card>
         </Col>
         <Col span={8}>
-          <Card>
+          <Card className="stat-card">
             <Statistic
               title="Toplam Giderler"
               value={rapor?.toplam_gider || 0}

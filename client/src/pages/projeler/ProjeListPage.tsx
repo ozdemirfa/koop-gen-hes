@@ -112,7 +112,8 @@ export const ProjeListPage: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title="Projeler"
+        title="İnşaat Projeleri"
+        subtitle="Kooperatif bünyesindeki tüm inşaat projeleri, blok yapıları ve bütçe planları"
         extra={
           <Button
             type="primary"
@@ -180,8 +181,17 @@ export const ProjeListPage: React.FC = () => {
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
         width={800}
+        destroyOnClose
+        okText="Kaydet"
+        cancelText="İptal"
       >
-        <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)} initialValues={{ durum: 'planli' }}>
+        <Form 
+          form={form} 
+          layout="vertical" 
+          onFinish={(v) => saveMutation.mutate(v)} 
+          initialValues={{ durum: 'planli' }}
+          style={{ marginTop: 16 }}
+        >
           <Row gutter={16}>
             <Col span={16}>
               <Form.Item name="proje_adi" label="Proje Adı" rules={[{ required: true }]}>

@@ -134,6 +134,7 @@ export const FirmaListPage: React.FC = () => {
     <div>
       <PageHeader
         title="Firma Yönetimi"
+        subtitle="Yüklenici ve tedarikçi firmaların genel listesi ve bakiye takibi"
         extra={
           <Space wrap>
             <Input
@@ -190,8 +191,16 @@ export const FirmaListPage: React.FC = () => {
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
         width={640}
+        destroyOnClose
+        okText="Kaydet"
+        cancelText="İptal"
       >
-        <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)}>
+        <Form 
+          form={form} 
+          layout="vertical" 
+          onFinish={(v) => saveMutation.mutate(v)}
+          style={{ marginTop: 16 }}
+        >
           <Form.Item name="firma_tipi" label="Firma Tipi" rules={[{ required: true, message: 'Tip seçin' }]}>
             <Select>
               <Select.Option value="yuklenici">Yüklenici</Select.Option>

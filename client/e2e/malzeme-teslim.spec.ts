@@ -8,41 +8,44 @@ test.describe('Malzeme Teslim', () => {
   })
 
   test('should add a new malzeme teslim and calculate total', async ({ page }) => {
-    // Simplest text selector if role-based fails
-    await page.getByText('Yeni İrsaliye').first().click()
+    // "Yeni İrsaliye" butonuna tıkla
+    await page.click('button:has-text("Yeni İrsaliye")')
     
-    // Stability wait for modal
-    const dialog = page.getByRole('dialog')
-    await expect(dialog).toBeVisible({ timeout: 10_000 })
+    // Modalın açılmasını bekle
+    const dialog = page.locator('.ant-modal-content')
+    await expect(dialog).toBeVisible({ timeout: 10000 })
     
-    // Select Firma
+    // Firma seçimi
     await dialog.locator('#firma_id').click()
-    await page.waitForSelector('.ant-select-dropdown:not(.ant-select-dropdown-hidden)')
+    await page.waitForSelector('.ant-select-item-option-content')
     await page.keyboard.press('ArrowDown')
     await page.keyboard.press('Enter')
     
-    // Teslim Tarihi
+    // Teslim Tarihi - Bugünü seç
     await dialog.locator('#teslim_tarihi').click()
-    await page.keyboard.press('Enter') // Today is usually default or selected
+    await page.waitForSelector('.ant-picker-today-btn')
+    await page.click('.ant-picker-today-btn')
     
     // Irsaliye No
     const irsNo = `IRS-${uniqueSuffix().toUpperCase()}`
     await dialog.locator('#irsaliye_no').fill(irsNo)
     
-    // Kalemler (Ant Design Form.List uses names like kalemler_0_malzeme_adi)
+    // Kalemler
+    // Ant Design Form.List içindeki ilk satırı doldur
     await dialog.locator('input[placeholder="Malzeme Adı"]').first().fill('Test Malzeme')
-    await dialog.locator('input[placeholder="Miktar"]').first().fill('5')
+    await dialog.locator('input[aria-label="Miktar"]').first().fill('5')
     await dialog.locator('input[placeholder="Fiyat"]').first().fill('200')
     
-    const okBtn = dialog.locator('.ant-modal-footer button').filter({ hasText: /OK|Tamam|Kaydet/i }).first()
+    // Kaydet/Tamam butonu
+    const okBtn = dialog.locator('.ant-modal-footer button.ant-btn-primary')
     await okBtn.click()
     
-    // Wait for any toast
-    await expect(page.locator('.ant-message-notice')).toBeVisible({ timeout: 10_000 })
-    await expect(page.getByText(irsNo)).toBeVisible({ timeout: 10_000 })
+    // Başarı mesajını ve listenin güncellenmesini bekle
+    await expect(page.locator('.ant-message-notice')).toBeVisible({ timeout: 10000 })
+    await expect(page.locator('table')).toContainText(irsNo)
     
-    // Check total in list (5 * 200 = 1000)
-    // MoneyDisplay might format it as 1.000,00 TL
-    await expect(page.locator('.ant-table-row:has-text("' + irsNo + '")')).toContainText(/1\.000/i)
+    // Toplam tutarı kontrol et (5 * 200 = 1000)
+    // Türkiye formatında 1.000,00 şeklinde görünebilir
+    await expect(page.locator('tr:has-text("' + irsNo + '")')).toContainText(/1\.000/)
   })
 })

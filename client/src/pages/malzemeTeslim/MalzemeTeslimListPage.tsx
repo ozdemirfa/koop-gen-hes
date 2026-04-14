@@ -138,7 +138,8 @@ export const MalzemeTeslimListPage: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title="İrsaliye Girişi"
+        title="İrsaliye ve Malzeme Teslimi"
+        subtitle="Şantiyeye gelen malzemelerin irsaliye kayıtları ve teslimat takibi"
         extra={
           <Button
             type="primary"
@@ -178,8 +179,16 @@ export const MalzemeTeslimListPage: React.FC = () => {
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
         width={800}
+        destroyOnClose
+        okText="Kaydet"
+        cancelText="İptal"
       >
-        <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)}>
+        <Form 
+          form={form} 
+          layout="vertical" 
+          onFinish={(v) => saveMutation.mutate(v)}
+          style={{ marginTop: 16 }}
+        >
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item name="firma_id" label="Firma" rules={[{ required: true }]}>

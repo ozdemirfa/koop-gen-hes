@@ -12,7 +12,9 @@ import { UyeListPage } from './pages/uyeler/UyeListPage'
 import { UyeFormPage } from './pages/uyeler/UyeFormPage'
 import { UyeDetailPage } from './pages/uyeler/UyeDetailPage'
 import { Aidatlar } from './pages/Aidatlar'
+import { AidatYillikPlanPage } from './pages/AidatYillikPlanPage'
 import { GelirGider } from './pages/GelirGider'
+import { GelirGiderKategoriPage } from './pages/GelirGiderKategoriPage'
 import { FirmaListPage } from './pages/firmalar/FirmaListPage'
 import { FirmaDetailPage } from './pages/firmalar/FirmaDetailPage'
 import { SozlesmeFormPage } from './pages/sozlesmeler/SozlesmeFormPage'
@@ -54,7 +56,36 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const App: React.FC = () => {
   return (
-    <ConfigProvider locale={trTR}>
+    <ConfigProvider 
+      locale={trTR}
+      theme={{
+        token: {
+          colorPrimary: '#4f46e5',
+          borderRadius: 8,
+          fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+          colorBgLayout: '#f8fafc',
+        },
+        components: {
+          Card: {
+            boxShadowTertiary: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+          },
+          Button: {
+            fontWeight: 500,
+            controlHeight: 38,
+          },
+          Table: {
+            headerBg: '#f8fafc',
+            headerColor: '#475569',
+            headerSplitColor: 'transparent',
+          },
+          Menu: {
+            itemBg: 'transparent',
+            itemSelectedBg: 'rgba(79, 70, 229, 0.1)',
+            itemSelectedColor: '#4f46e5',
+          }
+        }
+      }}
+    >
       <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
@@ -68,7 +99,9 @@ const App: React.FC = () => {
                 <Route path="uyeler/:id" element={<UyeDetailPage />} />
                 <Route path="uyeler/:id/duzenle" element={<UyeFormPage />} />
                 <Route path="aidatlar" element={<Aidatlar />} />
+                <Route path="aidatlar/yillik-plan" element={<AidatYillikPlanPage />} />
                 <Route path="gelir-gider" element={<GelirGider />} />
+                <Route path="gelir-gider/kategoriler" element={<GelirGiderKategoriPage />} />
                 <Route path="firmalar" element={<FirmaListPage />} />
                 <Route path="firmalar/:id" element={<FirmaDetailPage />} />
                 <Route path="sozlesmeler/yeni" element={<SozlesmeFormPage />} />

@@ -32,7 +32,15 @@ export const AdminLayout: React.FC = () => {
     { key: '/', icon: <BankOutlined />, label: 'Dashboard' },
     { key: '/uyeler', icon: <UserOutlined />, label: 'Üyeler' },
     { key: '/aidatlar', icon: <DollarOutlined />, label: 'Aidat Yönetimi' },
-    { key: '/gelir-gider', icon: <TransactionOutlined />, label: 'Gelir / Gider' },
+    {
+      key: 'gelir-gider-group',
+      icon: <TransactionOutlined />,
+      label: 'Gelir / Gider',
+      children: [
+        { key: '/gelir-gider', label: 'İşlemler' },
+        { key: '/gelir-gider/kategoriler', label: 'Kategoriler' },
+      ],
+    },
     {
       key: 'firmalar-group',
       icon: <ShopOutlined />,
@@ -75,27 +83,75 @@ export const AdminLayout: React.FC = () => {
         onCollapse={(value) => setCollapsed(value)}
         breakpoint="lg"
         collapsedWidth={window.innerWidth < 768 ? 0 : 80}
-        theme="dark"
+        theme="light"
+        style={{
+          borderRight: '1px solid #e2e8f0',
+          position: 'sticky',
+          top: 0,
+          left: 0,
+          height: '100vh',
+          zIndex: 1000,
+        }}
       >
-        <div style={{ height: 32, margin: 16, background: 'rgba(255, 255, 255, 0.2)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ color: 'white', fontWeight: 'bold' }}>{collapsed ? 'KG' : 'KoopGenHes'}</span>
+        <div style={{ height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid #e2e8f0' }}>
+          <div style={{ 
+            background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', 
+            borderRadius: 8, 
+            padding: '4px 12px',
+            color: 'white',
+            fontWeight: 700,
+            fontSize: collapsed ? '14px' : '18px',
+            transition: 'all 0.2s'
+          }}>
+            {collapsed ? 'KG' : 'KoopGen'}
+          </div>
         </div>
         <Menu
-          theme="dark"
+          theme="light"
           selectedKeys={[location.pathname]}
           mode="inline"
           items={menuItems}
           onClick={({ key }) => navigate(key)}
+          style={{ borderRight: 0, marginTop: 8 }}
         />
       </Sider>
       <Layout>
-        <Header style={{ padding: '0 24px', background: token.colorBgContainer, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', boxShadow: '0 1px 4px rgba(0,21,41,.08)' }}>
-          <Button type="text" icon={<LogoutOutlined />} onClick={handleLogout}>
+        <Header style={{ 
+          padding: '0 24px', 
+          background: 'white', 
+          display: 'flex', 
+          justifyContent: 'flex-end', 
+          alignItems: 'center',
+          borderBottom: '1px solid #e2e8f0',
+          position: 'sticky',
+          top: 0,
+          zIndex: 999,
+          height: 64
+        }}>
+          <Button 
+            type="text" 
+            icon={<LogoutOutlined />} 
+            onClick={handleLogout}
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              color: '#64748b',
+              height: 40,
+              borderRadius: 8
+            }}
+          >
             Çıkış Yap
           </Button>
         </Header>
-        <Content style={{ margin: '16px 8px', padding: 16, minHeight: 280, background: token.colorBgContainer, borderRadius: 8, overflowX: 'auto' }}>
-          <Outlet />
+        <Content style={{ 
+          margin: '24px', 
+          minHeight: 280, 
+          background: 'transparent',
+          overflow: 'initial'
+        }}>
+          <div style={{ maxWidth: 1400, margin: '0 auto' }}>
+            <Outlet />
+          </div>
         </Content>
       </Layout>
     </Layout>

@@ -1,13 +1,15 @@
 import React, { useState } from 'react'
-import { Table, Button, Modal, Form, Input, InputNumber, Select, message, Popconfirm, Card, Typography, Tag, Space, DatePicker, Row, Col } from 'antd'
+import { Table, Button, Modal, Form, Input, InputNumber, Select, message, Popconfirm, Card, Typography, Tag, Space, DatePicker, Row, Col, Statistic } from 'antd'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, DeleteOutlined, SettingOutlined, ArrowUpOutlined, ArrowDownOutlined, WalletOutlined } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 import dayjs from 'dayjs'
+import { PageHeader } from '../components/common/PageHeader'
 import { MoneyDisplay } from '../components/common/MoneyDisplay'
 import { trNumberFormatter, trNumberParser } from '../lib/format'
 
-const { Title } = Typography
+const { Title, Text } = Typography
 
 interface Kategori {
   id: string
@@ -31,6 +33,7 @@ interface GelirGider {
 }
 
 export const GelirGider: React.FC = () => {
+  const navigate = useNavigate()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editing, setEditing] = useState<GelirGider | null>(null)
   const [tipFilter, setTipFilter] = useState<string>('')
@@ -77,6 +80,12 @@ export const GelirGider: React.FC = () => {
     },
   })
 
+  const totals = listData?.data?.reduce((acc: any, curr: GelirGider) => {
+    if (curr.tip === 'gelir') acc.gelir += Number(curr.tutar)
+    else acc.gider += Number(curr.tutar)
+    return acc
+  }, { gelir: 0, gider: 0 }) || { gelir: 0, gider: 0 }
+
   const createMutation = useMutation({
     mutationFn: async (values: Record<string, unknown>) => {
       const payload = { ...values, tarih: (values.tarih as dayjs.Dayjs).format('YYYY-MM-DD') }
@@ -113,23 +122,6 @@ export const GelirGider: React.FC = () => {
     onSuccess: () => {
       message.success('Kayıt silindi')
       queryClient.invalidateQueries({ queryKey: ['gelir-gider'] })
-    },
-    onError: (err: any) => message.error(err.message || 'Hata oluştu'),
-  })
-
-  const [isKategoriModalOpen, setIsKategoriModalOpen] = useState(false)
-  const [kategoriForm] = Form.useForm()
-
-  const kategoriCreateMutation = useMutation({
-    mutationFn: async (values: { ad: string; tip: 'gelir' | 'gider' }) => {
-      const { data } = await api.post('/gelir-gider/kategoriler', values)
-      return data
-    },
-    onSuccess: () => {
-      message.success('Kategori eklendi')
-      queryClient.invalidateQueries({ queryKey: ['gelir-gider-kategoriler'] })
-      setIsKategoriModalOpen(false)
-      kategoriForm.resetFields()
     },
     onError: (err: any) => message.error(err.message || 'Hata oluştu'),
   })
@@ -210,48 +202,69 @@ export const GelirGider: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <Title level={3} style={{ margin: 0 }}>Gelir / Gider Yönetimi</Title>
-        <Space>
-          <Select
-            allowClear
-            placeholder="Filtre"
-            style={{ width: 130 }}
-            value={tipFilter || undefined}
-            onChange={(v) => setTipFilter(v || '')}
-          >
-            <Select.Option value="gelir">Gelirler</Select.Option>
-            <Select.Option value="gider">Giderler</Select.Option>
-          </Select>
-          <Button icon={<PlusOutlined />} onClick={() => setIsKategoriModalOpen(true)}>
-            Yeni Kategori
-          </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
-            Yeni Kayıt
-          </Button>
-        </Space>
-      </div>
-
-      {/* Kategori Modalı */}
-      <Modal
-        title="Yeni Kategori"
-        open={isKategoriModalOpen}
-        onCancel={() => setIsKategoriModalOpen(false)}
-        onOk={() => kategoriForm.submit()}
-        confirmLoading={kategoriCreateMutation.isPending}
-      >
-        <Form form={kategoriForm} layout="vertical" onFinish={(v) => kategoriCreateMutation.mutate(v)} initialValues={{ tip: 'gider' }}>
-          <Form.Item name="tip" label="Tip" rules={[{ required: true }]}>
-            <Select>
-              <Select.Option value="gelir">Gelir</Select.Option>
-              <Select.Option value="gider">Gider</Select.Option>
+      <PageHeader
+        title="Gelir / Gider İşlemleri"
+        subtitle="Kooperatifin tüm gelir ve gider kayıtlarını buradan yönetebilirsiniz."
+        extra={
+          <Space>
+            <Select
+              allowClear
+              placeholder="Filtre"
+              style={{ width: 130 }}
+              value={tipFilter || undefined}
+              onChange={(v) => setTipFilter(v || '')}
+            >
+              <Select.Option value="gelir">Gelirler</Select.Option>
+              <Select.Option value="gider">Giderler</Select.Option>
             </Select>
-          </Form.Item>
-          <Form.Item name="ad" label="Kategori Adı" rules={[{ required: true }]}>
-            <Input placeholder="Örn: Kırtasiye, Tamirat" />
-          </Form.Item>
-        </Form>
-      </Modal>
+            <Button icon={<SettingOutlined />} onClick={() => navigate('/gelir-gider/kategoriler')}>
+              Kategoriler
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
+              Yeni Kayıt
+            </Button>
+          </Space>
+        }
+      />
+
+      <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Col span={8}>
+          <Card className="stat-card">
+            <Statistic
+              title="Toplam Gelir"
+              value={totals.gelir}
+              precision={2}
+              valueStyle={{ color: '#3f8600' }}
+              prefix={<ArrowUpOutlined />}
+              suffix="TL"
+            />
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card className="stat-card">
+            <Statistic
+              title="Toplam Gider"
+              value={totals.gider}
+              precision={2}
+              valueStyle={{ color: '#cf1322' }}
+              prefix={<ArrowDownOutlined />}
+              suffix="TL"
+            />
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card className="stat-card">
+            <Statistic
+              title="Net Bakiye"
+              value={totals.gelir - totals.gider}
+              precision={2}
+              valueStyle={{ color: totals.gelir - totals.gider >= 0 ? '#3f8600' : '#cf1322' }}
+              prefix={<WalletOutlined />}
+              suffix="TL"
+            />
+          </Card>
+        </Col>
+      </Row>
 
       <Card styles={{ body: { padding: 0 } }}>
         <Table
@@ -270,8 +283,16 @@ export const GelirGider: React.FC = () => {
         onOk={() => form.submit()}
         confirmLoading={createMutation.isPending || updateMutation.isPending}
         width={640}
+        okText="Kaydet"
+        cancelText="İptal"
       >
-        <Form form={form} layout="vertical" onFinish={handleSubmit} initialValues={{ tip: 'gelir', tarih: dayjs() }}>
+        <Form 
+          form={form} 
+          layout="vertical" 
+          onFinish={handleSubmit} 
+          initialValues={{ tip: 'gelir', tarih: dayjs() }}
+          style={{ marginTop: 16 }}
+        >
           <Row gutter={16}>
             <Col span={8}>
               <Form.Item name="tip" label="Tip" rules={[{ required: true }]}>
@@ -298,12 +319,13 @@ export const GelirGider: React.FC = () => {
 
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="tutar" label="Tutar (TL)" rules={[{ required: true }]}>
+              <Form.Item name="tutar" label="Tutar" rules={[{ required: true }]}>
                 <InputNumber 
                   min={0} 
                   style={{ width: '100%' }} 
                   formatter={trNumberFormatter}
                   parser={trNumberParser}
+                  placeholder="0,00"
                 />
               </Form.Item>
             </Col>
@@ -363,4 +385,3 @@ export const GelirGider: React.FC = () => {
     </div>
   )
 }
-

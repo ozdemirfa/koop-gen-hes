@@ -90,6 +90,7 @@ export const BankaHesapListPage: React.FC = () => {
     <div>
       <PageHeader
         title="Banka Hesapları"
+        subtitle="Kooperatife ait banka hesaplarının yönetimi"
         extra={
           <Button
             type="primary"
@@ -127,8 +128,16 @@ export const BankaHesapListPage: React.FC = () => {
         }}
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
+        destroyOnClose
+        okText="Kaydet"
+        cancelText="İptal"
       >
-        <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)}>
+        <Form 
+          form={form} 
+          layout="vertical" 
+          onFinish={(v) => saveMutation.mutate(v)}
+          style={{ marginTop: 16 }}
+        >
           <Form.Item name="banka_adi" label="Banka Adı" rules={[{ required: true }]}>
             <Input />
           </Form.Item>

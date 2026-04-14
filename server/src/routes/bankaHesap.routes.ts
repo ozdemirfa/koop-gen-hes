@@ -1,54 +1,18 @@
-import { Router, Response, NextFunction } from 'express'
-import { AuthRequest } from '../middleware/auth'
+import { Router } from 'express'
 import { validate } from '../middleware/validate'
 import { bankaHesapSchema, bankaHareketiSchema, bankaEsleSchema } from '../schemas/bankaHesap.schema'
-import { bankaHesapService } from '../services/bankaHesap.service'
+import * as bankaHesapController from '../controllers/bankaHesap.controller'
 
 const router = Router()
 
 // Banka hesapları
-router.get('/hesaplar', async (_req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
-  try {
-    const data = await bankaHesapService.listHesaplar()
-    res.json({ success: true, data })
-  } catch (err) { next(err) }
-})
-
-router.post('/hesaplar', validate({ body: bankaHesapSchema }), async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
-  try {
-    const data = await bankaHesapService.createHesap(req.body)
-    res.status(201).json({ success: true, data })
-  } catch (err) { next(err) }
-})
-
-router.put('/hesaplar/:id', validate({ body: bankaHesapSchema }), async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
-  try {
-    const data = await bankaHesapService.updateHesap(req.params.id, req.body)
-    res.json({ success: true, data })
-  } catch (err) { next(err) }
-})
+router.get('/hesaplar', bankaHesapController.getHesaplar)
+router.post('/hesaplar', validate({ body: bankaHesapSchema }), bankaHesapController.createHesap)
+router.put('/hesaplar/:id', validate({ body: bankaHesapSchema }), bankaHesapController.updateHesap)
 
 // Banka hareketleri
-router.get('/hareketler', async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
-  try {
-    const data = await bankaHesapService.listHareketler(req.query as Record<string, any>)
-    res.json({ success: true, data })
-  } catch (err) { next(err) }
-})
-
-router.post('/hareketler', validate({ body: bankaHareketiSchema }), async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
-  try {
-    const data = await bankaHesapService.createHareket(req.body)
-    res.status(201).json({ success: true, data })
-  } catch (err) { next(err) }
-})
-
-// Banka hareketi ↔ cari hareket eşleştirme
-router.put('/hareketler/:id/esle', validate({ body: bankaEsleSchema }), async (req: AuthRequest<any, any, any, any>, res: Response, next: NextFunction) => {
-  try {
-    const data = await bankaHesapService.esle(req.params.id, req.body.eslesen_cari_hareket_id)
-    res.json({ success: true, data })
-  } catch (err) { next(err) }
-})
+router.get('/hareketler', bankaHesapController.getHareketler)
+router.post('/hareketler', validate({ body: bankaHareketiSchema }), bankaHesapController.createHareket)
+router.put('/hareketler/:id/esle', validate({ body: bankaEsleSchema }), bankaHesapController.esleHareket)
 
 export default router

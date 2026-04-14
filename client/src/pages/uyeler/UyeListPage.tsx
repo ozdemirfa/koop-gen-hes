@@ -114,8 +114,9 @@ export const UyeListPage: React.FC = () => {
     <div>
       <PageHeader
         title="Üye Yönetimi"
+        subtitle="Kooperatif üyelerini listeleyin, arayın ve yeni kayıt oluşturun."
         extra={
-          <Space wrap>
+          <Space wrap size="middle">
             <Input
               placeholder="Ad, soyad veya üye no ile ara..."
               prefix={<SearchOutlined />}

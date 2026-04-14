@@ -190,5 +190,46 @@ export const hakedisService = {
     }
 
     return data
+  },
+
+  async getPDFData(id: string) {
+    const { data: hakedis, error } = await supabaseAdmin
+      .from('hakedisler')
+      .select(`
+        *,
+        sozlesmeler (
+          sozlesme_no,
+          konu,
+          teminat_orani,
+          stopaj_orani,
+          firmalar (
+            unvan,
+            vergi_no,
+            vergi_dairesi
+          )
+        ),
+        hakedis_kalemleri (
+          bu_ay_miktar,
+          bu_ay_tutar,
+          toplam_miktar,
+          toplam_tutar,
+          sozlesme_is_kalemleri (
+            poz_no,
+            tanim,
+            birim
+          )
+        )
+      `)
+      .eq('id', id)
+      .single()
+
+    if (error || !hakedis) throw ApiError.notFound('Hakediş bulunamadı')
+
+    return {
+      hakedis,
+      kalemler: hakedis.hakedis_kalemleri,
+      sozlesme: hakedis.sozlesmeler,
+      firma: (hakedis.sozlesmeler as any).firmalar
+    }
   }
 }

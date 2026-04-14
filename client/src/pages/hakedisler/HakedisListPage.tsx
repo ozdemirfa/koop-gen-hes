@@ -151,6 +151,7 @@ export const HakedisListPage: React.FC = () => {
     <div>
       <PageHeader
         title="Hakediş Yönetimi"
+        subtitle="Yüklenici hakedişlerinin oluşturulması, takibi ve onay süreçleri"
         extra={
           <Space>
             <Select
@@ -191,8 +192,16 @@ export const HakedisListPage: React.FC = () => {
         onCancel={() => { setCreateModalOpen(false); createForm.resetFields() }}
         onOk={() => createForm.submit()}
         confirmLoading={createMutation.isPending}
+        destroyOnClose
+        okText="Oluştur"
+        cancelText="İptal"
       >
-        <Form form={createForm} layout="vertical" onFinish={(v) => createMutation.mutate(v)}>
+        <Form 
+          form={createForm} 
+          layout="vertical" 
+          onFinish={(v) => createMutation.mutate(v)}
+          style={{ marginTop: 16 }}
+        >
           <Form.Item name="sozlesme_id" label="Sözleşme" rules={[{ required: true, message: 'Sözleşme seçin' }]}>
             <Select
               showSearch
