@@ -30,14 +30,21 @@ export const useLayout = () => {
 
 export const usePageSettings = (settings: { title: string; actions?: React.ReactNode }) => {
   const { setTitle, setHeaderActions } = useLayout()
+  const settingsRef = React.useRef(settings)
 
+  // Sadece başlık veya aksiyonlar gerçekten değiştiğinde güncelleme yap
   React.useEffect(() => {
-    setTitle(settings.title)
-    setHeaderActions(settings.actions || null)
+    // Immediate update can cause infinite loops if actions are created inline in components
+    const timer = setTimeout(() => {
+      setTitle(settings.title)
+      setHeaderActions(settings.actions || null)
+    }, 0)
     
     return () => {
-      setTitle('')
-      setHeaderActions(null)
+      clearTimeout(timer)
+      // Sayfadan ayrılırken temizle
+      //setTitle('')
+      //setHeaderActions(null)
     }
   }, [settings.title, settings.actions, setTitle, setHeaderActions])
 }
