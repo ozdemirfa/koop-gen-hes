@@ -249,7 +249,7 @@ export const MalzemeTeslimListPage: React.FC = () => {
             </Col>
           </Row>
 
-          <Divider orientation="left" style={{ margin: '12px 0' }}>Malzemeler</Divider>
+          <Divider orientation={"left" as any} style={{ margin: '12px 0' }}>Malzemeler</Divider>
           
           <Form.List name="kalemler">
             {(fields, { add, remove }) => (

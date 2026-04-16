@@ -104,50 +104,52 @@ const App: React.FC = () => {
       }}
     >
       <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <LayoutProvider>
-            <ProjectProvider>
-              <Router>
-              <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
-                <Route index element={<Dashboard />} />
-                <Route path="uyeler" element={<UyeListPage />} />
-                <Route path="uyeler/yeni" element={<UyeFormPage />} />
-                <Route path="uyeler/:id" element={<UyeDetailPage />} />
-                <Route path="uyeler/:id/duzenle" element={<UyeFormPage />} />
-                <Route path="aidatlar" element={<Aidatlar />} />
-                <Route path="aidatlar/yillik-plan" element={<AidatYillikPlanPage />} />
-                <Route path="gelir-gider" element={<GelirGider />} />
-                <Route path="gelir-gider/kategoriler" element={<GelirGiderKategoriPage />} />
-                <Route path="firmalar" element={<FirmaListPage />} />
-                <Route path="firmalar/:id" element={<FirmaDetailPage />} />
-                <Route path="cari-hesaplar" element={<CariEkstrePage />} />
-                <Route path="sozlesmeler/yeni" element={<SozlesmeFormPage />} />
-                <Route path="sozlesmeler/:id" element={<SozlesmeDetailPage />} />
-                <Route path="sozlesmeler/:id/duzenle" element={<SozlesmeFormPage />} />
-                <Route path="hakedisler" element={<HakedisListPage />} />
-                <Route path="hakedisler/:id" element={<HakedisDetailPage />} />
-                <Route path="faturalar" element={<FaturaListPage />} />
-                <Route path="faturalar/:id/odeme-plani" element={<OdemePlaniPage />} />
-                <Route path="cek-takibi" element={<CekTakibiPage />} />
-                <Route path="banka-hesaplari" element={<BankaHesapListPage />} />
-                <Route path="banka-hesaplari/:id/hareketler" element={<BankaHareketleriPage />} />
-                <Route path="banka-uzlastirma" element={<BankaUzlastirmaPage />} />
-                <Route path="fatura-irsaliye" element={<MalzemeTeslimListPage />} />
-                <Route path="projeler" element={<ProjeListPage />} />
-                <Route path="projeler/:id" element={<ProjeDetailPage />} />
-                <Route path="projeler/:id/serefiye" element={<SerefiyePage />} />
-                <Route path="projeler/:id/yillik-plan/:yil" element={<YillikPlanPage />} />
-                <Route path="raporlar/aylik" element={<AylikRaporPage />} />
-                <Route path="raporlar/yillik" element={<YillikRaporPage />} />
-                <Route path="raporlar/uye-borc" element={<UyeBorcRaporPage />} />
-              </Route>
-            </Routes>
-          </Router>
-        </AuthProvider>
-      </QueryClientProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <LayoutProvider>
+              <ProjectProvider>
+                <Router>
+                  <Routes>
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
+                      <Route index element={<Dashboard />} />
+                      <Route path="uyeler" element={<UyeListPage />} />
+                      <Route path="uyeler/yeni" element={<UyeFormPage />} />
+                      <Route path="uyeler/:id" element={<UyeDetailPage />} />
+                      <Route path="uyeler/:id/duzenle" element={<UyeFormPage />} />
+                      <Route path="aidatlar" element={<Aidatlar />} />
+                      <Route path="aidatlar/yillik-plan" element={<AidatYillikPlanPage />} />
+                      <Route path="gelir-gider" element={<GelirGider />} />
+                      <Route path="gelir-gider/kategoriler" element={<GelirGiderKategoriPage />} />
+                      <Route path="firmalar" element={<FirmaListPage />} />
+                      <Route path="firmalar/:id" element={<FirmaDetailPage />} />
+                      <Route path="cari-hesaplar" element={<CariEkstrePage />} />
+                      <Route path="sozlesmeler/yeni" element={<SozlesmeFormPage />} />
+                      <Route path="sozlesmeler/:id" element={<SozlesmeDetailPage />} />
+                      <Route path="sozlesmeler/:id/duzenle" element={<SozlesmeFormPage />} />
+                      <Route path="hakedisler" element={<HakedisListPage />} />
+                      <Route path="hakedisler/:id" element={<HakedisDetailPage />} />
+                      <Route path="faturalar" element={<FaturaListPage />} />
+                      <Route path="faturalar/:id/odeme-plani" element={<OdemePlaniPage />} />
+                      <Route path="cek-takibi" element={<CekTakibiPage />} />
+                      <Route path="banka-hesaplari" element={<BankaHesapListPage />} />
+                      <Route path="banka-hesaplari/:id/hareketler" element={<BankaHareketleriPage />} />
+                      <Route path="banka-uzlastirma" element={<BankaUzlastirmaPage />} />
+                      <Route path="fatura-irsaliye" element={<MalzemeTeslimListPage />} />
+                      <Route path="projeler" element={<ProjeListPage />} />
+                      <Route path="projeler/:id" element={<ProjeDetailPage />} />
+                      <Route path="projeler/:id/serefiye" element={<SerefiyePage />} />
+                      <Route path="projeler/:id/yillik-plan/:yil" element={<YillikPlanPage />} />
+                      <Route path="raporlar/aylik" element={<AylikRaporPage />} />
+                      <Route path="raporlar/yillik" element={<YillikRaporPage />} />
+                      <Route path="raporlar/uye-borc" element={<UyeBorcRaporPage />} />
+                    </Route>
+                  </Routes>
+                </Router>
+              </ProjectProvider>
+            </LayoutProvider>
+          </AuthProvider>
+        </QueryClientProvider>
       </ErrorBoundary>
     </ConfigProvider>
   )

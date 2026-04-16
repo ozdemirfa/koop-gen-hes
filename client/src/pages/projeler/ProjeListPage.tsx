@@ -272,7 +272,7 @@ export const ProjeListPage: React.FC = () => {
             </Col>
           </Row>
 
-          <Divider orientation="left" style={{ margin: '12px 0', fontSize: '13px' }}>Bloklar</Divider>
+          <Divider orientation={"left" as any} style={{ margin: '12px 0', fontSize: '13px' }}>Bloklar</Divider>
           
           <Form.List name="bloklar">
             {(fields, { add, remove }) => (

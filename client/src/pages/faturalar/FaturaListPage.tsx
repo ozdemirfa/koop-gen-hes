@@ -307,7 +307,7 @@ export const FaturaListPage: React.FC = () => {
             </Col>
           </Row>
 
-          <Divider orientation="left" style={{ margin: '8px 0 16px 0' }}>Fatura Kalemleri</Divider>
+          <Divider orientation={"left" as any} style={{ margin: '8px 0 16px 0' }}>Fatura Kalemleri</Divider>
           
           <Row gutter={8} style={{ marginBottom: 4, paddingLeft: 4 }}>
             <Col span={9}><Text type="secondary" style={{ fontSize: '11px' }}>Ürün/Hizmet Tanımı</Text></Col>
