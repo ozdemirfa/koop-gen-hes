@@ -1,5 +1,10 @@
 const PdfPrinter = require('pdfmake')
-import { TDocumentDefinitions, TFontDictionary } from 'pdfmake/interfaces'
+// @ts-ignore
+import type { TDocumentDefinitions, TFontDictionary } from 'pdfmake'
+
+// pdfmake interfaces eksikliği durumunda any'ye düşür
+type DocDef = any;
+type FontDict = any;
 
 const fonts: TFontDictionary = {
   Roboto: {
@@ -27,7 +32,7 @@ export const pdfGenerator = {
   /**
    * Bir hakediş için PDF dökümanı oluşturur.
    */
-  generateHakedisPDF(hakedisData: any): TDocumentDefinitions {
+  generateHakedisPDF(hakedisData: any): any {
     const { hakedis, kalemler, sozlesme, firma } = hakedisData
 
     return {
@@ -103,7 +108,7 @@ export const pdfGenerator = {
   /**
    * Mali rapor (Gelir/Gider) için PDF dökümanı oluşturur.
    */
-  generateMaliRaporPDF(raporData: any): TDocumentDefinitions {
+  generateMaliRaporPDF(raporData: any): any {
     const { donem, gelirler, giderler, toplam_gelir, toplam_gider, toplam_aidat_tahsilat } = raporData
     
     return {
@@ -164,7 +169,7 @@ export const pdfGenerator = {
   /**
    * Dökümanı PDF Stream olarak döndürür.
    */
-  createPdfStream(docDefinition: TDocumentDefinitions) {
+  createPdfStream(docDefinition: any) {
     return printer.createPdfKitDocument(docDefinition)
   }
 }

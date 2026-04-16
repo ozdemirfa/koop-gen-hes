@@ -14,7 +14,7 @@ const port = process.env.PORT || 3001
 
 // Middlewares
 app.use(helmet())
-app.use(morgan('combined', { stream: { write: (message) => logger.info(message.trim()) } }))
+app.use(morgan('combined', { stream: { write: (message: string) => logger.info(message.trim()) } }))
 
 app.use(cors({
   origin: (origin, callback) => {
