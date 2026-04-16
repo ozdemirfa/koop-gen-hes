@@ -2,11 +2,14 @@ import { supabaseAdmin } from '../config/supabase'
 import { ApiError } from '../utils/ApiError'
 
 export const bankaHesapService = {
-  async listHesaplar() {
-    const { data, error } = await supabaseAdmin
+  async listHesaplar(query: Record<string, any> = {}) {
+    let q = supabaseAdmin
       .from('banka_hesaplari')
       .select('*')
-      .order('banka_adi')
+
+    if (query.proje_id) q = q.eq('proje_id', query.proje_id)
+
+    const { data, error } = await q.order('banka_adi')
 
     if (error) throw error
     return data
@@ -41,6 +44,7 @@ export const bankaHesapService = {
       .from('banka_hareketleri')
       .select('*, banka_hesaplari(banka_adi), cari_hareketler(firma_id, firmalar(unvan))')
 
+    if (query.proje_id) q = q.eq('proje_id', query.proje_id)
     if (query.banka_hesap_id) q = q.eq('banka_hesap_id', query.banka_hesap_id)
     if (query.eslesti !== undefined) q = q.eq('eslesti', query.eslesti === 'true')
 

@@ -6,6 +6,7 @@ import logger from '../utils/logger'
 
 export interface AidatTanimi {
   id: string
+  proje_id: string
   yil: number
   ay: number
   katsayi_tutari: number
@@ -24,12 +25,18 @@ export interface AidatSummary {
 }
 
 export const aidatTanimiService = {
-  async list() {
-    const { data, error } = await supabaseAdmin
+  async list(query?: Record<string, any>) {
+    let q = supabaseAdmin
       .from('aidat_tanimlari')
       .select('*')
       .order('yil', { ascending: false })
       .order('ay', { ascending: false })
+
+    if (query?.proje_id) {
+      q = q.eq('proje_id', query.proje_id)
+    }
+
+    const { data, error } = await q
 
     if (error) {
       logger.error('Aidat tanımları listeleme hatası:', error)
@@ -38,7 +45,11 @@ export const aidatTanimiService = {
     return data
   },
 
-  async create(body: Partial<AidatTanimi>) {
+  async create(body: Partial<AidatTanimi> & { proje_id: string }) {
+    if (!body.proje_id) {
+      throw ApiError.badRequest('proje_id zorunludur')
+    }
+
     const sonOdemeGunu = body.son_odeme_gunu || 15
 
     const { data: tanim, error } = await supabaseAdmin
@@ -52,10 +63,11 @@ export const aidatTanimiService = {
       throw error
     }
 
-    // Tüm aktif üyeleri çek
+    // Tüm aktif üyeleri çek (proje_id ile filtrele)
     const { data: uyeler, error: uyeError } = await supabaseAdmin
       .from('uyeler')
       .select('id, serefiye_orani')
+      .eq('proje_id', body.proje_id)
       .eq('durum', 'aktif')
 
     if (uyeError) {
@@ -68,6 +80,7 @@ export const aidatTanimiService = {
 
       const aidatlar = uyeler.map(uye => ({
         uye_id: uye.id,
+        proje_id: body.proje_id,
         aidat_tanimi_id: tanim.id,
         tutar: Number(body.katsayi_tutari) * (Number(uye.serefiye_orani) || 1.00),
         son_odeme_tarihi: sonOdemeTarihi
@@ -83,16 +96,17 @@ export const aidatTanimiService = {
       }
     }
 
-    logger.info(`Yeni aidat tanımı ve ${uyeler?.length || 0} aidat oluşturuldu: ${body.ay}/${body.yil}`)
+    logger.info(`Yeni aidat tanımı ve ${uyeler?.length || 0} aidat oluşturuldu: ${body.ay}/${body.yil} (Proje: ${body.proje_id})`)
     return { ...tanim, olusturulan_aidat_sayisi: uyeler?.length || 0 }
   },
 
-  async createYillikPlan(body: { yil: number, kalemler: Partial<AidatTanimi>[] }) {
-    const { yil, kalemler } = body
+  async createYillikPlan(body: { proje_id: string, yil: number, kalemler: Partial<AidatTanimi>[] }) {
+    const { proje_id, yil, kalemler } = body
     
     try {
       // Use RPC for atomic database transaction
       const { data, error } = await supabaseAdmin.rpc('create_yillik_aidat_plani', {
+        p_proje_id: proje_id,
         p_yil: yil,
         p_kalemler: kalemler
       })
@@ -108,12 +122,12 @@ export const aidatTanimiService = {
         throw error
       }
 
-      logger.info(`Yıllık aidat planı başarıyla oluşturuldu: Yıl ${yil}, ${data.yillik_tanim} ay, ${data.olusturulan_aidat_sayisi} aidat kaydı.`)
+      logger.info(`Yıllık aidat planı başarıyla oluşturuldu: Yıl ${yil}, Proje ${proje_id}, ${data.yillik_tanim} ay, ${data.olusturulan_aidat_sayisi} aidat kaydı.`)
       return data
     } catch (error) {
       if (error instanceof ApiError) throw error
       
-      logger.error(`Yıllık aidat planı oluşturulurken beklenmedik hata (Yıl: ${yil}):`, error)
+      logger.error(`Yıllık aidat planı oluşturulurken beklenmedik hata (Yıl: ${yil}, Proje: ${proje_id}):`, error)
       throw new ApiError(500, 'Yıllık aidat planı oluşturulamadı. Lütfen sistem yöneticisine danışın.')
     }
   },
@@ -141,11 +155,13 @@ export const aidatService = {
       .from('aidatlar')
       .select('*, uyeler(uye_no, ad, soyad), aidat_tanimlari(yil, ay)', { count: 'exact' })
 
+    if (query.proje_id) q = q.eq('proje_id', query.proje_id)
     if (query.uye_id) q = q.eq('uye_id', query.uye_id)
     if (query.durum) q = q.eq('durum', query.durum)
 
     if (query.yil || query.ay) {
       let tanimQuery = supabaseAdmin.from('aidat_tanimlari').select('id')
+      if (query.proje_id) tanimQuery = tanimQuery.eq('proje_id', query.proje_id)
       if (query.yil) tanimQuery = tanimQuery.eq('yil', parseInt(query.yil))
       if (query.ay) tanimQuery = tanimQuery.eq('ay', parseInt(query.ay))
       const { data: tanimlar } = await tanimQuery
@@ -204,8 +220,8 @@ export const aidatService = {
     }
 
     const yeniOdenenTutar = (aidat.odenen_tutar || 0) + body.tutar
-    const toplamBorce = aidat.tutar + (aidat.gecikme_faizi || 0)
-    const yeniDurum = yeniOdenenTutar >= toplamBorce ? 'odendi' : aidat.durum
+    const toplamBorc = Number(aidat.tutar) + Number(aidat.gecikme_faizi || 0)
+    const yeniDurum = yeniOdenenTutar >= toplamBorc ? 'odendi' : aidat.durum
 
     const { data: updated, error: updateError } = await supabaseAdmin
       .from('aidatlar')
@@ -219,6 +235,7 @@ export const aidatService = {
     await createGelirKaydi({
       tutar: body.tutar,
       tarih: body.odeme_tarihi,
+      proje_id: aidat.proje_id,
       uye_id: aidat.uye_id,
       kaynak_tipi: 'aidat',
       kaynak_id: odeme.id,
@@ -229,13 +246,14 @@ export const aidatService = {
     return updated
   },
 
-  async getSummary(): Promise<AidatSummary> {
+  async getSummary(query: Record<string, any>): Promise<AidatSummary> {
+    const { proje_id } = query
     // Önce gecikme faizlerini güncelle
-    const { error: rpcError } = await supabaseAdmin.rpc('hesapla_gecikme_faizi')
+    const { error: rpcError } = await supabaseAdmin.rpc('hesapla_gecikme_faizi', { p_proje_id: proje_id })
     if (rpcError) logger.error('Gecikme faizi hesaplama hatası (RPC):', rpcError)
 
     // PostgreSQL üzerinden aggregation yap (In-memory aggregation düzeltmesi)
-    const { data, error } = await supabaseAdmin.rpc('get_aidat_summary')
+    const { data, error } = await supabaseAdmin.rpc('get_aidat_summary', { p_proje_id: proje_id })
 
     if (error) {
       logger.error('Aidat özet çekme hatası (RPC):', error)
@@ -245,8 +263,9 @@ export const aidatService = {
     return data as AidatSummary
   },
 
-  async calculateLateFees() {
-    const { error } = await supabaseAdmin.rpc('hesapla_gecikme_faizi')
+  async calculateLateFees(query: Record<string, any>) {
+    const { proje_id } = query
+    const { error } = await supabaseAdmin.rpc('hesapla_gecikme_faizi', { p_proje_id: proje_id })
     if (error) {
       logger.error('Gecikme faizi manuel tetikleme hatası:', error)
       throw error
@@ -254,13 +273,24 @@ export const aidatService = {
     return { message: 'Gecikme faizleri hesaplandı' }
   },
 
-  async recordBulkPayment(uyeId: string, body: { tutar: number, odeme_tarihi: string, odeme_yontemi: string, makbuz_no?: string, aciklama?: string }) {
-    const { tutar, ...odemeMeta } = body
+  async recordBulkPayment(uyeId: string, body: { proje_id?: string, tutar: number, odeme_tarihi: string, odeme_yontemi: string, makbuz_no?: string, aciklama?: string }) {
+    const { tutar, proje_id, ...odemeMeta } = body
     let kalanTutar = tutar
+
+    let finalProjeId = proje_id
+    if (!finalProjeId) {
+      const { data: uye } = await supabaseAdmin.from('uyeler').select('proje_id').eq('id', uyeId).single()
+      finalProjeId = uye?.proje_id
+    }
+
+    if (!finalProjeId) {
+      throw ApiError.badRequest('proje_id belirlenemedi')
+    }
 
     const { data: acikAidatlar, error: getError } = await supabaseAdmin
       .from('aidatlar')
       .select('*, aidat_tanimlari(yil, ay)')
+      .eq('proje_id', finalProjeId)
       .eq('uye_id', uyeId)
       .in('durum', ['bekliyor', 'gecikti'])
       .order('son_odeme_tarihi', { ascending: true })
@@ -292,6 +322,7 @@ export const aidatService = {
       await createGelirKaydi({
         tutar: odenecekTutar,
         tarih: odemeMeta.odeme_tarihi,
+        proje_id: finalProjeId,
         uye_id: uyeId,
         kaynak_tipi: 'aidat',
         kaynak_id: odeme.id,
@@ -310,7 +341,7 @@ export const aidatService = {
       sonuclar.push({ aidat_id: aidat.id, donem: `${aidat.aidat_tanimlari.ay}/${aidat.aidat_tanimlari.yil}`, odenen: odenecekTutar })
     }
 
-    logger.info(`Toplu aidat ödemesi yapıldı: Üye ${uyeId}, Toplam: ${tutar}`)
+    logger.info(`Toplu aidat ödemesi yapıldı: Üye ${uyeId}, Toplam: ${tutar}, Proje: ${finalProjeId}`)
     return { 
       toplam_odenen: tutar - kalanTutar, 
       kalan_avans: kalanTutar,
@@ -319,11 +350,12 @@ export const aidatService = {
   }
 }
 
-async function createGelirKaydi(params: { tutar: number, tarih: string, uye_id: string, kaynak_tipi: string, kaynak_id: string, aciklama: string }) {
+async function createGelirKaydi(params: { tutar: number, tarih: string, proje_id: string, uye_id: string, kaynak_tipi: string, kaynak_id: string, aciklama: string }) {
   try {
     const { data: kategori } = await supabaseAdmin
       .from('gelir_gider_kategorileri')
       .select('id')
+      .eq('proje_id', params.proje_id)
       .eq('ad', 'Aidat Gelirleri')
       .eq('tip', 'gelir')
       .single()
@@ -334,6 +366,7 @@ async function createGelirKaydi(params: { tutar: number, tarih: string, uye_id: 
       .from('gelir_giderler')
       .insert([{
         tip: 'gelir',
+        proje_id: params.proje_id,
         kategori_id,
         tutar: params.tutar,
         tarih: params.tarih,

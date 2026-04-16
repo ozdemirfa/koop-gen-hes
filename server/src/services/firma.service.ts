@@ -11,6 +11,7 @@ export const firmaService = {
       .from('firmalar')
       .select('*', { count: 'exact' })
 
+    if (query.proje_id) q = q.eq('proje_id', query.proje_id)
     if (query.firma_tipi) q = q.eq('firma_tipi', query.firma_tipi)
     if (query.aktif !== undefined) q = q.eq('aktif', query.aktif === 'true')
     if (query.search) q = q.ilike('unvan', `%${query.search}%`)
@@ -24,10 +25,14 @@ export const firmaService = {
     // Bakiyeleri ve teminatları ekle
     const updatedData = await Promise.all((data || []).map(async (firma) => {
       // Bakiye
-      const { data: hareketler } = await supabaseAdmin
+      let bakiyeQuery = supabaseAdmin
         .from('cari_hareketler')
         .select('tutar, hareket_tipi')
         .eq('firma_id', firma.id)
+      
+      if (query.proje_id) bakiyeQuery = bakiyeQuery.eq('proje_id', query.proje_id)
+      
+      const { data: hareketler } = await bakiyeQuery
       
       let bakiye = 0
       hareketler?.forEach(h => {
@@ -36,11 +41,15 @@ export const firmaService = {
       })
 
       // Teminat
-      const { data: hakedisler } = await supabaseAdmin
+      let hakedisQuery = supabaseAdmin
         .from('hakedisler')
         .select('teminat_kesintisi')
         .eq('firma_id', firma.id)
         .eq('durum', 'onaylandi')
+      
+      if (query.proje_id) hakedisQuery = hakedisQuery.eq('proje_id', query.proje_id)
+
+      const { data: hakedisler } = await hakedisQuery
       
       const toplamTeminat = hakedisler?.reduce((sum, h) => sum + Number(h.teminat_kesintisi || 0), 0) || 0
 
@@ -85,11 +94,15 @@ export const firmaService = {
     return data
   },
 
-  async getCariEkstre(firmaId: string) {
-    const { data, error } = await supabaseAdmin
+  async getCariEkstre(firmaId: string, query?: Record<string, any>) {
+    let q = supabaseAdmin
       .from('cari_hareketler')
       .select('*')
       .eq('firma_id', firmaId)
+    
+    if (query?.proje_id) q = q.eq('proje_id', query.proje_id)
+
+    const { data, error } = await q.order('tarih', { ascending: true })
       .order('tarih', { ascending: true })
 
     if (error) throw error

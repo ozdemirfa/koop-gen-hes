@@ -5,6 +5,8 @@ import { ConfigProvider } from 'antd'
 import trTR from 'antd/locale/tr_TR'
 
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { ProjectProvider } from './contexts/ProjectContext'
+import { LayoutProvider } from './contexts/LayoutContext'
 import { AdminLayout } from './components/AdminLayout'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
@@ -25,6 +27,7 @@ import { FaturaListPage } from './pages/faturalar/FaturaListPage'
 import { OdemePlaniPage } from './pages/faturalar/OdemePlaniPage'
 import { CariEkstrePage } from './pages/cariHesap/CariEkstrePage'
 import { BankaHesapListPage } from './pages/bankaHesap/BankaHesapListPage'
+import { BankaHareketleriPage } from './pages/bankaHesap/BankaHareketleriPage'
 import { BankaUzlastirmaPage } from './pages/bankaHesap/BankaUzlastirmaPage'
 import { MalzemeTeslimListPage } from './pages/malzemeTeslim/MalzemeTeslimListPage'
 import { ProjeListPage } from './pages/projeler/ProjeListPage'
@@ -61,27 +64,41 @@ const App: React.FC = () => {
       theme={{
         token: {
           colorPrimary: '#4f46e5',
-          borderRadius: 8,
+          borderRadius: 6,
           fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
           colorBgLayout: '#f8fafc',
+          fontSize: 13, // 14'ten 13'e düşürerek ~%90 ölçek hissi veriyoruz
+          controlHeight: 32, // Standart yüksekliği düşürerek daha kompakt yapıyoruz
         },
         components: {
           Card: {
             boxShadowTertiary: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+            paddingLG: 16, // Kart iç boşluklarını azaltıyoruz
           },
           Button: {
             fontWeight: 500,
-            controlHeight: 38,
+            controlHeight: 32,
           },
           Table: {
             headerBg: '#f8fafc',
             headerColor: '#475569',
             headerSplitColor: 'transparent',
+            padding: 8, // Tablo satır boşluklarını azaltıyoruz
           },
           Menu: {
             itemBg: 'transparent',
             itemSelectedBg: 'rgba(79, 70, 229, 0.1)',
             itemSelectedColor: '#4f46e5',
+            itemHeight: 36,
+          },
+          Modal: {
+            headerBg: '#f8fafc',
+            titleFontSize: 16,
+            paddingContentHorizontal: 20,
+            paddingMD: 16,
+          },
+          Form: {
+            itemMarginBottom: 12, // Form elemanları arası boşluğu azaltıyoruz
           }
         }
       }}
@@ -89,8 +106,10 @@ const App: React.FC = () => {
       <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <Router>
-            <Routes>
+          <LayoutProvider>
+            <ProjectProvider>
+              <Router>
+              <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
                 <Route index element={<Dashboard />} />
@@ -104,6 +123,7 @@ const App: React.FC = () => {
                 <Route path="gelir-gider/kategoriler" element={<GelirGiderKategoriPage />} />
                 <Route path="firmalar" element={<FirmaListPage />} />
                 <Route path="firmalar/:id" element={<FirmaDetailPage />} />
+                <Route path="cari-hesaplar" element={<CariEkstrePage />} />
                 <Route path="sozlesmeler/yeni" element={<SozlesmeFormPage />} />
                 <Route path="sozlesmeler/:id" element={<SozlesmeDetailPage />} />
                 <Route path="sozlesmeler/:id/duzenle" element={<SozlesmeFormPage />} />
@@ -111,9 +131,9 @@ const App: React.FC = () => {
                 <Route path="hakedisler/:id" element={<HakedisDetailPage />} />
                 <Route path="faturalar" element={<FaturaListPage />} />
                 <Route path="faturalar/:id/odeme-plani" element={<OdemePlaniPage />} />
-                <Route path="cari-hesaplar" element={<CariEkstrePage />} />
                 <Route path="cek-takibi" element={<CekTakibiPage />} />
                 <Route path="banka-hesaplari" element={<BankaHesapListPage />} />
+                <Route path="banka-hesaplari/:id/hareketler" element={<BankaHareketleriPage />} />
                 <Route path="banka-uzlastirma" element={<BankaUzlastirmaPage />} />
                 <Route path="fatura-irsaliye" element={<MalzemeTeslimListPage />} />
                 <Route path="projeler" element={<ProjeListPage />} />

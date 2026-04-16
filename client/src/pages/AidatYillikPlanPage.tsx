@@ -6,6 +6,7 @@ import { SaveOutlined } from '@ant-design/icons'
 import api from '../lib/api'
 import dayjs from 'dayjs'
 import { PageHeader } from '../components/common/PageHeader'
+import { useProject } from '../contexts/ProjectContext'
 
 const { Text } = Typography
 
@@ -15,6 +16,7 @@ export const AidatYillikPlanPage: React.FC = () => {
   const [form] = Form.useForm()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { activeProject } = useProject()
 
   const initialKalemler = Array.from({ length: 12 }, (_, i) => ({
     ay: i + 1,
@@ -26,7 +28,10 @@ export const AidatYillikPlanPage: React.FC = () => {
 
   const createTanimMutation = useMutation({
     mutationFn: async (values: any) => {
-      const { data } = await api.post('/aidatlar/yillik-plan', values)
+      const { data } = await api.post('/aidatlar/yillik-plan', {
+        ...values,
+        proje_id: activeProject?.id
+      })
       return data
     },
     onSuccess: (data) => {

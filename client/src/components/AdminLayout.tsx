@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Layout, Menu, Button, theme } from 'antd'
+import { Layout, Menu, Button, theme, Space, Typography } from 'antd'
 import {
   UserOutlined,
   LogoutOutlined,
@@ -10,9 +10,12 @@ import {
   TruckOutlined,
   ProjectOutlined,
   PieChartOutlined,
+  WalletOutlined,
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { ProjectSelector } from './common/ProjectSelector'
+import { useLayout } from '../contexts/LayoutContext'
 
 const { Header, Sider, Content } = Layout
 
@@ -21,6 +24,7 @@ export const AdminLayout: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { token } = theme.useToken()
+  const { title, headerActions } = useLayout()
 
   const { signOut } = useAuth()
 
@@ -30,7 +34,7 @@ export const AdminLayout: React.FC = () => {
 
   const menuItems = [
     { key: '/', icon: <BankOutlined />, label: 'Dashboard' },
-    { key: '/uyeler', icon: <UserOutlined />, label: 'Üyeler' },
+    { key: '/uyeler', icon: <UserOutlined />, label: 'Üye Yönetimi' },
     { key: '/aidatlar', icon: <DollarOutlined />, label: 'Aidat Yönetimi' },
     {
       key: 'gelir-gider-group',
@@ -44,24 +48,25 @@ export const AdminLayout: React.FC = () => {
     {
       key: 'firmalar-group',
       icon: <ShopOutlined />,
-      label: 'Firmalar & Sözleşmeler',
+      label: 'Firmalar',
       children: [
         { key: '/firmalar', label: 'Firma Listesi' },
         { key: '/hakedisler', label: 'Hakedişler' },
         { key: '/faturalar', label: 'Faturalar' },
+        { key: '/cari-hesaplar', label: 'Cari Ekstre' },
+        { key: '/cek-takibi', label: 'Çek Takibi' },
       ],
     },
     {
       key: 'cari-banka-group',
-      icon: <BankOutlined />,
-      label: 'Cari Hesap & Banka',
+      icon: <WalletOutlined />,
+      label: 'Bankalar',
       children: [
-        { key: '/cari-hesaplar', label: 'Cari Ekstre' },
         { key: '/banka-hesaplari', label: 'Banka Hesapları' },
         { key: '/banka-uzlastirma', label: 'Banka Uzlaştırma' },
       ],
     },
-    { key: '/malzeme-teslimat', icon: <TruckOutlined />, label: 'Malzeme Teslimat' },
+    { key: '/fatura-irsaliye', icon: <TruckOutlined />, label: 'Malzeme Teslimat' },
     { key: '/projeler', icon: <ProjectOutlined />, label: 'Proje Yönetimi' },
     {
       key: 'raporlar-group',
@@ -120,7 +125,7 @@ export const AdminLayout: React.FC = () => {
           padding: '0 24px', 
           background: 'white', 
           display: 'flex', 
-          justifyContent: 'flex-end', 
+          justifyContent: 'space-between', 
           alignItems: 'center',
           borderBottom: '1px solid #e2e8f0',
           position: 'sticky',
@@ -128,20 +133,35 @@ export const AdminLayout: React.FC = () => {
           zIndex: 999,
           height: 64
         }}>
-          <Button 
-            type="text" 
-            icon={<LogoutOutlined />} 
-            onClick={handleLogout}
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              color: '#64748b',
-              height: 40,
-              borderRadius: 8
-            }}
-          >
-            Çıkış Yap
-          </Button>
+          <div id="header-left" style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+            <ProjectSelector />
+            {title && (
+              <Typography.Title level={5} style={{ margin: 0, color: '#1e293b' }}>
+                {title}
+              </Typography.Title>
+            )}
+            {headerActions && (
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                {headerActions}
+              </div>
+            )}
+          </div>
+          <div id="header-right" style={{ display: 'flex', alignItems: 'center' }}>
+            <Button 
+              type="text" 
+              icon={<LogoutOutlined />} 
+              onClick={handleLogout}
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                color: '#64748b',
+                height: 40,
+                borderRadius: 8
+              }}
+            >
+              Çıkış Yap
+            </Button>
+          </div>
         </Header>
         <Content style={{ 
           margin: '24px', 

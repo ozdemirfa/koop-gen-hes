@@ -1,11 +1,11 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Button, Form, Input, Select, Space, Switch, Tag, Modal, message } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, EditOutlined, EyeOutlined, SearchOutlined } from '@ant-design/icons'
 import api from '../../lib/api'
 import { useDebounce } from '../../hooks/useDebounce'
-import { PageHeader } from '../../components/common/PageHeader'
+import { usePageSettings } from '../../contexts/LayoutContext'
 import { DataTable } from '../../components/common/DataTable'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { ErrorState } from '../../components/common/ErrorState'
@@ -38,6 +38,46 @@ export const FirmaListPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editing, setEditing] = useState<Firma | null>(null)
   const [form] = Form.useForm()
+
+  const headerActions = useMemo(() => (
+    <Space wrap>
+      <Input
+        placeholder="Firma ara..."
+        prefix={<SearchOutlined />}
+        allowClear
+        onChange={(e) => setSearch(e.target.value)}
+        style={{ width: 220 }}
+      />
+      <Select
+        placeholder="Tip"
+        value={filterTip}
+        onChange={setFilterTip}
+        allowClear
+        style={{ width: 130 }}
+      >
+        <Select.Option value="yuklenici">Yüklenici</Select.Option>
+        <Select.Option value="tedarikci">Tedarikçi</Select.Option>
+      </Select>
+      <Select
+        placeholder="Durum"
+        value={filterAktif}
+        onChange={setFilterAktif}
+        allowClear
+        style={{ width: 110 }}
+      >
+        <Select.Option value="true">Aktif</Select.Option>
+        <Select.Option value="false">Pasif</Select.Option>
+      </Select>
+      <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
+        Yeni Firma
+      </Button>
+    </Space>
+  ), [filterTip, filterAktif])
+
+  usePageSettings({
+    title: 'Firma Listesi',
+    actions: headerActions
+  })
 
   const { data: firmaData, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['firmalar', debouncedSearch, filterTip, filterAktif],
@@ -81,7 +121,12 @@ export const FirmaListPage: React.FC = () => {
   }
 
   const columns = [
-    { title: 'Ünvan', dataIndex: 'unvan', key: 'unvan' },
+    { 
+      title: 'Ünvan', 
+      dataIndex: 'unvan', 
+      key: 'unvan',
+      sorter: true 
+    },
     {
       title: 'Tip',
       dataIndex: 'firma_tipi',
@@ -123,8 +168,22 @@ export const FirmaListPage: React.FC = () => {
       width: 100,
       render: (_: unknown, record: Firma) => (
         <Space>
-          <Button icon={<EyeOutlined />} type="text" onClick={() => navigate(`/firmalar/${record.id}`)} />
-          <Button icon={<EditOutlined />} type="text" onClick={() => openEdit(record)} />
+          <Button 
+            icon={<EyeOutlined />} 
+            type="text" 
+            onClick={(e) => {
+              e.stopPropagation()
+              navigate(`/firmalar/${record.id}`)
+            }} 
+          />
+          <Button 
+            icon={<EditOutlined />} 
+            type="text" 
+            onClick={(e) => {
+              e.stopPropagation()
+              openEdit(record)
+            }} 
+          />
         </Space>
       ),
     },
@@ -132,45 +191,6 @@ export const FirmaListPage: React.FC = () => {
 
   return (
     <div>
-      <PageHeader
-        title="Firma Yönetimi"
-        subtitle="Yüklenici ve tedarikçi firmaların genel listesi ve bakiye takibi"
-        extra={
-          <Space wrap>
-            <Input
-              placeholder="Firma ara..."
-              prefix={<SearchOutlined />}
-              allowClear
-              onChange={(e) => setSearch(e.target.value)}
-              style={{ width: 220 }}
-            />
-            <Select
-              placeholder="Tip"
-              value={filterTip}
-              onChange={setFilterTip}
-              allowClear
-              style={{ width: 130 }}
-            >
-              <Select.Option value="yuklenici">Yüklenici</Select.Option>
-              <Select.Option value="tedarikci">Tedarikçi</Select.Option>
-            </Select>
-            <Select
-              placeholder="Durum"
-              value={filterAktif}
-              onChange={setFilterAktif}
-              allowClear
-              style={{ width: 110 }}
-            >
-              <Select.Option value="true">Aktif</Select.Option>
-              <Select.Option value="false">Pasif</Select.Option>
-            </Select>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
-              Yeni Firma
-            </Button>
-          </Space>
-        }
-      />
-
       {isError ? (
         <ErrorState error={error} onRetry={() => refetch()} />
       ) : (

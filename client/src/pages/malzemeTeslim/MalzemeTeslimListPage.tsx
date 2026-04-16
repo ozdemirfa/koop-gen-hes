@@ -1,14 +1,15 @@
 import React, { useState } from 'react'
-import { Button, Modal, Form, Input, InputNumber, DatePicker, Select, Space, message, Card, Row, Col, Divider, Typography } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { Button, Modal, Form, Input, InputNumber, DatePicker, Select, Space, message, Row, Col, Divider, Typography } from 'antd'
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
-import { PageHeader } from '../../components/common/PageHeader'
+import { usePageSettings } from '../../contexts/LayoutContext'
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { ConfirmDelete } from '../../components/common/ConfirmDelete'
+import { useDebounce } from '../../hooks/useDebounce'
 
 const { Text } = Typography
 
@@ -39,6 +40,8 @@ export const MalzemeTeslimListPage: React.FC = () => {
   const queryClient = useQueryClient()
   const [modalOpen, setModalOpen] = useState(false)
   const [editingIrsaliye, setEditingIrsaliye] = useState<Irsaliye | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const debouncedSearch = useDebounce(searchTerm, 500)
   const [form] = Form.useForm()
 
   const { data: firmalar } = useQuery({
@@ -50,9 +53,11 @@ export const MalzemeTeslimListPage: React.FC = () => {
   })
 
   const { data: irsaliyeData, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['irsaliyeler'],
+    queryKey: ['irsaliyeler', debouncedSearch],
     queryFn: async () => {
-      const { data } = await api.get('/malzeme-teslimleri')
+      const { data } = await api.get('/malzeme-teslimleri', {
+        params: { search: debouncedSearch }
+      })
       return data
     },
   })
@@ -87,24 +92,61 @@ export const MalzemeTeslimListPage: React.FC = () => {
     onError: (err: any) => message.error(err.message || 'Hata oluştu'),
   })
 
+  usePageSettings({
+    title: 'Malzeme Teslimatı ve İrsaliye',
+    actions: (
+      <Space size="small">
+        <Input
+          placeholder="İrsaliye No Ara..."
+          prefix={<SearchOutlined style={{ color: 'var(--text-tertiary)' }} />}
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          allowClear
+          style={{ width: 220 }}
+          className="header-search-input"
+        />
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => {
+            setEditingIrsaliye(null)
+            form.resetFields()
+            form.setFieldsValue({ kalemler: [{ malzeme_adi: '', birim: 'Adet', miktar: 1, birim_fiyat: 0 }] })
+            setModalOpen(true)
+          }}
+        >
+          Yeni İrsaliye
+        </Button>
+      </Space>
+    )
+  })
+
   const columns = [
     {
       title: 'Tarih',
       dataIndex: 'teslim_tarihi',
       key: 'teslim_tarihi',
-      width: 110,
+      width: 100,
       render: (d: string) => dayjs(d).format('DD.MM.YYYY'),
     },
-    { title: 'İrsaliye No', dataIndex: 'irsaliye_no', key: 'no' },
+    { 
+      title: 'İrsaliye No', 
+      dataIndex: 'irsaliye_no', 
+      key: 'no',
+      render: (v: string) => <Text strong style={{ color: 'var(--brand-primary)' }}>{v || '-'}</Text>
+    },
     { title: 'Firma', key: 'firma', render: (_: any, r: Irsaliye) => r.firmalar?.unvan || '-' },
     {
       title: 'Kalem Sayısı',
       key: 'kalemler',
+      width: 100,
       render: (_: any, r: Irsaliye) => r.irsaliye_kalemleri?.length || 0,
     },
     {
       title: 'Toplam Tutar',
       key: 'toplam',
+      align: 'right' as const,
+      width: 130,
       render: (_: any, r: Irsaliye) => {
         const total = r.irsaliye_kalemleri?.reduce((sum, k) => sum + (k.miktar * (k.birim_fiyat || 0)), 0) || 0
         return <MoneyDisplay amount={total} />
@@ -113,12 +155,14 @@ export const MalzemeTeslimListPage: React.FC = () => {
     {
       title: 'İşlem',
       key: 'action',
-      width: 100,
+      fixed: 'right' as const,
+      width: 90,
       render: (_: any, r: Irsaliye) => (
-        <Space>
+        <Space size="small">
           <Button
             icon={<EditOutlined />}
             size="small"
+            className="action-btn-edit"
             onClick={() => {
               setEditingIrsaliye(r)
               form.setFieldsValue({ 
@@ -137,25 +181,6 @@ export const MalzemeTeslimListPage: React.FC = () => {
 
   return (
     <div>
-      <PageHeader
-        title="İrsaliye ve Malzeme Teslimi"
-        subtitle="Şantiyeye gelen malzemelerin irsaliye kayıtları ve teslimat takibi"
-        extra={
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => {
-              setEditingIrsaliye(null)
-              form.resetFields()
-              form.setFieldsValue({ kalemler: [{ malzeme_adi: '', birim: 'Adet', miktar: 1, birim_fiyat: 0 }] })
-              setModalOpen(true)
-            }}
-          >
-            Yeni İrsaliye
-          </Button>
-        }
-      />
-
       {isError ? (
         <ErrorState error={error} onRetry={() => refetch()} />
       ) : (
@@ -164,6 +189,7 @@ export const MalzemeTeslimListPage: React.FC = () => {
           dataSource={irsaliyeData?.data}
           rowKey="id"
           loading={isLoading}
+          size="small"
           totalItems={irsaliyeData?.pagination?.total}
           emptyDescription="Kayıtlı teslim/irsaliye bulunamadı"
         />
@@ -182,12 +208,13 @@ export const MalzemeTeslimListPage: React.FC = () => {
         destroyOnClose
         okText="Kaydet"
         cancelText="İptal"
+        styles={{ body: { paddingTop: 16 } }}
       >
         <Form 
           form={form} 
           layout="vertical" 
           onFinish={(v) => saveMutation.mutate(v)}
-          style={{ marginTop: 16 }}
+          size="small"
         >
           <Row gutter={16}>
             <Col span={12}>
@@ -222,13 +249,13 @@ export const MalzemeTeslimListPage: React.FC = () => {
             </Col>
           </Row>
 
-          <Divider orientation={"left" as any}>Malzemeler</Divider>
+          <Divider orientation="left" style={{ margin: '12px 0' }}>Malzemeler</Divider>
           
           <Form.List name="kalemler">
             {(fields, { add, remove }) => (
               <>
                 {fields.map(({ key, name, ...restField }) => (
-                  <Row key={key} gutter={8} align="middle" style={{ marginBottom: 8 }}>
+                  <Row key={key} gutter={8} align="middle" style={{ marginBottom: 4 }}>
                     <Col span={10}>
                       <Form.Item
                         {...restField}
@@ -271,11 +298,11 @@ export const MalzemeTeslimListPage: React.FC = () => {
                       </Form.Item>
                     </Col>
                     <Col span={2}>
-                      <Button type="text" danger icon={<DeleteOutlined />} onClick={() => remove(name)} />
+                      <Button type="text" danger icon={<DeleteOutlined />} onClick={() => remove(name)} size="small" />
                     </Col>
                   </Row>
                 ))}
-                <Form.Item>
+                <Form.Item style={{ marginTop: 12 }}>
                   <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
                     Malzeme Ekle
                   </Button>
@@ -288,3 +315,4 @@ export const MalzemeTeslimListPage: React.FC = () => {
     </div>
   )
 }
+

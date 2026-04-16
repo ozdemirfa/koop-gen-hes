@@ -6,10 +6,10 @@ import { PlusOutlined, EditOutlined, SearchOutlined, EyeOutlined } from '@ant-de
 import api from '../../lib/api'
 import { useDebounce } from '../../hooks/useDebounce'
 
-import { PageHeader } from '../../components/common/PageHeader'
 import { DataTable } from '../../components/common/DataTable'
-import { ConfirmDelete } from '../../components/common/ConfirmDelete'
+import { StrictConfirmDelete } from '../../components/common/StrictConfirmDelete'
 import { ErrorState } from '../../components/common/ErrorState'
+import { usePageSettings } from '../../contexts/LayoutContext'
 
 interface Uye {
   id: string
@@ -62,6 +62,47 @@ export const UyeListPage: React.FC = () => {
     onError: (err: any) => message.error(err.message || 'Hata oluştu'),
   })
 
+  usePageSettings({
+    title: 'Üye Yönetimi',
+    actions: (
+      <Space size={20}>
+        <Input
+          placeholder="Ad, soyad veya üye no ile ara..."
+          prefix={<SearchOutlined />}
+          allowClear
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ width: 250 }}
+        />
+        <Select
+          placeholder="Durum"
+          value={filterDurum}
+          onChange={setFilterDurum}
+          allowClear
+          style={{ width: 120 }}
+        >
+          <Select.Option value="aktif">Aktif</Select.Option>
+          <Select.Option value="pasif">Pasif</Select.Option>
+          <Select.Option value="ihrac">İhraç</Select.Option>
+          <Select.Option value="istifa">İstifa</Select.Option>
+        </Select>
+        <Select
+          placeholder="Blok"
+          value={filterBlok}
+          onChange={setFilterBlok}
+          allowClear
+          style={{ width: 120 }}
+        >
+          {bloklar?.map((b) => (
+            <Select.Option key={b.id} value={b.id}>{b.blok_adi}</Select.Option>
+          ))}
+        </Select>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/uyeler/yeni')}>
+          Yeni Üye
+        </Button>
+      </Space>
+    )
+  })
+
   const durumRenk: Record<string, string> = {
     aktif: 'green',
     pasif: 'default',
@@ -74,6 +115,7 @@ export const UyeListPage: React.FC = () => {
     {
       title: 'Ad Soyad',
       key: 'ad_soyad',
+      sorter: true,
       render: (_: unknown, r: Uye) => `${r.ad} ${r.soyad}`,
     },
     {
@@ -96,13 +138,29 @@ export const UyeListPage: React.FC = () => {
       key: 'action',
       width: 150,
       render: (_: unknown, record: Uye) => (
-        <Space>
-          <Button icon={<EyeOutlined />} type="text" onClick={() => navigate(`/uyeler/${record.id}`)} />
-          <Button icon={<EditOutlined />} type="text" onClick={() => navigate(`/uyeler/${record.id}/duzenle`)} />
+        <Space onClick={(e) => e.stopPropagation()}>
+          <Button 
+            icon={<EyeOutlined />} 
+            type="text" 
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              navigate(`/uyeler/${record.id}`); 
+            }} 
+          />
+          <Button 
+            icon={<EditOutlined />} 
+            type="text" 
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              navigate(`/uyeler/${record.id}/duzenle`); 
+            }} 
+          />
           {record.durum === 'aktif' && (
-             <ConfirmDelete 
+             <StrictConfirmDelete 
                title="Üye pasif yapılacak, emin misiniz?" 
+               confirmText={`${record.ad} ${record.soyad}`}
                onConfirm={() => deleteMutation.mutate(record.id)} 
+               loading={deleteMutation.isPending}
              />
           )}
         </Space>
@@ -112,48 +170,6 @@ export const UyeListPage: React.FC = () => {
 
   return (
     <div>
-      <PageHeader
-        title="Üye Yönetimi"
-        subtitle="Kooperatif üyelerini listeleyin, arayın ve yeni kayıt oluşturun."
-        extra={
-          <Space wrap size="middle">
-            <Input
-              placeholder="Ad, soyad veya üye no ile ara..."
-              prefix={<SearchOutlined />}
-              allowClear
-              onChange={(e) => setSearch(e.target.value)}
-              style={{ width: 250 }}
-            />
-            <Select
-              placeholder="Durum"
-              value={filterDurum}
-              onChange={setFilterDurum}
-              allowClear
-              style={{ width: 120 }}
-            >
-              <Select.Option value="aktif">Aktif</Select.Option>
-              <Select.Option value="pasif">Pasif</Select.Option>
-              <Select.Option value="ihrac">İhraç</Select.Option>
-              <Select.Option value="istifa">İstifa</Select.Option>
-            </Select>
-            <Select
-              placeholder="Blok"
-              value={filterBlok}
-              onChange={setFilterBlok}
-              allowClear
-              style={{ width: 120 }}
-            >
-              {bloklar?.map((b) => (
-                <Select.Option key={b.id} value={b.id}>{b.blok_adi}</Select.Option>
-              ))}
-            </Select>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/uyeler/yeni')}>
-              Yeni Üye
-            </Button>
-          </Space>
-        }
-      />
-
       {isError ? (
         <ErrorState error={error} onRetry={() => refetch()} />
       ) : (

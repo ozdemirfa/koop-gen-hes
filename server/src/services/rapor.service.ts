@@ -1,13 +1,13 @@
 import { supabaseAdmin } from '../config/supabase'
 
 export const raporService = {
-  async dashboardOzet() {
+  async dashboardOzet(projeId: string) {
     try {
       const [uyeRes, aidatRes, gelirRes, giderRes] = await Promise.all([
-        supabaseAdmin.from('uyeler').select('id', { count: 'exact' }).eq('durum', 'aktif'),
-        supabaseAdmin.from('aidatlar').select('durum, tutar, gecikme_faizi, odenen_tutar'),
-        supabaseAdmin.from('gelir_giderler').select('tutar').eq('tip', 'gelir'),
-        supabaseAdmin.from('gelir_giderler').select('tutar').eq('tip', 'gider')
+        supabaseAdmin.from('uyeler').select('id', { count: 'exact' }).eq('proje_id', projeId).eq('durum', 'aktif'),
+        supabaseAdmin.from('aidatlar').select('durum, tutar, gecikme_faizi, odenen_tutar').eq('proje_id', projeId),
+        supabaseAdmin.from('gelir_giderler').select('tutar').eq('proje_id', projeId).eq('tip', 'gelir'),
+        supabaseAdmin.from('gelir_giderler').select('tutar').eq('proje_id', projeId).eq('tip', 'gider')
       ])
 
       // Check for errors in individual responses
@@ -42,12 +42,13 @@ export const raporService = {
     }
   },
 
-  async aylikGelirGider(yil?: number) {
+  async aylikGelirGider(projeId: string, yil?: number) {
     const targetYil = yil || new Date().getFullYear()
 
     const { data, error } = await supabaseAdmin
       .from('gelir_giderler')
       .select('tip, tutar, tarih')
+      .eq('proje_id', projeId)
       .gte('tarih', `${targetYil}-01-01`)
       .lte('tarih', `${targetYil}-12-31`)
 
@@ -71,10 +72,11 @@ export const raporService = {
     }))
   },
 
-  async aidatDurumu() {
+  async aidatDurumu(projeId: string) {
     const { data, error } = await supabaseAdmin
       .from('aidatlar')
       .select('durum')
+      .eq('proje_id', projeId)
 
     if (error) throw error
 
@@ -84,42 +86,87 @@ export const raporService = {
     return durum
   },
 
-  async aylikRapor(yil: number, ay: number) {
+  async aylikRapor(yil: number, ay: number, projeId: string) {
     const baslangic = `${yil}-${String(ay).padStart(2, '0')}-01`
     const sonGun = new Date(yil, ay, 0).getDate()
     const bitis = `${yil}-${String(ay).padStart(2, '0')}-${sonGun}`
 
-    const [gelirGiderRes, aidatRes] = await Promise.all([
+    // T+1 ve T+2 için tarihler
+    const t1Start = new Date(yil, ay, 1)
+    const t1End = new Date(yil, ay + 1, 0)
+    const t2Start = new Date(yil, ay + 1, 1)
+    const t2End = new Date(yil, ay + 2, 0)
+
+    const [gelirGiderRes, aidatRes, hakedisRes, yaklasanRes] = await Promise.all([
       supabaseAdmin.from('gelir_giderler')
         .select('*, gelir_gider_kategorileri(ad)')
+        .eq('proje_id', projeId)
         .gte('tarih', baslangic)
         .lte('tarih', bitis)
         .order('tarih'),
       supabaseAdmin.from('aidat_odemeleri')
-        .select('tutar, odeme_tarihi, odeme_yontemi')
+        .select('tutar, odeme_tarihi, odeme_yontemi, aidatlar!inner(proje_id)')
+        .eq('aidatlar.proje_id', projeId)
         .gte('odeme_tarihi', baslangic)
-        .lte('odeme_tarihi', bitis)
+        .lte('odeme_tarihi', bitis),
+      supabaseAdmin.from('hakedisler')
+        .select('*, sozlesmeler(sozlesme_no, firmalar(unvan))')
+        .eq('proje_id', projeId)
+        .in('durum', ['onaylandi', 'odendi'])
+        .gte('onay_tarihi', baslangic)
+        .lte('onay_tarihi', bitis),
+      supabaseAdmin.from('odeme_planlari')
+        .select('*, faturalar!inner(proje_id, fatura_no, firma_id, firmalar(unvan))')
+        .eq('faturalar.proje_id', projeId)
+        .eq('odendi', false)
+        .gte('vade_tarihi', baslangic)
+        .lte('vade_tarihi', `${t2End.getFullYear()}-${String(t2End.getMonth() + 1).padStart(2, '0')}-${t2End.getDate()}`)
     ])
 
     const gelirler = gelirGiderRes.data?.filter(r => r.tip === 'gelir') || []
-    const giderler = gelirGiderRes.data?.filter(r => r.tip === 'gider') || []
+    const digerGiderler = gelirGiderRes.data?.filter(r => r.tip === 'gider') || []
+    const hakedisGiderleri = (hakedisRes.data || []).map(h => ({
+      id: h.id,
+      tarih: h.onay_tarihi,
+      tutar: h.net_tutar,
+      aciklama: `Hakediş #${h.hakedis_no} - ${h.sozlesmeler?.firmalar?.unvan || ''}`,
+      kategori: 'Hakediş'
+    }))
+
+    const giderler = [...digerGiderler, ...hakedisGiderleri]
     const aidatTahsilat = aidatRes.data || []
+
+    // Yaklaşan ödemeleri T, T+1, T+2 olarak grupla
+    const yaklasanOdemeler = {
+      t: 0,
+      t1: 0,
+      t2: 0,
+      detay: yaklasanRes.data || []
+    }
+
+    yaklasanRes.data?.forEach(o => {
+      const vade = new Date(o.vade_tarihi)
+      if (vade >= new Date(baslangic) && vade <= new Date(bitis)) yaklasanOdemeler.t += Number(o.tutar)
+      else if (vade >= t1Start && vade <= t1End) yaklasanOdemeler.t1 += Number(o.tutar)
+      else if (vade >= t2Start && vade <= t2End) yaklasanOdemeler.t2 += Number(o.tutar)
+    })
 
     return {
       donem: { yil, ay },
       gelirler,
       giderler,
       aidat_tahsilat: aidatTahsilat,
+      yaklasan_odemeler: yaklasanOdemeler,
       toplam_gelir: gelirler.reduce((s, r) => s + Number(r.tutar), 0),
       toplam_gider: giderler.reduce((s, r) => s + Number(r.tutar), 0),
       toplam_aidat_tahsilat: aidatTahsilat.reduce((s, r) => s + Number(r.tutar), 0)
     }
   },
 
-  async yillikRapor(yil: number) {
+  async yillikRapor(yil: number, projeId: string) {
     const aylikVeriler = []
     for (let ay = 1; ay <= 12; ay++) {
-      const rapor = await this.aylikRapor(yil, ay)
+      const rapor = await this.aylikRapor(yil, ay, projeId)
       aylikVeriler.push({
         ay,
         gelir: rapor.toplam_gelir,
@@ -137,10 +184,11 @@ export const raporService = {
     }
   },
 
-  async uyeBorcListesi() {
+  async uyeBorcListesi(projeId: string) {
     const { data, error } = await supabaseAdmin
       .from('uyeler')
       .select('id, uye_no, ad, soyad, aidatlar(tutar, gecikme_faizi, odenen_tutar, durum)')
+      .eq('proje_id', projeId)
       .eq('durum', 'aktif')
       .order('soyad')
 
@@ -148,25 +196,37 @@ export const raporService = {
 
     return data?.map(uye => {
       const aidatlar = (uye as any).aidatlar || []
-      const toplamBorc = aidatlar.reduce((s: number, a: any) => {
-        if (a.durum === 'odendi' || a.durum === 'iptal') return s
-        return s + Number(a.tutar) + Number(a.gecikme_faizi || 0) - Number(a.odenen_tutar || 0)
-      }, 0)
+      let gecikenAidatTutari = 0
+      let gecikmeFaiziTutari = 0
+      let odenenTutar = 0
+
+      aidatlar.forEach((a: any) => {
+        if (a.durum === 'bekliyor' || a.durum === 'gecikti') {
+          gecikenAidatTutari += Number(a.tutar)
+          gecikmeFaiziTutari += Number(a.gecikme_faizi || 0)
+          odenenTutar += Number(a.odenen_tutar || 0)
+        }
+      })
+
+      const toplamBorc = gecikenAidatTutari + gecikmeFaiziTutari - odenenTutar
 
       return {
         uye_no: uye.uye_no,
         ad: uye.ad,
         soyad: uye.soyad,
+        geciken_aidat_tutari: gecikenAidatTutari,
+        gecikme_faizi_tutari: gecikmeFaiziTutari,
         toplam_borc: toplamBorc,
-        odenmemis_aidat_sayisi: aidatlar.filter((a: any) => a.durum !== 'odendi' && a.durum !== 'iptal').length
+        odenmemis_aidat_sayisi: aidatlar.filter((a: any) => a.durum === 'bekliyor' || a.durum === 'gecikti').length
       }
     }).filter(u => u.toplam_borc > 0)
   },
 
-  async hakedisOzet() {
+  async hakedisOzet(projeId: string) {
     const { data, error } = await supabaseAdmin
       .from('hakedisler')
-      .select('durum, toplam_tutar, net_tutar, sozlesmeler(sozlesme_no, firmalar(unvan))')
+      .select('durum, brut_tutar, net_tutar, sozlesmeler(sozlesme_no, firmalar(unvan))')
+      .eq('proje_id', projeId)
       .order('created_at', { ascending: false })
 
     if (error) throw error
@@ -181,7 +241,7 @@ export const raporService = {
     }
 
     data?.forEach(h => {
-      ozet.toplam_tutar += Number(h.toplam_tutar || 0)
+      ozet.toplam_tutar += Number(h.brut_tutar || 0)
       ozet.toplam_net += Number(h.net_tutar || 0)
       if (h.durum === 'taslak') ozet.taslak++
       if (h.durum === 'onaylandi') ozet.onaylanan++

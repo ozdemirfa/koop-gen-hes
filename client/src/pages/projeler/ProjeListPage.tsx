@@ -5,11 +5,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
-import { PageHeader } from '../../components/common/PageHeader'
 import { LoadingState } from '../../components/common/LoadingState'
 import { EmptyState } from '../../components/common/EmptyState'
 import { ErrorState } from '../../components/common/ErrorState'
 import { trNumberFormatter, trNumberParser } from '../../lib/format'
+import { usePageSettings } from '../../contexts/LayoutContext'
 
 const { Text } = Typography
 
@@ -92,8 +92,26 @@ export const ProjeListPage: React.FC = () => {
     },
   })
 
+  usePageSettings({
+    title: 'İnşaat Projeleri',
+    actions: (
+      <Button
+        type="primary"
+        icon={<PlusOutlined />}
+        onClick={() => {
+          setEditingProje(null)
+          form.resetFields()
+          form.setFieldsValue({ bloklar: [{ blok_adi: '', toplam_daire: 0, daire_baslangic_no: 1 }] })
+          setModalOpen(true)
+        }}
+        size="middle"
+      >
+        Yeni Proje
+      </Button>
+    )
+  })
+
   const openEditModal = async (proje: Proje) => {
-    // Proje detayını bloklarla birlikte çek
     try {
       const { data } = await api.get(`/projeler/${proje.id}`)
       const fullProje = data.data as Proje
@@ -110,27 +128,8 @@ export const ProjeListPage: React.FC = () => {
   }
 
   return (
-    <div>
-      <PageHeader
-        title="İnşaat Projeleri"
-        subtitle="Kooperatif bünyesindeki tüm inşaat projeleri, blok yapıları ve bütçe planları"
-        extra={
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => {
-              setEditingProje(null)
-              form.resetFields()
-              form.setFieldsValue({ bloklar: [{ blok_adi: '', toplam_daire: 0, daire_baslangic_no: 1 }] })
-              setModalOpen(true)
-            }}
-          >
-            Yeni Proje
-          </Button>
-        }
-      />
-
-      <Row gutter={[16, 16]}>
+    <div style={{ zoom: '0.9', fontSize: '13px' }}>
+      <Row gutter={[12, 12]}>
         {isLoading ? (
           <Col span={24}><LoadingState fullHeight /></Col>
         ) : isError ? (
@@ -142,6 +141,7 @@ export const ProjeListPage: React.FC = () => {
             <Col xs={24} sm={12} lg={8} key={p.id}>
               <Card
                 hoverable
+                size="small"
                 actions={[
                   <EditOutlined
                     key="edit"
@@ -153,17 +153,22 @@ export const ProjeListPage: React.FC = () => {
                   <ArrowRightOutlined key="view" onClick={() => navigate(`/projeler/${p.id}`)} />,
                 ]}
                 title={
-                  <Space>
-                    <ProjectOutlined />
-                    {p.proje_adi}
+                  <Space size={4}>
+                    <ProjectOutlined style={{ fontSize: '14px' }} />
+                    <span style={{ fontSize: '14px', fontWeight: 600 }}>{p.proje_adi}</span>
                   </Space>
                 }
-                extra={<Tag color={durumRenkleri[p.durum]}>{durumEtiketleri[p.durum]}</Tag>}
+                extra={<Tag color={durumRenkleri[p.durum]} style={{ marginRight: 0, fontSize: '11px' }}>{durumEtiketleri[p.durum]}</Tag>}
                 onClick={() => navigate(`/projeler/${p.id}`)}
+                styles={{ body: { padding: '12px' } }}
               >
-                <p style={{ height: 40, overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.aciklama || 'Açıklama yok'}</p>
-                <div style={{ marginTop: 16 }}>
-                  <small>Tarih: {p.baslangic_tarihi ? dayjs(p.baslangic_tarihi).format('DD.MM.YYYY') : '?'} - {p.bitis_tarihi ? dayjs(p.bitis_tarihi).format('DD.MM.YYYY') : '?'}</small>
+                <div style={{ height: 36, overflow: 'hidden', textOverflow: 'ellipsis', color: '#64748b', fontSize: '12px', lineHeight: '1.4' }}>
+                  {p.aciklama || 'Açıklama yok'}
+                </div>
+                <div style={{ marginTop: 12, borderTop: '1px solid #f1f5f9', paddingTop: 8 }}>
+                  <Text type="secondary" style={{ fontSize: '11px' }}>
+                    Tarih: {p.baslangic_tarihi ? dayjs(p.baslangic_tarihi).format('DD.MM.YYYY') : '?'} - {p.bitis_tarihi ? dayjs(p.bitis_tarihi).format('DD.MM.YYYY') : '?'}
+                  </Text>
                 </div>
               </Card>
             </Col>
@@ -180,26 +185,39 @@ export const ProjeListPage: React.FC = () => {
         }}
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
-        width={800}
+        width={700}
         destroyOnClose
         okText="Kaydet"
         cancelText="İptal"
+        styles={{ body: { paddingTop: 8 } }}
+        centered
       >
         <Form 
           form={form} 
           layout="vertical" 
           onFinish={(v) => saveMutation.mutate(v)} 
           initialValues={{ durum: 'planli' }}
-          style={{ marginTop: 16 }}
+          size="small"
+          requiredMark="optional"
         >
-          <Row gutter={16}>
+          <Row gutter={12}>
             <Col span={16}>
-              <Form.Item name="proje_adi" label="Proje Adı" rules={[{ required: true }]}>
-                <Input />
+              <Form.Item 
+                name="proje_adi" 
+                label={<span style={{ fontWeight: 500 }}>Proje Adı</span>} 
+                rules={[{ required: true }]}
+                style={{ marginBottom: 12 }}
+              >
+                <Input placeholder="Proje ismini giriniz" />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="durum" label="Durum" rules={[{ required: true }]}>
+              <Form.Item 
+                name="durum" 
+                label={<span style={{ fontWeight: 500 }}>Durum</span>} 
+                rules={[{ required: true }]}
+                style={{ marginBottom: 12 }}
+              >
                 <Select>
                   <Select.Option value="planli">Planlı</Select.Option>
                   <Select.Option value="devam_ediyor">Devam Ediyor</Select.Option>
@@ -210,59 +228,92 @@ export const ProjeListPage: React.FC = () => {
             </Col>
           </Row>
           
-          <Form.Item name="aciklama" label="Açıklama">
-            <Input.TextArea rows={2} />
+          <Form.Item 
+            name="aciklama" 
+            label={<span style={{ fontWeight: 500 }}>Açıklama</span>}
+            style={{ marginBottom: 12 }}
+          >
+            <Input.TextArea rows={2} placeholder="Proje hakkında kısa bilgi..." />
           </Form.Item>
           
-          <Row gutter={16}>
+          <Row gutter={12}>
             <Col span={8}>
-              <Form.Item name="baslangic_tarihi" label="Başlangıç Tarihi">
+              <Form.Item 
+                name="baslangic_tarihi" 
+                label={<span style={{ fontWeight: 500 }}>Başlangıç</span>}
+                style={{ marginBottom: 12 }}
+              >
                 <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="bitis_tarihi" label="Bitiş Tarihi">
+              <Form.Item 
+                name="bitis_tarihi" 
+                label={<span style={{ fontWeight: 500 }}>Bitiş</span>}
+                style={{ marginBottom: 12 }}
+              >
                 <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="toplam_butce" label="Toplam Bütçe">
+              <Form.Item 
+                name="toplam_butce" 
+                label={<span style={{ fontWeight: 500 }}>Toplam Bütçe</span>}
+                style={{ marginBottom: 12 }}
+              >
                 <InputNumber 
                   style={{ width: '100%' }} 
                   min={0} 
                   formatter={trNumberFormatter}
                   parser={trNumberParser}
+                  placeholder="0,00"
                 />
               </Form.Item>
             </Col>
           </Row>
 
-          <Divider orientation={"left" as any}>Bloklar</Divider>
+          <Divider orientation="left" style={{ margin: '12px 0', fontSize: '13px' }}>Bloklar</Divider>
           
           <Form.List name="bloklar">
             {(fields, { add, remove }) => (
-              <>
+              <div style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '4px' }}>
                 {fields.map(({ key, name, ...restField }) => (
-                  <Card size="small" key={key} style={{ marginBottom: 16 }} extra={
-                    fields.length > 1 && <Button type="text" danger icon={<DeleteOutlined />} onClick={() => remove(name)} />
-                  }>
-                    <Row gutter={12}>
+                  <Card 
+                    size="small" 
+                    key={key} 
+                    style={{ marginBottom: 8, backgroundColor: '#fafafa' }} 
+                    styles={{ body: { padding: '8px 12px' } }}
+                    extra={
+                      fields.length > 1 && (
+                        <Button 
+                          type="text" 
+                          danger 
+                          icon={<DeleteOutlined />} 
+                          onClick={() => remove(name)} 
+                          size="small"
+                        />
+                      )
+                    }
+                  >
+                    <Row gutter={8}>
                       <Col span={5}>
                         <Form.Item
                           {...restField}
                           name={[name, 'blok_adi']}
-                          label="Blok Adı"
-                          rules={[{ required: true, message: 'Zorunlu' }]}
+                          label={<span style={{ fontSize: '11px' }}>Blok Adı</span>}
+                          rules={[{ required: true, message: '!' }]}
+                          style={{ marginBottom: 0 }}
                         >
-                          <Input placeholder="Örn: A Blok" />
+                          <Input placeholder="Örn: A" />
                         </Form.Item>
                       </Col>
                       <Col span={4}>
                         <Form.Item
                           {...restField}
                           name={[name, 'toplam_daire']}
-                          label="Daire"
-                          rules={[{ required: true, message: 'Zorunlu' }]}
+                          label={<span style={{ fontSize: '11px' }}>Daire</span>}
+                          rules={[{ required: true, message: '!' }]}
+                          style={{ marginBottom: 0 }}
                         >
                           <InputNumber min={1} style={{ width: '100%' }} />
                         </Form.Item>
@@ -271,7 +322,8 @@ export const ProjeListPage: React.FC = () => {
                         <Form.Item
                           {...restField}
                           name={[name, 'daire_baslangic_no']}
-                          label="Baş. No"
+                          label={<span style={{ fontSize: '11px' }}>Baş. No</span>}
+                          style={{ marginBottom: 0 }}
                         >
                           <InputNumber min={0} style={{ width: '100%' }} />
                         </Form.Item>
@@ -280,20 +332,21 @@ export const ProjeListPage: React.FC = () => {
                         <Form.Item
                           {...restField}
                           name={[name, 'aciklama']}
-                          label="Blok Açıklaması"
+                          label={<span style={{ fontSize: '11px' }}>Blok Açıklaması</span>}
+                          style={{ marginBottom: 0 }}
                         >
-                          <Input />
+                          <Input placeholder="İsteğe bağlı" />
                         </Form.Item>
                       </Col>
                     </Row>
                   </Card>
                 ))}
-                <Form.Item>
-                  <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
-                    Yeni Blok Ekle
+                <Form.Item style={{ marginTop: 8, marginBottom: 0 }}>
+                  <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />} size="small">
+                    Blok Ekle
                   </Button>
                 </Form.Item>
-              </>
+              </div>
             )}
           </Form.List>
         </Form>
@@ -301,4 +354,3 @@ export const ProjeListPage: React.FC = () => {
     </div>
   )
 }
-

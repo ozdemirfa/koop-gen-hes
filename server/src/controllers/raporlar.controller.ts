@@ -7,14 +7,16 @@ import { catchAsync } from '../utils/catchAsync'
 export const getAylikRapor = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   const yil = parseInt(req.query.yil as string) || new Date().getFullYear()
   const ay = parseInt(req.query.ay as string) || new Date().getMonth() + 1
-  const data = await raporService.aylikRapor(yil, ay)
+  const projeId = req.query.projeId as string
+  const data = await raporService.aylikRapor(yil, ay, projeId)
   res.json({ success: true, data })
 })
 
 export const downloadAylikRaporPdf = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   const yil = parseInt(req.query.yil as string) || new Date().getFullYear()
   const ay = parseInt(req.query.ay as string) || new Date().getMonth() + 1
-  const data = await raporService.aylikRapor(yil, ay)
+  const projeId = req.query.projeId as string
+  const data = await raporService.aylikRapor(yil, ay, projeId)
   
   const docDefinition = pdfGenerator.generateMaliRaporPDF(data)
   const pdfDoc = pdfGenerator.createPdfStream(docDefinition)
@@ -28,16 +30,19 @@ export const downloadAylikRaporPdf = catchAsync(async (req: AuthRequest<any, any
 
 export const getYillikRapor = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   const yil = parseInt(req.query.yil as string) || new Date().getFullYear()
-  const data = await raporService.yillikRapor(yil)
+  const projeId = req.query.projeId as string
+  const data = await raporService.yillikRapor(yil, projeId)
   res.json({ success: true, data })
 })
 
-export const getUyeBorcListesi = catchAsync(async (_req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await raporService.uyeBorcListesi()
+export const getUyeBorcListesi = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const projeId = req.query.projeId as string
+  const data = await raporService.uyeBorcListesi(projeId)
   res.json({ success: true, data })
 })
 
-export const getHakedisOzet = catchAsync(async (_req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await raporService.hakedisOzet()
+export const getHakedisOzet = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const projeId = req.query.projeId as string
+  const data = await raporService.hakedisOzet(projeId)
   res.json({ success: true, data })
 })

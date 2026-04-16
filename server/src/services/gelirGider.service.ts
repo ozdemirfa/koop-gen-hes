@@ -3,10 +3,14 @@ import { ApiError } from '../utils/ApiError'
 import { parsePagination, toSupabaseRange, paginationMeta } from '../utils/pagination'
 
 export const kategoriService = {
-  async list() {
-    const { data, error } = await supabaseAdmin
+  async list(query: Record<string, any> = {}) {
+    let q = supabaseAdmin
       .from('gelir_gider_kategorileri')
       .select('*')
+
+    if (query.proje_id) q = q.eq('proje_id', query.proje_id)
+
+    const { data, error } = await q
       .order('tip')
       .order('ad')
 
@@ -35,6 +39,7 @@ export const gelirGiderService = {
       .from('gelir_giderler')
       .select('*, gelir_gider_kategorileri(ad, tip)', { count: 'exact' })
 
+    if (query.proje_id) q = q.eq('proje_id', query.proje_id)
     if (query.tip) q = q.eq('tip', query.tip)
     if (query.kategori_id) q = q.eq('kategori_id', query.kategori_id)
     if (query.baslangic_tarihi) q = q.gte('tarih', query.baslangic_tarihi)

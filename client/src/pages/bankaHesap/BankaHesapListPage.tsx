@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
-import { Button, Modal, Form, Input, Space, message, Tag } from 'antd'
-import { PlusOutlined, EditOutlined } from '@ant-design/icons'
+import { Button, Modal, Form, Input, Space, message, Tag, Switch, Tooltip } from 'antd'
+import { PlusOutlined, EditOutlined, TransactionOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import api from '../../lib/api'
-import { PageHeader } from '../../components/common/PageHeader'
+import { usePageSettings } from '../../contexts/LayoutContext'
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
 
@@ -18,6 +19,7 @@ interface BankaHesap {
 
 export const BankaHesapListPage: React.FC = () => {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const [modalOpen, setModalOpen] = useState(false)
   const [editingHesap, setEditingHesap] = useState<BankaHesap | null>(null)
   const [form] = Form.useForm()
@@ -56,6 +58,24 @@ export const BankaHesapListPage: React.FC = () => {
     },
   })
 
+  usePageSettings({
+    title: 'Banka Hesapları',
+    actions: (
+      <Button
+        type="primary"
+        icon={<PlusOutlined />}
+        onClick={() => {
+          setEditingHesap(null)
+          form.resetFields()
+          form.setFieldsValue({ aktif: true })
+          setModalOpen(true)
+        }}
+      >
+        Yeni Hesap
+      </Button>
+    )
+  })
+
   const columns = [
     { title: 'Banka Adı', dataIndex: 'banka_adi', key: 'banka_adi' },
     { title: 'Şube', dataIndex: 'sube', key: 'sube' },
@@ -72,40 +92,38 @@ export const BankaHesapListPage: React.FC = () => {
     {
       title: 'İşlem',
       key: 'action',
-      width: 100,
+      width: 120,
       render: (_: any, r: BankaHesap) => (
-        <Button
-          icon={<EditOutlined />}
-          onClick={() => {
-            setEditingHesap(r)
-            form.setFieldsValue(r)
-            setModalOpen(true)
-          }}
-        />
+        <Space size="middle">
+          <Tooltip title="Hareketler">
+            <Button
+              icon={<TransactionOutlined />}
+              onClick={(e) => {
+                e.stopPropagation()
+                navigate(`/banka-hesaplari/${r.id}/hareketler`)
+              }}
+              size="small"
+            />
+          </Tooltip>
+          <Tooltip title="Düzenle">
+            <Button
+              icon={<EditOutlined />}
+              onClick={(e) => {
+                e.stopPropagation()
+                setEditingHesap(r)
+                form.setFieldsValue(r)
+                setModalOpen(true)
+              }}
+              size="small"
+            />
+          </Tooltip>
+        </Space>
       ),
     },
   ]
 
   return (
     <div>
-      <PageHeader
-        title="Banka Hesapları"
-        subtitle="Kooperatife ait banka hesaplarının yönetimi"
-        extra={
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => {
-              setEditingHesap(null)
-              form.resetFields()
-              setModalOpen(true)
-            }}
-          >
-            Yeni Hesap
-          </Button>
-        }
-      />
-
       {isError ? (
         <ErrorState error={error} onRetry={() => refetch()} />
       ) : (
@@ -115,6 +133,7 @@ export const BankaHesapListPage: React.FC = () => {
           rowKey="id"
           loading={isLoading}
           pagination={false}
+          size="small"
           emptyDescription="Banka hesabı eklenmemiş"
         />
       )}
@@ -137,6 +156,7 @@ export const BankaHesapListPage: React.FC = () => {
           layout="vertical" 
           onFinish={(v) => saveMutation.mutate(v)}
           style={{ marginTop: 16 }}
+          initialValues={{ aktif: true }}
         >
           <Form.Item name="banka_adi" label="Banka Adı" rules={[{ required: true }]}>
             <Input />
@@ -149,6 +169,9 @@ export const BankaHesapListPage: React.FC = () => {
           </Form.Item>
           <Form.Item name="iban" label="IBAN">
             <Input placeholder="TR..." />
+          </Form.Item>
+          <Form.Item name="aktif" label="Durum" valuePropName="checked">
+            <Switch checkedChildren="Aktif" unCheckedChildren="Pasif" />
           </Form.Item>
         </Form>
       </Modal>

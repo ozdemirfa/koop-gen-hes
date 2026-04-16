@@ -7,6 +7,7 @@ interface ConfirmDeleteProps extends Omit<PopconfirmProps, 'title'> {
   buttonText?: string
   buttonType?: "text" | "link" | "default" | "primary" | "dashed"
   danger?: boolean
+  size?: 'small' | 'middle' | 'large'
 }
 
 export const ConfirmDelete: React.FC<ConfirmDeleteProps> = ({ 
@@ -14,6 +15,7 @@ export const ConfirmDelete: React.FC<ConfirmDeleteProps> = ({
   buttonText, 
   buttonType = "text", 
   danger = true,
+  size,
   ...props 
 }) => {
   return (
@@ -22,6 +24,7 @@ export const ConfirmDelete: React.FC<ConfirmDeleteProps> = ({
         danger={danger} 
         icon={<DeleteOutlined />} 
         type={buttonType}
+        size={size}
       >
         {buttonText}
       </Button>

@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { AIDAT_DURUMLARI, ODEME_YONTEMLERI } from '../config/constants'
 
 export const createAidatTanimiSchema = z.object({
+  proje_id: z.string().uuid('Geçerli bir proje ID gereklidir'),
   yil: z.number().int().min(2020).max(2100),
   ay: z.number().int().min(1).max(12),
   tur: z.enum(['normal', 'ara_odeme']).default('normal'),
@@ -12,6 +13,7 @@ export const createAidatTanimiSchema = z.object({
 })
 
 export const yillikPlanSchema = z.object({
+  proje_id: z.string().uuid('Geçerli bir proje ID gereklidir'),
   yil: z.number().int().min(2020).max(2100),
   kalemler: z.array(z.object({
     ay: z.number().int().min(1).max(12),
@@ -34,6 +36,7 @@ export const aidatOdemeSchema = z.object({
 })
 
 export const aidatQuerySchema = z.object({
+  proje_id: z.string().uuid().optional(),
   uye_id: z.string().uuid().optional(),
   yil: z.string().optional(),
   ay: z.string().optional(),

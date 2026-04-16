@@ -5,8 +5,8 @@ import { catchAsync } from '../utils/catchAsync'
 
 // === AİDAT TANIMLARI ===
 
-export const getAidatTanimlari = catchAsync(async (_req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await aidatTanimiService.list()
+export const getAidatTanimlari = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const data = await aidatTanimiService.list(req.query as Record<string, any>)
   res.json({ success: true, data })
 })
 
@@ -32,13 +32,13 @@ export const getAidatlar = catchAsync(async (req: AuthRequest<any, any, any, any
   res.json({ success: true, ...result })
 })
 
-export const getAidatOzet = catchAsync(async (_req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await aidatService.getSummary()
+export const getAidatOzet = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const data = await aidatService.getSummary(req.query as Record<string, any>)
   res.json({ success: true, data })
 })
 
-export const calculateLateFees = catchAsync(async (_req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await aidatService.calculateLateFees()
+export const calculateLateFees = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const data = await aidatService.calculateLateFees(req.query as Record<string, any>)
   res.json({ success: true, data })
 })
 

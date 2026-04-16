@@ -11,6 +11,7 @@ export const sozlesmeService = {
       .from('sozlesmeler')
       .select('*, firmalar(unvan, firma_tipi)', { count: 'exact' })
 
+    if (query.proje_id) q = q.eq('proje_id', query.proje_id)
     if (query.firma_id) q = q.eq('firma_id', query.firma_id)
 
     const { data, error, count } = await q

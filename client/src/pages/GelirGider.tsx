@@ -5,9 +5,9 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, SettingOutlined, ArrowUpOut
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 import dayjs from 'dayjs'
-import { PageHeader } from '../components/common/PageHeader'
 import { MoneyDisplay } from '../components/common/MoneyDisplay'
 import { trNumberFormatter, trNumberParser } from '../lib/format'
+import { usePageSettings } from '../contexts/LayoutContext'
 
 const { Title, Text } = Typography
 
@@ -146,6 +146,40 @@ export const GelirGider: React.FC = () => {
     }
   }
 
+  usePageSettings({
+    title: 'Gelir / Gider İşlemleri',
+    actions: (
+      <Space size="small">
+        <Select
+          allowClear
+          size="small"
+          placeholder="Tip Filtresi"
+          style={{ width: 130 }}
+          value={tipFilter || undefined}
+          onChange={(v) => setTipFilter(v || '')}
+        >
+          <Select.Option value="gelir">Gelirler</Select.Option>
+          <Select.Option value="gider">Giderler</Select.Option>
+        </Select>
+        <Button 
+          size="small" 
+          icon={<SettingOutlined />} 
+          onClick={() => navigate('/gelir-gider/kategoriler')}
+        >
+          Kategoriler
+        </Button>
+        <Button 
+          size="small" 
+          type="primary" 
+          icon={<PlusOutlined />} 
+          onClick={() => setIsModalOpen(true)}
+        >
+          Yeni Kayıt
+        </Button>
+      </Space>
+    )
+  })
+
   const filteredKategoriler = kategoriler?.filter(k => !selectedTip || k.tip === selectedTip)
 
   const columns = [
@@ -153,15 +187,19 @@ export const GelirGider: React.FC = () => {
       title: 'Tarih',
       dataIndex: 'tarih',
       key: 'tarih',
-      width: 110,
+      width: 100,
       render: (d: string) => dayjs(d).format('DD.MM.YYYY')
     },
     {
       title: 'Tip',
       dataIndex: 'tip',
       key: 'tip',
-      width: 80,
-      render: (t: string) => <Tag color={t === 'gelir' ? 'green' : 'red'}>{t.toUpperCase()}</Tag>,
+      width: 70,
+      render: (t: string) => (
+        <Tag color={t === 'gelir' ? 'green' : 'red'} style={{ fontSize: '11px' }}>
+          {t.toUpperCase()}
+        </Tag>
+      ),
     },
     {
       title: 'Kategori',
@@ -182,18 +220,19 @@ export const GelirGider: React.FC = () => {
       dataIndex: 'tutar',
       key: 'tutar',
       align: 'right' as const,
+      width: 110,
       render: (v: number, r: GelirGider) => <MoneyDisplay amount={v} colored={true} />
     },
     { title: 'Açıklama', dataIndex: 'aciklama', key: 'aciklama', ellipsis: true },
     {
       title: 'İşlem',
       key: 'action',
-      width: 100,
+      width: 80,
       render: (_: unknown, record: GelirGider) => (
         <Space>
-          <Button icon={<EditOutlined />} type="text" onClick={() => openEdit(record)} />
+          <Button icon={<EditOutlined />} type="text" size="small" onClick={() => openEdit(record)} />
           <Popconfirm title="Silmek istediğinize emin misiniz?" onConfirm={() => deleteMutation.mutate(record.id)}>
-            <Button danger icon={<DeleteOutlined />} type="text" />
+            <Button danger icon={<DeleteOutlined />} type="text" size="small" />
           </Popconfirm>
         </Space>
       ),
@@ -202,63 +241,38 @@ export const GelirGider: React.FC = () => {
 
   return (
     <div>
-      <PageHeader
-        title="Gelir / Gider İşlemleri"
-        subtitle="Kooperatifin tüm gelir ve gider kayıtlarını buradan yönetebilirsiniz."
-        extra={
-          <Space>
-            <Select
-              allowClear
-              placeholder="Filtre"
-              style={{ width: 130 }}
-              value={tipFilter || undefined}
-              onChange={(v) => setTipFilter(v || '')}
-            >
-              <Select.Option value="gelir">Gelirler</Select.Option>
-              <Select.Option value="gider">Giderler</Select.Option>
-            </Select>
-            <Button icon={<SettingOutlined />} onClick={() => navigate('/gelir-gider/kategoriler')}>
-              Kategoriler
-            </Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
-              Yeni Kayıt
-            </Button>
-          </Space>
-        }
-      />
-
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={12} style={{ marginBottom: 12 }}>
         <Col span={8}>
-          <Card className="stat-card">
+          <Card className="stat-card" size="small">
             <Statistic
               title="Toplam Gelir"
               value={totals.gelir}
               precision={2}
-              valueStyle={{ color: '#3f8600' }}
+              valueStyle={{ color: '#3f8600', fontSize: '18px' }}
               prefix={<ArrowUpOutlined />}
               suffix="TL"
             />
           </Card>
         </Col>
         <Col span={8}>
-          <Card className="stat-card">
+          <Card className="stat-card" size="small">
             <Statistic
               title="Toplam Gider"
               value={totals.gider}
               precision={2}
-              valueStyle={{ color: '#cf1322' }}
+              valueStyle={{ color: '#cf1322', fontSize: '18px' }}
               prefix={<ArrowDownOutlined />}
               suffix="TL"
             />
           </Card>
         </Col>
         <Col span={8}>
-          <Card className="stat-card">
+          <Card className="stat-card" size="small">
             <Statistic
               title="Net Bakiye"
               value={totals.gelir - totals.gider}
               precision={2}
-              valueStyle={{ color: totals.gelir - totals.gider >= 0 ? '#3f8600' : '#cf1322' }}
+              valueStyle={{ color: totals.gelir - totals.gider >= 0 ? '#3f8600' : '#cf1322', fontSize: '18px' }}
               prefix={<WalletOutlined />}
               suffix="TL"
             />
@@ -272,6 +286,7 @@ export const GelirGider: React.FC = () => {
           dataSource={listData?.data}
           rowKey="id"
           loading={isLoading}
+          size="small"
           pagination={{ pageSize: 20 }}
         />
       </Card>

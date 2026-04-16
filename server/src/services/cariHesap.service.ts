@@ -7,6 +7,7 @@ export const cariHesapService = {
       .from('cari_hareketler')
       .select('*, firmalar(unvan)')
 
+    if (query.proje_id) q = q.eq('proje_id', query.proje_id)
     if (query.firma_id) q = q.eq('firma_id', query.firma_id)
     if (query.baslangic_tarihi) q = q.gte('tarih', query.baslangic_tarihi)
     if (query.bitis_tarihi) q = q.lte('tarih', query.bitis_tarihi)

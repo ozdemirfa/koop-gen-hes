@@ -1,10 +1,10 @@
 import React, { useState } from 'react'
 import { Table, Button, Modal, Form, Input, Select, message, Popconfirm, Card, Tag, Space } from 'antd'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
-import { PageHeader } from '../components/common/PageHeader'
+import { usePageSettings } from '../contexts/LayoutContext'
 
 interface Kategori {
   id: string
@@ -76,6 +76,29 @@ export const GelirGiderKategoriPage: React.FC = () => {
     setIsModalOpen(true)
   }
 
+  usePageSettings({
+    title: 'Gelir / Gider Kategorileri',
+    actions: (
+      <Space size="small">
+        <Button 
+          size="small" 
+          icon={<ArrowLeftOutlined />} 
+          onClick={() => navigate('/gelir-gider')}
+        >
+          Geri
+        </Button>
+        <Button 
+          size="small" 
+          type="primary" 
+          icon={<PlusOutlined />} 
+          onClick={() => setIsModalOpen(true)}
+        >
+          Yeni Kategori
+        </Button>
+      </Space>
+    )
+  })
+
   const columns = [
     {
       title: 'Kategori Adı',
@@ -86,17 +109,18 @@ export const GelirGiderKategoriPage: React.FC = () => {
       title: 'Tip',
       dataIndex: 'tip',
       key: 'tip',
-      render: (t: string) => <Tag color={t === 'gelir' ? 'green' : 'red'}>{t.toUpperCase()}</Tag>,
+      width: 100,
+      render: (t: string) => <Tag color={t === 'gelir' ? 'green' : 'red'} style={{ fontSize: '11px' }}>{t.toUpperCase()}</Tag>,
     },
     {
       title: 'İşlem',
       key: 'action',
-      width: 120,
+      width: 100,
       render: (_: any, record: Kategori) => (
         <Space>
-          <Button icon={<EditOutlined />} type="text" onClick={() => openEdit(record)} />
+          <Button icon={<EditOutlined />} type="text" size="small" onClick={() => openEdit(record)} />
           <Popconfirm title="Silmek istediğinize emin misiniz?" onConfirm={() => deleteMutation.mutate(record.id)}>
-            <Button danger icon={<DeleteOutlined />} type="text" />
+            <Button danger icon={<DeleteOutlined />} type="text" size="small" />
           </Popconfirm>
         </Space>
       ),
@@ -105,18 +129,6 @@ export const GelirGiderKategoriPage: React.FC = () => {
 
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
-      <PageHeader
-        title="Gelir / Gider Kategorileri"
-        subtitle="İşlemleri sınıflandırmak için kullanılan kategorileri yönetin"
-        showBack
-        backPath="/gelir-gider"
-        extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
-            Yeni Kategori
-          </Button>
-        }
-      />
-
       <Card styles={{ body: { padding: 0 } }}>
         <Table
           columns={columns}
@@ -124,6 +136,7 @@ export const GelirGiderKategoriPage: React.FC = () => {
           rowKey="id"
           loading={isLoading}
           pagination={false}
+          size="small"
         />
       </Card>
 

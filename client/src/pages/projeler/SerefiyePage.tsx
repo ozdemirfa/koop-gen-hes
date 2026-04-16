@@ -1,10 +1,10 @@
 import React, { useState } from 'react'
-import { Button, Table, Modal, Form, Input, InputNumber, Select, message, Card, Row, Col, Typography, Tag } from 'antd'
-import { EditOutlined } from '@ant-design/icons'
+import { Button, Table, Modal, Form, Input, InputNumber, Select, message, Card, Row, Col, Tag, Space } from 'antd'
+import { EditOutlined, ArrowLeftOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../../lib/api'
-import { PageHeader } from '../../components/common/PageHeader'
+import { usePageSettings } from '../../contexts/LayoutContext'
 
 interface Serefiye {
   id: string
@@ -12,6 +12,7 @@ interface Serefiye {
   blok_id: string
   daire_no: string
   daire_sira_no: number
+  daire_kod: string
   kat?: number
   yon?: string
   serefiye_orani: number
@@ -43,8 +44,6 @@ export const SerefiyePage: React.FC = () => {
     },
   })
 
-  // Backend'e henüz eklenmemiş olabilir, proje servisine getSerefiye eklemem gerekecek.
-  
   const generateSerefiyeMutation = useMutation({
     mutationFn: async () => {
       return await api.post(`/projeler/${projeId}/generate-serefiye`)
@@ -69,9 +68,47 @@ export const SerefiyePage: React.FC = () => {
     onError: (err: any) => message.error(err.message || 'Hata oluştu')
   })
 
+  usePageSettings({
+    title: 'Şerefiye Tablosu',
+    actions: (
+      <Space>
+        <Button 
+          icon={<ArrowLeftOutlined />} 
+          onClick={() => navigate(`/projeler/${projeId}`)}
+          type="text"
+        />
+        {serefiyeList?.length === 0 && (
+          <Button 
+            type="primary" 
+            onClick={() => generateSerefiyeMutation.mutate()} 
+            loading={generateSerefiyeMutation.isPending}
+          >
+            Tabloyu Oluştur
+          </Button>
+        )}
+      </Space>
+    )
+  })
+
   const columns = [
-    { title: 'Blok', dataIndex: ['bloklar', 'blok_adi'], key: 'blok' },
-    { title: 'Daire No', dataIndex: 'daire_no', key: 'daire_no', sorter: (a: any, b: any) => a.daire_no.localeCompare(b.daire_no) },
+    { 
+      title: 'Blok', 
+      dataIndex: ['bloklar', 'blok_adi'], 
+      key: 'blok',
+      sorter: (a: any, b: any) => (a.bloklar?.blok_adi || '').localeCompare(b.bloklar?.blok_adi || '')
+    },
+    { 
+      title: 'Daire No', 
+      dataIndex: 'daire_sira_no', 
+      key: 'daire_sira_no', 
+      sorter: (a: any, b: any) => (a.daire_sira_no || 0) - (b.daire_sira_no || 0) 
+    },
+    { 
+      title: 'DaireKod', 
+      dataIndex: 'daire_kod', 
+      key: 'daire_kod',
+      sorter: (a: any, b: any) => (a.daire_kod || '').localeCompare(b.daire_kod || '')
+    },
     { title: 'Kat', dataIndex: 'kat', key: 'kat', sorter: (a: any, b: any) => (a.kat || 0) - (b.kat || 0) },
     { title: 'Yön', dataIndex: 'yon', key: 'yon' },
     { title: 'Şerefiye Oranı', dataIndex: 'serefiye_orani', key: 'oran', render: (v: number) => v.toFixed(3) },
@@ -96,18 +133,6 @@ export const SerefiyePage: React.FC = () => {
 
   return (
     <div>
-      <PageHeader
-        title={proje ? `${proje.proje_adi} - Şerefiye Tablosu` : 'Şerefiye Tablosu'}
-        onBack={() => navigate(`/projeler/${projeId}`)}
-        extra={
-          serefiyeList?.length === 0 && (
-            <Button type="primary" onClick={() => generateSerefiyeMutation.mutate()} loading={generateSerefiyeMutation.isPending}>
-              Tabloyu Oluştur
-            </Button>
-          )
-        }
-      />
-
       <Card>
         <Table
           columns={columns}
@@ -140,13 +165,6 @@ export const SerefiyePage: React.FC = () => {
           </Row>
           <Form.Item name="serefiye_orani" label="Şerefiye Oranı (0.000)">
             <InputNumber style={{ width: '100%' }} step={0.001} min={0} />
-          </Form.Item>
-          <Form.Item name="durum" label="Durum">
-            <Select>
-              <Select.Option value="bos">Boş</Select.Option>
-              <Select.Option value="dolu">Dolu</Select.Option>
-              <Select.Option value="rezerv">Rezerv</Select.Option>
-            </Select>
           </Form.Item>
         </Form>
       </Modal>

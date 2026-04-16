@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react'
 import { Card, Descriptions, Table, Button, InputNumber, Tag, Row, Col, Statistic, Space, message, Popconfirm } from 'antd'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { CheckOutlined, SaveOutlined, FilePdfOutlined } from '@ant-design/icons'
+import { CheckOutlined, SaveOutlined, FilePdfOutlined, ArrowLeftOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
-import { PageHeader } from '../../components/common/PageHeader'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
+import { usePageSettings } from '../../contexts/LayoutContext'
 
 interface HakedisKalemi {
   id: string
@@ -132,6 +132,69 @@ export const HakedisDetailPage: React.FC = () => {
 
   const isTaslak = hakedis?.durum === 'taslak'
 
+  const handlePdfDownload = async () => {
+    try {
+      const { data } = await api.get(`/hakedisler/${id}/pdf`, { responseType: 'blob' })
+      const blob = new Blob([data], { type: 'application/pdf' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `hakedis_${hakedis?.hakedis_no || id}.pdf`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err: any) {
+      console.error('PDF Download Error:', err)
+      message.error('PDF indirilirken hata oluştu')
+    }
+  }
+
+  usePageSettings({
+    title: hakedis ? `Hakediş #${hakedis.hakedis_no}` : 'Hakediş Detayı',
+    actions: (
+      <Space>
+        <Button 
+          icon={<ArrowLeftOutlined />} 
+          onClick={() => navigate('/hakedisler')}
+          type="text"
+        />
+        <Button
+          icon={<FilePdfOutlined />}
+          onClick={handlePdfDownload}
+        >
+          PDF İndir
+        </Button>
+        {isTaslak && (
+          <>
+            <Button
+              type="primary"
+              icon={<SaveOutlined />}
+              onClick={() => saveMutation.mutate()}
+              loading={saveMutation.isPending}
+              disabled={!hasChanges}
+            >
+              Kaydet
+            </Button>
+            <Popconfirm
+              title="Hakediş onaylanacak ve cari hareket oluşturulacak. Onaylıyor musunuz?"
+              onConfirm={() => approveMutation.mutate()}
+              okText="Onayla"
+              cancelText="Vazgeç"
+            >
+              <Button
+                icon={<CheckOutlined />}
+                loading={approveMutation.isPending}
+              >
+                Onayla
+              </Button>
+            </Popconfirm>
+          </>
+        )}
+      </Space>
+    )
+  })
+
   const columns = [
     { title: 'Poz No', dataIndex: 'poz_no', key: 'poz_no', width: 80 },
     { title: 'Tanım', dataIndex: 'tanim', key: 'tanim' },
@@ -212,48 +275,6 @@ export const HakedisDetailPage: React.FC = () => {
 
   return (
     <div>
-      <PageHeader
-        title={hakedis ? `Hakediş #${hakedis.hakedis_no}` : 'Hakediş Detayı'}
-        showBack
-        backPath="/hakedisler"
-        extra={
-          <Space>
-            <Button
-              icon={<FilePdfOutlined />}
-              onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'}/hakedisler/${id}/pdf`, '_blank')}
-            >
-              PDF İndir
-            </Button>
-            {isTaslak && (
-              <>
-                <Button
-                  type="primary"
-                  icon={<SaveOutlined />}
-                  onClick={() => saveMutation.mutate()}
-                  loading={saveMutation.isPending}
-                  disabled={!hasChanges}
-                >
-                  Kaydet
-                </Button>
-                <Popconfirm
-                  title="Hakediş onaylanacak ve cari hareket oluşturulacak. Onaylıyor musunuz?"
-                  onConfirm={() => approveMutation.mutate()}
-                  okText="Onayla"
-                  cancelText="Vazgeç"
-                >
-                  <Button
-                    icon={<CheckOutlined />}
-                    loading={approveMutation.isPending}
-                  >
-                    Onayla
-                  </Button>
-                </Popconfirm>
-              </>
-            )}
-          </Space>
-        }
-      />
-
       <Card loading={isLoading} style={{ marginBottom: 24 }}>
         {hakedis && (
           <Descriptions bordered column={{ xxl: 3, xl: 3, lg: 3, md: 2, sm: 1, xs: 1 }} size="small">

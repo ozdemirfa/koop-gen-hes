@@ -1,11 +1,11 @@
 import React, { useState } from 'react'
-import { Card, Space, Button, Table, Modal, Tag, message, Select, Input, Row, Col, Divider, Typography, Statistic } from 'antd'
+import { Card, Space, Button, Table, Modal, Tag, message, Select, Input, Row, Col, Divider, Typography, Statistic, Alert } from 'antd'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { CheckCircleOutlined, SearchOutlined, SwapOutlined, SyncOutlined } from '@ant-design/icons'
+import { CheckCircleOutlined, SearchOutlined, SwapOutlined, SyncOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
-import { PageHeader } from '../../components/common/PageHeader'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
+import { usePageSettings } from '../../contexts/LayoutContext'
 
 const { Text, Title } = Typography
 
@@ -38,7 +38,7 @@ export const BankaUzlastirmaPage: React.FC = () => {
   const [bankaSearch, setBankaSearch] = useState('')
   const [cariSearch, setCariSearch] = useState('')
 
-  const { data: bankaHareketleri, isLoading: bankaLoading } = useQuery({
+  const { data: bankaHareketleri, isLoading: bankaLoading, refetch: refetchBanka } = useQuery({
     queryKey: ['banka-hareketleri-uzlastirma'],
     queryFn: async () => {
       const { data } = await api.get('/banka/hareketler', { params: { eslesti: 'false', limit: 1000 } })
@@ -46,7 +46,7 @@ export const BankaUzlastirmaPage: React.FC = () => {
     },
   })
 
-  const { data: cariHareketler, isLoading: cariLoading } = useQuery({
+  const { data: cariHareketler, isLoading: cariLoading, refetch: refetchCari } = useQuery({
     queryKey: ['cari-hareketler-match-all'],
     queryFn: async () => {
       const { data } = await api.get('/cari-hareketler', { params: { eslesmemis: 'true' } })
@@ -71,21 +71,46 @@ export const BankaUzlastirmaPage: React.FC = () => {
   const selectedBanka = bankaHareketleri?.find(b => b.id === selectedBankaId)
   const selectedCari = cariHareketler?.find(c => c.id === selectedCariId)
 
+  usePageSettings({
+    title: 'Banka Uzlaştırma',
+    actions: (
+      <Space size="small">
+        <Button 
+          size="small" 
+          icon={<SyncOutlined />} 
+          onClick={() => { refetchBanka(); refetchCari() }}
+        >
+          Yenile
+        </Button>
+        <Button 
+          type="primary" 
+          size="small" 
+          icon={<CheckCircleOutlined />} 
+          disabled={!selectedBankaId || !selectedCariId}
+          loading={esleMutation.isPending}
+          onClick={() => esleMutation.mutate({ bankaId: selectedBankaId!, cariId: selectedCariId! })}
+        >
+          Eşleştirmeyi Onayla
+        </Button>
+      </Space>
+    )
+  })
+
   const bankaColumns = [
     {
       title: 'Tarih',
       dataIndex: 'tarih',
       key: 'tarih',
-      width: 100,
+      width: 90,
       render: (d: string) => dayjs(d).format('DD.MM.YYYY'),
     },
     {
       title: 'Açıklama / Banka',
       key: 'info',
       render: (_: any, r: BankaHareketi) => (
-        <div>
-          <div style={{ fontWeight: 'bold' }}>{r.aciklama}</div>
-          <small>{r.banka_hesaplari?.banka_adi}</small>
+        <div style={{ lineHeight: '1.2' }}>
+          <div style={{ fontWeight: 500, fontSize: '12px' }}>{r.aciklama}</div>
+          <Text type="secondary" style={{ fontSize: '11px' }}>{r.banka_hesaplari?.banka_adi}</Text>
         </div>
       )
     },
@@ -94,9 +119,9 @@ export const BankaUzlastirmaPage: React.FC = () => {
       dataIndex: 'tutar',
       key: 'tutar',
       align: 'right' as const,
-      width: 120,
+      width: 110,
       render: (v: number, r: BankaHareketi) => (
-        <span style={{ color: r.islem_tipi === 'gelir' ? '#3f8600' : '#cf1322', fontWeight: 'bold' }}>
+        <span style={{ color: r.islem_tipi === 'gelir' ? '#3f8600' : '#cf1322', fontWeight: 600, fontSize: '12px' }}>
           <MoneyDisplay amount={v} />
         </span>
       ),
@@ -108,16 +133,16 @@ export const BankaUzlastirmaPage: React.FC = () => {
       title: 'Tarih',
       dataIndex: 'tarih',
       key: 'tarih',
-      width: 100,
+      width: 90,
       render: (d: string) => dayjs(d).format('DD.MM.YYYY'),
     },
     {
       title: 'Firma / Açıklama',
       key: 'info',
       render: (_: any, r: CariHareket) => (
-        <div>
-          <div style={{ fontWeight: 'bold' }}>{r.firmalar?.unvan || '-'}</div>
-          <small>{r.aciklama}</small>
+        <div style={{ lineHeight: '1.2' }}>
+          <div style={{ fontWeight: 500, fontSize: '12px' }}>{r.firmalar?.unvan || '-'}</div>
+          <Text type="secondary" style={{ fontSize: '11px' }}>{r.aciklama}</Text>
         </div>
       )
     },
@@ -126,9 +151,9 @@ export const BankaUzlastirmaPage: React.FC = () => {
       dataIndex: 'tutar',
       key: 'tutar',
       align: 'right' as const,
-      width: 120,
+      width: 110,
       render: (v: number, r: CariHareket) => (
-        <span style={{ color: r.hareket_tipi === 'alacak' ? '#3f8600' : '#cf1322', fontWeight: 'bold' }}>
+        <span style={{ color: r.hareket_tipi === 'alacak' ? '#3f8600' : '#cf1322', fontWeight: 600, fontSize: '12px' }}>
           <MoneyDisplay amount={v} />
         </span>
       ),
@@ -147,44 +172,52 @@ export const BankaUzlastirmaPage: React.FC = () => {
 
   return (
     <div>
-      <PageHeader title="Banka Uzlaştırma" subtitle="Banka hareketlerini firma ödemeleriyle eşleştirin" />
+      <Alert
+        message="Açıklama / Amaç"
+        description="Bu sayfa, banka hesap hareketleri ile firma cari işlemlerini (ödemeler, hakedişler vb.) eşleştirerek banka mutabakatı yapmanızı sağlar."
+        type="info"
+        showIcon
+        icon={<InfoCircleOutlined />}
+        style={{ marginBottom: 16 }}
+        closable
+      />
 
-      <Row gutter={16} style={{ marginBottom: 16 }}>
+      <Row gutter={12} style={{ marginBottom: 12 }}>
         <Col span={24}>
           <Card size="small">
-            <Row align="middle" justify="center" gutter={32}>
+            <Row align="middle" justify="center" gutter={24}>
               <Col>
-                <Statistic title="Seçili Banka" value={selectedBanka?.tutar || 0} prefix="₺" precision={2} />
+                <Statistic 
+                  title="Seçili Banka" 
+                  value={selectedBanka?.tutar || 0} 
+                  prefix="₺" 
+                  precision={2} 
+                  valueStyle={{ fontSize: '16px', fontWeight: 600 }}
+                />
               </Col>
               <Col>
-                <div style={{ fontSize: 24, color: '#1890ff' }}><SwapOutlined /></div>
+                <div style={{ fontSize: 20, color: '#1890ff' }}><SwapOutlined /></div>
               </Col>
               <Col>
-                <Statistic title="Seçili Cari" value={selectedCari?.tutar || 0} prefix="₺" precision={2} />
-              </Col>
-              <Col style={{ marginLeft: 32 }}>
-                <Button 
-                  type="primary" 
-                  size="large" 
-                  icon={<CheckCircleOutlined />} 
-                  disabled={!selectedBankaId || !selectedCariId}
-                  loading={esleMutation.isPending}
-                  onClick={() => esleMutation.mutate({ bankaId: selectedBankaId!, cariId: selectedCariId! })}
-                >
-                  Eşleştirmeyi Onayla
-                </Button>
+                <Statistic 
+                  title="Seçili Cari" 
+                  value={selectedCari?.tutar || 0} 
+                  prefix="₺" 
+                  precision={2} 
+                  valueStyle={{ fontSize: '16px', fontWeight: 600 }}
+                />
               </Col>
             </Row>
           </Card>
         </Col>
       </Row>
 
-      <Row gutter={16}>
+      <Row gutter={12}>
         <Col span={12}>
           <Card 
-            title="Eşleşmemiş Banka Hareketleri" 
+            title={<span style={{ fontSize: '14px' }}>Eşleşmemiş Banka Hareketleri</span>}
             size="small"
-            extra={<Input size="small" placeholder="Ara..." prefix={<SearchOutlined />} onChange={e => setBankaSearch(e.target.value)} />}
+            extra={<Input size="small" style={{ width: 150 }} placeholder="Ara..." prefix={<SearchOutlined />} onChange={e => setBankaSearch(e.target.value)} />}
           >
             <Table
               columns={bankaColumns}
@@ -192,7 +225,7 @@ export const BankaUzlastirmaPage: React.FC = () => {
               rowKey="id"
               loading={bankaLoading}
               size="small"
-              pagination={{ pageSize: 10 }}
+              pagination={{ pageSize: 12, size: 'small' }}
               rowSelection={{
                 type: 'radio',
                 selectedRowKeys: selectedBankaId ? [selectedBankaId] : [],
@@ -208,9 +241,9 @@ export const BankaUzlastirmaPage: React.FC = () => {
         
         <Col span={12}>
           <Card 
-            title="Eşleşmemiş Cari Hareketler" 
+            title={<span style={{ fontSize: '14px' }}>Eşleşmemiş Cari Hareketler</span>}
             size="small"
-            extra={<Input size="small" placeholder="Ara..." prefix={<SearchOutlined />} onChange={e => setCariSearch(e.target.value)} />}
+            extra={<Input size="small" style={{ width: 150 }} placeholder="Ara..." prefix={<SearchOutlined />} onChange={e => setCariSearch(e.target.value)} />}
           >
             <Table
               columns={cariColumns}
@@ -218,7 +251,7 @@ export const BankaUzlastirmaPage: React.FC = () => {
               rowKey="id"
               loading={cariLoading}
               size="small"
-              pagination={{ pageSize: 10 }}
+              pagination={{ pageSize: 12, size: 'small' }}
               rowSelection={{
                 type: 'radio',
                 selectedRowKeys: selectedCariId ? [selectedCariId] : [],
@@ -235,4 +268,3 @@ export const BankaUzlastirmaPage: React.FC = () => {
     </div>
   )
 }
-

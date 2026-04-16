@@ -6,12 +6,23 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-// Her istekte Supabase session token'ını Bearer olarak ekle
+// Her istekte Supabase session token'ını ve aktif proje ID'sini ekle
 api.interceptors.request.use(async (config) => {
   const { data: { session } } = await supabase.auth.getSession()
   if (session?.access_token) {
     config.headers.Authorization = `Bearer ${session.access_token}`
   }
+
+  // Aktif proje ID'sini ekle
+  const activeProjectId = localStorage.getItem('activeProjectId')
+  if (activeProjectId) {
+    if (config.method === 'get' || config.method === 'delete') {
+      config.params = { ...config.params, proje_id: activeProjectId }
+    } else {
+      config.data = { ...config.data, proje_id: activeProjectId }
+    }
+  }
+
   return config
 })
 

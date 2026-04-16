@@ -4,11 +4,11 @@ import { DownloadOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
-import { PageHeader } from '../../components/common/PageHeader'
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { formatMoney } from '../../lib/format'
+import { usePageSettings } from '../../contexts/LayoutContext'
 
 const { RangePicker } = DatePicker
 
@@ -62,49 +62,6 @@ export const CariEkstrePage: React.FC = () => {
     enabled: !!firmaId
   })
 
-  const totals = hareketler?.reduce(
-    (acc, curr) => {
-      if (curr.hareket_tipi === 'borc') acc.borc += Number(curr.tutar)
-      else acc.alacak += Number(curr.tutar)
-      return acc
-    },
-    { borc: 0, alacak: 0 }
-  ) || { borc: 0, alacak: 0 }
-
-  const columns = [
-    {
-      title: 'Tarih',
-      dataIndex: 'tarih',
-      key: 'tarih',
-      width: 110,
-      render: (d: string) => dayjs(d).format('DD.MM.YYYY'),
-    },
-    {
-      title: 'Firma',
-      key: 'firma',
-      render: (_: any, r: CariHareket) => r.firmalar?.unvan || '-',
-    },
-    { title: 'Açıklama', dataIndex: 'aciklama', key: 'aciklama' },
-    { title: 'Belge No', dataIndex: 'belge_no', key: 'belge_no', width: 120 },
-    {
-      title: 'Tip',
-      dataIndex: 'hareket_tipi',
-      key: 'hareket_tipi',
-      width: 90,
-      render: (t: string) => (
-        <Tag color={t === 'borc' ? 'red' : 'green'}>{t === 'borc' ? 'Borç' : 'Alacak'}</Tag>
-      ),
-    },
-    {
-      title: 'Tutar',
-      dataIndex: 'tutar',
-      key: 'tutar',
-      width: 130,
-      align: 'right' as const,
-      render: (v: number) => <MoneyDisplay amount={v} />,
-    },
-  ]
-
   const exportToCSV = () => {
     if (!hareketler || hareketler.length === 0) {
       message.warning('Dışa aktarılacak veri bulunamadı')
@@ -132,79 +89,124 @@ export const CariEkstrePage: React.FC = () => {
     document.body.removeChild(link)
   }
 
+  usePageSettings({
+    title: 'Cari Ekstre',
+    actions: (
+      <Space size="small">
+        <Button size="small" icon={<DownloadOutlined />} onClick={exportToCSV}>CSV İndir</Button>
+        <Select
+          size="small"
+          showSearch
+          placeholder="Firma Filtresi"
+          value={firmaId}
+          onChange={setFirmaId}
+          allowClear
+          style={{ width: 220 }}
+          optionFilterProp="children"
+        >
+          {firmalar?.map((f) => (
+            <Select.Option key={f.id} value={f.id}>
+              {f.unvan}
+            </Select.Option>
+          ))}
+        </Select>
+        <RangePicker
+          size="small"
+          value={dates}
+          onChange={(vals) => setDates(vals as any)}
+          format="DD.MM.YYYY"
+          style={{ width: 240 }}
+        />
+      </Space>
+    )
+  })
+
+  const totals = hareketler?.reduce(
+    (acc, curr) => {
+      if (curr.hareket_tipi === 'borc') acc.borc += Number(curr.tutar)
+      else acc.alacak += Number(curr.tutar)
+      return acc
+    },
+    { borc: 0, alacak: 0 }
+  ) || { borc: 0, alacak: 0 }
+
+  const columns = [
+    {
+      title: 'Tarih',
+      dataIndex: 'tarih',
+      key: 'tarih',
+      width: 100,
+      render: (d: string) => dayjs(d).format('DD.MM.YYYY'),
+    },
+    {
+      title: 'Firma',
+      key: 'firma',
+      render: (_: any, r: CariHareket) => r.firmalar?.unvan || '-',
+    },
+    { title: 'Açıklama', dataIndex: 'aciklama', key: 'aciklama' },
+    { title: 'Belge No', dataIndex: 'belge_no', key: 'belge_no', width: 110 },
+    {
+      title: 'Tip',
+      dataIndex: 'hareket_tipi',
+      key: 'hareket_tipi',
+      width: 80,
+      render: (t: string) => (
+        <Tag color={t === 'borc' ? 'red' : 'green'} style={{ fontSize: '11px' }}>{t === 'borc' ? 'Borç' : 'Alacak'}</Tag>
+      ),
+    },
+    {
+      title: 'Tutar',
+      dataIndex: 'tutar',
+      key: 'tutar',
+      width: 120,
+      align: 'right' as const,
+      render: (v: number) => <MoneyDisplay amount={v} />,
+    },
+  ]
+
   return (
     <div>
-      <PageHeader
-        title="Genel Cari Ekstre"
-        subtitle="Firmaların borç, alacak ve bakiye durumlarını detaylı olarak inceleyin"
-        extra={
-          <Space>
-            <Button icon={<DownloadOutlined />} onClick={exportToCSV}>CSV İndir</Button>
-            <Select
-              showSearch
-              placeholder="Firma Filtresi"
-              value={firmaId}
-              onChange={setFirmaId}
-              allowClear
-              style={{ width: 250 }}
-              optionFilterProp="children"
-            >
-              {firmalar?.map((f) => (
-                <Select.Option key={f.id} value={f.id}>
-                  {f.unvan}
-                </Select.Option>
-              ))}
-            </Select>
-            <RangePicker
-              value={dates}
-              onChange={(vals) => setDates(vals as any)}
-              format="DD.MM.YYYY"
-            />
-          </Space>
-        }
-      />
-
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={12} style={{ marginBottom: 12 }}>
         <Col span={6}>
-          <Card bordered={false} className="stat-card">
+          <Card bordered={false} className="stat-card" size="small">
             <Statistic
               title="Toplam Borç"
               value={totals.borc}
               precision={2}
-              valueStyle={{ color: '#cf1322' }}
+              valueStyle={{ color: '#cf1322', fontSize: '18px' }}
               suffix="TL"
             />
           </Card>
         </Col>
         <Col span={6}>
-          <Card bordered={false} className="stat-card">
+          <Card bordered={false} className="stat-card" size="small">
             <Statistic
               title="Toplam Alacak"
               value={totals.alacak}
               precision={2}
-              valueStyle={{ color: '#3f8600' }}
+              valueStyle={{ color: '#3f8600', fontSize: '18px' }}
               suffix="TL"
             />
           </Card>
         </Col>
         <Col span={6}>
-          <Card bordered={false} className="stat-card">
+          <Card bordered={false} className="stat-card" size="small">
             <Statistic
               title="Net Bakiye"
               value={Math.abs(totals.alacak - totals.borc)}
               precision={2}
-              valueStyle={{ color: totals.alacak - totals.borc >= 0 ? '#3f8600' : '#cf1322' }}
+              valueStyle={{ color: totals.alacak - totals.borc >= 0 ? '#3f8600' : '#cf1322', fontSize: '18px' }}
               suffix={totals.alacak - totals.borc >= 0 ? 'TL (A)' : 'TL (B)'}
             />
           </Card>
         </Col>
         <Col span={6}>
-          <Card bordered={false} className="stat-card">
+          <Card bordered={false} className="stat-card" size="small">
             <Statistic
               title="Birikmiş Teminat"
               value={teminatData || 0}
               precision={2}
-              valueStyle={{ color: '#1890ff' }}
+              valueStyle={{ color: '#1890ff', fontSize: '18px' }}
               suffix="TL"
             />
           </Card>
@@ -220,6 +222,7 @@ export const CariEkstrePage: React.FC = () => {
           rowKey="id"
           loading={isLoading}
           pagination={false}
+          size="small"
           emptyDescription="Seçilen dönem için cari hareket bulunamadı"
         />
       )}

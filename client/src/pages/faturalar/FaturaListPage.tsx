@@ -5,11 +5,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, DeleteOutlined, ScheduleOutlined, EditOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
-import { PageHeader } from '../../components/common/PageHeader'
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { ConfirmDelete } from '../../components/common/ConfirmDelete'
+import { usePageSettings } from '../../contexts/LayoutContext'
 
 const { Text } = Typography
 
@@ -52,6 +52,53 @@ export const FaturaListPage: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingFatura, setEditingFatura] = useState<Fatura | null>(null)
   const [form] = Form.useForm()
+
+  usePageSettings({
+    title: 'Fatura Yönetimi',
+    actions: (
+      <Space>
+        <Select 
+          size="small" 
+          placeholder="Tip" 
+          value={filterTip} 
+          onChange={setFilterTip} 
+          allowClear 
+          style={{ width: 110 }}
+        >
+          <Select.Option value="gelen">Gelen</Select.Option>
+          <Select.Option value="giden">Giden</Select.Option>
+        </Select>
+        <Select 
+          size="small" 
+          placeholder="Durum" 
+          value={filterDurum} 
+          onChange={setFilterDurum} 
+          allowClear 
+          style={{ width: 130 }}
+        >
+          <Select.Option value="bekliyor">Bekliyor</Select.Option>
+          <Select.Option value="odendi">Ödendi</Select.Option>
+          <Select.Option value="kismi_odendi">Kısmi Ödendi</Select.Option>
+          <Select.Option value="iptal">İptal</Select.Option>
+        </Select>
+        <Button 
+          size="small" 
+          type="primary" 
+          icon={<PlusOutlined />} 
+          onClick={() => { 
+            setEditingFatura(null); 
+            form.resetFields(); 
+            form.setFieldsValue({ 
+              kalemler: [{ kalem_adi: '', birim: 'Adet', miktar: 1, birim_fiyat: 0, kdv_orani: 20 }] 
+            }); 
+            setModalOpen(true) 
+          }}
+        >
+          Yeni Fatura
+        </Button>
+      </Space>
+    )
+  })
 
   const { data: firmalar } = useQuery({
     queryKey: ['firmalar-select'],
@@ -192,7 +239,7 @@ export const FaturaListPage: React.FC = () => {
             onClick={() => navigate(`/faturalar/${r.id}/odeme-plani`)}
             title="Ödeme Planı"
           />
-          <ConfirmDelete onConfirm={() => deleteMutation.mutate(r.id)} />
+          <ConfirmDelete size="small" onConfirm={() => deleteMutation.mutate(r.id)} />
         </Space>
       ),
     },
@@ -200,28 +247,6 @@ export const FaturaListPage: React.FC = () => {
 
   return (
     <div>
-      <PageHeader
-        title="Fatura Yönetimi"
-        subtitle="Gelen ve giden faturaların takibi, ödeme planlarının oluşturulması"
-        extra={
-          <Space>
-            <Select placeholder="Tip" value={filterTip} onChange={setFilterTip} allowClear style={{ width: 110 }}>
-              <Select.Option value="gelen">Gelen</Select.Option>
-              <Select.Option value="giden">Giden</Select.Option>
-            </Select>
-            <Select placeholder="Durum" value={filterDurum} onChange={setFilterDurum} allowClear style={{ width: 130 }}>
-              <Select.Option value="bekliyor">Bekliyor</Select.Option>
-              <Select.Option value="odendi">Ödendi</Select.Option>
-              <Select.Option value="kismi_odendi">Kısmi Ödendi</Select.Option>
-              <Select.Option value="iptal">İptal</Select.Option>
-            </Select>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingFatura(null); form.resetFields(); form.setFieldsValue({ kalemler: [{ kalem_adi: '', birim: 'Adet', miktar: 1, birim_fiyat: 0, kdv_orani: 20 }] }); setModalOpen(true) }}>
-              Yeni Fatura
-            </Button>
-          </Space>
-        }
-      />
-
       {isError ? (
         <ErrorState error={error} onRetry={() => refetch()} />
       ) : (
@@ -251,77 +276,93 @@ export const FaturaListPage: React.FC = () => {
           layout="vertical" 
           onFinish={(v) => saveMutation.mutate(v)} 
           onValuesChange={calculateTotals}
-          style={{ marginTop: 16 }}
+          style={{ marginTop: 8 }}
+          requiredMark={false}
         >
           <Row gutter={16}>
             <Col span={10}>
-              <Form.Item name="firma_id" label="Firma" rules={[{ required: true }]}>
-                <Select showSearch placeholder="Firma seçin" optionFilterProp="children">
+              <Form.Item name="firma_id" label="Firma" rules={[{ required: true }]} style={{ marginBottom: 12 }}>
+                <Select size="small" showSearch placeholder="Firma seçin" optionFilterProp="children">
                   {firmalar?.map(f => <Select.Option key={f.id} value={f.id}>{f.unvan}</Select.Option>)}
                 </Select>
               </Form.Item>
             </Col>
             <Col span={4}>
-              <Form.Item name="fatura_tipi" label="Tip" rules={[{ required: true }]}>
-                <Select>
+              <Form.Item name="fatura_tipi" label="Tip" rules={[{ required: true }]} style={{ marginBottom: 12 }}>
+                <Select size="small">
                   <Select.Option value="gelen">Gelen</Select.Option>
                   <Select.Option value="giden">Giden</Select.Option>
                 </Select>
               </Form.Item>
             </Col>
             <Col span={5}>
-              <Form.Item name="fatura_no" label="Fatura No" rules={[{ required: true }]}>
-                <Input />
+              <Form.Item name="fatura_no" label="Fatura No" rules={[{ required: true }]} style={{ marginBottom: 12 }}>
+                <Input size="small" />
               </Form.Item>
             </Col>
             <Col span={5}>
-              <Form.Item name="fatura_tarihi" label="Fatura Tarihi" rules={[{ required: true }]}>
-                <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+              <Form.Item name="fatura_tarihi" label="Fatura Tarihi" rules={[{ required: true }]} style={{ marginBottom: 12 }}>
+                <DatePicker size="small" style={{ width: '100%' }} format="DD.MM.YYYY" />
               </Form.Item>
             </Col>
           </Row>
 
-          <Divider orientation={"left" as any}>Fatura Kalemleri</Divider>
+          <Divider orientation="left" style={{ margin: '8px 0 16px 0' }}>Fatura Kalemleri</Divider>
           
+          <Row gutter={8} style={{ marginBottom: 4, paddingLeft: 4 }}>
+            <Col span={9}><Text type="secondary" style={{ fontSize: '11px' }}>Ürün/Hizmet Tanımı</Text></Col>
+            <Col span={3}><Text type="secondary" style={{ fontSize: '11px' }}>Birim</Text></Col>
+            <Col span={3}><Text type="secondary" style={{ fontSize: '11px' }}>Adet</Text></Col>
+            <Col span={4}><Text type="secondary" style={{ fontSize: '11px' }}>Birim Fiyat</Text></Col>
+            <Col span={3}><Text type="secondary" style={{ fontSize: '11px' }}>KDV%</Text></Col>
+            <Col span={2} style={{ textAlign: 'center' }}><Text type="secondary" style={{ fontSize: '11px' }}>İşlem</Text></Col>
+          </Row>
+
           <Form.List name="kalemler">
             {(fields, { add, remove }) => (
               <>
                 {fields.map(({ key, name, ...restField }) => (
-                  <Row key={key} gutter={8} align="middle" style={{ marginBottom: 8 }}>
-                    <Col span={8}>
+                  <Row key={key} gutter={8} align="middle" style={{ marginBottom: 4 }}>
+                    <Col span={9}>
                       <Form.Item {...restField} name={[name, 'kalem_adi']} rules={[{ required: true }]} noStyle>
-                        <Input placeholder="Ürün/Hizmet Adı" />
+                        <Input size="small" placeholder="Ürün/Hizmet Adı" />
                       </Form.Item>
                     </Col>
                     <Col span={3}>
                       <Form.Item {...restField} name={[name, 'birim']} rules={[{ required: true }]} noStyle>
-                        <Select placeholder="Birim">
+                        <Select size="small" placeholder="Birim">
                           {BIRIMLER.map(b => <Select.Option key={b} value={b}>{b}</Select.Option>)}
                         </Select>
                       </Form.Item>
                     </Col>
                     <Col span={3}>
                       <Form.Item {...restField} name={[name, 'miktar']} rules={[{ required: true }]} noStyle>
-                        <InputNumber placeholder="Miktar" style={{ width: '100%' }} min={0.001} />
+                        <InputNumber size="small" placeholder="Miktar" style={{ width: '100%' }} min={0.001} />
                       </Form.Item>
                     </Col>
                     <Col span={4}>
                       <Form.Item {...restField} name={[name, 'birim_fiyat']} rules={[{ required: true }]} noStyle>
-                        <InputNumber placeholder="B.Fiyat" style={{ width: '100%' }} min={0} />
+                        <InputNumber size="small" placeholder="B.Fiyat" style={{ width: '100%' }} min={0} />
                       </Form.Item>
                     </Col>
                     <Col span={3}>
                       <Form.Item {...restField} name={[name, 'kdv_orani']} rules={[{ required: true }]} noStyle>
-                        <InputNumber placeholder="KDV%" style={{ width: '100%' }} min={0} max={100} />
+                        <InputNumber size="small" placeholder="KDV%" style={{ width: '100%' }} min={0} max={100} />
                       </Form.Item>
                     </Col>
-                    <Col span={2}>
-                      <Button type="text" danger icon={<DeleteOutlined />} onClick={() => remove(name)} />
+                    <Col span={2} style={{ textAlign: 'center' }}>
+                      <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => remove(name)} />
                     </Col>
                   </Row>
                 ))}
-                <Form.Item>
-                  <Button type="dashed" onClick={() => add({ birim: 'Adet', miktar: 1, birim_fiyat: 0, kdv_orani: 20 })} block icon={<PlusOutlined />}>
+                <Form.Item style={{ marginTop: 8 }}>
+                  <Button 
+                    size="small" 
+                    type="dashed" 
+                    onClick={() => add({ birim: 'Adet', miktar: 1, birim_fiyat: 0, kdv_orani: 20 })} 
+                    block 
+                    icon={<PlusOutlined />}
+                  >
                     Kalem Ekle
                   </Button>
                 </Form.Item>
@@ -331,31 +372,31 @@ export const FaturaListPage: React.FC = () => {
 
           <Row gutter={16} justify="end">
             <Col span={6}>
-              <Form.Item name="ara_toplam" label="Ara Toplam">
-                <InputNumber disabled style={{ width: '100%' }} />
+              <Form.Item name="ara_toplam" label="Ara Toplam" style={{ marginBottom: 8 }}>
+                <InputNumber size="small" disabled style={{ width: '100%' }} />
               </Form.Item>
             </Col>
             <Col span={6}>
-              <Form.Item name="kdv_tutar" label="KDV Toplam">
-                <InputNumber disabled style={{ width: '100%' }} />
+              <Form.Item name="kdv_tutar" label="KDV Toplam" style={{ marginBottom: 8 }}>
+                <InputNumber size="small" disabled style={{ width: '100%' }} />
               </Form.Item>
             </Col>
             <Col span={6}>
-              <Form.Item name="toplam_tutar" label="Genel Toplam">
-                <InputNumber disabled style={{ width: '100%', fontWeight: 'bold' }} />
+              <Form.Item name="toplam_tutar" label="Genel Toplam" style={{ marginBottom: 8 }}>
+                <InputNumber size="small" disabled style={{ width: '100%', fontWeight: 'bold' }} />
               </Form.Item>
             </Col>
           </Row>
 
           <Row gutter={16}>
             <Col span={8}>
-              <Form.Item name="vade_tarihi" label="Vade Tarihi">
-                <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+              <Form.Item name="vade_tarihi" label="Vade Tarihi" style={{ marginBottom: 8 }}>
+                <DatePicker size="small" style={{ width: '100%' }} format="DD.MM.YYYY" />
               </Form.Item>
             </Col>
             <Col span={16}>
-              <Form.Item name="aciklama" label="Açıklama">
-                <Input />
+              <Form.Item name="aciklama" label="Açıklama" style={{ marginBottom: 8 }}>
+                <Input size="small" />
               </Form.Item>
             </Col>
           </Row>

@@ -11,6 +11,7 @@ export const hakedisService = {
       .from('hakedisler')
       .select('*, sozlesmeler(sozlesme_no, konu, firmalar(unvan))', { count: 'exact' })
 
+    if (query.proje_id) q = q.eq('proje_id', query.proje_id)
     if (query.sozlesme_id) q = q.eq('sozlesme_id', query.sozlesme_id)
     if (query.durum) q = q.eq('durum', query.durum)
 
@@ -180,6 +181,7 @@ export const hakedisService = {
       await supabaseAdmin
         .from('cari_hareketler')
         .insert([{
+          proje_id: hakedis.proje_id,
           firma_id: sozlesme.firma_id,
           hareket_tipi: 'borc',
           tutar: hakedis.net_tutar,

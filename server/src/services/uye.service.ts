@@ -12,6 +12,7 @@ export const uyeService = {
       .from('uyeler')
       .select('*, bloklar(blok_adi)', { count: 'exact' })
 
+    if (query.proje_id) q = q.eq('proje_id', query.proje_id)
     if (query.durum) q = q.eq('durum', query.durum)
     if (query.blok_id) q = q.eq('blok_id', query.blok_id)
     if (query.search) {
@@ -144,6 +145,7 @@ export const uyeService = {
       .select('*, aidat_tanimlari(yil, ay, tutar)')
       .eq('uye_id', uyeId)
 
+    if (query.proje_id) q = q.eq('proje_id', query.proje_id)
     if (query.yil) q = q.eq('aidat_tanimlari.yil', query.yil)
 
     const { data, error } = await q.order('created_at', { ascending: false })
@@ -156,11 +158,14 @@ export const uyeService = {
 }
 
 export const blokService = {
-  async list() {
-    const { data, error } = await supabaseAdmin
+  async list(query?: Record<string, any>) {
+    let q = supabaseAdmin
       .from('bloklar')
       .select('*')
-      .order('blok_adi')
+
+    if (query?.proje_id) q = q.eq('proje_id', query.proje_id)
+
+    const { data, error } = await q.order('blok_adi')
 
     if (error) throw error
     return data
