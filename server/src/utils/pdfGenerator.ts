@@ -1,4 +1,4 @@
-const PdfPrinter = require('pdfmake')
+import PdfPrinter from 'pdfmake'
 // @ts-ignore
 import type { TDocumentDefinitions, TFontDictionary } from 'pdfmake'
 
@@ -6,9 +6,9 @@ import type { TDocumentDefinitions, TFontDictionary } from 'pdfmake'
 type DocDef = any;
 type FontDict = any;
 
-const fonts: TFontDictionary = {
+const fonts: any = {
   Roboto: {
-    normal: 'node_modules/pdfmake/build/vfs_fonts.js', // Bu satır normalde font dosyası gerektirir, ancak server tarafında path belirtilmeli
+    normal: 'node_modules/pdfmake/build/vfs_fonts.js',
     bold: 'node_modules/pdfmake/build/vfs_fonts.js',
     italics: 'node_modules/pdfmake/build/vfs_fonts.js',
     bolditalics: 'node_modules/pdfmake/build/vfs_fonts.js'
@@ -17,16 +17,18 @@ const fonts: TFontDictionary = {
 
 // Server-side PDF generation için fontların path'ini düzeltmemiz gerekiyor. 
 // Standart Roboto fontlarını kullanmak en güvenlisidir.
-const standardFonts: TFontDictionary = {
+const standardFonts: any = {
   Roboto: {
-    normal: 'Helvetica', // pdfmake server-side'da Helvetica, Times-Roman gibi standart fontları kullanabilir
+    normal: 'Helvetica', 
     bold: 'Helvetica-Bold',
     italics: 'Helvetica-Oblique',
     bolditalics: 'Helvetica-BoldOblique'
   }
 }
 
-const printer = new PdfPrinter(standardFonts)
+// PdfPrinter hem default export hem de named export olarak gelebilir
+const PrinterConstructor = (PdfPrinter as any).default || PdfPrinter
+const printer = new PrinterConstructor(standardFonts)
 
 export const pdfGenerator = {
   /**
