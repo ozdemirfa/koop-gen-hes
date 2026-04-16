@@ -1,4 +1,4 @@
-import PdfPrinter from 'pdfmake'
+import PdfPrinter = require('pdfmake')
 // @ts-ignore
 import type { TDocumentDefinitions, TFontDictionary } from 'pdfmake'
 
@@ -26,9 +26,9 @@ const standardFonts: any = {
   }
 }
 
-// PdfPrinter hem default export hem de named export olarak gelebilir
-const PrinterConstructor = (PdfPrinter as any).default || PdfPrinter
-const printer = new PrinterConstructor(standardFonts)
+// PdfPrinter CommonJS modülü olduğu için bazen default içinde bazen direkt kendisi gelebilir
+const Printer = (PdfPrinter as any).default || PdfPrinter;
+const printer = new (Printer as any)(standardFonts)
 
 export const pdfGenerator = {
   /**
