@@ -39,19 +39,21 @@ export const Dashboard: React.FC = () => {
     enabled: !!activeProject?.id
   })
 
+  const actions = React.useMemo(() => (
+    <Space size="small">
+      <RangePicker 
+        size="small" 
+        value={dates} 
+        onChange={(vals) => setDates(vals as any)}
+        placeholder={['Başlangıç', 'Bitiş']}
+        style={{ width: 240 }}
+      />
+    </Space>
+  ), [dates])
+
   usePageSettings({
     title: 'Dashboard',
-    actions: (
-      <Space size="small">
-        <RangePicker 
-          size="small" 
-          value={dates} 
-          onChange={(vals) => setDates(vals as any)}
-          placeholder={['Başlangıç', 'Bitiş']}
-          style={{ width: 240 }}
-        />
-      </Space>
-    )
+    actions
   })
 
   if (!activeProject) {

@@ -146,38 +146,40 @@ export const GelirGider: React.FC = () => {
     }
   }
 
+  const actions = React.useMemo(() => (
+    <Space size="small">
+      <Select
+        allowClear
+        size="small"
+        placeholder="Tip Filtresi"
+        style={{ width: 130 }}
+        value={tipFilter || undefined}
+        onChange={(v) => setTipFilter(v || '')}
+      >
+        <Select.Option value="gelir">Gelirler</Select.Option>
+        <Select.Option value="gider">Giderler</Select.Option>
+      </Select>
+      <Button 
+        size="small" 
+        icon={<SettingOutlined />} 
+        onClick={() => navigate('/gelir-gider/kategoriler')}
+      >
+        Kategoriler
+      </Button>
+      <Button 
+        size="small" 
+        type="primary" 
+        icon={<PlusOutlined />} 
+        onClick={() => setIsModalOpen(true)}
+      >
+        Yeni Kayıt
+      </Button>
+    </Space>
+  ), [tipFilter, navigate])
+
   usePageSettings({
     title: 'Gelir / Gider İşlemleri',
-    actions: (
-      <Space size="small">
-        <Select
-          allowClear
-          size="small"
-          placeholder="Tip Filtresi"
-          style={{ width: 130 }}
-          value={tipFilter || undefined}
-          onChange={(v) => setTipFilter(v || '')}
-        >
-          <Select.Option value="gelir">Gelirler</Select.Option>
-          <Select.Option value="gider">Giderler</Select.Option>
-        </Select>
-        <Button 
-          size="small" 
-          icon={<SettingOutlined />} 
-          onClick={() => navigate('/gelir-gider/kategoriler')}
-        >
-          Kategoriler
-        </Button>
-        <Button 
-          size="small" 
-          type="primary" 
-          icon={<PlusOutlined />} 
-          onClick={() => setIsModalOpen(true)}
-        >
-          Yeni Kayıt
-        </Button>
-      </Space>
-    )
+    actions
   })
 
   const filteredKategoriler = kategoriler?.filter(k => !selectedTip || k.tip === selectedTip)

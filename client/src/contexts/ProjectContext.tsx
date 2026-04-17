@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import api from '../lib/api'
+import { useAuth } from './AuthContext'
 
 interface Project {
   id: string
@@ -18,11 +19,17 @@ interface ProjectContextType {
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined)
 
 export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { session } = useAuth()
   const [projects, setProjects] = useState<Project[]>([])
   const [activeProject, setActiveProjectState] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
 
   const refreshProjects = async () => {
+    if (!session) {
+      setLoading(false)
+      return
+    }
+    
     try {
       const response = await api.get('/projeler')
       if (response.data.success) {
@@ -48,9 +55,16 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }
 
+  // Session değiştiğinde projeleri tazele
   useEffect(() => {
-    refreshProjects()
-  }, [])
+    if (session) {
+      refreshProjects()
+    } else {
+      setProjects([])
+      setActiveProjectState(null)
+      setLoading(false)
+    }
+  }, [session])
 
   const setActiveProject = (project: Project | null) => {
     setActiveProjectState(project)

@@ -8,6 +8,7 @@ import dayjs from 'dayjs'
 import { PageHeader } from '../components/common/PageHeader'
 import { MoneyDisplay } from '../components/common/MoneyDisplay'
 import { useDebounce } from '../hooks/useDebounce'
+import { usePageSettings } from '../contexts/LayoutContext'
 
 const { Title } = Typography
 
@@ -199,23 +200,23 @@ export const Aidatlar: React.FC = () => {
     },
   ]
 
+  usePageSettings({
+    title: 'Aidat Yönetimi',
+    actions: (
+      <Button 
+        type="primary" 
+        size="small"
+        icon={<CalculatorOutlined />} 
+        onClick={() => gecikmeMutation.mutate()} 
+        loading={gecikmeMutation.isPending}
+      >
+        Gecikme Faizi Hesapla
+      </Button>
+    )
+  })
+
   return (
     <div>
-      <PageHeader 
-        title="Aidat Yönetimi" 
-        subtitle="Üye aidat tahakkuklarını ve tahsilatlarını yönetin."
-        extra={
-          <Button 
-            type="primary" 
-            icon={<CalculatorOutlined />} 
-            onClick={() => gecikmeMutation.mutate()} 
-            loading={gecikmeMutation.isPending}
-          >
-            Gecikme Faizi Hesapla
-          </Button>
-        }
-      />
-
       {ozet && (
         <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
           <Col xs={24} sm={12} lg={6}>

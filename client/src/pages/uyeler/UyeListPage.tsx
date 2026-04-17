@@ -62,45 +62,47 @@ export const UyeListPage: React.FC = () => {
     onError: (err: any) => message.error(err.message || 'Hata oluştu'),
   })
 
+  const actions = React.useMemo(() => (
+    <Space size={20}>
+      <Input
+        placeholder="Ad, soyad veya üye no ile ara..."
+        prefix={<SearchOutlined />}
+        allowClear
+        onChange={(e) => setSearch(e.target.value)}
+        style={{ width: 250 }}
+      />
+      <Select
+        placeholder="Durum"
+        value={filterDurum}
+        onChange={setFilterDurum}
+        allowClear
+        style={{ width: 120 }}
+      >
+        <Select.Option value="aktif">Aktif</Select.Option>
+        <Select.Option value="pasif">Pasif</Select.Option>
+        <Select.Option value="ihrac">İhraç</Select.Option>
+        <Select.Option value="istifa">İstifa</Select.Option>
+      </Select>
+      <Select
+        placeholder="Blok"
+        value={filterBlok}
+        onChange={setFilterBlok}
+        allowClear
+        style={{ width: 120 }}
+      >
+        {bloklar?.map((b) => (
+          <Select.Option key={b.id} value={b.id}>{b.blok_adi}</Select.Option>
+        ))}
+      </Select>
+      <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/uyeler/yeni')}>
+        Yeni Üye
+      </Button>
+    </Space>
+  ), [filterDurum, filterBlok, bloklar, navigate])
+
   usePageSettings({
     title: 'Üye Yönetimi',
-    actions: (
-      <Space size={20}>
-        <Input
-          placeholder="Ad, soyad veya üye no ile ara..."
-          prefix={<SearchOutlined />}
-          allowClear
-          onChange={(e) => setSearch(e.target.value)}
-          style={{ width: 250 }}
-        />
-        <Select
-          placeholder="Durum"
-          value={filterDurum}
-          onChange={setFilterDurum}
-          allowClear
-          style={{ width: 120 }}
-        >
-          <Select.Option value="aktif">Aktif</Select.Option>
-          <Select.Option value="pasif">Pasif</Select.Option>
-          <Select.Option value="ihrac">İhraç</Select.Option>
-          <Select.Option value="istifa">İstifa</Select.Option>
-        </Select>
-        <Select
-          placeholder="Blok"
-          value={filterBlok}
-          onChange={setFilterBlok}
-          allowClear
-          style={{ width: 120 }}
-        >
-          {bloklar?.map((b) => (
-            <Select.Option key={b.id} value={b.id}>{b.blok_adi}</Select.Option>
-          ))}
-        </Select>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/uyeler/yeni')}>
-          Yeni Üye
-        </Button>
-      </Space>
-    )
+    actions
   })
 
   const durumRenk: Record<string, string> = {
