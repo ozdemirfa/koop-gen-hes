@@ -184,7 +184,7 @@ export const YillikPlanPage: React.FC = () => {
             style={{ width: '100%' }}
             min={0}
             value={editingValues[pk.id] !== undefined ? editingValues[pk.id] : pk.planlanan_tutar}
-            onChange={(val) => handleInputChange(pk.id, val)}
+            onChange={(val) => handleInputChange(pk.id, val as number | null)}
             formatter={trNumberFormatter}
             parser={trNumberParser}
           />

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { Table, Button, Select, Card, Row, Col, Statistic, App, Tag, Space } from 'antd'
+import { Table, Button, Modal, Form, InputNumber, Select, message, Card, Typography, Tag, Space, DatePicker, Input, Row, Col, Statistic, App } from 'antd'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, DollarOutlined, CalculatorOutlined } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -10,6 +10,8 @@ import { MoneyDisplay } from '../components/common/MoneyDisplay'
 import { trNumberFormatter, formatMoney } from '../lib/format'
 import { usePageSettings } from '../contexts/LayoutContext'
 import { useProject } from '../contexts/ProjectContext'
+
+const { Text } = Typography
 
 interface AidatTanimi {
   id: string
@@ -86,7 +88,7 @@ export const Aidatlar: React.FC = () => {
     queryFn: async () => {
       if (!activeProject?.id) return []
       const { data } = await api.get('/bloklar', { params: { proje_id: activeProject?.id } })
-      return data.data as { id: string; blok_adi: string }[]
+      return data.data as { id: string; blok_adi: string; toplam_daire: number }[]
     },
     enabled: !!activeProject?.id
   })
@@ -149,7 +151,7 @@ export const Aidatlar: React.FC = () => {
   // Gecikme faizi hesapla
   const gecikmeMutation = useMutation({
     mutationFn: async () => {
-      const { data } = await api.post('/aidatlar/gecikme-hesapla')
+      const { data } = await api.post('/aidatlar/gecikme-hesapla', { proje_id: activeProject?.id })
       return data
     },
     onSuccess: () => {
@@ -158,6 +160,18 @@ export const Aidatlar: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['aidat-ozet'] })
     },
   })
+
+  // Toplam daire sayısını hesapla
+  const toplamDaireSayisi = useMemo(() => {
+    return bloklar?.reduce((sum, b) => sum + (Number(b.toplam_daire) || 0), 0) || 0
+  }, [bloklar])
+
+  // Filtrelenmiş tanımların katsayı toplamını hesapla
+  const tanimlarKatsayiToplami = useMemo(() => {
+    return (tanimlar || []).reduce((sum, t) => sum + (Number(t.katsayi_tutari) || 0), 0)
+  }, [tanimlar])
+
+  const aidatlarGenelToplami = tanimlarKatsayiToplami * toplamDaireSayisi
 
   const durumRenk: Record<string, string> = {
     bekliyor: 'blue',
@@ -300,13 +314,13 @@ export const Aidatlar: React.FC = () => {
   ), [filterYil, filterAy, filterDurum, filterBlokId, bloklar, yearOptions, gecikmeMutation.isPending])
 
   const tanimActions = useMemo(() => (
-    <Space>
+    <Space size="middle">
       <Select
         placeholder="Yıl"
         value={filterTanimYil}
         onChange={setFilterTanimYil}
         allowClear
-        style={{ width: 100 }}
+        style={{ width: 90 }}
       >
         {yearOptions.map(y => (
           <Select.Option key={y} value={y}>{y}</Select.Option>
@@ -317,7 +331,7 @@ export const Aidatlar: React.FC = () => {
         value={filterTanimAy}
         onChange={setFilterTanimAy}
         allowClear
-        style={{ width: 110 }}
+        style={{ width: 100 }}
       >
         {aylar.map((a, i) => <Select.Option key={i + 1} value={i + 1}>{a}</Select.Option>)}
       </Select>
@@ -326,7 +340,7 @@ export const Aidatlar: React.FC = () => {
         value={filterTanimTur}
         onChange={setFilterTanimTur}
         allowClear
-        style={{ width: 120 }}
+        style={{ width: 110 }}
       >
         <Select.Option value="normal">Normal</Select.Option>
         <Select.Option value="ara_odeme">Ara Ödeme</Select.Option>
@@ -340,8 +354,14 @@ export const Aidatlar: React.FC = () => {
       >
         Yıllık Plan Oluştur
       </Button>
+      <div style={{ marginLeft: 4, display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <Text type="secondary" style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>Aidatlar Toplamı:</Text>
+        <Text strong style={{ fontSize: '15px', color: '#1890ff', whiteSpace: 'nowrap' }}>
+          {formatMoney(aidatlarGenelToplami)} TL
+        </Text>
+      </div>
     </Space>
-  ), [filterTanimYil, filterTanimAy, filterTanimTur, yearOptions, navigate])
+  ), [filterTanimYil, filterTanimAy, filterTanimTur, yearOptions, aidatlarGenelToplami, navigate])
 
   usePageSettings({
     title: isTanimlarPage ? 'Aidat Tanımları' : 'Aidat Listesi',

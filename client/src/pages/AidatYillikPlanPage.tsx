@@ -174,7 +174,7 @@ export const AidatYillikPlanPage: React.FC = () => {
                             placeholder="Tutar" 
                             min={0} 
                             style={{ width: 150 }} 
-                            onChange={(val) => handleKatsayiChange(val, name)}
+                            onChange={(val) => handleKatsayiChange(val as number | null, name)}
                             formatter={trNumberFormatter}
                             parser={trNumberParser}
                             decimalSeparator=","
@@ -200,7 +200,7 @@ export const AidatYillikPlanPage: React.FC = () => {
                             max={100} 
                             step={0.1} 
                             style={{ width: 100 }} 
-                            onChange={(val) => handleGecikmeChange(val, name)}
+                            onChange={(val) => handleGecikmeChange(val as number | null, name)}
                             formatter={trNumberFormatter}
                             parser={trNumberParser}
                             decimalSeparator=","
