@@ -29,8 +29,8 @@ export const aidatTanimiService = {
     let q = supabaseAdmin
       .from('aidat_tanimlari')
       .select('*')
-      .order('yil', { ascending: false })
-      .order('ay', { ascending: false })
+      .order('yil', { ascending: true })
+      .order('ay', { ascending: true })
 
     if (query?.proje_id) {
       q = q.eq('proje_id', query.proje_id)
