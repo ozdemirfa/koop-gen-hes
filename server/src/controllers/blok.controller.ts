@@ -3,8 +3,8 @@ import { AuthRequest } from '../middleware/auth'
 import { blokService } from '../services/uye.service'
 import { catchAsync } from '../utils/catchAsync'
 
-export const getBloklar = catchAsync(async (_req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await blokService.list()
+export const getBloklar = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const data = await blokService.list(req.query)
   res.json({ success: true, data })
 })
 
