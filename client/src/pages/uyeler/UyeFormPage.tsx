@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react'
-import { Form, Input, InputNumber, Select, Button, message, Card, Space } from 'antd'
+import { Form, Input, InputNumber, Select, Button, message, Card, Space, Typography, App } from 'antd'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
+
+const { Text } = Typography
 
 interface SerefiyeDaire {
   id: string
@@ -18,6 +20,8 @@ export const UyeFormPage: React.FC = () => {
   const [form] = Form.useForm()
   const isEditing = !!id
   const [selectedBlokId, setSelectedBlokId] = useState<string | undefined>(undefined)
+  const currentDurum = Form.useWatch('durum', form)
+  const { message: messageApi } = App.useApp()
 
   const activeProjectId = localStorage.getItem('activeProjectId')
 
@@ -40,7 +44,7 @@ export const UyeFormPage: React.FC = () => {
       const { data } = await api.get(`/projeler/bloklar/${selectedBlokId}/musait-daireler`)
       return data.data as SerefiyeDaire[]
     },
-    enabled: !!selectedBlokId,
+    enabled: !!selectedBlokId && currentDurum === 'aktif',
   })
 
   // Eğer düzenleme modundaysa üye bilgilerini getir ve formu doldur
@@ -95,7 +99,7 @@ export const UyeFormPage: React.FC = () => {
       }))
       form.setFields(fields)
     } else {
-      message.error(err.error || err.message || 'Hata oluştu')
+      messageApi.error(err.error || err.message || 'Hata oluştu')
     }
   }
 
@@ -105,12 +109,12 @@ export const UyeFormPage: React.FC = () => {
         const { data } = await api.put(`/uyeler/${id}`, values)
         return data
       } else {
-        const { data } = await api.post('/uyeler', values)
+        const { data } = await api.post('/uyeler', { ...values, proje_id: activeProjectId })
         return data
       }
     },
     onSuccess: () => {
-      message.success(isEditing ? 'Üye güncellendi' : 'Üye eklendi')
+      messageApi.success(isEditing ? 'Üye güncellendi' : 'Üye eklendi')
       queryClient.invalidateQueries({ queryKey: ['uyeler'] })
       navigate('/uyeler')
     },
@@ -140,6 +144,7 @@ export const UyeFormPage: React.FC = () => {
           layout="vertical" 
           onFinish={(values) => mutation.mutate(values)}
           style={{ maxWidth: 800 }}
+          initialValues={{ durum: 'aktif' }}
         >
           <div style={{ display: 'flex', gap: 16 }}>
             <Form.Item name="uye_no" label="Üye No" style={{ flex: 1 }}>
@@ -182,83 +187,73 @@ export const UyeFormPage: React.FC = () => {
             </Form.Item>
           </div>
 
+          <div style={{ display: 'flex', gap: 16 }}>
+            <Form.Item name="durum" label="Üyelik Durumu" rules={[{ required: true }]} style={{ flex: 1 }}>
+              <Select onChange={(val) => {
+                if (val !== 'aktif') {
+                  form.setFieldsValue({ serefiye_id: undefined, daire_no: undefined, serefiye_orani: undefined, blok_id_virtual: undefined })
+                  setSelectedBlokId(undefined)
+                }
+              }}>
+                <Select.Option value="aktif">Aktif</Select.Option>
+                <Select.Option value="pasif">Pasif</Select.Option>
+                <Select.Option value="ihrac">İhraç</Select.Option>
+                <Select.Option value="istifa">İstifa</Select.Option>
+              </Select>
+            </Form.Item>
+            <Form.Item name="cinsiyet" label="Cinsiyet" style={{ flex: 1 }}>
+              <Select allowClear placeholder="Cinsiyet seçin">
+                <Select.Option value="erkek">Erkek</Select.Option>
+                <Select.Option value="kadin">Kadın</Select.Option>
+              </Select>
+            </Form.Item>
+          </div>
+
           {isEditing && (
             <>
-              <div style={{ display: 'flex', gap: 16 }}>
-                <Form.Item name="blok_id_virtual" label="Blok" style={{ flex: 1 }}>
-                  <Select 
-                    allowClear 
-                    placeholder="Blok seçin" 
-                    value={selectedBlokId}
-                    onChange={(val) => {
-                      setSelectedBlokId(val)
-                      form.setFieldsValue({ serefiye_id: undefined, daire_no: undefined, serefiye_orani: undefined })
-                    }}
-                  >
-                    {aktifProje?.bloklar?.map((b: any) => (
-                      <Select.Option key={b.id} value={b.id}>{b.blok_adi}</Select.Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-                <Form.Item name="serefiye_id" label="Daire No" style={{ flex: 1 }} rules={[{ required: true, message: 'Daire no seçilmeli' }]}>
-                  <Select 
-                    placeholder="Önce blok seçin" 
-                    loading={daireLoading}
-                    disabled={!selectedBlokId}
-                    onChange={handleDaireChange}
-                  >
-                    {/* Mevcut daire (Eğer listede yoksa - zaten dolu olduğu için listeye girmeyebilir) */}
-                    {isEditing && form.getFieldValue('serefiye_id') && !musaitDaireler?.find(d => d.id === form.getFieldValue('serefiye_id')) && (
-                      <Select.Option value={form.getFieldValue('serefiye_id')}>{form.getFieldValue('daire_no')}</Select.Option>
-                    )}
-                    {musaitDaireler?.map((d) => (
-                      <Select.Option key={d.id} value={d.id}>{d.daire_no}</Select.Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-                {/* Gizli alan: daire_no */}
-                <Form.Item name="daire_no" hidden><Input /></Form.Item>
-              </div>
-
-              <div style={{ display: 'flex', gap: 16 }}>
-                <Form.Item name="cinsiyet" label="Cinsiyet" style={{ flex: 1 }}>
-                  <Select allowClear placeholder="Cinsiyet seçin">
-                    <Select.Option value="erkek">Erkek</Select.Option>
-                    <Select.Option value="kadin">Kadın</Select.Option>
-                  </Select>
-                </Form.Item>
-                <Form.Item name="serefiye_orani" label="Şerefiye Oranı" initialValue={1} style={{ flex: 1 }}>
-                  <InputNumber disabled min={0} step={0.001} style={{ width: '100%' }} precision={3} />
-                </Form.Item>
-                <Form.Item name="durum" label="Durum" initialValue="aktif" style={{ flex: 1 }}>
-                  <Select>
-                    <Select.Option value="aktif">Aktif</Select.Option>
-                    <Select.Option value="pasif">Pasif</Select.Option>
-                    <Select.Option value="ihrac">İhraç</Select.Option>
-                    <Select.Option value="istifa">İstifa</Select.Option>
-                  </Select>
-                </Form.Item>
-              </div>
+              {currentDurum === 'aktif' ? (
+                <div style={{ display: 'flex', gap: 16 }}>
+                  <Form.Item name="blok_id_virtual" label="Blok" style={{ flex: 1 }}>
+                    <Select 
+                      allowClear 
+                      placeholder="Blok seçin" 
+                      value={selectedBlokId}
+                      onChange={(val) => {
+                        setSelectedBlokId(val)
+                        form.setFieldsValue({ serefiye_id: undefined, daire_no: undefined, serefiye_orani: undefined })
+                      }}
+                    >
+                      {aktifProje?.bloklar?.map((b: any) => (
+                        <Select.Option key={b.id} value={b.id}>{b.blok_adi}</Select.Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                  <Form.Item name="serefiye_id" label="Daire No" style={{ flex: 1 }} rules={[{ required: true, message: 'Daire no seçilmeli' }]}>
+                    <Select 
+                      placeholder="Önce blok seçin" 
+                      loading={daireLoading}
+                      disabled={!selectedBlokId}
+                      onChange={handleDaireChange}
+                    >
+                      {isEditing && form.getFieldValue('serefiye_id') && !musaitDaireler?.find(d => d.id === form.getFieldValue('serefiye_id')) && (
+                        <Select.Option value={form.getFieldValue('serefiye_id')}>{form.getFieldValue('daire_no')}</Select.Option>
+                      )}
+                      {musaitDaireler?.map((d) => (
+                        <Select.Option key={d.id} value={d.id}>{d.daire_no}</Select.Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                  <Form.Item name="serefiye_orani" label="Şerefiye Oranı" style={{ flex: 1 }}>
+                    <InputNumber disabled min={0} step={0.001} style={{ width: '100%' }} precision={3} />
+                  </Form.Item>
+                  <Form.Item name="daire_no" hidden><Input /></Form.Item>
+                </div>
+              ) : (
+                <Card size="small" style={{ marginBottom: 24, background: '#fff7e6', border: '1px solid #ffe58f' }}>
+                  <Text type="warning">Sadece <strong>AKTİF</strong> üyeler için daire ataması yapılabilir.</Text>
+                </Card>
+              )}
             </>
-          )}
-
-          {!isEditing && (
-            <div style={{ display: 'flex', gap: 16 }}>
-              <Form.Item name="cinsiyet" label="Cinsiyet" style={{ flex: 1 }}>
-                <Select allowClear placeholder="Cinsiyet seçin">
-                  <Select.Option value="erkek">Erkek</Select.Option>
-                  <Select.Option value="kadin">Kadın</Select.Option>
-                </Select>
-              </Form.Item>
-              <Form.Item name="durum" label="Durum" initialValue="aktif" style={{ flex: 1 }}>
-                <Select>
-                  <Select.Option value="aktif">Aktif</Select.Option>
-                  <Select.Option value="pasif">Pasif</Select.Option>
-                  <Select.Option value="ihrac">İhraç</Select.Option>
-                  <Select.Option value="istifa">İstifa</Select.Option>
-                </Select>
-              </Form.Item>
-            </div>
           )}
 
           <Form.Item name="adres" label="Adres">
