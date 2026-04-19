@@ -108,16 +108,17 @@ export const AdminLayout: React.FC = () => {
           overflowY: 'auto'
         }}
       >
-        <div style={{ padding: '16px 0', borderBottom: '1px solid #e2e8f0', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
+        <div style={{ padding: '24px 8px', borderBottom: '1px solid #e2e8f0', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
             <img 
               src={logo} 
               alt="KoopGenHes Logo" 
               style={{ 
-                height: collapsed ? '32px' : '40px',
-                maxWidth: '90%',
+                height: collapsed ? '32px' : '64px',
+                width: '100%',
+                maxWidth: collapsed ? '40px' : '180px',
                 objectFit: 'contain',
-                transition: 'all 0.2s'
+                transition: 'all 0.2s ease-in-out'
               }} 
             />
           </div>
