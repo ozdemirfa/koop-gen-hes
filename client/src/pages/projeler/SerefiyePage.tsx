@@ -49,7 +49,7 @@ export const SerefiyePage: React.FC = () => {
 
   const generateSerefiyeMutation = useMutation({
     mutationFn: async () => {
-      return await api.post(`/projeler/${projeId}/generate-serefiye`)
+      return await api.post(`/projeler/serefiye-actions/olustur`, { projeId })
     },
     onSuccess: () => {
       messageApi.success('Şerefiye tablosu oluşturuldu')

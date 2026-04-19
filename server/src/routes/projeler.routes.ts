@@ -7,9 +7,10 @@ const router = Router()
 
 console.log('[DEBUG] Loading Projeler Routes...')
 
-// 1. Şerefiye Yenileme ve Temizleme (Tamamen benzersiz prefixler ile çakışmayı önle)
+// 1. Şerefiye Aksiyonları (Tamamen benzersiz prefixler ile çakışmayı önle)
 router.post('/serefiye-actions/yenile', projelerController.resetSerefiye)
 router.post('/serefiye-actions/temizle', projelerController.clearSerefiye)
+router.post('/serefiye-actions/olustur', projelerController.generateSerefiye)
 
 // 2. Statik ve spesifik rotalar
 router.get('/', projelerController.getProjeler)

@@ -70,7 +70,9 @@ export const getSerefiye = catchAsync(async (req: AuthRequest<any, any, any, any
 })
 
 export const generateSerefiye = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await projeService.generateSerefiye(req.params.id)
+  const id = req.params.id || req.body.projeId
+  console.log(`[DEBUG] generateSerefiye called for ID: ${id}`)
+  const data = await projeService.generateSerefiye(id)
   res.json({ success: true, data })
 })
 
