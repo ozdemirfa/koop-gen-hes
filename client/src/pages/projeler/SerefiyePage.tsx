@@ -82,7 +82,7 @@ export const SerefiyePage: React.FC = () => {
 
   const saveMutation = useMutation({
     mutationFn: async (values: any) => {
-      return await api.put(`/projeler/serefiye/${editingSereviye?.id}`, values)
+      return await api.put(`/projeler/serefiye/${editingSerefiye?.id}`, values)
     },
     onSuccess: () => {
       messageApi.success('Daire bilgileri güncellendi')
@@ -116,7 +116,7 @@ export const SerefiyePage: React.FC = () => {
   }
 
   const actions = useMemo(() => (
-    <Space>
+    <Space orientation="horizontal">
       <Button 
         icon={<ArrowLeftOutlined />} 
         onClick={() => navigate(`/projeler/${projeId}`)}

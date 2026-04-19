@@ -69,7 +69,7 @@ export const StrictConfirmDelete: React.FC<StrictConfirmDeleteProps> = ({
         centered
         style={{ top: -100 }} // Biraz daha yukarıda göster
       >
-        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+        <Space orientation="vertical" style={{ width: '100%' }} size="middle">
           <Text>{title}</Text>
           <div style={{ background: '#fff1f0', padding: '12px', borderRadius: '4px', border: '1px solid #ffa39e' }}>
             <Text type="danger" strong>Dikkat:</Text>

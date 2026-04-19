@@ -32,7 +32,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
 
   return (
     <div className="page-header">
-      <Space direction="vertical" size={2}>
+      <Space orientation="vertical" size={2}>
         <Space align="center" size="middle">
           {(showBack || onBack || backPath) && (
             <Button 
