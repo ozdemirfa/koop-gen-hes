@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { Table, Button, Modal, Form, InputNumber, Select, message, Card, Typography, Tag, Space, DatePicker, Input, Row, Col, Statistic, App } from 'antd'
+import { Table, Button, Select, Card, Row, Col, Statistic, App, Tag, Space } from 'antd'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, DollarOutlined, CalculatorOutlined } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -10,8 +10,6 @@ import { MoneyDisplay } from '../components/common/MoneyDisplay'
 import { trNumberFormatter, formatMoney } from '../lib/format'
 import { usePageSettings } from '../contexts/LayoutContext'
 import { useProject } from '../contexts/ProjectContext'
-
-const { Text } = Typography
 
 interface AidatTanimi {
   id: string
@@ -43,8 +41,6 @@ const aylar = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz',
 export const Aidatlar: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const [odemeModalOpen, setOdemeModalOpen] = useState(false)
-  const [selectedAidat, setSelectedAidat] = useState<Aidat | null>(null)
   
   // URL'den hangi sayfada olduğumuzu anla
   const isTanimlarPage = location.pathname.includes('/tanimlar')
@@ -61,7 +57,6 @@ export const Aidatlar: React.FC = () => {
   const [filterTanimAy, setFilterTanimAy] = useState<number | undefined>(undefined)
   const [filterTanimTur, setFilterTanimTur] = useState<string | undefined>(undefined)
   
-  const [odemeForm] = Form.useForm()
   const queryClient = useQueryClient()
   const { activeProject } = useProject()
   const { message: messageApi } = App.useApp()
@@ -151,25 +146,6 @@ export const Aidatlar: React.FC = () => {
     setPagination(prev => ({ ...prev, current: 1 }))
   }, [filterYil, filterAy, filterDurum, filterBlokId, activeProject?.id])
 
-  // Ödeme kaydet
-  const odemeMutation = useMutation({
-    mutationFn: async ({ aidatId, values }: { aidatId: string; values: Record<string, unknown> }) => {
-      const { data } = await api.post(`/aidatlar/${aidatId}/odeme`, {
-        ...values,
-        odeme_tarihi: (values.odeme_tarihi as dayjs.Dayjs).format('YYYY-MM-DD'),
-      })
-      return data
-    },
-    onSuccess: () => {
-      messageApi.success('Ödeme kaydedildi')
-      queryClient.invalidateQueries({ queryKey: ['aidatlar'] })
-      queryClient.invalidateQueries({ queryKey: ['aidat-ozet'] })
-      setOdemeModalOpen(false)
-      odemeForm.resetFields()
-    },
-    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu'),
-  })
-
   // Gecikme faizi hesapla
   const gecikmeMutation = useMutation({
     mutationFn: async () => {
@@ -182,13 +158,6 @@ export const Aidatlar: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['aidat-ozet'] })
     },
   })
-
-  const openOdeme = (aidat: Aidat) => {
-    setSelectedAidat(aidat)
-    const kalanBorc = aidat.toplam_tutar - aidat.odenen_tutar
-    odemeForm.setFieldsValue({ tutar: kalanBorc, odeme_tarihi: dayjs(), odeme_yontemi: 'nakit' })
-    setOdemeModalOpen(true)
-  }
 
   const durumRenk: Record<string, string> = {
     bekliyor: 'blue',
@@ -247,16 +216,6 @@ export const Aidatlar: React.FC = () => {
       dataIndex: 'durum',
       key: 'durum',
       render: (d: string) => <Tag color={durumRenk[d] || 'default'}>{d.toUpperCase()}</Tag>,
-    },
-    {
-      title: 'İşlem',
-      key: 'action',
-      render: (_: unknown, r: Aidat) =>
-        r.durum !== 'odendi' && r.durum !== 'iptal' ? (
-          <Button icon={<DollarOutlined />} type="link" onClick={() => openOdeme(r)}>
-            Ödeme Al
-          </Button>
-        ) : null,
     },
   ]
 
@@ -486,45 +445,6 @@ export const Aidatlar: React.FC = () => {
           size="small"
         />
       </Card>
-
-      {/* Ödeme Modal */}
-      <Modal
-        title={selectedAidat ? `Ödeme - ${selectedAidat.uyeler ? `${selectedAidat.uyeler.ad} ${selectedAidat.uyeler.soyad}` : `${selectedAidat.serefiye_tablosu?.bloklar?.blok_adi || ''} ${selectedAidat.serefiye_tablosu?.daire_no || ''}`}` : 'Ödeme'}
-        open={odemeModalOpen}
-        onCancel={() => { setOdemeModalOpen(false); odemeForm.resetFields() }}
-        onOk={() => odemeForm.submit()}
-        confirmLoading={odemeMutation.isPending}
-        destroyOnHidden
-      >
-        <Form form={odemeForm} layout="vertical" onFinish={(v) => selectedAidat && odemeMutation.mutate({ aidatId: selectedAidat.id, values: v })}>
-          <Form.Item name="tutar" label="Ödeme Tutarı (TL)" rules={[{ required: true }]}>
-            <InputNumber 
-              min={0} 
-              style={{ width: '100%' }} 
-              formatter={(v) => `₺ ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
-              parser={(v) => v!.replace(/₺\s?|(\.*)/g, '').replace(',', '.')}
-            />
-          </Form.Item>
-          <Form.Item name="odeme_tarihi" label="Ödeme Tarihi" rules={[{ required: true }]}>
-            <DatePicker size="small" style={{ width: '100%' }} format="YYYY-MM-DD" />
-          </Form.Item>
-          <Form.Item name="odeme_yontemi" label="Ödeme Yöntemi" rules={[{ required: true }]}>
-            <Select>
-              <Select.Option value="nakit">Nakit</Select.Option>
-              <Select.Option value="havale">Havale</Select.Option>
-              <Select.Option value="eft">EFT</Select.Option>
-              <Select.Option value="kredi_karti">Kredi Kartı</Select.Option>
-              <Select.Option value="diger">Diğer</Select.Option>
-            </Select>
-          </Form.Item>
-          <Form.Item name="makbuz_no" label="Makbuz No">
-            <Input />
-          </Form.Item>
-          <Form.Item name="aciklama" label="Açıklama">
-            <Input.TextArea rows={2} />
-          </Form.Item>
-        </Form>
-      </Modal>
     </div>
   )
 }

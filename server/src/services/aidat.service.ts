@@ -180,7 +180,7 @@ export const aidatService = {
     if (query.proje_id) q = q.eq('proje_id', query.proje_id)
     if (query.uye_id) q = q.eq('uye_id', query.uye_id)
     if (query.durum) q = q.eq('durum', query.durum)
-    if (query.blok_id) q = q.eq('blok_id', query.blok_id)
+    if (query.blok_id) q = q.eq('filter_blok_id', query.blok_id)
     
     // Daire no araması
     if (query.daire_no) {
@@ -215,7 +215,7 @@ export const aidatService = {
   async getById(id: string) {
     const { data, error } = await supabaseAdmin
       .from('aidat_detaylari')
-      .select('*, uyeler(uye_no, ad, soyad), aidat_odemeleri(*)')
+      .select('*, uyeler(uye_no, ad, soyad, serefiye_tablosu(daire_no, bloklar(blok_adi))), aidat_tanimlari(yil, ay, katsayi_tutari), aidat_odemeleri(*)')
       .eq('id', id)
       .single()
 
@@ -312,7 +312,7 @@ export const aidatService = {
     if (rpcError) logger.error('Gecikme faizi hesaplama hatası (RPC):', rpcError)
 
     // PostgreSQL üzerinden filtreli aggregation yap
-    const { data, error } = await supabaseAdmin.rpc('get_aidat_summary_v2', { 
+    const { data, error } = await supabaseAdmin.rpc('get_aidat_summary_v3', { 
       p_proje_id: proje_id,
       p_yil: yil ? parseInt(yil) : null,
       p_ay: ay ? parseInt(ay) : null,
@@ -321,7 +321,7 @@ export const aidatService = {
     })
 
     if (error) {
-      logger.error('Aidat özet çekme hatası (RPC V2):', error)
+      logger.error('Aidat özet çekme hatası (RPC V3):', error)
       throw error
     }
 
@@ -391,7 +391,7 @@ export const aidatService = {
         uye_id: uyeId,
         kaynak_tipi: 'aidat',
         kaynak_id: odeme.id,
-        aciklama: `${aidat.aidat_tanimlari.ay}/${aidat.aidat_tanimlari.yil} Aidat Tahsilatı`
+        aciklama: `${aidat.ay}/${aidat.yil} Aidat Tahsilatı`
       })
 
       const yeniOdenenTutar = Number(aidat.odenen_tutar || 0) + odenecekTutar
