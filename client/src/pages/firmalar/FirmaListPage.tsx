@@ -79,13 +79,16 @@ export const FirmaListPage: React.FC = () => {
     actions: headerActions
   })
 
+  const activeProjectId = localStorage.getItem('activeProjectId')
+
   const { data: firmaData, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['firmalar', debouncedSearch, filterTip, filterAktif],
+    queryKey: ['firmalar', debouncedSearch, filterTip, filterAktif, activeProjectId],
     queryFn: async () => {
       const params: Record<string, string> = {}
       if (debouncedSearch) params.search = debouncedSearch
       if (filterTip) params.firma_tipi = filterTip
       if (filterAktif) params.aktif = filterAktif
+      if (activeProjectId) params.proje_id = activeProjectId
       const { data } = await api.get('/firmalar', { params })
       return data
     },

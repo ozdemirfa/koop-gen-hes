@@ -22,6 +22,7 @@ interface Sozlesme {
 export const FirmaDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const activeProjectId = localStorage.getItem('activeProjectId')
 
   const { data: firma, isLoading } = useQuery({
     queryKey: ['firma', id],
@@ -32,33 +33,41 @@ export const FirmaDetailPage: React.FC = () => {
   })
 
   const { data: sozlesmeler, isLoading: sozlesmeLoading } = useQuery({
-    queryKey: ['sozlesmeler', { firma_id: id }],
+    queryKey: ['sozlesmeler', { firma_id: id, activeProjectId }],
     queryFn: async () => {
-      const { data } = await api.get('/sozlesmeler', { params: { firma_id: id } })
+      const params: any = { firma_id: id }
+      if (activeProjectId) params.proje_id = activeProjectId
+      const { data } = await api.get('/sozlesmeler', { params })
       return data.data
     },
   })
 
   const { data: hakedisler, isLoading: hakedisLoading } = useQuery({
-    queryKey: ['hakedisler', { firma_id: id }],
+    queryKey: ['hakedisler', { firma_id: id, activeProjectId }],
     queryFn: async () => {
-      const { data } = await api.get('/hakedisler', { params: { firma_id: id, limit: 1000 } })
+      const params: any = { firma_id: id, limit: 1000 }
+      if (activeProjectId) params.proje_id = activeProjectId
+      const { data } = await api.get('/hakedisler', { params })
       return data.data as any[]
     },
   })
 
   const { data: faturalar, isLoading: faturaLoading } = useQuery({
-    queryKey: ['faturalar', { firma_id: id }],
+    queryKey: ['faturalar', { firma_id: id, activeProjectId }],
     queryFn: async () => {
-      const { data } = await api.get('/faturalar', { params: { firma_id: id, limit: 1000 } })
+      const params: any = { firma_id: id, limit: 1000 }
+      if (activeProjectId) params.proje_id = activeProjectId
+      const { data } = await api.get('/faturalar', { params })
       return data.data as any[]
     },
   })
 
   const { data: cariData, isLoading: cariLoading } = useQuery({
-    queryKey: ['cari-ekstre', id],
+    queryKey: ['cari-ekstre', id, activeProjectId],
     queryFn: async () => {
-      const { data } = await api.get(`/firmalar/${id}/cari-ekstre`)
+      const params: any = {}
+      if (activeProjectId) params.proje_id = activeProjectId
+      const { data } = await api.get(`/firmalar/${id}/cari-ekstre`, { params })
       return data.data
     },
   })

@@ -8,15 +8,13 @@ export const firmaService = {
     const pagination = parsePagination(query)
     const { from, to } = toSupabaseRange(pagination)
 
-    logger.info(`Firma listeleme isteği - ProjeID: ${query.proje_id}`)
+    logger.info(`Firma listeleme isteği - Global list, Balance ProjectID: ${query.proje_id}`)
 
     let q = supabaseAdmin
       .from('firmalar')
       .select('*', { count: 'exact' })
 
-    if (query.proje_id && query.proje_id !== 'null' && query.proje_id !== 'undefined') {
-      q = q.eq('proje_id', query.proje_id)
-    }
+    // Firmalar artık global, listelemede proje_id filtresi kaldırıldı
     if (query.firma_tipi) q = q.eq('firma_tipi', query.firma_tipi)
     if (query.aktif !== undefined) q = q.eq('aktif', query.aktif === 'true')
     if (query.search) q = q.ilike('unvan', `%${query.search}%`)
@@ -27,15 +25,17 @@ export const firmaService = {
 
     if (error) throw error
 
-    // Bakiyeleri ve teminatları ekle
+    // Bakiyeleri ve teminatları (seçili proje varsa o projeye göre) ekle
     const updatedData = await Promise.all((data || []).map(async (firma) => {
-      // Bakiye
+      // Bakiye (Proje bazlı)
       let bakiyeQuery = supabaseAdmin
         .from('cari_hareketler')
         .select('tutar, hareket_tipi')
         .eq('firma_id', firma.id)
       
-      if (query.proje_id) bakiyeQuery = bakiyeQuery.eq('proje_id', query.proje_id)
+      if (query.proje_id && query.proje_id !== 'null' && query.proje_id !== 'undefined') {
+        bakiyeQuery = bakiyeQuery.eq('proje_id', query.proje_id)
+      }
       
       const { data: hareketler } = await bakiyeQuery
       
@@ -45,14 +45,16 @@ export const firmaService = {
         else bakiye -= Number(h.tutar)
       })
 
-      // Teminat
+      // Teminat (Proje bazlı)
       let hakedisQuery = supabaseAdmin
         .from('hakedisler')
         .select('teminat_kesintisi')
         .eq('firma_id', firma.id)
         .eq('durum', 'onaylandi')
       
-      if (query.proje_id) hakedisQuery = hakedisQuery.eq('proje_id', query.proje_id)
+      if (query.proje_id && query.proje_id !== 'null' && query.proje_id !== 'undefined') {
+        hakedisQuery = hakedisQuery.eq('proje_id', query.proje_id)
+      }
 
       const { data: hakedisler } = await hakedisQuery
       
