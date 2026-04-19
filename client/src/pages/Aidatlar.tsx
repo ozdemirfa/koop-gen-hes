@@ -9,6 +9,7 @@ import { PageHeader } from '../components/common/PageHeader'
 import { MoneyDisplay } from '../components/common/MoneyDisplay'
 import { useDebounce } from '../hooks/useDebounce'
 import { usePageSettings } from '../contexts/LayoutContext'
+import { useProject } from '../contexts/ProjectContext'
 
 const { Title } = Typography
 

@@ -163,8 +163,8 @@ export const aidatService = {
     const { from, to } = toSupabaseRange(pagination)
 
     let q = supabaseAdmin
-      .from('aidatlar')
-      .select('*, uyeler(uye_no, ad, soyad), aidat_tanimlari(yil, ay), serefiye_tablosu(daire_no, bloklar(blok_adi))', { count: 'exact' })
+      .from('aidat_detaylari')
+      .select('*, uyeler(uye_no, ad, soyad)', { count: 'exact' })
 
     if (query.proje_id) q = q.eq('proje_id', query.proje_id)
     if (query.uye_id) q = q.eq('uye_id', query.uye_id)
@@ -172,21 +172,11 @@ export const aidatService = {
     
     // Daire no araması
     if (query.daire_no) {
-      q = q.ilike('serefiye_tablosu.daire_no', `%${query.daire_no}%`)
+      q = q.ilike('daire_no', `%${query.daire_no}%`)
     }
 
-    if (query.yil || query.ay) {
-      let tanimQuery = supabaseAdmin.from('aidat_tanimlari').select('id')
-      if (query.proje_id) tanimQuery = tanimQuery.eq('proje_id', query.proje_id)
-      if (query.yil) tanimQuery = tanimQuery.eq('yil', parseInt(query.yil))
-      if (query.ay) tanimQuery = tanimQuery.eq('ay', parseInt(query.ay))
-      const { data: tanimlar } = await tanimQuery
-      if (tanimlar && tanimlar.length > 0) {
-        q = q.in('aidat_tanimi_id', tanimlar.map(t => t.id))
-      } else {
-        return { data: [], pagination: paginationMeta(pagination, 0) }
-      }
-    }
+    if (query.yil) q = q.eq('yil', parseInt(query.yil))
+    if (query.ay) q = q.eq('ay', parseInt(query.ay))
 
     const { data, error, count } = await q
       .order('created_at', { ascending: true })
@@ -196,13 +186,24 @@ export const aidatService = {
       logger.error('Aidat listeleme hatası:', error)
       throw error
     }
-    return { data, pagination: paginationMeta(pagination, count || 0) }
+
+    // View verilerini frontend'in beklediği yapıya eşle
+    const mappedData = data?.map(d => ({
+      ...d,
+      tutar: d.hesaplanan_tutar,
+      odenen_tutar: d.dinamik_odenen_tutar,
+      toplam_tutar: d.toplam_borc,
+      aidat_tanimlari: { yil: d.yil, ay: d.ay, tur: d.aidat_turu },
+      serefiye_tablosu: { daire_no: d.daire_no, bloklar: { blok_adi: d.blok_adi } }
+    }))
+
+    return { data: mappedData, pagination: paginationMeta(pagination, count || 0) }
   },
 
   async getById(id: string) {
     const { data, error } = await supabaseAdmin
-      .from('aidatlar')
-      .select('*, uyeler(uye_no, ad, soyad, serefiye_tablosu(daire_no, bloklar(blok_adi))), aidat_tanimlari(yil, ay, katsayi_tutari), aidat_odemeleri(*)')
+      .from('aidat_detaylari')
+      .select('*, uyeler(uye_no, ad, soyad), aidat_odemeleri(*)')
       .eq('id', id)
       .single()
 
@@ -210,13 +211,23 @@ export const aidatService = {
       logger.error(`Aidat detayı çekme hatası (ID: ${id}):`, error)
       throw ApiError.notFound('Aidat bulunamadı')
     }
-    return data
+
+    // Eşleme
+    return {
+      ...data,
+      tutar: data.hesaplanan_tutar,
+      odenen_tutar: data.dinamik_odenen_tutar,
+      toplam_tutar: data.toplam_borc,
+      aidat_tanimlari: { yil: data.yil, ay: data.ay, tur: data.aidat_turu, katsayi_tutari: data.baz_tutar },
+      serefiye_tablosu: { daire_no: data.daire_no, bloklar: { blok_adi: data.blok_adi }, serefiye_orani: data.serefiye_orani }
+    }
   },
 
   async recordPayment(aidatId: string, body: Record<string, any>) {
+    // Önce aidatın varlığını ve durumunu kontrol et
     const { data: aidat, error: getError } = await supabaseAdmin
-      .from('aidatlar')
-      .select('*, aidat_tanimlari(katsayi_tutari)')
+      .from('aidat_detaylari')
+      .select('*')
       .eq('id', aidatId)
       .single()
 
@@ -224,24 +235,43 @@ export const aidatService = {
     if (aidat.durum === 'odendi') throw ApiError.badRequest('Bu aidat zaten ödenmiş')
     if (aidat.durum === 'iptal') throw ApiError.badRequest('İptal edilmiş aidat için ödeme yapılamaz')
 
-    const { data: odeme, error: odemeError } = await supabaseAdmin
-      .from('aidat_odemeleri')
-      .insert([{ aidat_id: aidatId, ...body }])
+    // Cari hareketi oluştur (Ödeme kaydı artık burada)
+    const { data: hareket, error: moveError } = await supabaseAdmin
+      .from('cari_hareketler')
+      .insert([{
+        proje_id: aidat.proje_id,
+        firma_id: null, // Şahıs ödemesi
+        uye_id: aidat.uye_id,
+        hareket_tipi: 'alacak', // Kooperatif alacak tahsil ediyor
+        tutar: body.tutar,
+        tarih: body.odeme_tarihi,
+        kaynak_tipi: 'aidat',
+        kaynak_id: aidat.id,
+        aciklama: body.aciklama || `${aidat.ay}/${aidat.yil} Aidat Tahsilatı`,
+        belge_no: body.makbuz_no
+      }])
       .select()
       .single()
 
-    if (odemeError) {
-      logger.error('Aidat ödeme kaydı hatası:', odemeError)
-      throw odemeError
+    if (moveError) {
+      logger.error('Cari hareket kaydı hatası:', moveError)
+      throw moveError
     }
 
-    const yeniOdenenTutar = (aidat.odenen_tutar || 0) + body.tutar
-    const toplamBorc = Number(aidat.tutar) + Number(aidat.gecikme_faizi || 0)
-    const yeniDurum = yeniOdenenTutar >= toplamBorc ? 'odendi' : aidat.durum
+    // Toplam ödenen tutarı view üzerinden veya cari_hareketlerden tekrar hesaplayıp durumu güncelle
+    const { data: totalPaid } = await supabaseAdmin
+        .from('cari_hareketler')
+        .select('tutar')
+        .eq('kaynak_tipi', 'aidat')
+        .eq('kaynak_id', aidatId)
+    
+    const currentTotalPaid = (totalPaid || []).reduce((sum, h) => sum + Number(h.tutar), 0)
+    const toplamBorc = Number(aidat.hesaplanan_tutar) + Number(aidat.gecikme_faizi || 0)
+    const yeniDurum = currentTotalPaid >= toplamBorc ? 'odendi' : aidat.durum
 
     const { data: updated, error: updateError } = await supabaseAdmin
       .from('aidatlar')
-      .update({ odenen_tutar: yeniOdenenTutar, durum: yeniDurum })
+      .update({ durum: yeniDurum })
       .eq('id', aidatId)
       .select()
       .single()
@@ -254,11 +284,11 @@ export const aidatService = {
       proje_id: aidat.proje_id,
       uye_id: aidat.uye_id,
       kaynak_tipi: 'aidat',
-      kaynak_id: odeme.id,
-      aciklama: `${aidat.aidat_tanimlari.ay}/${aidat.aidat_tanimlari.yil} Aidat Tahsilatı`
+      kaynak_id: hareket.id,
+      aciklama: body.aciklama || `${aidat.ay}/${aidat.yil} Aidat Tahsilatı`
     })
 
-    logger.info(`Aidat ödemesi alındı: ${aidatId}, Tutar: ${body.tutar}`)
+    logger.info(`Aidat ödemesi alındı ve cari harekete işlendi: ${aidatId}, Tutar: ${body.tutar}`)
     return updated
   },
 
