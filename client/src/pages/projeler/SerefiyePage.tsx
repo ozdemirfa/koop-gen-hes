@@ -14,6 +14,8 @@ interface Serefiye {
   daire_sira_no: number
   kat?: number
   yon?: string
+  m2?: number
+  oda_sayisi?: string
   serefiye_orani: number
   durum: 'bos' | 'dolu' | 'rezerv'
   bloklar?: { blok_adi: string }
@@ -58,7 +60,7 @@ export const SerefiyePage: React.FC = () => {
 
   const resetSerefiyeMutation = useMutation({
     mutationFn: async () => {
-      return await api.post(`/projeler/${projeId}/refresh-serefiye/`)
+      return await api.post(`/projeler/serefiye-yenile/${projeId}`)
     },
     onSuccess: () => {
       messageApi.success('Şerefiye tablosu yenilendi')
@@ -67,9 +69,20 @@ export const SerefiyePage: React.FC = () => {
     onError: (err: any) => messageApi.error(err.message || 'Hata oluştu')
   })
 
+  const clearSerefiyeMutation = useMutation({
+    mutationFn: async () => {
+      return await api.post(`/projeler/${projeId}/clear-serefiye`)
+    },
+    onSuccess: () => {
+      messageApi.success('Şerefiye tablosu silindi')
+      queryClient.invalidateQueries({ queryKey: ['serefiye-list', projeId] })
+    },
+    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu')
+  })
+
   const saveMutation = useMutation({
     mutationFn: async (values: any) => {
-      return await api.put(`/projeler/serefiye/${editingSerefiye?.id}`, values)
+      return await api.put(`/projeler/serefiye/${editingSereviye?.id}`, values)
     },
     onSuccess: () => {
       messageApi.success('Daire bilgileri güncellendi')
@@ -91,6 +104,17 @@ export const SerefiyePage: React.FC = () => {
     })
   }
 
+  const handleClear = () => {
+    modal.confirm({
+      title: 'Tabloyu Sil',
+      content: 'Şerefiye tablosundaki tüm veriler silinecektir. Dolu (üye atanmış) daire varsa işlem yapılamaz. Emin misiniz?',
+      okText: 'Evet, Sil',
+      okType: 'danger',
+      cancelText: 'Vazgeç',
+      onOk: () => clearSerefiyeMutation.mutate()
+    })
+  }
+
   const actions = useMemo(() => (
     <Space>
       <Button 
@@ -98,27 +122,27 @@ export const SerefiyePage: React.FC = () => {
         onClick={() => navigate(`/projeler/${projeId}`)}
         type="text"
       />
-      {serefiyeList?.length === 0 && (
-        <Button 
-          type="primary" 
-          onClick={() => generateSerefiyeMutation.mutate()} 
-          loading={generateSerefiyeMutation.isPending}
-          data-testid="generate-serefiye-btn"
-        >
-          Tabloyu Oluştur
-        </Button>
-      )}
+      <Button 
+        type="primary" 
+        onClick={() => generateSerefiyeMutation.mutate()} 
+        loading={generateSerefiyeMutation.isPending}
+        disabled={serefiyeList && serefiyeList.length > 0}
+        data-testid="generate-serefiye-btn"
+      >
+        Tabloyu Oluştur
+      </Button>
       {serefiyeList && serefiyeList.length > 0 && (
         <Button 
-          onClick={handleRefresh} 
-          loading={resetSerefiyeMutation.isPending}
-          data-testid="refresh-serefiye-btn"
+          danger
+          onClick={handleClear} 
+          loading={clearSerefiyeMutation.isPending}
+          data-testid="clear-serefiye-btn"
         >
-          Tabloyu Yenile
+          Tabloyu Sil
         </Button>
       )}
     </Space>
-  ), [navigate, projeId, serefiyeList, generateSerefiyeMutation.isPending, resetSerefiyeMutation.isPending])
+  ), [navigate, projeId, serefiyeList, generateSerefiyeMutation.isPending, clearSerefiyeMutation.isPending])
 
   usePageSettings({
     title: 'Şerefiye Tablosu',
@@ -146,7 +170,19 @@ export const SerefiyePage: React.FC = () => {
     },
     { title: 'Kat', dataIndex: 'kat', key: 'kat', sorter: (a: any, b: any) => (a.kat || 0) - (b.kat || 0) },
     { title: 'Yön', dataIndex: 'yon', key: 'yon' },
-    { title: 'Şerefiye Oranı', dataIndex: 'serefiye_orani', key: 'oran', render: (v: number) => v.toFixed(3) },
+    { 
+      title: 'm2', 
+      dataIndex: 'm2', 
+      key: 'm2',
+      render: (v: number) => v ? `${v} m²` : '-'
+    },
+    { 
+      title: 'Oda Sayısı', 
+      dataIndex: 'oda_sayisi', 
+      key: 'oda_sayisi',
+      render: (v: string) => v || '-'
+    },
+    { title: 'Şerefiye Oranı', dataIndex: 'serefiye_orani', key: 'oran', render: (v: number) => (v || 0).toFixed(3) },
     { 
       title: 'Durum', 
       dataIndex: 'durum', 
@@ -197,6 +233,18 @@ export const SerefiyePage: React.FC = () => {
             <Col span={12}>
               <Form.Item name="yon" label="Yön">
                 <Input placeholder="Örn: Kuzey-Doğu" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="m2" label="Metrekare (m2)">
+                <InputNumber style={{ width: '100%' }} step={0.01} min={0} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="oda_sayisi" label="Oda Sayısı">
+                <Input placeholder="Örn: 3+1" />
               </Form.Item>
             </Col>
           </Row>

@@ -468,6 +468,29 @@ export const projeService = {
     return { generated: data }
   },
 
+  async clearSerefiye(projeId: string) {
+    // 1. Doluluk kontrolü
+    const { count: doluCount, error: checkError } = await supabaseAdmin
+      .from('serefiye_tablosu')
+      .select('id', { count: 'exact', head: true })
+      .eq('proje_id', projeId)
+      .eq('durum', 'dolu')
+
+    if (checkError) throw checkError
+    if ((doluCount || 0) > 0) {
+      throw ApiError.badRequest('Bu projede kayıtlı üyeler (dolu daireler) bulunduğu için tablo silinemez.')
+    }
+
+    // 2. Sil
+    const { error } = await supabaseAdmin
+      .from('serefiye_tablosu')
+      .delete()
+      .eq('proje_id', projeId)
+
+    if (error) throw error
+    return { success: true }
+  },
+
   async updateSerefiye(id: string, body: Record<string, any>) {
     const { data, error } = await supabaseAdmin
       .from('serefiye_tablosu')

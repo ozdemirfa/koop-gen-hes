@@ -80,7 +80,13 @@ export const syncSerefiye = catchAsync(async (req: AuthRequest<any, any, any, an
 })
 
 export const resetSerefiye = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  console.log(`[DEBUG] resetSerefiye called for ID: ${req.params.id}`)
   const data = await projeService.resetSerefiye(req.params.id)
+  res.json({ success: true, data })
+})
+
+export const clearSerefiye = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const data = await projeService.clearSerefiye(req.params.id)
   res.json({ success: true, data })
 })
 
