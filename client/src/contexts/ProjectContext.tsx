@@ -7,6 +7,8 @@ interface Project {
   proje_adi: string
   proje_kodu: string
   durum: string
+  baslangic_tarihi?: string
+  bitis_tarihi?: string
 }
 
 interface ProjectContextType {

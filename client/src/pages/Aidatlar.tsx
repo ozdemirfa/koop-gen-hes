@@ -7,7 +7,7 @@ import api from '../lib/api'
 import dayjs from 'dayjs'
 import { PageHeader } from '../components/common/PageHeader'
 import { MoneyDisplay } from '../components/common/MoneyDisplay'
-import { trNumberFormatter } from '../lib/format'
+import { trNumberFormatter, formatMoney } from '../lib/format'
 import { usePageSettings } from '../contexts/LayoutContext'
 import { useProject } from '../contexts/ProjectContext'
 
@@ -65,6 +65,25 @@ export const Aidatlar: React.FC = () => {
   const queryClient = useQueryClient()
   const { activeProject } = useProject()
   const { message: messageApi } = App.useApp()
+
+  // Proje tarihlerine göre yıl listesi oluştur
+  const yearOptions = useMemo(() => {
+    const currentYear = dayjs().year()
+    if (!activeProject?.baslangic_tarihi) {
+      return Array.from({ length: 5 }, (_, i) => currentYear - 2 + i)
+    }
+
+    const startYear = dayjs(activeProject.baslangic_tarihi).year()
+    const endYear = activeProject.bitis_tarihi 
+      ? dayjs(activeProject.bitis_tarihi).year() 
+      : currentYear + 1
+
+    const years = []
+    for (let y = startYear; y <= endYear; y++) {
+      years.push(y)
+    }
+    return years
+  }, [activeProject])
 
   // Bloklar (Aktif proje için)
   const { data: bloklar } = useQuery({
@@ -272,7 +291,7 @@ export const Aidatlar: React.FC = () => {
         allowClear
         style={{ width: 100 }}
       >
-        {Array.from({ length: 5 }, (_, i) => dayjs().year() - 2 + i).map(y => (
+        {yearOptions.map(y => (
           <Select.Option key={y} value={y}>{y}</Select.Option>
         ))}
       </Select>
@@ -319,7 +338,7 @@ export const Aidatlar: React.FC = () => {
         Gecikme Faizi Hesapla
       </Button>
     </Space>
-  ), [filterYil, filterAy, filterDurum, filterBlokId, bloklar, gecikmeMutation.isPending])
+  ), [filterYil, filterAy, filterDurum, filterBlokId, bloklar, yearOptions, gecikmeMutation.isPending])
 
   const tanimActions = useMemo(() => (
     <Space>
@@ -330,7 +349,7 @@ export const Aidatlar: React.FC = () => {
         allowClear
         style={{ width: 100 }}
       >
-        {Array.from({ length: 5 }, (_, i) => dayjs().year() - 2 + i).map(y => (
+        {yearOptions.map(y => (
           <Select.Option key={y} value={y}>{y}</Select.Option>
         ))}
       </Select>
@@ -363,7 +382,7 @@ export const Aidatlar: React.FC = () => {
         Yıllık Plan Oluştur
       </Button>
     </Space>
-  ), [filterTanimYil, filterTanimAy, filterTanimTur, navigate])
+  ), [filterTanimYil, filterTanimAy, filterTanimTur, yearOptions, navigate])
 
   usePageSettings({
     title: isTanimlarPage ? 'Aidat Tanımları' : 'Aidat Listesi',
@@ -392,51 +411,58 @@ export const Aidatlar: React.FC = () => {
     <div>
       {ozet && (
         <Row gutter={[12, 12]} style={{ marginBottom: 24 }}>
-          <Col xs={24} sm={12} lg={6}>
+          <Col xs={24} sm={12} lg={4} md={8}>
             <Card className="stat-card" size="small">
               <Statistic 
                 title="Toplam Aidat" 
                 value={ozet.toplam_aidat} 
                 prefix="₺" 
-                precision={2} 
-                formatter={(v) => trNumberFormatter(v as number)}
-                styles={{ content: { fontWeight: 700, fontSize: '18px' } }} 
+                formatter={(v) => formatMoney(v as number)}
+                styles={{ content: { fontWeight: 700, fontSize: '16px' } }} 
               />
             </Card>
           </Col>
-          <Col xs={24} sm={12} lg={6}>
+          <Col xs={24} sm={12} lg={5} md={8}>
             <Card className="stat-card" size="small">
               <Statistic 
                 title="Toplam Tahsilat" 
                 value={ozet.toplam_tahsilat} 
                 prefix="₺" 
-                precision={2} 
-                formatter={(v) => trNumberFormatter(v as number)}
-                styles={{ content: { color: 'var(--success)', fontWeight: 700, fontSize: '18px' } }} 
+                formatter={(v) => formatMoney(v as number)}
+                styles={{ content: { color: 'var(--success)', fontWeight: 700, fontSize: '16px' } }} 
               />
             </Card>
           </Col>
-          <Col xs={24} sm={12} lg={6}>
+          <Col xs={24} sm={12} lg={5} md={8}>
             <Card className="stat-card" size="small">
               <Statistic 
                 title="Bekleyen" 
                 value={ozet.bekleyen} 
                 prefix="₺" 
-                precision={2} 
-                formatter={(v) => trNumberFormatter(v as number)}
-                styles={{ content: { color: 'var(--info)', fontWeight: 700, fontSize: '18px' } }} 
+                formatter={(v) => formatMoney(v as number)}
+                styles={{ content: { color: 'var(--info)', fontWeight: 700, fontSize: '16px' } }} 
               />
             </Card>
           </Col>
-          <Col xs={24} sm={12} lg={6}>
+          <Col xs={24} sm={12} lg={5} md={12}>
             <Card className="stat-card" size="small">
               <Statistic 
                 title="Geciken" 
                 value={ozet.geciken} 
                 prefix="₺" 
-                precision={2} 
-                formatter={(v) => trNumberFormatter(v as number)}
-                styles={{ content: { color: 'var(--error)', fontWeight: 700, fontSize: '18px' } }} 
+                formatter={(v) => formatMoney(v as number)}
+                styles={{ content: { color: 'var(--error)', fontWeight: 700, fontSize: '16px' } }} 
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} lg={5} md={12}>
+            <Card className="stat-card" size="small">
+              <Statistic 
+                title="Toplam Faiz" 
+                value={ozet.toplam_gecikme_faizi} 
+                prefix="₺" 
+                formatter={(v) => formatMoney(v as number)}
+                styles={{ content: { color: '#fa8c16', fontWeight: 700, fontSize: '16px' } }} 
               />
             </Card>
           </Col>

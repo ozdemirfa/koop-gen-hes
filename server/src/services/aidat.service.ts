@@ -104,7 +104,6 @@ export const aidatTanimiService = {
           serefiye_id: daire.id,
           uye_id: uye?.id || null,
           aidat_tanimi_id: tanim.id,
-          tutar: Number(body.katsayi_tutari) * (Number(daire.serefiye_orani) || 1.00),
           son_odeme_tarihi: sonOdemeTarihi
         }
       }))
@@ -181,6 +180,7 @@ export const aidatService = {
     if (query.proje_id) q = q.eq('proje_id', query.proje_id)
     if (query.uye_id) q = q.eq('uye_id', query.uye_id)
     if (query.durum) q = q.eq('durum', query.durum)
+    if (query.blok_id) q = q.eq('blok_id', query.blok_id)
     
     // Daire no araması
     if (query.daire_no) {
