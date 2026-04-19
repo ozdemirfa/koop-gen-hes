@@ -102,6 +102,7 @@ export const SerefiyePage: React.FC = () => {
           type="primary" 
           onClick={() => generateSerefiyeMutation.mutate()} 
           loading={generateSerefiyeMutation.isPending}
+          data-testid="generate-serefiye-btn"
         >
           Tabloyu Oluştur
         </Button>
@@ -110,6 +111,7 @@ export const SerefiyePage: React.FC = () => {
         <Button 
           onClick={handleRefresh} 
           loading={resetSerefiyeMutation.isPending}
+          data-testid="refresh-serefiye-btn"
         >
           Tabloyu Yenile
         </Button>
