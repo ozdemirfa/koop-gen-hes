@@ -44,11 +44,18 @@ export const UyeFormPage: React.FC = () => {
   })
 
   // Eğer düzenleme modundaysa üye bilgilerini getir ve formu doldur
-  const { isLoading: uyeLoading } = useQuery({
+  const { data: uye, isLoading: uyeLoading } = useQuery({
     queryKey: ['uye', id],
     queryFn: async () => {
       const { data } = await api.get(`/uyeler/${id}`)
-      const uye = data.data
+      return data.data
+    },
+    enabled: isEditing,
+  })
+
+  // Veri yüklendiğinde formu doldur
+  useEffect(() => {
+    if (uye) {
       form.setFieldsValue({
         ...uye,
         daire_no: uye.serefiye_tablosu?.daire_no,
@@ -57,10 +64,8 @@ export const UyeFormPage: React.FC = () => {
       if (uye.serefiye_tablosu?.blok_id) {
         setSelectedBlokId(uye.serefiye_tablosu.blok_id)
       }
-      return uye
-    },
-    enabled: isEditing,
-  })
+    }
+  }, [uye, form])
 
   const setServerErrors = (err: any) => {
     if (err.details && Array.isArray(err.details)) {
