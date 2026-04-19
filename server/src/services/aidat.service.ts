@@ -305,7 +305,7 @@ export const aidatService = {
   },
 
   async getSummary(query: Record<string, any>): Promise<AidatSummary> {
-    const { proje_id, yil, ay, durum, daire_no } = query
+    const { proje_id, yil, ay, durum, blok_id } = query
     
     // Önce gecikme faizlerini güncelle (proje bazlı)
     const { error: rpcError } = await supabaseAdmin.rpc('hesapla_gecikme_faizi', { p_proje_id: proje_id })
@@ -317,7 +317,7 @@ export const aidatService = {
       p_yil: yil ? parseInt(yil) : null,
       p_ay: ay ? parseInt(ay) : null,
       p_durum: durum || null,
-      p_daire_no: daire_no || null
+      p_blok_id: blok_id || null
     })
 
     if (error) {
