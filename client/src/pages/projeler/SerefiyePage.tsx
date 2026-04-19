@@ -71,7 +71,7 @@ export const SerefiyePage: React.FC = () => {
 
   const clearSerefiyeMutation = useMutation({
     mutationFn: async () => {
-      return await api.post(`/projeler/${projeId}/clear-serefiye`)
+      return await api.post(`/projeler/serefiye-temizle/${projeId}`)
     },
     onSuccess: () => {
       messageApi.success('Şerefiye tablosu silindi')

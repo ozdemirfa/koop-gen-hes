@@ -5,11 +5,11 @@ import * as projelerController from '../controllers/projeler.controller'
 
 const router = Router()
 
-// 1. Şerefiye ve Kritik Rotalar (Çakışmayı önlemek için en üstte)
+console.log('[DEBUG] Loading Projeler Routes...')
+
+// 1. Şerefiye Yenileme ve Temizleme (Tamamen benzersiz prefixler ile çakışmayı önle)
 router.post('/serefiye-yenile/:id', projelerController.resetSerefiye)
-router.post('/:id/clear-serefiye', projelerController.clearSerefiye)
-router.post('/:id/generate-serefiye', projelerController.generateSerefiye)
-router.post('/:id/sync-serefiye', projelerController.syncSerefiye)
+router.post('/serefiye-temizle/:id', projelerController.clearSerefiye)
 
 // 2. Statik ve spesifik rotalar
 router.get('/', projelerController.getProjeler)
