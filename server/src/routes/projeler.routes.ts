@@ -8,8 +8,8 @@ const router = Router()
 console.log('[DEBUG] Loading Projeler Routes...')
 
 // 1. Şerefiye Yenileme ve Temizleme (Tamamen benzersiz prefixler ile çakışmayı önle)
-router.post('/serefiye-yenile/:id', projelerController.resetSerefiye)
-router.post('/serefiye-temizle/:id', projelerController.clearSerefiye)
+router.post('/serefiye-actions/yenile', projelerController.resetSerefiye)
+router.post('/serefiye-actions/temizle', projelerController.clearSerefiye)
 
 // 2. Statik ve spesifik rotalar
 router.get('/', projelerController.getProjeler)

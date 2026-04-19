@@ -55,6 +55,11 @@ app.get('/api/health', async (_req: Request, res: Response) => {
   }
 })
 
+// Proxy Test Route
+app.all('/api/proxy-check', (req, res) => {
+  res.json({ message: 'Proxy is working!', method: req.method, url: req.url })
+})
+
 // API Routes (auth middleware route aggregator içinde)
 app.use('/api', apiRoutes)
 

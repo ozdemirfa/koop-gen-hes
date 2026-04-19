@@ -60,7 +60,7 @@ export const SerefiyePage: React.FC = () => {
 
   const resetSerefiyeMutation = useMutation({
     mutationFn: async () => {
-      return await api.post(`/projeler/serefiye-yenile/${projeId}`)
+      return await api.post(`/projeler/serefiye-actions/yenile`, { projeId })
     },
     onSuccess: () => {
       messageApi.success('Şerefiye tablosu yenilendi')
@@ -71,7 +71,7 @@ export const SerefiyePage: React.FC = () => {
 
   const clearSerefiyeMutation = useMutation({
     mutationFn: async () => {
-      return await api.post(`/projeler/serefiye-temizle/${projeId}`)
+      return await api.post(`/projeler/serefiye-actions/temizle`, { projeId })
     },
     onSuccess: () => {
       messageApi.success('Şerefiye tablosu silindi')
