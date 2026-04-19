@@ -7,6 +7,7 @@ import api from '../lib/api'
 import dayjs from 'dayjs'
 import { PageHeader } from '../components/common/PageHeader'
 import { useProject } from '../contexts/ProjectContext'
+import { trNumberFormatter, trNumberParser } from '../lib/format'
 
 const { Text } = Typography
 
@@ -60,6 +61,19 @@ export const AidatYillikPlanPage: React.FC = () => {
     form.setFieldsValue({ kalemler: updatedKalemler })
   }
 
+  const handleGecikmeChange = (value: number | null, index: number) => {
+    if (value === null) return
+    const currentKalemler = form.getFieldValue('kalemler') || []
+    const updatedKalemler = [...currentKalemler]
+    
+    // Gecikme oranı girilince altındaki tüm kutulara aynı oranı uygula
+    for (let i = index; i < updatedKalemler.length; i++) {
+      updatedKalemler[i] = { ...updatedKalemler[i], gecikme_faiz_orani: value }
+    }
+    
+    form.setFieldsValue({ kalemler: updatedKalemler })
+  }
+
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
       <PageHeader
@@ -89,7 +103,7 @@ export const AidatYillikPlanPage: React.FC = () => {
             </Col>
             <Col span={16}>
               <div style={{ marginTop: 30, color: '#666' }}>
-                <Text type="secondary">Not: Katsayı tutarı değiştiğinde, sonraki aylardaki normal aidat tutarları otomatik güncellenir.</Text>
+                <Text type="secondary">Not: Katsayı tutarı veya gecikme oranı değiştiğinde, sonraki satırlar otomatik güncellenir.</Text>
               </div>
             </Col>
           </Row>
@@ -144,6 +158,9 @@ export const AidatYillikPlanPage: React.FC = () => {
                             min={0} 
                             style={{ width: 150 }} 
                             onChange={(val) => handleKatsayiChange(val, name)}
+                            formatter={trNumberFormatter}
+                            parser={trNumberParser}
+                            decimalSeparator=","
                           />
                         </Form.Item>
 
@@ -160,7 +177,17 @@ export const AidatYillikPlanPage: React.FC = () => {
                           name={[name, 'gecikme_faiz_orani']}
                           style={{ marginBottom: 0 }}
                         >
-                          <InputNumber placeholder="%" min={0} max={100} step={0.1} style={{ width: 100 }} />
+                          <InputNumber 
+                            placeholder="%" 
+                            min={0} 
+                            max={100} 
+                            step={0.1} 
+                            style={{ width: 100 }} 
+                            onChange={(val) => handleGecikmeChange(val, name)}
+                            formatter={trNumberFormatter}
+                            parser={trNumberParser}
+                            decimalSeparator=","
+                          />
                         </Form.Item>
 
                         <Space>
