@@ -120,6 +120,7 @@ const App: React.FC = () => {
                       <Route path="uyeler/:id" element={<UyeDetailPage />} />
                       <Route path="uyeler/:id/duzenle" element={<UyeFormPage />} />
                       <Route path="aidatlar" element={<Aidatlar />} />
+                      <Route path="aidatlar/tanimlar" element={<Aidatlar />} />
                       <Route path="aidatlar/yillik-plan" element={<AidatYillikPlanPage />} />
                       <Route path="gelir-gider" element={<GelirGider />} />
                       <Route path="gelir-gider/kategoriler" element={<GelirGiderKategoriPage />} />

@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react'
-import { Table, Button, Modal, Form, InputNumber, Select, message, Card, Typography, Tag, Space, DatePicker, Input, Tabs, Row, Col, Statistic, App } from 'antd'
+import React, { useState, useMemo, useEffect } from 'react'
+import { Table, Button, Modal, Form, InputNumber, Select, message, Card, Typography, Tag, Space, DatePicker, Input, Row, Col, Statistic, App } from 'antd'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, DollarOutlined, CalculatorOutlined } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import api from '../lib/api'
 import dayjs from 'dayjs'
 import { PageHeader } from '../components/common/PageHeader'
@@ -11,7 +11,7 @@ import { trNumberFormatter } from '../lib/format'
 import { usePageSettings } from '../contexts/LayoutContext'
 import { useProject } from '../contexts/ProjectContext'
 
-const { Title } = Typography
+const { Text } = Typography
 
 interface AidatTanimi {
   id: string
@@ -42,8 +42,12 @@ const aylar = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz',
 
 export const Aidatlar: React.FC = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const [odemeModalOpen, setOdemeModalOpen] = useState(false)
   const [selectedAidat, setSelectedAidat] = useState<Aidat | null>(null)
+  
+  // URL'den hangi sayfada olduğumuzu anla
+  const isTanimlarPage = location.pathname.includes('/tanimlar')
 
   // Filtre state'leri
   const [filterYil, setFilterYil] = useState<number | undefined>(dayjs().year())
@@ -60,6 +64,7 @@ export const Aidatlar: React.FC = () => {
   const { data: bloklar } = useQuery({
     queryKey: ['bloklar', activeProject?.id],
     queryFn: async () => {
+      if (!activeProject?.id) return []
       const { data } = await api.get('/bloklar', { params: { proje_id: activeProject?.id } })
       return data.data as { id: string; blok_adi: string }[]
     },
@@ -89,7 +94,7 @@ export const Aidatlar: React.FC = () => {
       const { data } = await api.get('/aidatlar', { params })
       return data
     },
-    enabled: !!activeProject?.id
+    enabled: !!activeProject?.id && !isTanimlarPage
   })
 
   // Aidat özet (filtrelere göre)
@@ -105,7 +110,7 @@ export const Aidatlar: React.FC = () => {
       const { data } = await api.get('/aidatlar/ozet', { params })
       return data.data
     },
-    enabled: !!activeProject?.id
+    enabled: !!activeProject?.id && !isTanimlarPage
   })
 
   // Ödeme kaydet
@@ -188,13 +193,13 @@ export const Aidatlar: React.FC = () => {
       render: (v: number) => <MoneyDisplay amount={v} />,
     },
     {
-      title: 'Gecikme Faizi',
+      title: 'Faiz',
       dataIndex: 'gecikme_faizi',
       key: 'gecikme_faizi',
       render: (v: number) => v > 0 ? <MoneyDisplay amount={v} colored /> : '-',
     },
     {
-      title: 'Toplam Borç',
+      title: 'Toplam',
       dataIndex: 'toplam_tutar',
       key: 'toplam_tutar',
       render: (v: number) => <MoneyDisplay amount={v} />,
@@ -239,7 +244,7 @@ export const Aidatlar: React.FC = () => {
     },
   ]
 
-  const actions = useMemo(() => (
+  const listActions = useMemo(() => (
     <Button 
       type="primary" 
       size="small"
@@ -252,158 +257,152 @@ export const Aidatlar: React.FC = () => {
     </Button>
   ), [gecikmeMutation.isPending])
 
+  const tanimActions = useMemo(() => (
+    <Button 
+      type="primary" 
+      icon={<PlusOutlined />} 
+      onClick={() => navigate('/aidatlar/yillik-plan')}
+      size="small"
+      style={{ color: '#ffffff' }}
+    >
+      Yıllık Plan Oluştur
+    </Button>
+  ), [navigate])
+
   usePageSettings({
-    title: 'Aidat Yönetimi',
-    actions
+    title: isTanimlarPage ? 'Aidat Tanımları' : 'Aidat Listesi',
+    actions: isTanimlarPage ? tanimActions : listActions
   })
+
+  if (isTanimlarPage) {
+    return (
+      <div>
+        <Card>
+          <Table 
+            columns={tanimColumns} 
+            dataSource={tanimlar} 
+            rowKey="id" 
+            loading={tanimLoading} 
+            pagination={false} 
+            bordered={false}
+          />
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div>
       {ozet && (
-        <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
+        <Row gutter={[12, 12]} style={{ marginBottom: 24 }}>
           <Col xs={24} sm={12} lg={6}>
-            <Card className="stat-card">
+            <Card className="stat-card" size="small">
               <Statistic 
                 title="Toplam Aidat" 
                 value={ozet.toplam_aidat} 
                 prefix="₺" 
                 precision={2} 
                 formatter={(v) => trNumberFormatter(v as number)}
-                styles={{ content: { fontWeight: 700 } }} 
+                styles={{ content: { fontWeight: 700, fontSize: '18px' } }} 
               />
             </Card>
           </Col>
           <Col xs={24} sm={12} lg={6}>
-            <Card className="stat-card">
+            <Card className="stat-card" size="small">
               <Statistic 
                 title="Toplam Tahsilat" 
                 value={ozet.toplam_tahsilat} 
                 prefix="₺" 
                 precision={2} 
                 formatter={(v) => trNumberFormatter(v as number)}
-                styles={{ content: { color: 'var(--success)', fontWeight: 700 } }} 
+                styles={{ content: { color: 'var(--success)', fontWeight: 700, fontSize: '18px' } }} 
               />
             </Card>
           </Col>
           <Col xs={24} sm={12} lg={6}>
-            <Card className="stat-card">
+            <Card className="stat-card" size="small">
               <Statistic 
                 title="Bekleyen" 
                 value={ozet.bekleyen} 
                 prefix="₺" 
                 precision={2} 
                 formatter={(v) => trNumberFormatter(v as number)}
-                styles={{ content: { color: 'var(--info)', fontWeight: 700 } }} 
+                styles={{ content: { color: 'var(--info)', fontWeight: 700, fontSize: '18px' } }} 
               />
             </Card>
           </Col>
           <Col xs={24} sm={12} lg={6}>
-            <Card className="stat-card">
+            <Card className="stat-card" size="small">
               <Statistic 
                 title="Geciken" 
                 value={ozet.geciken} 
                 prefix="₺" 
                 precision={2} 
                 formatter={(v) => trNumberFormatter(v as number)}
-                styles={{ content: { color: 'var(--error)', fontWeight: 700 } }} 
+                styles={{ content: { color: 'var(--error)', fontWeight: 700, fontSize: '18px' } }} 
               />
             </Card>
           </Col>
         </Row>
       )}
 
-      <Card styles={{ body: { padding: 0 } }}>
-        <Tabs
-          defaultActiveKey="aidatlar"
-          type="line"
-          size="large"
-          style={{ padding: '0 24px 24px' }}
-          items={[
-            {
-              key: 'aidatlar',
-              label: <Space><DollarOutlined />Aidat Listesi</Space>,
-              children: (
-                <div style={{ paddingTop: 16 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
-                    <Space wrap size="middle">
-                      <Select
-                        placeholder="Yıl"
-                        value={filterYil}
-                        onChange={setFilterYil}
-                        allowClear
-                        style={{ width: 100 }}
-                      >
-                        {Array.from({ length: 5 }, (_, i) => dayjs().year() - 2 + i).map(y => (
-                          <Select.Option key={y} value={y}>{y}</Select.Option>
-                        ))}
-                      </Select>
-                      <Select
-                        placeholder="Ay"
-                        value={filterAy}
-                        onChange={setFilterAy}
-                        allowClear
-                        style={{ width: 130 }}
-                      >
-                        {aylar.map((a, i) => <Select.Option key={i + 1} value={i + 1}>{a}</Select.Option>)}
-                      </Select>
-                      <Select
-                        placeholder="Durum"
-                        value={filterDurum}
-                        onChange={setFilterDurum}
-                        allowClear
-                        style={{ width: 130 }}
-                      >
-                        <Select.Option value="bekliyor">Bekliyor</Select.Option>
-                        <Select.Option value="odendi">Ödendi</Select.Option>
-                        <Select.Option value="gecikti">Gecikti</Select.Option>
-                        <Select.Option value="iptal">İptal</Select.Option>
-                      </Select>
-                      <Select
-                        placeholder="Blok Seçin"
-                        value={filterBlokId}
-                        onChange={setFilterBlokId}
-                        allowClear
-                        style={{ width: 150 }}
-                      >
-                        {bloklar?.map(b => (
-                          <Select.Option key={b.id} value={b.id}>{b.blok_adi}</Select.Option>
-                        ))}
-                      </Select>
-                    </Space>
-                  </div>
-                  <Table 
-                    columns={aidatColumns} 
-                    dataSource={aidatData?.data} 
-                    rowKey="id" 
-                    loading={aidatLoading} 
-                    pagination={{ pageSize: 20 }}
-                    bordered={false}
-                  />
-                </div>
-              ),
-            },
-            {
-              key: 'tanimlar',
-              label: <Space><PlusOutlined />Aidat Tanımları</Space>,
-              children: (
-                <div style={{ paddingTop: 16 }}>
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 24 }}>
-                    <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/aidatlar/yillik-plan')}>
-                      Yıllık Plan Oluştur
-                    </Button>
-                  </div>
-                  <Table 
-                    columns={tanimColumns} 
-                    dataSource={tanimlar} 
-                    rowKey="id" 
-                    loading={tanimLoading} 
-                    pagination={false} 
-                    bordered={false}
-                  />
-                </div>
-              ),
-            },
-          ]}
+      <Card styles={{ body: { padding: 16 } }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
+          <Space wrap size="middle">
+            <Select
+              placeholder="Yıl"
+              value={filterYil}
+              onChange={setFilterYil}
+              allowClear
+              style={{ width: 100 }}
+            >
+              {Array.from({ length: 5 }, (_, i) => dayjs().year() - 2 + i).map(y => (
+                <Select.Option key={y} value={y}>{y}</Select.Option>
+              ))}
+            </Select>
+            <Select
+              placeholder="Ay"
+              value={filterAy}
+              onChange={setFilterAy}
+              allowClear
+              style={{ width: 130 }}
+            >
+              {aylar.map((a, i) => <Select.Option key={i + 1} value={i + 1}>{a}</Select.Option>)}
+            </Select>
+            <Select
+              placeholder="Durum"
+              value={filterDurum}
+              onChange={setFilterDurum}
+              allowClear
+              style={{ width: 130 }}
+            >
+              <Select.Option value="bekliyor">Bekliyor</Select.Option>
+              <Select.Option value="odendi">Ödendi</Select.Option>
+              <Select.Option value="gecikti">Gecikti</Select.Option>
+              <Select.Option value="iptal">İptal</Select.Option>
+            </Select>
+            <Select
+              placeholder="Blok Seçin"
+              value={filterBlokId}
+              onChange={setFilterBlokId}
+              allowClear
+              style={{ width: 150 }}
+            >
+              {bloklar?.map(b => (
+                <Select.Option key={b.id} value={b.id}>{b.blok_adi}</Select.Option>
+              ))}
+            </Select>
+          </Space>
+        </div>
+        
+        <Table 
+          columns={aidatColumns} 
+          dataSource={aidatData?.data} 
+          rowKey="id" 
+          loading={aidatLoading} 
+          pagination={{ pageSize: 20 }}
+          bordered={false}
+          size="small"
         />
       </Card>
 
@@ -414,10 +413,16 @@ export const Aidatlar: React.FC = () => {
         onCancel={() => { setOdemeModalOpen(false); odemeForm.resetFields() }}
         onOk={() => odemeForm.submit()}
         confirmLoading={odemeMutation.isPending}
+        destroyOnHidden
       >
         <Form form={odemeForm} layout="vertical" onFinish={(v) => selectedAidat && odemeMutation.mutate({ aidatId: selectedAidat.id, values: v })}>
           <Form.Item name="tutar" label="Ödeme Tutarı (TL)" rules={[{ required: true }]}>
-            <InputNumber min={0} style={{ width: '100%' }} />
+            <InputNumber 
+              min={0} 
+              style={{ width: '100%' }} 
+              formatter={(v) => `₺ ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+              parser={(v) => v!.replace(/₺\s?|(\.*)/g, '').replace(',', '.')}
+            />
           </Form.Item>
           <Form.Item name="odeme_tarihi" label="Ödeme Tarihi" rules={[{ required: true }]}>
             <DatePicker size="small" style={{ width: '100%' }} format="YYYY-MM-DD" />

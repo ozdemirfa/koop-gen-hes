@@ -36,7 +36,15 @@ export const AdminLayout: React.FC = () => {
   const menuItems = [
     { key: '/', icon: <BankOutlined />, label: 'Dashboard' },
     { key: '/uyeler', icon: <UserOutlined />, label: 'Üye Yönetimi' },
-    { key: '/aidatlar', icon: <DollarOutlined />, label: 'Aidat Yönetimi' },
+    {
+      key: 'aidat-group',
+      icon: <DollarOutlined />,
+      label: 'Aidat Yönetimi',
+      children: [
+        { key: '/aidatlar', label: 'Aidat Listesi' },
+        { key: '/aidatlar/tanimlar', label: 'Aidat Tanımları' },
+      ],
+    },
     {
       key: 'gelir-gider-group',
       icon: <TransactionOutlined />,
