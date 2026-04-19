@@ -68,7 +68,7 @@ export const AdminLayout: React.FC = () => {
       ],
     },
     { key: '/fatura-irsaliye', icon: <TruckOutlined />, label: 'Malzeme Teslimat' },
-    { key: '/projeler', icon: <ProjectOutlined />, label: 'Proje Yönetimi' },
+    { key: '/projeler', icon: <ProjectOutlined />, label: 'İnşaat Projeleri' },
     {
       key: 'raporlar-group',
       icon: <PieChartOutlined />,

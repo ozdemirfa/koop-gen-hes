@@ -284,9 +284,12 @@ export const projeService = {
   },
 
   async updatePlanKalemi(id: string, body: Record<string, any>) {
+    // Güvenli güncelleme için metadata alanlarını temizle
+    const { id: _, created_at, updated_at, plan_id, proje_is_kalemi_id, ay, ...updateData } = body
+
     const { data, error } = await supabaseAdmin
       .from('yillik_plan_kalemleri')
-      .update(body)
+      .update(updateData)
       .eq('id', id)
       .select()
       .single()
