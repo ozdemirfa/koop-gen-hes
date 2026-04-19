@@ -160,7 +160,7 @@ export const CekTakibiPage: React.FC = () => {
               value={totalBekleyen} 
               suffix="TL" 
               precision={2} 
-              valueStyle={{ color: '#1890ff' }} 
+              styles={{ content: { color: '#1890ff' } }} 
             />
           </Card>
         </Col>
@@ -171,7 +171,7 @@ export const CekTakibiPage: React.FC = () => {
               value={totalOdendi} 
               suffix="TL" 
               precision={2} 
-              valueStyle={{ color: '#52c41a' }} 
+              styles={{ content: { color: '#52c41a' } }} 
             />
           </Card>
         </Col>

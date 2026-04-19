@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Card, Form, Input, Button, message, Typography } from 'antd'
+import { Card, Form, Input, Button, App, Typography } from 'antd'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import logo from '../assets/logo.png'
@@ -9,6 +9,7 @@ const { Title } = Typography
 export const Login: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const { session, loading: authLoading, signIn } = useAuth()
+  const { message } = App.useApp()
 
   if (!authLoading && session) return <Navigate to="/" replace />
 

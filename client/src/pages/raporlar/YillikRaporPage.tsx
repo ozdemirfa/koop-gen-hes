@@ -89,7 +89,7 @@ export const YillikRaporPage: React.FC = () => {
               prefix={<FallOutlined />}
               suffix="TL"
               precision={2}
-              valueStyle={{ color: '#cf1322' }}
+              styles={{ content: { color: '#cf1322' } }}
             />
           </Card>
         </Col>
@@ -101,7 +101,7 @@ export const YillikRaporPage: React.FC = () => {
               prefix={<BarChartOutlined />}
               suffix="TL"
               precision={2}
-              valueStyle={{ color: '#3f8600' }}
+              styles={{ content: { color: '#3f8600' } }}
             />
           </Card>
         </Col>

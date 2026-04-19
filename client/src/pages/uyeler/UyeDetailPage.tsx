@@ -198,7 +198,7 @@ export const UyeDetailPage: React.FC = () => {
               value={toplamBorc} 
               prefix="₺" 
               precision={2} 
-              valueStyle={{ fontWeight: 700 }}
+              styles={{ content: { fontWeight: 700 } }}
             />
           </Card>
         </Col>
@@ -209,7 +209,7 @@ export const UyeDetailPage: React.FC = () => {
               value={toplamOdenen} 
               prefix="₺" 
               precision={2} 
-              valueStyle={{ color: 'var(--success)', fontWeight: 700 }} 
+              styles={{ content: { color: 'var(--success)', fontWeight: 700 } }} 
             />
           </Card>
         </Col>
@@ -220,10 +220,10 @@ export const UyeDetailPage: React.FC = () => {
               value={kalanBakiye} 
               prefix="₺" 
               precision={2} 
-              valueStyle={{ 
+              styles={{ content: { 
                 color: kalanBakiye > 0 ? 'var(--error)' : 'var(--success)',
                 fontWeight: 700 
-              }} 
+              } }} 
             />
           </Card>
         </Col>

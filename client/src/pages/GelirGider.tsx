@@ -250,7 +250,7 @@ export const GelirGider: React.FC = () => {
               title="Toplam Gelir"
               value={totals.gelir}
               precision={2}
-              valueStyle={{ color: '#3f8600', fontSize: '18px' }}
+              styles={{ content: { color: '#3f8600', fontSize: '18px' } }}
               prefix={<ArrowUpOutlined />}
               suffix="TL"
             />
@@ -262,7 +262,7 @@ export const GelirGider: React.FC = () => {
               title="Toplam Gider"
               value={totals.gider}
               precision={2}
-              valueStyle={{ color: '#cf1322', fontSize: '18px' }}
+              styles={{ content: { color: '#cf1322', fontSize: '18px' } }}
               prefix={<ArrowDownOutlined />}
               suffix="TL"
             />
@@ -274,7 +274,7 @@ export const GelirGider: React.FC = () => {
               title="Net Bakiye"
               value={totals.gelir - totals.gider}
               precision={2}
-              valueStyle={{ color: totals.gelir - totals.gider >= 0 ? '#3f8600' : '#cf1322', fontSize: '18px' }}
+              styles={{ content: { color: totals.gelir - totals.gider >= 0 ? '#3f8600' : '#cf1322', fontSize: '18px' } }}
               prefix={<WalletOutlined />}
               suffix="TL"
             />

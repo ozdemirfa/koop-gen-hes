@@ -194,7 +194,7 @@ export const BankaUzlastirmaPage: React.FC = () => {
                   value={selectedBanka?.tutar || 0} 
                   prefix="₺" 
                   precision={2} 
-                  valueStyle={{ fontSize: '16px', fontWeight: 600 }}
+                  styles={{ content: { fontSize: '16px', fontWeight: 600 } }}
                 />
               </Col>
               <Col>
@@ -206,7 +206,7 @@ export const BankaUzlastirmaPage: React.FC = () => {
                   value={selectedCari?.tutar || 0} 
                   prefix="₺" 
                   precision={2} 
-                  valueStyle={{ fontSize: '16px', fontWeight: 600 }}
+                  styles={{ content: { fontSize: '16px', fontWeight: 600 } }}
                 />
               </Col>
             </Row>

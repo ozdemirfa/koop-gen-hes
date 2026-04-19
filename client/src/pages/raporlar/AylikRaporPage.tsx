@@ -86,7 +86,7 @@ export const AylikRaporPage: React.FC = () => {
               prefix={<DollarOutlined />}
               suffix="TL"
               precision={2}
-              valueStyle={{ color: '#3f8600', fontSize: '1.2rem' }}
+              styles={{ content: { color: '#3f8600', fontSize: '1.2rem' } }}
             />
           </Card>
         </Col>
@@ -98,7 +98,7 @@ export const AylikRaporPage: React.FC = () => {
               prefix={<RiseOutlined />}
               suffix="TL"
               precision={2}
-              valueStyle={{ color: '#3f8600', fontSize: '1.2rem' }}
+              styles={{ content: { color: '#3f8600', fontSize: '1.2rem' } }}
             />
           </Card>
         </Col>
@@ -110,7 +110,7 @@ export const AylikRaporPage: React.FC = () => {
               prefix={<FallOutlined />}
               suffix="TL"
               precision={2}
-              valueStyle={{ color: '#cf1322', fontSize: '1.2rem' }}
+              styles={{ content: { color: '#cf1322', fontSize: '1.2rem' } }}
             />
           </Card>
         </Col>
@@ -129,7 +129,7 @@ export const AylikRaporPage: React.FC = () => {
                 value={rapor?.yaklasan_odemeler?.t || 0}
                 precision={2}
                 suffix="TL"
-                valueStyle={{ fontSize: '1.1rem' }}
+                styles={{ content: { fontSize: '1.1rem' } }}
               />
             </Card>
           </Col>
@@ -140,7 +140,7 @@ export const AylikRaporPage: React.FC = () => {
                 value={rapor?.yaklasan_odemeler?.t1 || 0}
                 precision={2}
                 suffix="TL"
-                valueStyle={{ fontSize: '1.1rem' }}
+                styles={{ content: { fontSize: '1.1rem' } }}
               />
             </Card>
           </Col>
@@ -151,7 +151,7 @@ export const AylikRaporPage: React.FC = () => {
                 value={rapor?.yaklasan_odemeler?.t2 || 0}
                 precision={2}
                 suffix="TL"
-                valueStyle={{ fontSize: '1.1rem' }}
+                styles={{ content: { fontSize: '1.1rem' } }}
               />
             </Card>
           </Col>

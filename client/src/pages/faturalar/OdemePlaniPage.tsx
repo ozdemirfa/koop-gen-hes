@@ -161,7 +161,7 @@ export const OdemePlaniPage: React.FC = () => {
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={8}>
           <Card title="Fatura Özeti">
-            <Statistic title="Firma" value={fatura.firmalar?.unvan} valueStyle={{ fontSize: 16 }} />
+            <Statistic title="Firma" value={fatura.firmalar?.unvan} styles={{ content: { fontSize: 16 } }} />
             <Divider style={{ margin: '12px 0' }} />
             <Statistic title="Toplam Tutar" value={fatura.toplam_tutar} prefix="₺" precision={2} />
             <Statistic 
@@ -169,14 +169,14 @@ export const OdemePlaniPage: React.FC = () => {
               value={planToplam} 
               prefix="₺" 
               precision={2} 
-              valueStyle={{ color: planToplam === fatura.toplam_tutar ? '#52c41a' : '#faad14' }} 
+              styles={{ content: { color: planToplam === fatura.toplam_tutar ? '#52c41a' : '#faad14' } }} 
             />
             <Statistic 
               title="Kalan" 
               value={kalan} 
               prefix="₺" 
               precision={2} 
-              valueStyle={{ color: kalan === 0 ? '#52c41a' : '#ff4d4f' }} 
+              styles={{ content: { color: kalan === 0 ? '#52c41a' : '#ff4d4f' } }} 
             />
           </Card>
 

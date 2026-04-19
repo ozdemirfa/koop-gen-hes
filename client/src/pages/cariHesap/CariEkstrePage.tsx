@@ -175,7 +175,7 @@ export const CariEkstrePage: React.FC = () => {
               title="Toplam Borç"
               value={totals.borc}
               precision={2}
-              valueStyle={{ color: '#cf1322', fontSize: '18px' }}
+              styles={{ content: { color: '#cf1322', fontSize: '18px' } }}
               suffix="TL"
             />
           </Card>
@@ -186,7 +186,7 @@ export const CariEkstrePage: React.FC = () => {
               title="Toplam Alacak"
               value={totals.alacak}
               precision={2}
-              valueStyle={{ color: '#3f8600', fontSize: '18px' }}
+              styles={{ content: { color: '#3f8600', fontSize: '18px' } }}
               suffix="TL"
             />
           </Card>
@@ -197,7 +197,7 @@ export const CariEkstrePage: React.FC = () => {
               title="Net Bakiye"
               value={Math.abs(totals.alacak - totals.borc)}
               precision={2}
-              valueStyle={{ color: totals.alacak - totals.borc >= 0 ? '#3f8600' : '#cf1322', fontSize: '18px' }}
+              styles={{ content: { color: totals.alacak - totals.borc >= 0 ? '#3f8600' : '#cf1322', fontSize: '18px' } }}
               suffix={totals.alacak - totals.borc >= 0 ? 'TL (A)' : 'TL (B)'}
             />
           </Card>
@@ -208,7 +208,7 @@ export const CariEkstrePage: React.FC = () => {
               title="Birikmiş Teminat"
               value={teminatData || 0}
               precision={2}
-              valueStyle={{ color: '#1890ff', fontSize: '18px' }}
+              styles={{ content: { color: '#1890ff', fontSize: '18px' } }}
               suffix="TL"
             />
           </Card>

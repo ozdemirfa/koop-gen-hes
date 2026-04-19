@@ -71,7 +71,7 @@ export const UyeBorcRaporPage: React.FC = () => {
               title="Borçlu Üye Sayısı" 
               value={list?.length || 0} 
               prefix={<TeamOutlined />}
-              valueStyle={{ fontSize: '1.2rem' }}
+              styles={{ content: { fontSize: '1.2rem' } }}
             />
           </Card>
         </Col>
@@ -83,7 +83,7 @@ export const UyeBorcRaporPage: React.FC = () => {
               prefix={<DollarOutlined />} 
               suffix="TL"
               precision={2} 
-              valueStyle={{ color: '#cf1322', fontSize: '1.2rem' }}
+              styles={{ content: { color: '#cf1322', fontSize: '1.2rem' } }}
             />
           </Card>
         </Col>

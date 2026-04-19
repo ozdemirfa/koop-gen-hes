@@ -232,22 +232,22 @@ export const Aidatlar: React.FC = () => {
         <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
           <Col xs={24} sm={12} lg={6}>
             <Card className="stat-card">
-              <Statistic title="Toplam Aidat" value={ozet.toplam_aidat} suffix="TL" precision={2} valueStyle={{ fontWeight: 700 }} />
+              <Statistic title="Toplam Aidat" value={ozet.toplam_aidat} suffix="TL" precision={2} styles={{ content: { fontWeight: 700 } }} />
             </Card>
           </Col>
           <Col xs={24} sm={12} lg={6}>
             <Card className="stat-card">
-              <Statistic title="Toplam Tahsilat" value={ozet.toplam_tahsilat} suffix="TL" precision={2} valueStyle={{ color: 'var(--success)', fontWeight: 700 }} />
+              <Statistic title="Toplam Tahsilat" value={ozet.toplam_tahsilat} suffix="TL" precision={2} styles={{ content: { color: 'var(--success)', fontWeight: 700 } }} />
             </Card>
           </Col>
           <Col xs={24} sm={12} lg={6}>
             <Card className="stat-card">
-              <Statistic title="Bekleyen" value={ozet.bekleyen} suffix="TL" precision={2} valueStyle={{ color: 'var(--info)', fontWeight: 700 }} />
+              <Statistic title="Bekleyen" value={ozet.bekleyen} suffix="TL" precision={2} styles={{ content: { color: 'var(--info)', fontWeight: 700 } }} />
             </Card>
           </Col>
           <Col xs={24} sm={12} lg={6}>
             <Card className="stat-card">
-              <Statistic title="Geciken" value={ozet.geciken} suffix="TL" precision={2} valueStyle={{ color: 'var(--error)', fontWeight: 700 }} />
+              <Statistic title="Geciken" value={ozet.geciken} suffix="TL" precision={2} styles={{ content: { color: 'var(--error)', fontWeight: 700 } }} />
             </Card>
           </Col>
         </Row>

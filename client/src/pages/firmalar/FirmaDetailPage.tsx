@@ -196,13 +196,13 @@ export const FirmaDetailPage: React.FC = () => {
           <Card size="small"><Statistic title="Toplam Fatura" value={toplamFatura} prefix="₺" precision={2} groupSeparator="." decimalSeparator="," /></Card>
         </Col>
         <Col span={5}>
-          <Card size="small"><Statistic title="Toplam Ödemeler" value={toplamOdenen} prefix="₺" precision={2} valueStyle={{ color: '#3f8600' }} groupSeparator="." decimalSeparator="," /></Card>
+          <Card size="small"><Statistic title="Toplam Ödemeler" value={toplamOdenen} prefix="₺" precision={2} styles={{ content: { color: '#3f8600' } }} groupSeparator="." decimalSeparator="," /></Card>
         </Col>
         <Col span={5}>
-          <Card size="small"><Statistic title="Birikmiş Teminat" value={birikmisTeminat} prefix="₺" precision={2} valueStyle={{ color: '#1890ff' }} groupSeparator="." decimalSeparator="," /></Card>
+          <Card size="small"><Statistic title="Birikmiş Teminat" value={birikmisTeminat} prefix="₺" precision={2} styles={{ content: { color: '#1890ff' } }} groupSeparator="." decimalSeparator="," /></Card>
         </Col>
         <Col span={4}>
-          <Card size="small"><Statistic title="Fatura Açığı" value={faturaAcigi} prefix="₺" precision={2} valueStyle={{ color: faturaAcigi > 0 ? '#faad14' : 'inherit' }} groupSeparator="." decimalSeparator="," /></Card>
+          <Card size="small"><Statistic title="Fatura Açığı" value={faturaAcigi} prefix="₺" precision={2} styles={{ content: { color: faturaAcigi > 0 ? '#faad14' : 'inherit' } }} groupSeparator="." decimalSeparator="," /></Card>
         </Col>
       </Row>
 

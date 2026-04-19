@@ -254,7 +254,7 @@ export const YillikPlanPage: React.FC = () => {
               title="Planlanan Toplam" 
               value={toplamPlanlanan} 
               prefix="₺" 
-              valueStyle={{ color: '#1890ff' }} 
+              styles={{ content: { color: '#1890ff' } }} 
               formatter={(v) => trNumberFormatter(v as number)}
             />
           </Card>
@@ -265,7 +265,7 @@ export const YillikPlanPage: React.FC = () => {
               title="Gerçekleşen Toplam" 
               value={toplamGerceklesen} 
               prefix="₺" 
-              valueStyle={{ color: '#52c41a' }} 
+              styles={{ content: { color: '#52c41a' } }} 
               formatter={(v) => trNumberFormatter(v as number)}
             />
           </Card>

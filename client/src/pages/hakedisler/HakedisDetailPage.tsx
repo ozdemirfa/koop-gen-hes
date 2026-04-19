@@ -316,7 +316,7 @@ export const HakedisDetailPage: React.FC = () => {
               value={teminatKesintisi}
               suffix="TL"
               precision={2}
-              valueStyle={{ color: '#cf1322' }}
+              styles={{ content: { color: '#cf1322' } }}
             />
           </Card>
         </Col>
@@ -327,7 +327,7 @@ export const HakedisDetailPage: React.FC = () => {
               value={stopajKesintisi}
               suffix="TL"
               precision={2}
-              valueStyle={{ color: '#cf1322' }}
+              styles={{ content: { color: '#cf1322' } }}
             />
           </Card>
         </Col>
@@ -338,7 +338,7 @@ export const HakedisDetailPage: React.FC = () => {
               value={digerKesintiler}
               suffix="TL"
               precision={2}
-              valueStyle={{ color: '#cf1322' }}
+              styles={{ content: { color: '#cf1322' } }}
             />
           </Card>
         </Col>
@@ -349,7 +349,7 @@ export const HakedisDetailPage: React.FC = () => {
               value={netTutar}
               suffix="TL"
               precision={2}
-              valueStyle={{ color: '#3f8600', fontWeight: 'bold' }}
+              styles={{ content: { color: '#3f8600', fontWeight: 'bold' } }}
             />
           </Card>
         </Col>

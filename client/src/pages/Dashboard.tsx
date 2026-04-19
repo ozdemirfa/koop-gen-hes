@@ -77,7 +77,7 @@ export const Dashboard: React.FC = () => {
               title="Aktif Üye Sayısı"
               value={ozet?.aktif_uye_sayisi || 0}
               prefix={<UserOutlined style={{ color: 'var(--primary-color)', marginRight: 8 }} />}
-              valueStyle={{ fontWeight: 700, fontSize: '20px' }}
+              styles={{ content: { fontWeight: 700, fontSize: '20px' } }}
             />
           </Card>
         </Col>
@@ -89,7 +89,7 @@ export const Dashboard: React.FC = () => {
               prefix={<RiseOutlined style={{ color: 'var(--success)', marginRight: 8 }} />}
               suffix="TL"
               precision={2}
-              valueStyle={{ color: 'var(--success)', fontWeight: 700, fontSize: '20px' }}
+              styles={{ content: { color: 'var(--success)', fontWeight: 700, fontSize: '20px' } }}
             />
           </Card>
         </Col>
@@ -101,7 +101,7 @@ export const Dashboard: React.FC = () => {
               prefix={<FallOutlined style={{ color: 'var(--error)', marginRight: 8 }} />}
               suffix="TL"
               precision={2}
-              valueStyle={{ color: 'var(--error)', fontWeight: 700, fontSize: '20px' }}
+              styles={{ content: { color: 'var(--error)', fontWeight: 700, fontSize: '20px' } }}
             />
           </Card>
         </Col>
@@ -113,11 +113,11 @@ export const Dashboard: React.FC = () => {
               prefix={<BankOutlined style={{ color: (ozet?.net_bakiye || 0) >= 0 ? 'var(--info)' : 'var(--error)', marginRight: 8 }} />}
               suffix="TL"
               precision={2}
-              valueStyle={{ 
+              styles={{ content: { 
                 color: (ozet?.net_bakiye || 0) >= 0 ? 'var(--info)' : 'var(--error)',
                 fontWeight: 700,
                 fontSize: '20px'
-              }}
+              } }}
             />
           </Card>
         </Col>
@@ -129,7 +129,7 @@ export const Dashboard: React.FC = () => {
               prefix={<DollarOutlined style={{ color: 'var(--primary-color)', marginRight: 8 }} />}
               suffix="TL"
               precision={2}
-              valueStyle={{ fontWeight: 700, fontSize: '20px' }}
+              styles={{ content: { fontWeight: 700, fontSize: '20px' } }}
             />
           </Card>
         </Col>
@@ -141,7 +141,7 @@ export const Dashboard: React.FC = () => {
               prefix={<WarningOutlined style={{ color: 'var(--warning)', marginRight: 8 }} />}
               suffix="TL"
               precision={2}
-              valueStyle={{ color: 'var(--warning)', fontWeight: 700, fontSize: '20px' }}
+              styles={{ content: { color: 'var(--warning)', fontWeight: 700, fontSize: '20px' } }}
             />
           </Card>
         </Col>
