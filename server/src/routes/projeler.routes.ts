@@ -29,6 +29,6 @@ router.post('/:id/yillik-plan', validate({ body: yillikPlanSchema }), projelerCo
 router.get('/:id/serefiye', projelerController.getSerefiye)
 router.post('/:id/generate-serefiye', projelerController.generateSerefiye)
 router.post('/:id/sync-serefiye', projelerController.syncSerefiye)
-router.post('/:id/reset-serefiye', projelerController.resetSerefiye)
+router.post('/:id/refresh-serefiye', projelerController.resetSerefiye)
 
 export default router

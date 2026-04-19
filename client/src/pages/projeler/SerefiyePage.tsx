@@ -58,7 +58,7 @@ export const SerefiyePage: React.FC = () => {
 
   const resetSerefiyeMutation = useMutation({
     mutationFn: async () => {
-      return await api.post(`/projeler/${projeId}/reset-serefiye`)
+      return await api.post(`/projeler/${projeId}/refresh-serefiye/`)
     },
     onSuccess: () => {
       messageApi.success('Şerefiye tablosu yenilendi')
