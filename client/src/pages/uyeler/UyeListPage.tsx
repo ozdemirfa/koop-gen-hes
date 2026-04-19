@@ -34,21 +34,27 @@ export const UyeListPage: React.FC = () => {
   const debouncedSearch = useDebounce(search, 300)
   const { message: messageApi } = App.useApp()
 
+  const activeProjectId = localStorage.getItem('activeProjectId')
+
   const { data: bloklar } = useQuery({
-    queryKey: ['bloklar'],
+    queryKey: ['bloklar', activeProjectId],
     queryFn: async () => {
-      const { data } = await api.get('/bloklar')
+      const params: Record<string, string> = {}
+      if (activeProjectId) params.proje_id = activeProjectId
+      const { data } = await api.get('/bloklar', { params })
       return data.data as { id: string; blok_adi: string }[]
     },
+    enabled: !!activeProjectId
   })
 
   const { data: uyeData, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['uyeler', debouncedSearch, filterDurum, filterBlok],
+    queryKey: ['uyeler', debouncedSearch, filterDurum, filterBlok, activeProjectId],
     queryFn: async () => {
       const params: Record<string, string> = {}
       if (debouncedSearch) params.search = debouncedSearch
       if (filterDurum) params.durum = filterDurum
       if (filterBlok) params.blok_id = filterBlok
+      if (activeProjectId) params.proje_id = activeProjectId
       const { data } = await api.get('/uyeler', { params })
       return data
     },
