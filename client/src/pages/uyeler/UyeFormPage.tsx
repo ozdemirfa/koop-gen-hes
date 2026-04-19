@@ -193,7 +193,7 @@ export const UyeFormPage: React.FC = () => {
               </Select>
             </Form.Item>
             <Form.Item name="serefiye_orani" label="Şerefiye Oranı" initialValue={1} style={{ flex: 1 }}>
-              <InputNumber min={0} step={0.001} style={{ width: '100%' }} precision={3} />
+              <InputNumber disabled min={0} step={0.001} style={{ width: '100%' }} precision={3} />
             </Form.Item>
             <Form.Item name="durum" label="Durum" initialValue="aktif" style={{ flex: 1 }}>
               <Select>

@@ -334,7 +334,7 @@ export const projeService = {
     // Bu bloktaki boş daireleri şerefiye tablosundan al
     const { data: daireler, error: daireError } = await supabaseAdmin
       .from('serefiye_tablosu')
-      .select('id, daire_no')
+      .select('id, daire_no, serefiye_orani')
       .eq('blok_id', blokId)
       .eq('durum', 'bos')
 
