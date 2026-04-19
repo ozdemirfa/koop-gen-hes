@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Button, Modal, Form, Input, Space, message, Tag, DatePicker, Card, Row, Col, Select, InputNumber, Divider, Typography } from 'antd'
+import { Button, Modal, Form, Input, Space, Tag, DatePicker, Card, Row, Col, Select, InputNumber, Divider, Typography, App } from 'antd'
 import { PlusOutlined, EditOutlined, ArrowRightOutlined, ProjectOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, Link } from 'react-router-dom'
@@ -53,6 +53,7 @@ export const ProjeListPage: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingProje, setEditingProje] = useState<Proje | null>(null)
   const [form] = Form.useForm()
+  const { message } = App.useApp()
 
   const { data: projeler, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['projeler'],
@@ -119,7 +120,7 @@ export const ProjeListPage: React.FC = () => {
       const { data } = await api.get(`/projeler/${proje.id}`)
       const fullProje = data.data as Proje
       setEditingProje(fullProje)
-      form.resetFields() // ÖNCE TEMİZLE
+      form.resetFields() 
       form.setFieldsValue({
         ...fullProje,
         baslangic_tarihi: fullProje.baslangic_tarihi ? dayjs(fullProje.baslangic_tarihi) : null,
@@ -217,7 +218,7 @@ export const ProjeListPage: React.FC = () => {
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
         width={700}
-        destroyOnClose
+        destroyOnHidden
         okText="Kaydet"
         cancelText="İptal"
         styles={{ body: { paddingTop: 8 } }}
