@@ -6,6 +6,7 @@ interface Project {
   id: string
   proje_adi: string
   proje_kodu: string
+  durum: string
 }
 
 interface ProjectContextType {

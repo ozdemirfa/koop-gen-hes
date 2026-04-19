@@ -80,11 +80,13 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({ inline = false
               value={selectedId}
               onChange={setSelectedId}
               optionFilterProp="label"
-              options={projects.map(p => ({
-                value: p.id,
-                label: p.proje_adi,
-                disabled: p.id === activeProject?.id
-              }))}
+              options={projects
+                .filter(p => p.durum !== 'iptal')
+                .map(p => ({
+                  value: p.id,
+                  label: p.proje_adi,
+                  disabled: p.id === activeProject?.id
+                }))}
               suffixIcon={<ProjectOutlined />}
             />
             <Button 
