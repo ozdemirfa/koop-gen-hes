@@ -18,6 +18,12 @@ export const AidatYillikPlanPage: React.FC = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { activeProject } = useProject()
+  const kalemler = Form.useWatch('kalemler', form)
+
+  // Toplam yıllık ödemeyi hesapla
+  const toplamYillikOdeme = React.useMemo(() => {
+    return (kalemler || []).reduce((sum: number, k: any) => sum + (Number(k.katsayi_tutari) || 0), 0)
+  }, [kalemler])
 
   const initialKalemler = Array.from({ length: 12 }, (_, i) => ({
     ay: i + 1,
@@ -95,20 +101,31 @@ export const AidatYillikPlanPage: React.FC = () => {
           onFinish={(v) => createTanimMutation.mutate(v)}
           initialValues={{ yil: dayjs().year(), kalemler: initialKalemler }}
         >
-          <Row gutter={16}>
-            <Col span={8}>
+          <Row gutter={16} align="middle">
+            <Col span={6}>
               <Form.Item name="yil" label="Hangi Yıl İçin Planlanıyor?" rules={[{ required: true }]}>
                  <InputNumber style={{ width: '100%' }} placeholder="Örn: 2026" />
               </Form.Item>
             </Col>
-            <Col span={16}>
-              <div style={{ marginTop: 30, color: '#666' }}>
-                <Text type="secondary">Not: Katsayı tutarı veya gecikme oranı değiştiğinde, sonraki satırlar otomatik güncellenir.</Text>
+            <Col span={6}>
+              <div style={{ padding: '0 8px' }}>
+                <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Yıllık Toplam Ödeme (1 Pay)</Text>
+                <Text strong style={{ fontSize: '20px', color: '#1890ff' }}>
+                  ₺ {trNumberFormatter(toplamYillikOdeme)}
+                </Text>
               </div>
             </Col>
           </Row>
 
-          <div style={{ marginTop: 20 }}>
+          <Row style={{ marginBottom: 20 }}>
+            <Col span={24}>
+              <Text type="secondary" style={{ fontStyle: 'italic', fontSize: '13px' }}>
+                * Katsayı tutarı veya gecikme oranı değiştiğinde, sonraki satırlar otomatik güncellenir.
+              </Text>
+            </Col>
+          </Row>
+
+          <div style={{ marginTop: 10 }}>
             <div style={{ display: 'flex', fontWeight: 'bold', marginBottom: 8, padding: '0 8px' }}>
               <div style={{ width: 130 }}>Ay</div>
               <div style={{ width: 130 }}>Tür</div>

@@ -169,6 +169,11 @@ export const aidatService = {
     if (query.proje_id) q = q.eq('proje_id', query.proje_id)
     if (query.uye_id) q = q.eq('uye_id', query.uye_id)
     if (query.durum) q = q.eq('durum', query.durum)
+    
+    // Daire no araması
+    if (query.daire_no) {
+      q = q.ilike('serefiye_tablosu.daire_no', `%${query.daire_no}%`)
+    }
 
     if (query.yil || query.ay) {
       let tanimQuery = supabaseAdmin.from('aidat_tanimlari').select('id')
@@ -258,16 +263,23 @@ export const aidatService = {
   },
 
   async getSummary(query: Record<string, any>): Promise<AidatSummary> {
-    const { proje_id } = query
-    // Önce gecikme faizlerini güncelle
+    const { proje_id, yil, ay, durum, daire_no } = query
+    
+    // Önce gecikme faizlerini güncelle (proje bazlı)
     const { error: rpcError } = await supabaseAdmin.rpc('hesapla_gecikme_faizi', { p_proje_id: proje_id })
     if (rpcError) logger.error('Gecikme faizi hesaplama hatası (RPC):', rpcError)
 
-    // PostgreSQL üzerinden aggregation yap (In-memory aggregation düzeltmesi)
-    const { data, error } = await supabaseAdmin.rpc('get_aidat_summary', { p_proje_id: proje_id })
+    // PostgreSQL üzerinden filtreli aggregation yap
+    const { data, error } = await supabaseAdmin.rpc('get_aidat_summary_v2', { 
+      p_proje_id: proje_id,
+      p_yil: yil ? parseInt(yil) : null,
+      p_ay: ay ? parseInt(ay) : null,
+      p_durum: durum || null,
+      p_daire_no: daire_no || null
+    })
 
     if (error) {
-      logger.error('Aidat özet çekme hatası (RPC):', error)
+      logger.error('Aidat özet çekme hatası (RPC V2):', error)
       throw error
     }
 

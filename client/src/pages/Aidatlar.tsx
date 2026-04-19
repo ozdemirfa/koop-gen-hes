@@ -48,41 +48,53 @@ export const Aidatlar: React.FC = () => {
   const [filterYil, setFilterYil] = useState<number | undefined>(dayjs().year())
   const [filterAy, setFilterAy] = useState<number | undefined>(undefined)
   const [filterDurum, setFilterDurum] = useState<string | undefined>(undefined)
-  const [filterUyeSearch, setFilterUyeSearch] = useState('')
-  const debouncedUyeSearch = useDebounce(filterUyeSearch, 300)
+  const [filterDaireSearch, setFilterDaireSearch] = useState('')
+  const debouncedDaireSearch = useDebounce(filterDaireSearch, 300)
   
   const [odemeForm] = Form.useForm()
   const queryClient = useQueryClient()
+  const { activeProject } = useProject()
 
   // Aidat tanımları
   const { data: tanimlar, isLoading: tanimLoading } = useQuery({
-    queryKey: ['aidat-tanimlari'],
+    queryKey: ['aidat-tanimlari', activeProject?.id],
     queryFn: async () => {
-      const { data } = await api.get('/aidatlar/tanimlar')
+      const { data } = await api.get('/aidatlar/tanimlar', { params: { proje_id: activeProject?.id } })
       return data.data as AidatTanimi[]
     },
+    enabled: !!activeProject?.id
   })
 
   // Aidatlar listesi (filtreli)
   const { data: aidatData, isLoading: aidatLoading } = useQuery({
-    queryKey: ['aidatlar', filterYil, filterAy, filterDurum, debouncedUyeSearch],
+    queryKey: ['aidatlar', activeProject?.id, filterYil, filterAy, filterDurum, debouncedDaireSearch],
     queryFn: async () => {
       const params: Record<string, string> = {}
+      if (activeProject?.id) params.proje_id = activeProject.id
       if (filterYil) params.yil = String(filterYil)
       if (filterAy) params.ay = String(filterAy)
       if (filterDurum) params.durum = filterDurum
+      if (debouncedDaireSearch) params.daire_no = debouncedDaireSearch
       const { data } = await api.get('/aidatlar', { params })
       return data
     },
+    enabled: !!activeProject?.id
   })
 
-  // Aidat özet
+  // Aidat özet (filtrelere göre)
   const { data: ozet } = useQuery({
-    queryKey: ['aidat-ozet'],
+    queryKey: ['aidat-ozet', activeProject?.id, filterYil, filterAy, filterDurum, debouncedDaireSearch],
     queryFn: async () => {
-      const { data } = await api.get('/aidatlar/ozet')
+      const params: Record<string, string> = {}
+      if (activeProject?.id) params.proje_id = activeProject.id
+      if (filterYil) params.yil = String(filterYil)
+      if (filterAy) params.ay = String(filterAy)
+      if (filterDurum) params.durum = filterDurum
+      if (debouncedDaireSearch) params.daire_no = debouncedDaireSearch
+      const { data } = await api.get('/aidatlar/ozet', { params })
       return data.data
     },
+    enabled: !!activeProject?.id
   })
 
   // Ödeme kaydet
@@ -219,7 +231,7 @@ export const Aidatlar: React.FC = () => {
     >
       Gecikme Faizi Hesapla
     </Button>
-  ), [gecikmeMutation.isPending, gecikmeMutation.mutate])
+  ), [gecikmeMutation.isPending])
 
   usePageSettings({
     title: 'Aidat Yönetimi',
@@ -232,22 +244,50 @@ export const Aidatlar: React.FC = () => {
         <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
           <Col xs={24} sm={12} lg={6}>
             <Card className="stat-card">
-              <Statistic title="Toplam Aidat" value={ozet.toplam_aidat} suffix="TL" precision={2} styles={{ content: { fontWeight: 700 } }} />
+              <Statistic 
+                title="Toplam Aidat" 
+                value={ozet.toplam_aidat} 
+                prefix="₺" 
+                precision={2} 
+                formatter={(v) => trNumberFormatter(v as number)}
+                styles={{ content: { fontWeight: 700 } }} 
+              />
             </Card>
           </Col>
           <Col xs={24} sm={12} lg={6}>
             <Card className="stat-card">
-              <Statistic title="Toplam Tahsilat" value={ozet.toplam_tahsilat} suffix="TL" precision={2} styles={{ content: { color: 'var(--success)', fontWeight: 700 } }} />
+              <Statistic 
+                title="Toplam Tahsilat" 
+                value={ozet.toplam_tahsilat} 
+                prefix="₺" 
+                precision={2} 
+                formatter={(v) => trNumberFormatter(v as number)}
+                styles={{ content: { color: 'var(--success)', fontWeight: 700 } }} 
+              />
             </Card>
           </Col>
           <Col xs={24} sm={12} lg={6}>
             <Card className="stat-card">
-              <Statistic title="Bekleyen" value={ozet.bekleyen} suffix="TL" precision={2} styles={{ content: { color: 'var(--info)', fontWeight: 700 } }} />
+              <Statistic 
+                title="Bekleyen" 
+                value={ozet.bekleyen} 
+                prefix="₺" 
+                precision={2} 
+                formatter={(v) => trNumberFormatter(v as number)}
+                styles={{ content: { color: 'var(--info)', fontWeight: 700 } }} 
+              />
             </Card>
           </Col>
           <Col xs={24} sm={12} lg={6}>
             <Card className="stat-card">
-              <Statistic title="Geciken" value={ozet.geciken} suffix="TL" precision={2} styles={{ content: { color: 'var(--error)', fontWeight: 700 } }} />
+              <Statistic 
+                title="Geciken" 
+                value={ozet.geciken} 
+                prefix="₺" 
+                precision={2} 
+                formatter={(v) => trNumberFormatter(v as number)}
+                styles={{ content: { color: 'var(--error)', fontWeight: 700 } }} 
+              />
             </Card>
           </Col>
         </Row>
@@ -300,10 +340,11 @@ export const Aidatlar: React.FC = () => {
                         <Select.Option value="iptal">İptal</Select.Option>
                       </Select>
                       <Input 
-                        placeholder="Üye Ara..." 
-                        value={filterUyeSearch}
-                        onChange={e => setFilterUyeSearch(e.target.value)}
+                        placeholder="Daire Ara..." 
+                        value={filterDaireSearch}
+                        onChange={e => setFilterDaireSearch(e.target.value)}
                         style={{ width: 200 }}
+                        allowClear
                       />
                     </Space>
                   </div>
