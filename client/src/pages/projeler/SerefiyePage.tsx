@@ -26,7 +26,8 @@ export const SerefiyePage: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingSerefiye, setEditingSerefiye] = useState<Serefiye | null>(null)
   const [form] = Form.useForm()
-  const [messageApi, contextHolder] = message.useMessage()
+  const [messageApi, messageContextHolder] = message.useMessage()
+  const [modal, modalContextHolder] = Modal.useModal()
 
   const { data: proje } = useQuery({
     queryKey: ['proje', projeId],
@@ -80,7 +81,7 @@ export const SerefiyePage: React.FC = () => {
   })
 
   const handleRefresh = () => {
-    Modal.confirm({
+    modal.confirm({
       title: 'Tabloyu Yenile',
       content: 'Bu işlem mevcut TÜM şerefiye kayıtlarını silecek ve blok tanımlarına göre yeniden oluşturacaktır. Manuel girdiğiniz tüm oranlar, kat ve yön bilgileri KAYBOLACAKTIR. Emin misiniz?',
       okText: 'Evet, Yenile',
@@ -167,7 +168,8 @@ export const SerefiyePage: React.FC = () => {
 
   return (
     <div>
-      {contextHolder}
+      {messageContextHolder}
+      {modalContextHolder}
       <Card>
         <Table
           columns={columns}
