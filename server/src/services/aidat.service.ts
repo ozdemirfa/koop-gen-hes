@@ -197,7 +197,7 @@ export const aidatService = {
   async getById(id: string) {
     const { data, error } = await supabaseAdmin
       .from('aidatlar')
-      .select('*, uyeler(uye_no, ad, soyad), aidat_tanimlari(yil, ay, katsayi_tutari), aidat_odemeleri(*)')
+      .select('*, uyeler(uye_no, ad, soyad, serefiye_tablosu(daire_no, bloklar(blok_adi))), aidat_tanimlari(yil, ay, katsayi_tutari), aidat_odemeleri(*)')
       .eq('id', id)
       .single()
 
