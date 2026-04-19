@@ -59,13 +59,33 @@ export const UyeFormPage: React.FC = () => {
       form.setFieldsValue({
         ...uye,
         daire_no: uye.serefiye_tablosu?.daire_no,
-        serefiye_orani: uye.serefiye_tablosu?.serefiye_orani
+        serefiye_orani: uye.serefiye_tablosu?.serefiye_orani,
+        blok_id_virtual: uye.serefiye_tablosu?.blok_id
       })
       if (uye.serefiye_tablosu?.blok_id) {
         setSelectedBlokId(uye.serefiye_tablosu.blok_id)
       }
     }
   }, [uye, form])
+
+  const formatPhoneNumber = (value: string) => {
+    if (!value) return value;
+    const phoneNumber = value.replace(/[^\d]/g, '');
+    const phoneNumberLength = phoneNumber.length;
+    if (phoneNumberLength <= 3) return phoneNumber;
+    if (phoneNumberLength <= 6) {
+      return `${phoneNumber.slice(0, 3)} ${phoneNumber.slice(3)}`;
+    }
+    if (phoneNumberLength <= 8) {
+      return `${phoneNumber.slice(0, 3)} ${phoneNumber.slice(3, 6)} ${phoneNumber.slice(6)}`;
+    }
+    return `${phoneNumber.slice(0, 3)} ${phoneNumber.slice(3, 6)} ${phoneNumber.slice(6, 8)} ${phoneNumber.slice(8, 10)}`;
+  }
+
+  const onPhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneNumber(e.target.value);
+    form.setFieldsValue({ telefon: formatted });
+  }
 
   const setServerErrors = (err: any) => {
     if (err.details && Array.isArray(err.details)) {
@@ -151,72 +171,95 @@ export const UyeFormPage: React.FC = () => {
               name="telefon"
               label="Telefon"
               rules={[
-                { pattern: /^[0-9 +()-]{10,20}$/, message: 'Geçerli bir telefon girin' },
+                { pattern: /^[0-9 ]{13}$/, message: 'Telefon 10 haneli olmalı (örn: 5xx xxx xx xx)' },
               ]}
               style={{ flex: 1 }}
             >
-              <Input placeholder="05xx xxx xx xx" />
+              <Input placeholder="5xx xxx xx xx" onChange={onPhoneChange} maxLength={13} />
             </Form.Item>
             <Form.Item name="email" label="E-posta" rules={[{ type: 'email', message: 'Geçerli bir e-posta girin' }]} style={{ flex: 1 }}>
               <Input />
             </Form.Item>
           </div>
 
-          <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item name="blok_id_virtual" label="Blok" style={{ flex: 1 }}>
-              <Select 
-                allowClear 
-                placeholder="Blok seçin" 
-                value={selectedBlokId}
-                onChange={(val) => {
-                  setSelectedBlokId(val)
-                  form.setFieldsValue({ serefiye_id: undefined, daire_no: undefined, serefiye_orani: undefined })
-                }}
-              >
-                {aktifProje?.bloklar?.map((b: any) => (
-                  <Select.Option key={b.id} value={b.id}>{b.blok_adi}</Select.Option>
-                ))}
-              </Select>
-            </Form.Item>
-            <Form.Item name="serefiye_id" label="Daire No" style={{ flex: 1 }} rules={[{ required: true, message: 'Daire no seçilmeli' }]}>
-              <Select 
-                placeholder="Önce blok seçin" 
-                loading={daireLoading}
-                disabled={!selectedBlokId}
-                onChange={handleDaireChange}
-              >
-                {/* Mevcut daire (Eğer listede yoksa - zaten dolu olduğu için listeye girmeyebilir) */}
-                {isEditing && form.getFieldValue('serefiye_id') && !musaitDaireler?.find(d => d.id === form.getFieldValue('serefiye_id')) && (
-                  <Select.Option value={form.getFieldValue('serefiye_id')}>{form.getFieldValue('daire_no')}</Select.Option>
-                )}
-                {musaitDaireler?.map((d) => (
-                  <Select.Option key={d.id} value={d.id}>{d.daire_no}</Select.Option>
-                ))}
-              </Select>
-            </Form.Item>
-            {/* Gizli alan: daire_no */}
-            <Form.Item name="daire_no" hidden><Input /></Form.Item>
-          </div>
+          {isEditing && (
+            <>
+              <div style={{ display: 'flex', gap: 16 }}>
+                <Form.Item name="blok_id_virtual" label="Blok" style={{ flex: 1 }}>
+                  <Select 
+                    allowClear 
+                    placeholder="Blok seçin" 
+                    value={selectedBlokId}
+                    onChange={(val) => {
+                      setSelectedBlokId(val)
+                      form.setFieldsValue({ serefiye_id: undefined, daire_no: undefined, serefiye_orani: undefined })
+                    }}
+                  >
+                    {aktifProje?.bloklar?.map((b: any) => (
+                      <Select.Option key={b.id} value={b.id}>{b.blok_adi}</Select.Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+                <Form.Item name="serefiye_id" label="Daire No" style={{ flex: 1 }} rules={[{ required: true, message: 'Daire no seçilmeli' }]}>
+                  <Select 
+                    placeholder="Önce blok seçin" 
+                    loading={daireLoading}
+                    disabled={!selectedBlokId}
+                    onChange={handleDaireChange}
+                  >
+                    {/* Mevcut daire (Eğer listede yoksa - zaten dolu olduğu için listeye girmeyebilir) */}
+                    {isEditing && form.getFieldValue('serefiye_id') && !musaitDaireler?.find(d => d.id === form.getFieldValue('serefiye_id')) && (
+                      <Select.Option value={form.getFieldValue('serefiye_id')}>{form.getFieldValue('daire_no')}</Select.Option>
+                    )}
+                    {musaitDaireler?.map((d) => (
+                      <Select.Option key={d.id} value={d.id}>{d.daire_no}</Select.Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+                {/* Gizli alan: daire_no */}
+                <Form.Item name="daire_no" hidden><Input /></Form.Item>
+              </div>
 
-          <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item name="cinsiyet" label="Cinsiyet" style={{ flex: 1 }}>
-              <Select allowClear placeholder="Cinsiyet seçin">
-                <Select.Option value="erkek">Erkek</Select.Option>
-                <Select.Option value="kadin">Kadın</Select.Option>
-              </Select>
-            </Form.Item>
-            <Form.Item name="serefiye_orani" label="Şerefiye Oranı" initialValue={1} style={{ flex: 1 }}>
-              <InputNumber disabled min={0} step={0.001} style={{ width: '100%' }} precision={3} />
-            </Form.Item>
-            <Form.Item name="durum" label="Durum" initialValue="aktif" style={{ flex: 1 }}>
-              <Select>
-                <Select.Option value="aktif">Aktif</Select.Option>
-                <Select.Option value="pasif">Pasif</Select.Option>
-                <Select.Option value="ihrac">İhraç</Select.Option>
-                <Select.Option value="istifa">İstifa</Select.Option>
-              </Select>
-            </Form.Item>
-          </div>
+              <div style={{ display: 'flex', gap: 16 }}>
+                <Form.Item name="cinsiyet" label="Cinsiyet" style={{ flex: 1 }}>
+                  <Select allowClear placeholder="Cinsiyet seçin">
+                    <Select.Option value="erkek">Erkek</Select.Option>
+                    <Select.Option value="kadin">Kadın</Select.Option>
+                  </Select>
+                </Form.Item>
+                <Form.Item name="serefiye_orani" label="Şerefiye Oranı" initialValue={1} style={{ flex: 1 }}>
+                  <InputNumber disabled min={0} step={0.001} style={{ width: '100%' }} precision={3} />
+                </Form.Item>
+                <Form.Item name="durum" label="Durum" initialValue="aktif" style={{ flex: 1 }}>
+                  <Select>
+                    <Select.Option value="aktif">Aktif</Select.Option>
+                    <Select.Option value="pasif">Pasif</Select.Option>
+                    <Select.Option value="ihrac">İhraç</Select.Option>
+                    <Select.Option value="istifa">İstifa</Select.Option>
+                  </Select>
+                </Form.Item>
+              </div>
+            </>
+          )}
+
+          {!isEditing && (
+            <div style={{ display: 'flex', gap: 16 }}>
+              <Form.Item name="cinsiyet" label="Cinsiyet" style={{ flex: 1 }}>
+                <Select allowClear placeholder="Cinsiyet seçin">
+                  <Select.Option value="erkek">Erkek</Select.Option>
+                  <Select.Option value="kadin">Kadın</Select.Option>
+                </Select>
+              </Form.Item>
+              <Form.Item name="durum" label="Durum" initialValue="aktif" style={{ flex: 1 }}>
+                <Select>
+                  <Select.Option value="aktif">Aktif</Select.Option>
+                  <Select.Option value="pasif">Pasif</Select.Option>
+                  <Select.Option value="ihrac">İhraç</Select.Option>
+                  <Select.Option value="istifa">İstifa</Select.Option>
+                </Select>
+              </Form.Item>
+            </div>
+          )}
 
           <Form.Item name="adres" label="Adres">
             <Input.TextArea rows={2} />

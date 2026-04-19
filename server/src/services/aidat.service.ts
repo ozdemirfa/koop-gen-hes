@@ -184,7 +184,7 @@ export const aidatService = {
     }
 
     const { data, error, count } = await q
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: true })
       .range(from, to)
 
     if (error) {

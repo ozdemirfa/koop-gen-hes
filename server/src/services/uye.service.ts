@@ -175,7 +175,7 @@ export const uyeService = {
     if (query.proje_id) q = q.eq('proje_id', query.proje_id)
     if (query.yil) q = q.eq('aidat_tanimlari.yil', query.yil)
 
-    const { data, error } = await q.order('created_at', { ascending: false })
+    const { data, error } = await q.order('created_at', { ascending: true })
     if (error) {
       logger.error(`Üye aidatları çekme hatası (UyeID: ${uyeId}):`, error)
       throw error
