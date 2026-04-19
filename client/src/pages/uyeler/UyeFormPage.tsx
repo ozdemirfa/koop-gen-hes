@@ -48,9 +48,16 @@ export const UyeFormPage: React.FC = () => {
     queryKey: ['uye', id],
     queryFn: async () => {
       const { data } = await api.get(`/uyeler/${id}`)
-      form.setFieldsValue(data.data)
-      if (data.data.blok_id) setSelectedBlokId(data.data.blok_id)
-      return data.data
+      const uye = data.data
+      form.setFieldsValue({
+        ...uye,
+        daire_no: uye.serefiye_tablosu?.daire_no,
+        serefiye_orani: uye.serefiye_tablosu?.serefiye_orani
+      })
+      if (uye.serefiye_tablosu?.blok_id) {
+        setSelectedBlokId(uye.serefiye_tablosu.blok_id)
+      }
+      return uye
     },
     enabled: isEditing,
   })
@@ -151,13 +158,14 @@ export const UyeFormPage: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item name="blok_id" label="Blok" style={{ flex: 1 }}>
+            <Form.Item name="blok_id_virtual" label="Blok" style={{ flex: 1 }}>
               <Select 
                 allowClear 
                 placeholder="Blok seçin" 
+                value={selectedBlokId}
                 onChange={(val) => {
                   setSelectedBlokId(val)
-                  form.setFieldsValue({ serefiye_id: undefined, daire_no: undefined })
+                  form.setFieldsValue({ serefiye_id: undefined, daire_no: undefined, serefiye_orani: undefined })
                 }}
               >
                 {aktifProje?.bloklar?.map((b: any) => (
@@ -172,7 +180,7 @@ export const UyeFormPage: React.FC = () => {
                 disabled={!selectedBlokId}
                 onChange={handleDaireChange}
               >
-                {/* Mevcut daire */}
+                {/* Mevcut daire (Eğer listede yoksa - zaten dolu olduğu için listeye girmeyebilir) */}
                 {isEditing && form.getFieldValue('serefiye_id') && !musaitDaireler?.find(d => d.id === form.getFieldValue('serefiye_id')) && (
                   <Select.Option value={form.getFieldValue('serefiye_id')}>{form.getFieldValue('daire_no')}</Select.Option>
                 )}
@@ -181,7 +189,7 @@ export const UyeFormPage: React.FC = () => {
                 ))}
               </Select>
             </Form.Item>
-            {/* Gizli alan: daire_no (Backend'e daire no string olarak da lazım olabilir) */}
+            {/* Gizli alan: daire_no */}
             <Form.Item name="daire_no" hidden><Input /></Form.Item>
           </div>
 

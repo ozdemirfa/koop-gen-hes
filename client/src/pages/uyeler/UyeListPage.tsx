@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Button, Input, Select, Space, Tag, message } from 'antd'
+import { Button, Input, Select, Space, Tag, message, App } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, EditOutlined, SearchOutlined, EyeOutlined } from '@ant-design/icons'
@@ -17,10 +17,12 @@ interface Uye {
   ad: string
   soyad: string
   telefon?: string
-  blok_id?: string
-  daire_no?: string
+  serefiye_id?: string
   durum: string
-  bloklar?: { blok_adi: string }
+  serefiye_tablosu?: {
+    daire_no: string
+    bloklar?: { blok_adi: string }
+  }
 }
 
 export const UyeListPage: React.FC = () => {
@@ -30,6 +32,7 @@ export const UyeListPage: React.FC = () => {
   const [filterDurum, setFilterDurum] = useState<string | undefined>(undefined)
   const [filterBlok, setFilterBlok] = useState<string | undefined>(undefined)
   const debouncedSearch = useDebounce(search, 300)
+  const { message: messageApi } = App.useApp()
 
   const { data: bloklar } = useQuery({
     queryKey: ['bloklar'],
@@ -56,10 +59,10 @@ export const UyeListPage: React.FC = () => {
       await api.delete(`/uyeler/${id}`)
     },
     onSuccess: () => {
-      message.success('Üye pasif yapıldı')
+      messageApi.success('Üye pasif yapıldı')
       queryClient.invalidateQueries({ queryKey: ['uyeler'] })
     },
-    onError: (err: any) => message.error(err.message || 'Hata oluştu'),
+    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu'),
   })
 
   const actions = React.useMemo(() => (
@@ -124,8 +127,9 @@ export const UyeListPage: React.FC = () => {
       title: 'Blok / Daire',
       key: 'blok_daire',
       render: (_: unknown, r: Uye) => {
-        const blok = r.bloklar?.blok_adi || '-'
-        return `${blok} / ${r.daire_no || '-'}`
+        const blok = r.serefiye_tablosu?.bloklar?.blok_adi || '-'
+        const daire = r.serefiye_tablosu?.daire_no || '-'
+        return `${blok} / ${daire}`
       },
     },
     { title: 'Telefon', dataIndex: 'telefon', key: 'telefon' },

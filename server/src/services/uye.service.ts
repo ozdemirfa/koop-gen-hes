@@ -12,14 +12,17 @@ export const uyeService = {
 
     let q = supabaseAdmin
       .from('uyeler')
-      .select('*, bloklar(blok_adi)', { count: 'exact' })
+      .select('*, serefiye_tablosu(*, bloklar(blok_adi))', { count: 'exact' })
 
     const activeProjeId = query.proje_id || query.activeProjectId
     if (activeProjeId && activeProjeId !== 'null' && activeProjeId !== 'undefined') {
       q = q.eq('proje_id', activeProjeId)
     }
     if (query.durum) q = q.eq('durum', query.durum)
-    if (query.blok_id) q = q.eq('blok_id', query.blok_id)
+    
+    // Blok bazlı filtreleme artık serefiye_tablosu üzerinden yapılacak
+    if (query.blok_id) q = q.eq('serefiye_tablosu.blok_id', query.blok_id)
+    
     if (query.search) {
       q = q.or(`ad.ilike.%${query.search}%,soyad.ilike.%${query.search}%,uye_no.ilike.%${query.search}%`)
     }
@@ -39,7 +42,7 @@ export const uyeService = {
   async getById(id: string) {
     const { data, error } = await supabaseAdmin
       .from('uyeler')
-      .select('*, bloklar(blok_adi)')
+      .select('*, serefiye_tablosu(*, bloklar(blok_adi))')
       .eq('id', id)
       .single()
 
@@ -54,14 +57,18 @@ export const uyeService = {
     // Proje ID'sini gövdeden al ve doğrula
     const createData = { ...body }
     if (!createData.proje_id) {
-      // Eğer body'de yoksa, aktif proje ID'sini kullanmayı deneyebiliriz veya hata döneriz
       throw ApiError.badRequest('proje_id zorunludur')
     }
+
+    // Gereksiz alanları temizle (veritabanından silinecek alanlar)
+    delete createData.blok_id
+    delete createData.daire_no
+    delete createData.serefiye_orani
 
     const { data, error } = await supabaseAdmin
       .from('uyeler')
       .insert([createData])
-      .select('*, bloklar(blok_adi)')
+      .select('*, serefiye_tablosu(*, bloklar(blok_adi))')
       .single()
 
     if (error) {
@@ -85,6 +92,13 @@ export const uyeService = {
   },
 
   async update(id: string, body: Record<string, any>) {
+    // Gereksiz alanları temizle
+    const updateData = { ...body }
+    delete updateData.blok_id
+    delete updateData.daire_no
+    delete updateData.serefiye_orani
+    delete updateData.proje_id // Proje ID değiştirilemez
+
     // Mevcut üyeyi al (önceki serefiye_id'yi kontrol etmek için)
     const { data: oldUye } = await supabaseAdmin
       .from('uyeler')
@@ -94,9 +108,9 @@ export const uyeService = {
 
     const { data, error } = await supabaseAdmin
       .from('uyeler')
-      .update(body)
+      .update(updateData)
       .eq('id', id)
-      .select('*, bloklar(blok_adi)')
+      .select('*, serefiye_tablosu(*, bloklar(blok_adi))')
       .single()
 
     if (error) {

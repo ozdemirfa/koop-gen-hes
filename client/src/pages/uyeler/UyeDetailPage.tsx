@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Card, Descriptions, Tabs, Tag, Row, Col, Statistic, Button, Modal, Form, Input, InputNumber, DatePicker, message, Space, Typography, Select } from 'antd'
+import { Card, Descriptions, Tabs, Tag, Row, Col, Statistic, Button, Modal, Form, Input, InputNumber, DatePicker, message, Space, Typography, Select, App } from 'antd'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { DollarOutlined, HistoryOutlined, UserOutlined, PlusOutlined } from '@ant-design/icons'
@@ -23,23 +23,13 @@ interface AidatOdeme {
   durum: string
 }
 
-interface OdemeKaydi {
-  id: string
-  tutar: number
-  odeme_tarihi: string
-  odeme_yontemi: string
-  makbuz_no?: string
-  aciklama?: string
-  aidat_id: string
-  aidatlar?: { aidat_tanimlari: { yil: number; ay: number } }
-}
-
 export const UyeDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [odemeModalOpen, setOdemeModalOpen] = useState(false)
   const [form] = Form.useForm()
+  const { message: messageApi } = App.useApp()
 
   // Üye detaylarını getir
   const { data: uye, isLoading: uyeLoading } = useQuery({
@@ -59,14 +49,10 @@ export const UyeDetailPage: React.FC = () => {
     },
   })
 
-  // Tüm ödemeleri getir (aidat_odemeleri tablosundan)
+  // Tüm ödemeleri getir
   const { data: odemeler, isLoading: odemeLoading } = useQuery({
     queryKey: ['uye-odemeler', id],
     queryFn: async () => {
-      // Not: Backend'de /uyeler/:id/odemeler endpoint'i varsayıyoruz veya genel listeyi filtreliyoruz
-      // Şimdilik aidatlar üzerinden gelen ödemeleri birleştirebiliriz veya yeni endpoint'i kullanabiliriz
-      // Önceki adımda toplu ödeme için backend hazırladık ama liste endpoint'i eksik kalmış olabilir.
-      // Şimdilik aidatlar listesinin içindeki aidat_odemeleri'ni düzleştirip gösterelim.
       const allPayments: any[] = []
       const { data } = await api.get(`/aidatlar`, { params: { uye_id: id, limit: 1000 } })
       const list = data.data as any[]
@@ -94,14 +80,14 @@ export const UyeDetailPage: React.FC = () => {
       return await api.post(`/uyeler/${id}/toplu-odeme`, payload)
     },
     onSuccess: (res) => {
-      message.success(`Ödeme alındı. ${res.data.kapatilan_kalemler.length} adet aidat kalemi işlendi.`)
+      messageApi.success(`Ödeme alındı. ${res.data.kapatilan_kalemler.length} adet aidat kalemi işlendi.`)
       queryClient.invalidateQueries({ queryKey: ['uye', id] })
       queryClient.invalidateQueries({ queryKey: ['uye-aidatlar', id] })
       queryClient.invalidateQueries({ queryKey: ['uye-odemeler', id] })
       setOdemeModalOpen(false)
       form.resetFields()
     },
-    onError: (err: any) => message.error(err.error || err.message || 'Hata oluştu')
+    onError: (err: any) => messageApi.error(err.error || err.message || 'Hata oluştu')
   })
 
   const durumRenk: Record<string, string> = {
@@ -177,11 +163,14 @@ export const UyeDetailPage: React.FC = () => {
   const toplamOdenen = aidatlar?.reduce((sum, a) => sum + Number(a.odenen_tutar || 0), 0) || 0
   const kalanBakiye = toplamBorc - toplamOdenen
 
+  const blokAdi = uye?.serefiye_tablosu?.bloklar?.blok_adi || '-'
+  const daireNo = uye?.serefiye_tablosu?.daire_no || '-'
+
   return (
     <div>
       <PageHeader 
         title={uye ? `${uye.ad} ${uye.soyad}` : "Üye Detayı"} 
-        subtitle={uye ? `Üye No: ${uye.uye_no} | ${uye.bloklar?.blok_adi || '-'} Blok / Daire ${uye.daire_no || '-'}` : ""}
+        subtitle={uye ? `Üye No: ${uye.uye_no} | ${blokAdi} Blok / Daire ${daireNo}` : ""}
         onBack={() => navigate('/uyeler')}
         extra={
           <Button type="primary" size="large" icon={<PlusOutlined />} onClick={() => setOdemeModalOpen(true)}>
@@ -287,9 +276,11 @@ export const UyeDetailPage: React.FC = () => {
                         <Tag color={durumRenk[uye.durum]}>{uye.durum.toUpperCase()}</Tag>
                       </Descriptions.Item>
                       <Descriptions.Item label="Blok / Daire">
-                        {uye.bloklar?.blok_adi || '-'} / {uye.daire_no || '-'}
+                        {blokAdi} / {daireNo}
                       </Descriptions.Item>
-                      <Descriptions.Item label="Hisse Oranı">{uye.hisse_orani}</Descriptions.Item>
+                      <Descriptions.Item label="Şerefiye Oranı">
+                        {uye.serefiye_tablosu?.serefiye_orani || '-'}
+                      </Descriptions.Item>
                       <Descriptions.Item label="Üyelik Tarihi">
                         {uye.uyelik_tarihi ? dayjs(uye.uyelik_tarihi).format('DD.MM.YYYY') : '-'}
                       </Descriptions.Item>
@@ -344,4 +335,3 @@ export const UyeDetailPage: React.FC = () => {
     </div>
   )
 }
-
