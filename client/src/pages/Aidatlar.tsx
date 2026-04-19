@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Table, Button, Modal, Form, InputNumber, Select, message, Card, Typography, Tag, Space, DatePicker, Input, Tabs, Row, Col, Statistic } from 'antd'
+import { Table, Button, Modal, Form, InputNumber, Select, message, Card, Typography, Tag, Space, DatePicker, Input, Tabs, Row, Col, Statistic, App } from 'antd'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, DollarOutlined, CalculatorOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
@@ -7,7 +7,7 @@ import api from '../lib/api'
 import dayjs from 'dayjs'
 import { PageHeader } from '../components/common/PageHeader'
 import { MoneyDisplay } from '../components/common/MoneyDisplay'
-import { useDebounce } from '../hooks/useDebounce'
+import { trNumberFormatter } from '../lib/format'
 import { usePageSettings } from '../contexts/LayoutContext'
 import { useProject } from '../contexts/ProjectContext'
 
@@ -34,7 +34,7 @@ interface Aidat {
   durum: string
   son_odeme_tarihi: string
   uyeler?: { uye_no: string; ad: string; soyad: string }
-  aidat_tanimlari?: { yil: number; ay: number }
+  aidat_tanimlari?: { yil: number; ay: number; tur: string }
   serefiye_tablosu?: { daire_no: string; bloklar: { blok_adi: string } }
 }
 
@@ -49,12 +49,22 @@ export const Aidatlar: React.FC = () => {
   const [filterYil, setFilterYil] = useState<number | undefined>(dayjs().year())
   const [filterAy, setFilterAy] = useState<number | undefined>(undefined)
   const [filterDurum, setFilterDurum] = useState<string | undefined>(undefined)
-  const [filterDaireSearch, setFilterDaireSearch] = useState('')
-  const debouncedDaireSearch = useDebounce(filterDaireSearch, 300)
+  const [filterBlokId, setFilterBlokId] = useState<string | undefined>(undefined)
   
   const [odemeForm] = Form.useForm()
   const queryClient = useQueryClient()
   const { activeProject } = useProject()
+  const { message: messageApi } = App.useApp()
+
+  // Bloklar (Aktif proje için)
+  const { data: bloklar } = useQuery({
+    queryKey: ['bloklar', activeProject?.id],
+    queryFn: async () => {
+      const { data } = await api.get('/bloklar', { params: { proje_id: activeProject?.id } })
+      return data.data as { id: string; blok_adi: string }[]
+    },
+    enabled: !!activeProject?.id
+  })
 
   // Aidat tanımları
   const { data: tanimlar, isLoading: tanimLoading } = useQuery({
@@ -68,14 +78,14 @@ export const Aidatlar: React.FC = () => {
 
   // Aidatlar listesi (filtreli)
   const { data: aidatData, isLoading: aidatLoading } = useQuery({
-    queryKey: ['aidatlar', activeProject?.id, filterYil, filterAy, filterDurum, debouncedDaireSearch],
+    queryKey: ['aidatlar', activeProject?.id, filterYil, filterAy, filterDurum, filterBlokId],
     queryFn: async () => {
       const params: Record<string, string> = {}
       if (activeProject?.id) params.proje_id = activeProject.id
       if (filterYil) params.yil = String(filterYil)
       if (filterAy) params.ay = String(filterAy)
       if (filterDurum) params.durum = filterDurum
-      if (debouncedDaireSearch) params.daire_no = debouncedDaireSearch
+      if (filterBlokId) params.blok_id = filterBlokId
       const { data } = await api.get('/aidatlar', { params })
       return data
     },
@@ -84,14 +94,14 @@ export const Aidatlar: React.FC = () => {
 
   // Aidat özet (filtrelere göre)
   const { data: ozet } = useQuery({
-    queryKey: ['aidat-ozet', activeProject?.id, filterYil, filterAy, filterDurum, debouncedDaireSearch],
+    queryKey: ['aidat-ozet', activeProject?.id, filterYil, filterAy, filterDurum, filterBlokId],
     queryFn: async () => {
       const params: Record<string, string> = {}
       if (activeProject?.id) params.proje_id = activeProject.id
       if (filterYil) params.yil = String(filterYil)
       if (filterAy) params.ay = String(filterAy)
       if (filterDurum) params.durum = filterDurum
-      if (debouncedDaireSearch) params.daire_no = debouncedDaireSearch
+      if (filterBlokId) params.blok_id = filterBlokId
       const { data } = await api.get('/aidatlar/ozet', { params })
       return data.data
     },
@@ -108,13 +118,13 @@ export const Aidatlar: React.FC = () => {
       return data
     },
     onSuccess: () => {
-      message.success('Ödeme kaydedildi')
+      messageApi.success('Ödeme kaydedildi')
       queryClient.invalidateQueries({ queryKey: ['aidatlar'] })
       queryClient.invalidateQueries({ queryKey: ['aidat-ozet'] })
       setOdemeModalOpen(false)
       odemeForm.resetFields()
     },
-    onError: (err: any) => message.error(err.message || 'Hata oluştu'),
+    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu'),
   })
 
   // Gecikme faizi hesapla
@@ -124,7 +134,7 @@ export const Aidatlar: React.FC = () => {
       return data
     },
     onSuccess: () => {
-      message.success('Gecikme faizleri hesaplandı')
+      messageApi.success('Gecikme faizleri hesaplandı')
       queryClient.invalidateQueries({ queryKey: ['aidatlar'] })
       queryClient.invalidateQueries({ queryKey: ['aidat-ozet'] })
     },
@@ -164,6 +174,14 @@ export const Aidatlar: React.FC = () => {
         r.aidat_tanimlari ? `${aylar[r.aidat_tanimlari.ay - 1]} ${r.aidat_tanimlari.yil}` : '-',
     },
     {
+      title: 'Tür',
+      key: 'tur',
+      render: (_: unknown, r: Aidat) => {
+        const tur = r.aidat_tanimlari?.tur || 'normal'
+        return <Tag color={tur === 'normal' ? 'blue' : 'purple'}>{tur === 'normal' ? 'Normal' : 'Ara Ödeme'}</Tag>
+      }
+    },
+    {
       title: 'Tutar',
       dataIndex: 'tutar',
       key: 'tutar',
@@ -176,10 +194,10 @@ export const Aidatlar: React.FC = () => {
       render: (v: number) => v > 0 ? <MoneyDisplay amount={v} colored /> : '-',
     },
     {
-      title: 'Ödenen',
-      dataIndex: 'odenen_tutar',
-      key: 'odenen_tutar',
-      render: (v: number) => v > 0 ? <MoneyDisplay amount={v} colored /> : '-',
+      title: 'Toplam Borç',
+      dataIndex: 'toplam_tutar',
+      key: 'toplam_tutar',
+      render: (v: number) => <MoneyDisplay amount={v} />,
     },
     {
       title: 'Durum',
@@ -340,13 +358,17 @@ export const Aidatlar: React.FC = () => {
                         <Select.Option value="gecikti">Gecikti</Select.Option>
                         <Select.Option value="iptal">İptal</Select.Option>
                       </Select>
-                      <Input 
-                        placeholder="Daire Ara..." 
-                        value={filterDaireSearch}
-                        onChange={e => setFilterDaireSearch(e.target.value)}
-                        style={{ width: 200 }}
+                      <Select
+                        placeholder="Blok Seçin"
+                        value={filterBlokId}
+                        onChange={setFilterBlokId}
                         allowClear
-                      />
+                        style={{ width: 150 }}
+                      >
+                        {bloklar?.map(b => (
+                          <Select.Option key={b.id} value={b.id}>{b.blok_adi}</Select.Option>
+                        ))}
+                      </Select>
                     </Space>
                   </div>
                   <Table 
