@@ -35,6 +35,18 @@ export const aidatTanimiService = {
     if (query?.proje_id) {
       q = q.eq('proje_id', query.proje_id)
     }
+    
+    if (query?.yil) {
+      q = q.eq('yil', parseInt(query.yil))
+    }
+    
+    if (query?.ay) {
+      q = q.eq('ay', parseInt(query.ay))
+    }
+    
+    if (query?.tur) {
+      q = q.eq('tur', query.tur)
+    }
 
     const { data, error } = await q
 
