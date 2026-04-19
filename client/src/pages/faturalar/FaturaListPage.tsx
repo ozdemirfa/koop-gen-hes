@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Button, Select, Space, Tag, Modal, Form, Input, InputNumber, DatePicker, message, Row, Col, Divider, Typography } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -53,51 +53,53 @@ export const FaturaListPage: React.FC = () => {
   const [editingFatura, setEditingFatura] = useState<Fatura | null>(null)
   const [form] = Form.useForm()
 
+  const actions = useMemo(() => (
+    <Space>
+      <Select 
+        size="small" 
+        placeholder="Tip" 
+        value={filterTip} 
+        onChange={setFilterTip} 
+        allowClear 
+        style={{ width: 110 }}
+      >
+        <Select.Option value="gelen">Gelen</Select.Option>
+        <Select.Option value="giden">Giden</Select.Option>
+      </Select>
+      <Select 
+        size="small" 
+        placeholder="Durum" 
+        value={filterDurum} 
+        onChange={setFilterDurum} 
+        allowClear 
+        style={{ width: 130 }}
+      >
+        <Select.Option value="bekliyor">Bekliyor</Select.Option>
+        <Select.Option value="odendi">Ödendi</Select.Option>
+        <Select.Option value="kismi_odendi">Kısmi Ödendi</Select.Option>
+        <Select.Option value="iptal">İptal</Select.Option>
+      </Select>
+      <Button 
+        size="small" 
+        type="primary" 
+        icon={<PlusOutlined />} 
+        onClick={() => { 
+          setEditingFatura(null); 
+          form.resetFields(); 
+          form.setFieldsValue({ 
+            kalemler: [{ kalem_adi: '', birim: 'Adet', miktar: 1, birim_fiyat: 0, kdv_orani: 20 }] 
+          }); 
+          setModalOpen(true) 
+        }}
+      >
+        Yeni Fatura
+      </Button>
+    </Space>
+  ), [filterTip, filterDurum, form])
+
   usePageSettings({
     title: 'Fatura Yönetimi',
-    actions: (
-      <Space>
-        <Select 
-          size="small" 
-          placeholder="Tip" 
-          value={filterTip} 
-          onChange={setFilterTip} 
-          allowClear 
-          style={{ width: 110 }}
-        >
-          <Select.Option value="gelen">Gelen</Select.Option>
-          <Select.Option value="giden">Giden</Select.Option>
-        </Select>
-        <Select 
-          size="small" 
-          placeholder="Durum" 
-          value={filterDurum} 
-          onChange={setFilterDurum} 
-          allowClear 
-          style={{ width: 130 }}
-        >
-          <Select.Option value="bekliyor">Bekliyor</Select.Option>
-          <Select.Option value="odendi">Ödendi</Select.Option>
-          <Select.Option value="kismi_odendi">Kısmi Ödendi</Select.Option>
-          <Select.Option value="iptal">İptal</Select.Option>
-        </Select>
-        <Button 
-          size="small" 
-          type="primary" 
-          icon={<PlusOutlined />} 
-          onClick={() => { 
-            setEditingFatura(null); 
-            form.resetFields(); 
-            form.setFieldsValue({ 
-              kalemler: [{ kalem_adi: '', birim: 'Adet', miktar: 1, birim_fiyat: 0, kdv_orani: 20 }] 
-            }); 
-            setModalOpen(true) 
-          }}
-        >
-          Yeni Fatura
-        </Button>
-      </Space>
-    )
+    actions
   })
 
   const { data: firmalar } = useQuery({
@@ -271,15 +273,13 @@ export const FaturaListPage: React.FC = () => {
         okText="Kaydet"
         cancelText="İptal"
       >
-        <Form 
-          form={form} 
-          layout="vertical" 
-          onFinish={(v) => saveMutation.mutate(v)} 
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={(v) => saveMutation.mutate(v)}
           onValuesChange={calculateTotals}
           style={{ marginTop: 8 }}
-          requiredMark={false}
-        >
-          <Row gutter={16}>
+        >          <Row gutter={16}>
             <Col span={10}>
               <Form.Item name="firma_id" label="Firma" rules={[{ required: true }]} style={{ marginBottom: 12 }}>
                 <Select size="small" showSearch placeholder="Firma seçin" optionFilterProp="children">

@@ -228,7 +228,7 @@ export const FirmaListPage: React.FC = () => {
             </Select>
           </Form.Item>
           <Form.Item name="unvan" label="Ünvan" rules={[{ required: true, message: 'Ünvan zorunlu' }]}>
-            <Input />
+            <Input autoComplete="off" />
           </Form.Item>
           <div style={{ display: 'flex', gap: 16 }}>
             <Form.Item name="vergi_no" label="Vergi No" style={{ flex: 1 }}>
@@ -239,10 +239,16 @@ export const FirmaListPage: React.FC = () => {
             </Form.Item>
           </div>
           <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item name="telefon" label="Telefon" style={{ flex: 1 }}>
-              <Input />
-            </Form.Item>
-            <Form.Item name="email" label="E-posta" rules={[{ type: 'email', message: 'Geçerli e-posta girin' }]} style={{ flex: 1 }}>
+            <Form.Item 
+               name="telefon" 
+               label="Telefon" 
+               style={{ flex: 1 }}
+               rules={[
+                 { pattern: /^[0-9]{10}$/, message: 'Lütfen 10 haneli telefon numarasını giriniz (örn: 5xxxxxxxx)' }
+               ]}
+             >
+              <Input maxLength={10} placeholder="5xxxxxxxxx" />
+            </Form.Item>            <Form.Item name="email" label="E-posta" rules={[{ type: 'email', message: 'Geçerli e-posta girin' }]} style={{ flex: 1 }}>
               <Input />
             </Form.Item>
           </div>

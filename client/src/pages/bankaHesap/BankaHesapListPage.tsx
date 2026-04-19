@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Button, Modal, Form, Input, Space, message, Tag, Switch, Tooltip } from 'antd'
 import { PlusOutlined, EditOutlined, TransactionOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -37,7 +37,11 @@ export const BankaHesapListPage: React.FC = () => {
       if (editingHesap) {
         return await api.put(`/banka/hesaplar/${editingHesap.id}`, values)
       }
-      return await api.post('/banka/hesaplar', values)
+      const payload = {
+        ...values,
+        proje_id: localStorage.getItem('activeProjectId')
+      }
+      return await api.post('/banka/hesaplar', payload)
     },
     onSuccess: () => {
       message.success('Banka hesabı kaydedildi')
@@ -58,22 +62,24 @@ export const BankaHesapListPage: React.FC = () => {
     },
   })
 
+  const actions = useMemo(() => (
+    <Button
+      type="primary"
+      icon={<PlusOutlined />}
+      onClick={() => {
+        setEditingHesap(null)
+        form.resetFields()
+        form.setFieldsValue({ aktif: true })
+        setModalOpen(true)
+      }}
+    >
+      Yeni Hesap
+    </Button>
+  ), [form])
+
   usePageSettings({
     title: 'Banka Hesapları',
-    actions: (
-      <Button
-        type="primary"
-        icon={<PlusOutlined />}
-        onClick={() => {
-          setEditingHesap(null)
-          form.resetFields()
-          form.setFieldsValue({ aktif: true })
-          setModalOpen(true)
-        }}
-      >
-        Yeni Hesap
-      </Button>
-    )
+    actions
   })
 
   const columns = [

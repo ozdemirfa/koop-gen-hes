@@ -64,6 +64,7 @@ const App: React.FC = () => {
       theme={{
         token: {
           colorPrimary: '#4f46e5',
+          colorTextLightSolid: '#ffffff', // Primary buton yazıları için beyazı garantiye al
           borderRadius: 6,
           fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
           colorBgLayout: '#f8fafc',
@@ -89,7 +90,8 @@ const App: React.FC = () => {
             itemBg: 'transparent',
             itemSelectedBg: 'rgba(79, 70, 229, 0.1)',
             itemSelectedColor: '#4f46e5',
-            itemHeight: 36,
+            itemHeight: 32, // 36'dan 32'ye düşürerek daha fazla yer kazandırıyoruz
+            subMenuItemBg: 'transparent',
           },
           Modal: {
             headerBg: '#f8fafc',

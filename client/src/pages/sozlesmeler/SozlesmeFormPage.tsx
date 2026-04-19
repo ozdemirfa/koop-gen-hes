@@ -134,7 +134,7 @@ export const SozlesmeFormPage: React.FC = () => {
                 label="Başlangıç Tarihi"
                 rules={[{ required: true, message: 'Başlangıç tarihi zorunlu' }]}
               >
-                <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+                <DatePicker size="small" style={{ width: '100%' }} format="DD.MM.YYYY" />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -155,7 +155,7 @@ export const SozlesmeFormPage: React.FC = () => {
                   }),
                 ]}
               >
-                <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+                <DatePicker size="small" style={{ width: '100%' }} format="DD.MM.YYYY" />
               </Form.Item>
             </Col>
           </Row>

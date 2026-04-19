@@ -11,7 +11,6 @@ test.describe('Navigation Flow', () => {
     await page.goto('/')
     
     // Wait for title to be "Dashboard" (from usePageSettings)
-    // Note: The previous test looked for "Yönetim Paneli", let's check what actually appears.
     await expect(page.locator('#header-left')).toContainText('Dashboard')
 
     // Navigate to Üye Yönetimi
@@ -24,23 +23,29 @@ test.describe('Navigation Flow', () => {
     await expect(page).toHaveURL(/\/aidatlar/)
     await expect(page.locator('#header-left')).toContainText('Aidat Yönetimi')
 
+    // Navigate to Firma Listesi AFTER Aidatlar to see if it's stuck
+    await page.click('text=Firmalar')
+    await page.click('text=Firma Listesi')
+    await expect(page).toHaveURL(/\/firmalar/)
+    await expect(page.locator('#header-left')).toContainText('Firma Listesi')
+
     // Navigate back to Dashboard
-    await page.click('text=Dashboard')
+    await page.goto('/')
     await expect(page).toHaveURL(/\/$/)
-    await expect(page.locator('#header-left')).toContainText('Dashboard')
+    await expect(page.locator('#header-left span').filter({ hasText: 'Dashboard' })).toBeVisible()
   })
 
   test('should handle sub-menu navigation', async ({ page }) => {
     await page.goto('/')
     
-    // Click Gelir / Gider group
+    // Click Gelir / Gider group (opens inline)
     await page.click('text=Gelir / Gider')
     
     // Click İşlemler
     await page.click('text=İşlemler')
     await expect(page).toHaveURL(/\/gelir-gider$/)
     
-    // Click Kategoriler
+    // Click Kategoriler (already expanded)
     await page.click('text=Kategoriler')
     await expect(page).toHaveURL(/\/gelir-gider\/kategoriler/)
   })

@@ -3,8 +3,8 @@ import { AuthRequest } from '../middleware/auth'
 import { bankaHesapService } from '../services/bankaHesap.service'
 import { catchAsync } from '../utils/catchAsync'
 
-export const getHesaplar = catchAsync(async (_req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await bankaHesapService.listHesaplar()
+export const getHesaplar = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const data = await bankaHesapService.listHesaplar(req.query as Record<string, any>)
   res.json({ success: true, data })
 })
 

@@ -1,17 +1,22 @@
 import { supabaseAdmin } from '../config/supabase'
 import { ApiError } from '../utils/ApiError'
 import { parsePagination, toSupabaseRange, paginationMeta } from '../utils/pagination'
+import logger from '../utils/logger'
 
 export const firmaService = {
   async list(query: Record<string, any>) {
     const pagination = parsePagination(query)
     const { from, to } = toSupabaseRange(pagination)
 
+    logger.info(`Firma listeleme isteği - ProjeID: ${query.proje_id}`)
+
     let q = supabaseAdmin
       .from('firmalar')
       .select('*', { count: 'exact' })
 
-    if (query.proje_id) q = q.eq('proje_id', query.proje_id)
+    if (query.proje_id && query.proje_id !== 'null' && query.proje_id !== 'undefined') {
+      q = q.eq('proje_id', query.proje_id)
+    }
     if (query.firma_tipi) q = q.eq('firma_tipi', query.firma_tipi)
     if (query.aktif !== undefined) q = q.eq('aktif', query.aktif === 'true')
     if (query.search) q = q.ilike('unvan', `%${query.search}%`)

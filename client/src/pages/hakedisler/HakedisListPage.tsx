@@ -5,10 +5,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, EyeOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
-import { PageHeader } from '../../components/common/PageHeader'
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
+import { usePageSettings } from '../../contexts/LayoutContext'
 
 interface Hakedis {
   id: string
@@ -45,6 +45,32 @@ export const HakedisListPage: React.FC = () => {
   const [filterDurum, setFilterDurum] = useState<string | undefined>(undefined)
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [createForm] = Form.useForm()
+
+  const headerActions = React.useMemo(() => (
+    <Space>
+      <Select
+        placeholder="Durum"
+        size="small"
+        value={filterDurum}
+        onChange={setFilterDurum}
+        allowClear
+        style={{ width: 130 }}
+      >
+        <Select.Option value="taslak">Taslak</Select.Option>
+        <Select.Option value="onaylandi">Onaylandı</Select.Option>
+        <Select.Option value="odendi">Ödendi</Select.Option>
+        <Select.Option value="iptal">İptal</Select.Option>
+      </Select>
+      <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
+        Yeni Hakediş
+      </Button>
+    </Space>
+  ), [filterDurum])
+
+  usePageSettings({
+    title: 'Hakedişler',
+    actions: headerActions
+  })
 
   const { data: sozlesmeler } = useQuery({
     queryKey: ['sozlesmeler-select'],
@@ -149,30 +175,6 @@ export const HakedisListPage: React.FC = () => {
 
   return (
     <div>
-      <PageHeader
-        title="Hakediş Yönetimi"
-        subtitle="Yüklenici hakedişlerinin oluşturulması, takibi ve onay süreçleri"
-        extra={
-          <Space>
-            <Select
-              placeholder="Durum"
-              value={filterDurum}
-              onChange={setFilterDurum}
-              allowClear
-              style={{ width: 130 }}
-            >
-              <Select.Option value="taslak">Taslak</Select.Option>
-              <Select.Option value="onaylandi">Onaylandı</Select.Option>
-              <Select.Option value="odendi">Ödendi</Select.Option>
-              <Select.Option value="iptal">İptal</Select.Option>
-            </Select>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
-              Yeni Hakediş
-            </Button>
-          </Space>
-        }
-      />
-
       {isError ? (
         <ErrorState error={error} onRetry={() => refetch()} />
       ) : (
@@ -217,10 +219,10 @@ export const HakedisListPage: React.FC = () => {
           </Form.Item>
           <div style={{ display: 'flex', gap: 16 }}>
             <Form.Item name="donem_baslangic" label="Dönem Başlangıç" style={{ flex: 1 }}>
-              <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+              <DatePicker size="small" style={{ width: '100%' }} format="DD.MM.YYYY" />
             </Form.Item>
             <Form.Item name="donem_bitis" label="Dönem Bitiş" style={{ flex: 1 }}>
-              <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+              <DatePicker size="small" style={{ width: '100%' }} format="DD.MM.YYYY" />
             </Form.Item>
           </div>
           <Form.Item name="aciklama" label="Açıklama">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Button, Table, Modal, Form, Input, InputNumber, Select, message, Card, Row, Col, Tag, Space } from 'antd'
 import { EditOutlined, ArrowLeftOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -12,7 +12,6 @@ interface Serefiye {
   blok_id: string
   daire_no: string
   daire_sira_no: number
-  daire_kod: string
   kat?: number
   yon?: string
   serefiye_orani: number
@@ -27,6 +26,7 @@ export const SerefiyePage: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingSerefiye, setEditingSerefiye] = useState<Serefiye | null>(null)
   const [form] = Form.useForm()
+  const [messageApi, contextHolder] = message.useMessage()
 
   const { data: proje } = useQuery({
     queryKey: ['proje', projeId],
@@ -49,10 +49,21 @@ export const SerefiyePage: React.FC = () => {
       return await api.post(`/projeler/${projeId}/generate-serefiye`)
     },
     onSuccess: () => {
-      message.success('Şerefiye tablosu oluşturuldu')
+      messageApi.success('Şerefiye tablosu oluşturuldu')
       queryClient.invalidateQueries({ queryKey: ['serefiye-list', projeId] })
     },
-    onError: (err: any) => message.error(err.message || 'Hata oluştu')
+    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu')
+  })
+
+  const resetSerefiyeMutation = useMutation({
+    mutationFn: async () => {
+      return await api.post(`/projeler/${projeId}/reset-serefiye`)
+    },
+    onSuccess: () => {
+      messageApi.success('Şerefiye tablosu yenilendi')
+      queryClient.invalidateQueries({ queryKey: ['serefiye-list', projeId] })
+    },
+    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu')
   })
 
   const saveMutation = useMutation({
@@ -60,34 +71,55 @@ export const SerefiyePage: React.FC = () => {
       return await api.put(`/projeler/serefiye/${editingSerefiye?.id}`, values)
     },
     onSuccess: () => {
-      message.success('Daire bilgileri güncellendi')
+      messageApi.success('Daire bilgileri güncellendi')
       queryClient.invalidateQueries({ queryKey: ['serefiye-list', projeId] })
       setModalOpen(false)
       setEditingSerefiye(null)
     },
-    onError: (err: any) => message.error(err.message || 'Hata oluştu')
+    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu')
   })
+
+  const handleRefresh = () => {
+    Modal.confirm({
+      title: 'Tabloyu Yenile',
+      content: 'Bu işlem mevcut TÜM şerefiye kayıtlarını silecek ve blok tanımlarına göre yeniden oluşturacaktır. Manuel girdiğiniz tüm oranlar, kat ve yön bilgileri KAYBOLACAKTIR. Emin misiniz?',
+      okText: 'Evet, Yenile',
+      okType: 'danger',
+      cancelText: 'Vazgeç',
+      onOk: () => resetSerefiyeMutation.mutate()
+    })
+  }
+
+  const actions = useMemo(() => (
+    <Space>
+      <Button 
+        icon={<ArrowLeftOutlined />} 
+        onClick={() => navigate(`/projeler/${projeId}`)}
+        type="text"
+      />
+      {serefiyeList?.length === 0 && (
+        <Button 
+          type="primary" 
+          onClick={() => generateSerefiyeMutation.mutate()} 
+          loading={generateSerefiyeMutation.isPending}
+        >
+          Tabloyu Oluştur
+        </Button>
+      )}
+      {serefiyeList && serefiyeList.length > 0 && (
+        <Button 
+          onClick={handleRefresh} 
+          loading={resetSerefiyeMutation.isPending}
+        >
+          Tabloyu Yenile
+        </Button>
+      )}
+    </Space>
+  ), [navigate, projeId, serefiyeList, generateSerefiyeMutation.isPending, resetSerefiyeMutation.isPending])
 
   usePageSettings({
     title: 'Şerefiye Tablosu',
-    actions: (
-      <Space>
-        <Button 
-          icon={<ArrowLeftOutlined />} 
-          onClick={() => navigate(`/projeler/${projeId}`)}
-          type="text"
-        />
-        {serefiyeList?.length === 0 && (
-          <Button 
-            type="primary" 
-            onClick={() => generateSerefiyeMutation.mutate()} 
-            loading={generateSerefiyeMutation.isPending}
-          >
-            Tabloyu Oluştur
-          </Button>
-        )}
-      </Space>
-    )
+    actions
   })
 
   const columns = [
@@ -98,16 +130,16 @@ export const SerefiyePage: React.FC = () => {
       sorter: (a: any, b: any) => (a.bloklar?.blok_adi || '').localeCompare(b.bloklar?.blok_adi || '')
     },
     { 
-      title: 'Daire No', 
+      title: 'Daire Sıra No', 
       dataIndex: 'daire_sira_no', 
       key: 'daire_sira_no', 
-      sorter: (a: any, b: any) => (a.daire_sira_no || 0) - (b.daire_sira_no || 0) 
+      sorter: (a: any, b: any) => (Number(a.daire_sira_no) || 0) - (Number(b.daire_sira_no) || 0) 
     },
     { 
-      title: 'DaireKod', 
-      dataIndex: 'daire_kod', 
-      key: 'daire_kod',
-      sorter: (a: any, b: any) => (a.daire_kod || '').localeCompare(b.daire_kod || '')
+      title: 'Daire No', 
+      dataIndex: 'daire_no', 
+      key: 'daire_no',
+      sorter: (a: any, b: any) => (a.daire_no || '').localeCompare(b.daire_no || '')
     },
     { title: 'Kat', dataIndex: 'kat', key: 'kat', sorter: (a: any, b: any) => (a.kat || 0) - (b.kat || 0) },
     { title: 'Yön', dataIndex: 'yon', key: 'yon' },

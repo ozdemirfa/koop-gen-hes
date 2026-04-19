@@ -15,6 +15,16 @@ export const createKategori = catchAsync(async (req: AuthRequest<any, any, any, 
   res.status(201).json({ success: true, data })
 })
 
+export const updateKategori = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const data = await kategoriService.update(req.params.id, req.body)
+  res.json({ success: true, data })
+})
+
+export const deleteKategori = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  await kategoriService.delete(req.params.id)
+  res.json({ success: true, message: 'Kategori silindi' })
+})
+
 // === GELİR/GİDER ===
 
 export const getGelirGider = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {

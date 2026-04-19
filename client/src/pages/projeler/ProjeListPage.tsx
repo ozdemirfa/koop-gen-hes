@@ -2,9 +2,10 @@ import React, { useState } from 'react'
 import { Button, Modal, Form, Input, Space, message, Tag, DatePicker, Card, Row, Col, Select, InputNumber, Divider, Typography } from 'antd'
 import { PlusOutlined, EditOutlined, ArrowRightOutlined, ProjectOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
+import { ProjectSelector } from '../../components/common/ProjectSelector'
 import { LoadingState } from '../../components/common/LoadingState'
 import { EmptyState } from '../../components/common/EmptyState'
 import { ErrorState } from '../../components/common/ErrorState'
@@ -92,23 +93,25 @@ export const ProjeListPage: React.FC = () => {
     },
   })
 
+  const headerActions = React.useMemo(() => (
+    <Button
+      type="primary"
+      icon={<PlusOutlined />}
+      onClick={() => {
+        setEditingProje(null)
+        form.resetFields()
+        form.setFieldsValue({ bloklar: [{ blok_adi: '', toplam_daire: 0, daire_baslangic_no: 1 }] })
+        setModalOpen(true)
+      }}
+      size="middle"
+    >
+      Yeni Proje
+    </Button>
+  ), [form])
+
   usePageSettings({
     title: 'İnşaat Projeleri',
-    actions: (
-      <Button
-        type="primary"
-        icon={<PlusOutlined />}
-        onClick={() => {
-          setEditingProje(null)
-          form.resetFields()
-          form.setFieldsValue({ bloklar: [{ blok_adi: '', toplam_daire: 0, daire_baslangic_no: 1 }] })
-          setModalOpen(true)
-        }}
-        size="middle"
-      >
-        Yeni Proje
-      </Button>
-    )
+    actions: headerActions
   })
 
   const openEditModal = async (proje: Proje) => {
@@ -116,6 +119,7 @@ export const ProjeListPage: React.FC = () => {
       const { data } = await api.get(`/projeler/${proje.id}`)
       const fullProje = data.data as Proje
       setEditingProje(fullProje)
+      form.resetFields() // ÖNCE TEMİZLE
       form.setFieldsValue({
         ...fullProje,
         baslangic_tarihi: fullProje.baslangic_tarihi ? dayjs(fullProje.baslangic_tarihi) : null,
@@ -129,6 +133,8 @@ export const ProjeListPage: React.FC = () => {
 
   return (
     <div style={{ zoom: '0.9', fontSize: '13px' }}>
+      <ProjectSelector inline />
+      
       <Row gutter={[12, 12]}>
         {isLoading ? (
           <Col span={24}><LoadingState fullHeight /></Col>
@@ -142,33 +148,58 @@ export const ProjeListPage: React.FC = () => {
               <Card
                 hoverable
                 size="small"
+                style={{ cursor: 'default' }}
+                data-testid={`project-card-${p.id}`}
                 actions={[
-                  <EditOutlined
+                  <Button 
+                    type="text" 
+                    size="small"
                     key="edit"
+                    icon={<EditOutlined />}
+                    data-testid={`edit-project-${p.id}`}
                     onClick={(e) => {
                       e.stopPropagation()
                       openEditModal(p)
                     }}
                   />,
-                  <ArrowRightOutlined key="view" onClick={() => navigate(`/projeler/${p.id}`)} />,
+                  <div 
+                    key="view" 
+                    style={{ color: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', cursor: 'pointer' }}
+                    data-testid={`view-project-${p.id}`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      navigate(`/projeler/${p.id}`)
+                    }}
+                  >
+                    <ArrowRightOutlined />
+                  </div>,
                 ]}
                 title={
-                  <Space size={4}>
+                  <div 
+                    style={{ color: 'inherit', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+                    data-testid="card-title"
+                    onClick={() => navigate(`/projeler/${p.id}`)}
+                  >
                     <ProjectOutlined style={{ fontSize: '14px' }} />
                     <span style={{ fontSize: '14px', fontWeight: 600 }}>{p.proje_adi}</span>
-                  </Space>
+                  </div>
                 }
                 extra={<Tag color={durumRenkleri[p.durum]} style={{ marginRight: 0, fontSize: '11px' }}>{durumEtiketleri[p.durum]}</Tag>}
-                onClick={() => navigate(`/projeler/${p.id}`)}
-                styles={{ body: { padding: '12px' } }}
+                styles={{ body: { padding: 0 } }}
               >
-                <div style={{ height: 36, overflow: 'hidden', textOverflow: 'ellipsis', color: '#64748b', fontSize: '12px', lineHeight: '1.4' }}>
-                  {p.aciklama || 'Açıklama yok'}
-                </div>
-                <div style={{ marginTop: 12, borderTop: '1px solid #f1f5f9', paddingTop: 8 }}>
-                  <Text type="secondary" style={{ fontSize: '11px' }}>
-                    Tarih: {p.baslangic_tarihi ? dayjs(p.baslangic_tarihi).format('DD.MM.YYYY') : '?'} - {p.bitis_tarihi ? dayjs(p.bitis_tarihi).format('DD.MM.YYYY') : '?'}
-                  </Text>
+                <div 
+                  style={{ display: 'block', padding: '12px', color: 'inherit', cursor: 'pointer' }} 
+                  data-testid="card-body"
+                  onClick={() => navigate(`/projeler/${p.id}`)}
+                >
+                  <div style={{ height: 36, overflow: 'hidden', textOverflow: 'ellipsis', color: '#64748b', fontSize: '12px', lineHeight: '1.4' }}>
+                    {p.aciklama || 'Açıklama yok'}
+                  </div>
+                  <div style={{ marginTop: 12, borderTop: '1px solid #f1f5f9', paddingTop: 8 }}>
+                    <Text type="secondary" style={{ fontSize: '11px' }}>
+                      Tarih: {p.baslangic_tarihi ? dayjs(p.baslangic_tarihi).format('DD.MM.YYYY') : '?'} - {p.bitis_tarihi ? dayjs(p.bitis_tarihi).format('DD.MM.YYYY') : '?'}
+                    </Text>
+                  </div>
                 </div>
               </Card>
             </Col>
@@ -192,23 +223,33 @@ export const ProjeListPage: React.FC = () => {
         styles={{ body: { paddingTop: 8 } }}
         centered
       >
-        <Form 
-          form={form} 
-          layout="vertical" 
-          onFinish={(v) => saveMutation.mutate(v)} 
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={(v) => saveMutation.mutate(v)}
           initialValues={{ durum: 'planli' }}
           size="small"
-          requiredMark="optional"
+          autoComplete="off"
         >
           <Row gutter={12}>
             <Col span={16}>
               <Form.Item 
                 name="proje_adi" 
                 label={<span style={{ fontWeight: 500 }}>Proje Adı</span>} 
-                rules={[{ required: true }]}
+                rules={[
+                  { required: true, message: 'Proje adı zorunludur' },
+                  {
+                    validator: (_, value) => {
+                      if (value && projeler?.some(p => p.proje_adi.toLowerCase() === value.toLowerCase() && p.id !== editingProje?.id)) {
+                        return Promise.reject(new Error('Bu isimde bir proje zaten mevcut!'));
+                      }
+                      return Promise.resolve();
+                    }
+                  }
+                ]}
                 style={{ marginBottom: 12 }}
               >
-                <Input placeholder="Proje ismini giriniz" />
+                <Input placeholder="Proje ismini giriniz" autoComplete="off" size="small" />
               </Form.Item>
             </Col>
             <Col span={8}>
@@ -218,7 +259,7 @@ export const ProjeListPage: React.FC = () => {
                 rules={[{ required: true }]}
                 style={{ marginBottom: 12 }}
               >
-                <Select>
+                <Select size="small">
                   <Select.Option value="planli">Planlı</Select.Option>
                   <Select.Option value="devam_ediyor">Devam Ediyor</Select.Option>
                   <Select.Option value="tamamlandi">Tamamlandı</Select.Option>
@@ -233,7 +274,7 @@ export const ProjeListPage: React.FC = () => {
             label={<span style={{ fontWeight: 500 }}>Açıklama</span>}
             style={{ marginBottom: 12 }}
           >
-            <Input.TextArea rows={2} placeholder="Proje hakkında kısa bilgi..." />
+            <Input.TextArea rows={2} placeholder="Proje hakkında kısa bilgi..." size="small" />
           </Form.Item>
           
           <Row gutter={12}>
@@ -243,7 +284,13 @@ export const ProjeListPage: React.FC = () => {
                 label={<span style={{ fontWeight: 500 }}>Başlangıç</span>}
                 style={{ marginBottom: 12 }}
               >
-                <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+                <DatePicker 
+                  size="small"
+                  style={{ width: '100%' }} 
+                  format="DD.MM.YYYY" 
+                  getPopupContainer={(triggerNode) => triggerNode.parentNode as HTMLElement}
+                  popupClassName="small-datepicker-popup"
+                />
               </Form.Item>
             </Col>
             <Col span={8}>
@@ -252,7 +299,13 @@ export const ProjeListPage: React.FC = () => {
                 label={<span style={{ fontWeight: 500 }}>Bitiş</span>}
                 style={{ marginBottom: 12 }}
               >
-                <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+                <DatePicker 
+                  size="small"
+                  style={{ width: '100%' }} 
+                  format="DD.MM.YYYY" 
+                  getPopupContainer={(triggerNode) => triggerNode.parentNode as HTMLElement}
+                  popupClassName="small-datepicker-popup"
+                />
               </Form.Item>
             </Col>
             <Col span={8}>
@@ -277,69 +330,78 @@ export const ProjeListPage: React.FC = () => {
           <Form.List name="bloklar">
             {(fields, { add, remove }) => (
               <div style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '4px' }}>
+                {fields.length > 0 && (
+                  <Row gutter={8} style={{ marginBottom: 4, paddingLeft: 4 }}>
+                    <Col span={4}><Text type="secondary" style={{ fontSize: '11px', fontWeight: 500 }}>Blok Adı</Text></Col>
+                    <Col span={3}><Text type="secondary" style={{ fontSize: '11px', fontWeight: 500 }}>Daire Sayı</Text></Col>
+                    <Col span={3}><Text type="secondary" style={{ fontSize: '11px', fontWeight: 500 }}>Baş. No</Text></Col>
+                    <Col span={12}><Text type="secondary" style={{ fontSize: '11px', fontWeight: 500 }}>Blok Açıklaması</Text></Col>
+                    <Col span={2} style={{ textAlign: 'center' }}><Text type="secondary" style={{ fontSize: '11px', fontWeight: 500 }}>İşlem</Text></Col>
+                  </Row>
+                )}
                 {fields.map(({ key, name, ...restField }) => (
-                  <Card 
-                    size="small" 
-                    key={key} 
-                    style={{ marginBottom: 8, backgroundColor: '#fafafa' }} 
-                    styles={{ body: { padding: '8px 12px' } }}
-                    extra={
-                      fields.length > 1 && (
-                        <Button 
-                          type="text" 
-                          danger 
-                          icon={<DeleteOutlined />} 
-                          onClick={() => remove(name)} 
-                          size="small"
-                        />
-                      )
-                    }
-                  >
-                    <Row gutter={8}>
-                      <Col span={5}>
+                  <div key={key} style={{ 
+                    marginBottom: 4, 
+                    padding: '4px', 
+                    border: '1px solid #f0f0f0', 
+                    borderRadius: '4px',
+                    backgroundColor: '#fafafa'
+                  }}>
+                    <Form.Item {...restField} name={[name, 'id']} hidden>
+                      <Input />
+                    </Form.Item>
+                    <Row gutter={8} align="middle">
+                      <Col span={4}>
                         <Form.Item
                           {...restField}
                           name={[name, 'blok_adi']}
-                          label={<span style={{ fontSize: '11px' }}>Blok Adı</span>}
                           rules={[{ required: true, message: '!' }]}
                           style={{ marginBottom: 0 }}
                         >
-                          <Input placeholder="Örn: A" />
+                          <Input size="small" placeholder="Örn: A" />
                         </Form.Item>
                       </Col>
-                      <Col span={4}>
+                      <Col span={3}>
                         <Form.Item
                           {...restField}
                           name={[name, 'toplam_daire']}
-                          label={<span style={{ fontSize: '11px' }}>Daire</span>}
                           rules={[{ required: true, message: '!' }]}
                           style={{ marginBottom: 0 }}
                         >
-                          <InputNumber min={1} style={{ width: '100%' }} />
+                          <InputNumber size="small" min={1} style={{ width: '100%' }} />
                         </Form.Item>
                       </Col>
-                      <Col span={4}>
+                      <Col span={3}>
                         <Form.Item
                           {...restField}
                           name={[name, 'daire_baslangic_no']}
-                          label={<span style={{ fontSize: '11px' }}>Baş. No</span>}
                           style={{ marginBottom: 0 }}
                         >
-                          <InputNumber min={0} style={{ width: '100%' }} />
+                          <InputNumber size="small" min={0} style={{ width: '100%' }} />
                         </Form.Item>
                       </Col>
-                      <Col span={11}>
+                      <Col span={12}>
                         <Form.Item
                           {...restField}
                           name={[name, 'aciklama']}
-                          label={<span style={{ fontSize: '11px' }}>Blok Açıklaması</span>}
                           style={{ marginBottom: 0 }}
                         >
-                          <Input placeholder="İsteğe bağlı" />
+                          <Input size="small" placeholder="İsteğe bağlı" />
                         </Form.Item>
                       </Col>
+                      <Col span={2} style={{ textAlign: 'center' }}>
+                        {fields.length > 1 && (
+                          <Button 
+                            type="text" 
+                            danger 
+                            icon={<DeleteOutlined />} 
+                            onClick={() => remove(name)} 
+                            size="small"
+                          />
+                        )}
+                      </Col>
                     </Row>
-                  </Card>
+                  </div>
                 ))}
                 <Form.Item style={{ marginTop: 8, marginBottom: 0 }}>
                   <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />} size="small">

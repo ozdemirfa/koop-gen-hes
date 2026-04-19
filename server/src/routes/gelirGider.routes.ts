@@ -9,6 +9,8 @@ const router = Router()
 
 router.get('/kategoriler', gelirGiderController.getKategoriler)
 router.post('/kategoriler', validate({ body: kategoriSchema }), gelirGiderController.createKategori)
+router.put('/kategoriler/:id', validate({ body: kategoriSchema }), gelirGiderController.updateKategori)
+router.delete('/kategoriler/:id', gelirGiderController.deleteKategori)
 
 // === GELİR/GİDER ===
 

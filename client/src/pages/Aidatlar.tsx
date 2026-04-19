@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Table, Button, Modal, Form, InputNumber, Select, message, Card, Typography, Tag, Space, DatePicker, Input, Tabs, Row, Col, Statistic } from 'antd'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, DollarOutlined, CalculatorOutlined } from '@ant-design/icons'
@@ -24,7 +24,8 @@ interface AidatTanimi {
 
 interface Aidat {
   id: string
-  uye_id: string
+  uye_id?: string
+  serefiye_id: string
   tutar: number
   gecikme_faizi: number
   toplam_tutar: number
@@ -33,6 +34,7 @@ interface Aidat {
   son_odeme_tarihi: string
   uyeler?: { uye_no: string; ad: string; soyad: string }
   aidat_tanimlari?: { yil: number; ay: number }
+  serefiye_tablosu?: { daire_no: string; bloklar: { blok_adi: string } }
 }
 
 const aylar = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
@@ -131,10 +133,16 @@ export const Aidatlar: React.FC = () => {
 
   const aidatColumns = [
     {
+      title: 'Blok/Daire',
+      key: 'daire',
+      render: (_: unknown, r: Aidat) => 
+        r.serefiye_tablosu ? `${r.serefiye_tablosu.bloklar?.blok_adi || ''} - ${r.serefiye_tablosu.daire_no}` : '-',
+    },
+    {
       title: 'Üye',
       key: 'uye',
       render: (_: unknown, r: Aidat) =>
-        r.uyeler ? `${r.uyeler.ad} ${r.uyeler.soyad} (${r.uyeler.uye_no})` : '-',
+        r.uyeler ? `${r.uyeler.ad} ${r.uyeler.soyad} (${r.uyeler.uye_no})` : <Tag>Üye Yok</Tag>,
     },
     {
       title: 'Dönem',
@@ -200,19 +208,22 @@ export const Aidatlar: React.FC = () => {
     },
   ]
 
+  const actions = useMemo(() => (
+    <Button 
+      type="primary" 
+      size="small"
+      icon={<CalculatorOutlined />} 
+      onClick={() => gecikmeMutation.mutate()} 
+      loading={gecikmeMutation.isPending}
+      style={{ color: '#ffffff' }}
+    >
+      Gecikme Faizi Hesapla
+    </Button>
+  ), [gecikmeMutation.isPending, gecikmeMutation.mutate])
+
   usePageSettings({
     title: 'Aidat Yönetimi',
-    actions: (
-      <Button 
-        type="primary" 
-        size="small"
-        icon={<CalculatorOutlined />} 
-        onClick={() => gecikmeMutation.mutate()} 
-        loading={gecikmeMutation.isPending}
-      >
-        Gecikme Faizi Hesapla
-      </Button>
-    )
+    actions
   })
 
   return (
@@ -334,7 +345,7 @@ export const Aidatlar: React.FC = () => {
 
       {/* Ödeme Modal */}
       <Modal
-        title={selectedAidat ? `Ödeme - ${selectedAidat.uyeler?.ad} ${selectedAidat.uyeler?.soyad}` : 'Ödeme'}
+        title={selectedAidat ? `Ödeme - ${selectedAidat.uyeler ? `${selectedAidat.uyeler.ad} ${selectedAidat.uyeler.soyad}` : `${selectedAidat.serefiye_tablosu?.bloklar?.blok_adi || ''} ${selectedAidat.serefiye_tablosu?.daire_no || ''}`}` : 'Ödeme'}
         open={odemeModalOpen}
         onCancel={() => { setOdemeModalOpen(false); odemeForm.resetFields() }}
         onOk={() => odemeForm.submit()}
@@ -345,7 +356,7 @@ export const Aidatlar: React.FC = () => {
             <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="odeme_tarihi" label="Ödeme Tarihi" rules={[{ required: true }]}>
-            <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
+            <DatePicker size="small" style={{ width: '100%' }} format="YYYY-MM-DD" />
           </Form.Item>
           <Form.Item name="odeme_yontemi" label="Ödeme Yöntemi" rules={[{ required: true }]}>
             <Select>

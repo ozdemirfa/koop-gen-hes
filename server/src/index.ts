@@ -37,6 +37,11 @@ app.use(cors({
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
+app.use((req, _res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`)
+  next()
+})
+
 import { supabaseAdmin } from './config/supabase'
 
 // Health check (DB bağlantısını da kontrol eder)

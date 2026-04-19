@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { FIRMA_TIPLERI } from '../config/constants'
 
 export const createFirmaSchema = z.object({
+  proje_id: z.string().uuid().optional(),
   firma_tipi: z.enum(FIRMA_TIPLERI),
   unvan: z.string().min(1, 'Ünvan zorunlu'),
   vergi_no: z.string().optional().nullable(),

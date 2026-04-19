@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Card, Space, Select, DatePicker, Statistic, Row, Col, Tag, Button, message } from 'antd'
 import { DownloadOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
@@ -89,36 +89,38 @@ export const CariEkstrePage: React.FC = () => {
     document.body.removeChild(link)
   }
 
+  const actions = useMemo(() => (
+    <Space size="small">
+      <Button size="small" icon={<DownloadOutlined />} onClick={exportToCSV}>CSV İndir</Button>
+      <Select
+        size="small"
+        showSearch
+        placeholder="Firma Filtresi"
+        value={firmaId}
+        onChange={setFirmaId}
+        allowClear
+        style={{ width: 220 }}
+        optionFilterProp="children"
+      >
+        {firmalar?.map((f) => (
+          <Select.Option key={f.id} value={f.id}>
+            {f.unvan}
+          </Select.Option>
+        ))}
+      </Select>
+      <RangePicker
+        size="small"
+        value={dates}
+        onChange={(vals) => setDates(vals as any)}
+        format="DD.MM.YYYY"
+        style={{ width: 240 }}
+      />
+    </Space>
+  ), [firmaId, dates, firmalar, hareketler])
+
   usePageSettings({
     title: 'Cari Ekstre',
-    actions: (
-      <Space size="small">
-        <Button size="small" icon={<DownloadOutlined />} onClick={exportToCSV}>CSV İndir</Button>
-        <Select
-          size="small"
-          showSearch
-          placeholder="Firma Filtresi"
-          value={firmaId}
-          onChange={setFirmaId}
-          allowClear
-          style={{ width: 220 }}
-          optionFilterProp="children"
-        >
-          {firmalar?.map((f) => (
-            <Select.Option key={f.id} value={f.id}>
-              {f.unvan}
-            </Select.Option>
-          ))}
-        </Select>
-        <RangePicker
-          size="small"
-          value={dates}
-          onChange={(vals) => setDates(vals as any)}
-          format="DD.MM.YYYY"
-          style={{ width: 240 }}
-        />
-      </Space>
-    )
+    actions
   })
 
   const totals = hareketler?.reduce(

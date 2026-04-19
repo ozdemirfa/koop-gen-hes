@@ -111,6 +111,7 @@ export const OdemePlaniPage: React.FC = () => {
       key: 'vade', 
       render: (_: any, record: any, index: number) => (
         <DatePicker 
+          size="small"
           value={record.vade_tarihi} 
           onChange={(v) => handleFieldChange(index, 'vade_tarihi', v)} 
           format="DD.MM.YYYY"
@@ -185,7 +186,7 @@ export const OdemePlaniPage: React.FC = () => {
                 <InputNumber min={1} max={24} style={{ width: '100%' }} />
               </Form.Item>
               <Form.Item name="baslangicTarihi" label="İlk Taksit Tarihi">
-                <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+                <DatePicker size="small" style={{ width: '100%' }} format="DD.MM.YYYY" />
               </Form.Item>
               <Button type="dashed" block icon={<CalculatorOutlined />} htmlType="submit">Hesapla ve Dağıt</Button>
             </Form>

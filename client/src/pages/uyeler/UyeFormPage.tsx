@@ -19,13 +19,17 @@ export const UyeFormPage: React.FC = () => {
   const isEditing = !!id
   const [selectedBlokId, setSelectedBlokId] = useState<string | undefined>(undefined)
 
+  const activeProjectId = localStorage.getItem('activeProjectId')
+
   // Aktif projenin bloklarını getir
   const { data: aktifProje } = useQuery({
-    queryKey: ['aktif-proje-bloklar'],
+    queryKey: ['proje', activeProjectId],
     queryFn: async () => {
-      const { data } = await api.get('/projeler/aktif/bloklar')
+      if (!activeProjectId) return null
+      const { data } = await api.get(`/projeler/${activeProjectId}`)
       return data.data
     },
+    enabled: !!activeProjectId
   })
 
   // Seçilen bloğa ait müsait daireleri getir

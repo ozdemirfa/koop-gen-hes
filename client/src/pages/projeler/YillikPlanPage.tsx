@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Table, InputNumber, Button, Space, message, Card, Typography, Empty, Row, Col, Statistic } from 'antd'
-import { SaveOutlined, ArrowLeftOutlined, CalendarOutlined } from '@ant-design/icons'
+import { Table, InputNumber, Button, Space, message, Card, Typography, Empty, Row, Col, Statistic, Popconfirm, Modal, Select } from 'antd'
+import { SaveOutlined, ArrowLeftOutlined, CalendarOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons'
 import api from '../../lib/api'
+import { trNumberFormatter, trNumberParser } from '../../lib/format'
 import { PageHeader } from '../../components/common/PageHeader'
 import { LoadingState } from '../../components/common/LoadingState'
 import { ErrorState } from '../../components/common/ErrorState'
@@ -15,6 +16,8 @@ export const YillikPlanPage: React.FC = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [editingValues, setEditingValues] = useState<Record<string, number>>({})
+  const [addRowModalOpen, setAddRowModalOpen] = useState(false)
+  const [selectedKalemId, setSelectedKalemId] = useState<string | null>(null)
 
   const { data: plan, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['proje-plan', projeId, yil],
@@ -23,7 +26,7 @@ export const YillikPlanPage: React.FC = () => {
         const { data } = await api.get(`/projeler/${projeId}/yillik-plan/${yil}`)
         return data.data
       } catch (err: any) {
-        if (err.status === 404) return null
+        if (err.status === 404 || err.error === 'Yıllık plan bulunamadı') return null
         throw err
       }
     }
@@ -48,6 +51,51 @@ export const YillikPlanPage: React.FC = () => {
       message.success('Plan güncellendi')
       queryClient.invalidateQueries({ queryKey: ['proje-plan', projeId, yil] })
       setEditingValues({})
+    },
+    onError: (err: any) => message.error(err.message || 'Hata oluştu')
+  })
+
+  const deleteRowMutation = useMutation({
+    mutationFn: async (isKalemiId: string) => {
+      return await api.delete(`/projeler/is-kalemleri/${isKalemiId}`)
+    },
+    onSuccess: () => {
+      message.success('Satır (Harcama Kalemi) silindi')
+      queryClient.invalidateQueries({ queryKey: ['proje-plan', projeId, yil] })
+      queryClient.invalidateQueries({ queryKey: ['proje', projeId] })
+    },
+    onError: (err: any) => message.error(err.message || 'Hata oluştu')
+  })
+
+  const { data: projeIsKalemleri } = useQuery({
+    queryKey: ['proje-is-kalemleri', projeId],
+    queryFn: async () => {
+      const { data } = await api.get(`/projeler/${projeId}`)
+      return (data.data.proje_is_kalemleri || []).filter((k: any) => !k.ust_kalem_id)
+    },
+    enabled: !!projeId
+  })
+
+  const addKalemMutation = useMutation({
+    mutationFn: async (isKalemiId: string) => {
+      const planId = plan.id
+      const planKalemleri = []
+      for (let ay = 1; ay <= 12; ay++) {
+        planKalemleri.push({
+          plan_id: planId,
+          proje_is_kalemi_id: isKalemiId,
+          ay,
+          planlanan_tutar: 0,
+          gerceklesen_tutar: 0
+        })
+      }
+      return await api.post(`/projeler/yillik-plan-kalemleri/bulk`, { kalemler: planKalemleri })
+    },
+    onSuccess: () => {
+      message.success('Harcama kalemi plana eklendi')
+      queryClient.invalidateQueries({ queryKey: ['proje-plan', projeId, yil] })
+      setAddRowModalOpen(false)
+      setSelectedKalemId(null)
     },
     onError: (err: any) => message.error(err.message || 'Hata oluştu')
   })
@@ -137,7 +185,8 @@ export const YillikPlanPage: React.FC = () => {
             min={0}
             value={editingValues[pk.id] !== undefined ? editingValues[pk.id] : pk.planlanan_tutar}
             onChange={(val) => handleInputChange(pk.id, val)}
-            formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+            formatter={trNumberFormatter}
+            parser={trNumberParser}
           />
         )
       }
@@ -146,15 +195,25 @@ export const YillikPlanPage: React.FC = () => {
       title: 'İşlem',
       key: 'action',
       fixed: 'right' as const,
-      width: 80,
+      width: 100,
       render: (_: any, record: any) => (
-        <Button 
-          type="primary" 
-          size="small" 
-          icon={<SaveOutlined />} 
-          onClick={() => handleSave(record)}
-          disabled={!Object.keys(editingValues).some(id => Object.values(record.aylar).some((pk: any) => pk.id === id))}
-        />
+        <Space>
+          <Button 
+            type="primary" 
+            size="small" 
+            icon={<SaveOutlined />} 
+            onClick={() => handleSave(record)}
+            disabled={!Object.keys(editingValues).some(id => Object.values(record.aylar).some((pk: any) => pk.id === id))}
+          />
+          <Popconfirm
+            title="Bu harcama kalemini ve plan satırını silmek istediğinize emin misiniz?"
+            onConfirm={() => deleteRowMutation.mutate(record.kalem_id)}
+            okText="Evet"
+            cancelText="Hayır"
+          >
+            <Button size="small" danger icon={<DeleteOutlined />} loading={deleteRowMutation.isPending} />
+          </Popconfirm>
+        </Space>
       )
     }
   ]
@@ -167,22 +226,48 @@ export const YillikPlanPage: React.FC = () => {
       <PageHeader 
         title={`${yil} Yılı Harcama Planı`} 
         onBack={() => navigate(`/projeler/${projeId}`)}
+        extra={
+          <Button 
+            type="primary" 
+            icon={<PlusOutlined />} 
+            onClick={() => setAddRowModalOpen(true)}
+          >
+            Satır Ekle
+          </Button>
+        }
       />
 
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={8}>
           <Card>
-            <Statistic title="Toplam Bütçe" value={plan.toplam_butce} prefix="₺" />
+            <Statistic 
+              title="Toplam Bütçe" 
+              value={plan.toplam_butce} 
+              prefix="₺" 
+              formatter={(v) => trNumberFormatter(v as number)}
+            />
           </Card>
         </Col>
         <Col span={8}>
           <Card>
-            <Statistic title="Planlanan Toplam" value={toplamPlanlanan} prefix="₺" valueStyle={{ color: '#1890ff' }} />
+            <Statistic 
+              title="Planlanan Toplam" 
+              value={toplamPlanlanan} 
+              prefix="₺" 
+              valueStyle={{ color: '#1890ff' }} 
+              formatter={(v) => trNumberFormatter(v as number)}
+            />
           </Card>
         </Col>
         <Col span={8}>
           <Card>
-            <Statistic title="Gerçekleşen Toplam" value={toplamGerceklesen} prefix="₺" valueStyle={{ color: '#52c41a' }} />
+            <Statistic 
+              title="Gerçekleşen Toplam" 
+              value={toplamGerceklesen} 
+              prefix="₺" 
+              valueStyle={{ color: '#52c41a' }} 
+              formatter={(v) => trNumberFormatter(v as number)}
+            />
           </Card>
         </Col>
       </Row>
@@ -198,6 +283,42 @@ export const YillikPlanPage: React.FC = () => {
           size="small"
         />
       </Card>
+
+      <Modal
+        title="Plana Yeni Harcama Kalemi Ekle"
+        open={addRowModalOpen}
+        onCancel={() => {
+          setAddRowModalOpen(false)
+          setSelectedKalemId(null)
+        }}
+        onOk={() => selectedKalemId && addKalemMutation.mutate(selectedKalemId)}
+        confirmLoading={addKalemMutation.isPending}
+        okText="Ekle"
+        cancelText="İptal"
+      >
+        <div style={{ marginBottom: 16, marginTop: 16 }}>
+          <Text type="secondary">Mevcut harcama kalemleri içinden seçim yapın:</Text>
+        </div>
+        <Select
+          style={{ width: '100%' }}
+          placeholder="Harcama kalemi seçin"
+          value={selectedKalemId}
+          onChange={setSelectedKalemId}
+          showSearch
+          optionFilterProp="children"
+        >
+          {projeIsKalemleri?.filter((k: any) => !dataSource.some(d => d.kalem_id === k.id)).map((k: any) => (
+            <Select.Option key={k.id} value={k.id}>
+              {k.kalem_kodu ? `[${k.kalem_kodu}] ` : ''}{k.tanim}
+            </Select.Option>
+          ))}
+        </Select>
+        {projeIsKalemleri?.filter((k: any) => !dataSource.some(d => d.kalem_id === k.id)).length === 0 && (
+          <div style={{ marginTop: 8, color: '#ff4d4f' }}>
+            Eklenebilecek yeni bir harcama kalemi bulunamadı. Önce proje detay sayfasından yeni bir harcama kalemi oluşturmalısınız.
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

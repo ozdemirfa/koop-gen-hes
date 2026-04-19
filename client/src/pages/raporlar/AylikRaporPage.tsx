@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Card, Table, Row, Col, Statistic, DatePicker, Button, Space, Tag } from 'antd'
 import { FilePdfOutlined, RiseOutlined, FallOutlined, DollarOutlined, CalendarOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
@@ -20,26 +20,28 @@ export const AylikRaporPage: React.FC = () => {
     }
   })
 
+  const actions = useMemo(() => (
+    <Space>
+      <DatePicker
+        picker="month"
+        value={targetDate}
+        onChange={(v) => v && setTargetDate(v)}
+        format="MMMM YYYY"
+        size="small"
+      />
+      <Button 
+        size="small"
+        icon={<FilePdfOutlined />} 
+        onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'}/raporlar/aylik-rapor/pdf?yil=${targetDate.year()}&ay=${targetDate.month() + 1}`, '_blank')}
+      >
+        PDF İndir
+      </Button>
+    </Space>
+  ), [targetDate])
+
   usePageSettings({
     title: 'Aylık Mali Rapor',
-    actions: (
-      <Space>
-        <DatePicker
-          picker="month"
-          value={targetDate}
-          onChange={(v) => v && setTargetDate(v)}
-          format="MMMM YYYY"
-          size="small"
-        />
-        <Button 
-          size="small"
-          icon={<FilePdfOutlined />} 
-          onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'}/raporlar/aylik-rapor/pdf?yil=${targetDate.year()}&ay=${targetDate.month() + 1}`, '_blank')}
-        >
-          PDF İndir
-        </Button>
-      </Space>
-    )
+    actions
   })
 
   const gelirColumns = [

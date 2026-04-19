@@ -63,27 +63,38 @@ export const aidatTanimiService = {
       throw error
     }
 
-    // Tüm aktif üyeleri çek (proje_id ile filtrele)
-    const { data: uyeler, error: uyeError } = await supabaseAdmin
-      .from('uyeler')
+    // Projeye ait tüm daireleri (serefiye) çek
+    const { data: daireler, error: sError } = await supabaseAdmin
+      .from('serefiye_tablosu')
       .select('id, serefiye_orani')
       .eq('proje_id', body.proje_id)
-      .eq('durum', 'aktif')
 
-    if (uyeError) {
-      logger.error('Aktif üyeleri çekme hatası:', uyeError)
-      throw uyeError
+    if (sError) {
+      logger.error('Daireleri çekme hatası:', sError)
+      throw sError
     }
 
-    if (uyeler && uyeler.length > 0) {
+    if (daireler && daireler.length > 0) {
       const sonOdemeTarihi = makeAidatSonOdemeTarihi(body.yil!, body.ay!, sonOdemeGunu)
 
-      const aidatlar = uyeler.map(uye => ({
-        uye_id: uye.id,
-        proje_id: body.proje_id,
-        aidat_tanimi_id: tanim.id,
-        tutar: Number(body.katsayi_tutari) * (Number(uye.serefiye_orani) || 1.00),
-        son_odeme_tarihi: sonOdemeTarihi
+      // Tüm daireler için aidat oluştur (üye olsun olmasın)
+      const aidatlar = await Promise.all(daireler.map(async (daire) => {
+        // Dairede oturan aktif üyeyi bul (varsa)
+        const { data: uye } = await supabaseAdmin
+          .from('uyeler')
+          .select('id')
+          .eq('serefiye_id', daire.id)
+          .eq('durum', 'aktif')
+          .maybeSingle()
+
+        return {
+          proje_id: body.proje_id,
+          serefiye_id: daire.id,
+          uye_id: uye?.id || null,
+          aidat_tanimi_id: tanim.id,
+          tutar: Number(body.katsayi_tutari) * (Number(daire.serefiye_orani) || 1.00),
+          son_odeme_tarihi: sonOdemeTarihi
+        }
       }))
 
       const { error: aidatError } = await supabaseAdmin
@@ -96,8 +107,8 @@ export const aidatTanimiService = {
       }
     }
 
-    logger.info(`Yeni aidat tanımı ve ${uyeler?.length || 0} aidat oluşturuldu: ${body.ay}/${body.yil} (Proje: ${body.proje_id})`)
-    return { ...tanim, olusturulan_aidat_sayisi: uyeler?.length || 0 }
+    logger.info(`Yeni aidat tanımı ve ${daireler?.length || 0} daire için aidat oluşturuldu: ${body.ay}/${body.yil} (Proje: ${body.proje_id})`)
+    return { ...tanim, olusturulan_aidat_sayisi: daireler?.length || 0 }
   },
 
   async createYillikPlan(body: { proje_id: string, yil: number, kalemler: Partial<AidatTanimi>[] }) {
@@ -153,7 +164,7 @@ export const aidatService = {
 
     let q = supabaseAdmin
       .from('aidatlar')
-      .select('*, uyeler(uye_no, ad, soyad), aidat_tanimlari(yil, ay)', { count: 'exact' })
+      .select('*, uyeler(uye_no, ad, soyad), aidat_tanimlari(yil, ay), serefiye_tablosu(daire_no, bloklar(blok_adi))', { count: 'exact' })
 
     if (query.proje_id) q = q.eq('proje_id', query.proje_id)
     if (query.uye_id) q = q.eq('uye_id', query.uye_id)

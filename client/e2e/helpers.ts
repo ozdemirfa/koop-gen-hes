@@ -8,7 +8,7 @@ export const hasCreds = Boolean(E2E_USER && E2E_PASSWORD)
 export async function login(page: Page) {
   if (!hasCreds) throw new Error('E2E_USER / E2E_PASSWORD ortam değişkenleri tanımlı değil')
   await page.goto('/login')
-  await page.getByPlaceholder('ornek@kooperatif.com').fill(E2E_USER!)
+  await page.getByPlaceholder('E-posta').fill(E2E_USER!)
   await page.getByPlaceholder('Şifre').fill(E2E_PASSWORD!)
   await page.getByRole('button', { name: /giriş yap/i }).click()
 

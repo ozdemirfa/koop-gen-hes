@@ -5,6 +5,7 @@ import { UYELIK_DURUMLARI, CINSIYETLER } from '../config/constants'
 const optionalString = z.string().transform(v => v === '' ? undefined : v).pipe(z.string().optional()).or(z.undefined())
 
 export const createUyeSchema = z.object({
+  proje_id: z.string().uuid().optional(),
   uye_no: z.string().optional(),
   tc_kimlik: z.union([
     z.string().length(11, 'TC kimlik 11 haneli olmalı'),

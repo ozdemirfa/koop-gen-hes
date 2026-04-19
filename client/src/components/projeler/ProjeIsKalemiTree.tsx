@@ -3,6 +3,7 @@ import { Tree, Button, Modal, Form, Input, InputNumber, Select, Space, message, 
 import { PlusOutlined, EditOutlined, DeleteOutlined, NodeIndexOutlined, SearchOutlined } from '@ant-design/icons'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
+import { trNumberFormatter, trNumberParser } from '../../lib/format'
 
 const { Text } = Typography
 
@@ -33,15 +34,21 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingKalem, setEditingKalem] = useState<any>(null)
   const [parentKalem, setParentKalem] = useState<any>(null)
+  const [isBudgetManual, setIsBudgetManual] = useState(false)
   const [form] = Form.useForm()
 
   const saveMutation = useMutation({
     mutationFn: async (values: any) => {
+      // Boş stringleri temizle
+      const cleanValues = { ...values }
+      if (cleanValues.kalem_kodu === '') delete cleanValues.kalem_kodu
+      if (cleanValues.notlar === '') delete cleanValues.notlar
+
       if (editingKalem) {
-        return await api.put(`/projeler/is-kalemleri/${editingKalem.id}`, values)
+        return await api.put(`/projeler/is-kalemleri/${editingKalem.id}`, cleanValues)
       }
       return await api.post(`/projeler/${projeId}/is-kalemleri`, {
-        ...values,
+        ...cleanValues,
         ust_kalem_id: parentKalem?.id || null
       })
     },
@@ -52,6 +59,7 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
       form.resetFields()
       setEditingKalem(null)
       setParentKalem(null)
+      setIsBudgetManual(false)
     },
     onError: (err: any) => message.error(err.message || 'Hata oluştu')
   })
@@ -86,7 +94,7 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
       siblings = p?.children || []
     }
     const maxSira = siblings.reduce((max, curr) => Math.max(max, curr.sira_no || 0), 0)
-    return maxSira + 10 // 10'arlı artış esneklik sağlar
+    return maxSira === 0 ? 1 : maxSira + 1
   }
 
   const renderTitle = (node: ProjeIsKalemi) => (
@@ -107,6 +115,7 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
             setEditingKalem(null)
             form.resetFields()
             form.setFieldsValue({ sira_no: getNextSiraNo(data, node.id) })
+            setIsBudgetManual(false)
             setModalOpen(true)
           }} 
         />
@@ -119,6 +128,7 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
             setEditingKalem(node)
             setParentKalem(null)
             form.setFieldsValue(node)
+            setIsBudgetManual(false)
             setModalOpen(true)
           }} 
         />
@@ -146,6 +156,24 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
     }))
   }
 
+  const handleValuesChange = (changedValues: any, allValues: any) => {
+    const { miktar, birim_fiyat, butce_tutari } = allValues
+
+    // Eğer miktar veya birim fiyat değiştiyse ve Manuel Bütçe Modu kapalıysa
+    if ((changedValues.miktar !== undefined || changedValues.birim_fiyat !== undefined) && !isBudgetManual) {
+      const calculatedTotal = (miktar || 0) * (birim_fiyat || 0)
+      form.setFieldsValue({ butce_tutari: calculatedTotal })
+    }
+    
+    // Eğer bütçe tutarı değiştiyse (Manuel moddayken)
+    if (changedValues.butce_tutari !== undefined && isBudgetManual) {
+      if (miktar && miktar > 0) {
+        const calculatedUnitPrice = (butce_tutari || 0) / miktar
+        form.setFieldsValue({ birim_fiyat: calculatedUnitPrice })
+      }
+    }
+  }
+
   return (
     <Card 
       title={
@@ -160,9 +188,10 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
           setEditingKalem(null)
           form.resetFields()
           form.setFieldsValue({ sira_no: getNextSiraNo(data) })
+          setIsBudgetManual(false)
           setModalOpen(true)
         }}>
-          Ana Kalem Ekle
+          Harcama Kalemi Ekle
         </Button>
       }
     >
@@ -174,18 +203,28 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
           selectable={false}
         />
       ) : (
-        <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>Henüz iş kalemi eklenmemiş.</div>
+        <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>Henüz harcama kalemi eklenmemiş.</div>
       )}
 
       <Modal
-        title={editingKalem ? 'İş Kalemi Düzenle' : (parentKalem ? `${parentKalem.tanim} Altına Kalem Ekle` : 'Yeni Ana Kalem')}
+        title={editingKalem ? 'İş Kalemi Düzenle' : (parentKalem ? `${parentKalem.tanim} Altına Kalem Ekle` : 'Yeni Harcama Kalemi')}
         open={modalOpen}
-        onCancel={() => setModalOpen(false)}
+        onCancel={() => {
+          setModalOpen(false)
+          setIsBudgetManual(false)
+        }}
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
         width={500}
       >
-        <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)} initialValues={{ durum: 'planli', sira_no: 0 }}>
+        <Form 
+          form={form} 
+          layout="vertical" 
+          onFinish={(v) => saveMutation.mutate(v)} 
+          onValuesChange={handleValuesChange}
+          initialValues={{ durum: 'planli', sira_no: 0 }}
+          autoComplete="off"
+        >
           <div style={{ display: 'flex', gap: 16 }}>
             <Form.Item name="kalem_kodu" label="Poz No / Kalem Kodu" style={{ flex: 1 }}>
               <Input placeholder="Arama yapmak için yazın..." suffix={<SearchOutlined />} />
@@ -204,15 +243,40 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
               </Select>
             </Form.Item>
             <Form.Item name="miktar" label="Miktar" style={{ flex: 1 }}>
-              <InputNumber style={{ width: '100%' }} />
+              <InputNumber 
+                style={{ width: '100%' }} 
+                formatter={trNumberFormatter}
+                parser={trNumberParser}
+              />
             </Form.Item>
           </div>
           <div style={{ display: 'flex', gap: 16 }}>
             <Form.Item name="birim_fiyat" label="Birim Fiyat" style={{ flex: 1 }}>
-              <InputNumber style={{ width: '100%' }} />
+              <InputNumber 
+                style={{ width: '100%' }} 
+                formatter={trNumberFormatter}
+                parser={trNumberParser}
+              />
             </Form.Item>
             <Form.Item name="butce_tutari" label="Bütçe Tutarı" style={{ flex: 1 }}>
-              <InputNumber style={{ width: '100%' }} />
+              <InputNumber 
+                style={{ width: '100%' }} 
+                formatter={trNumberFormatter}
+                parser={trNumberParser}
+                readOnly={!isBudgetManual}
+                placeholder={isBudgetManual ? "Manuel giriş" : "Otomatik hesaplanır"}
+                className={!isBudgetManual ? "read-only-input" : ""}
+                addonAfter={
+                  <Button 
+                    type={isBudgetManual ? "primary" : "default"} 
+                    size="small" 
+                    icon={<EditOutlined />} 
+                    style={{ border: 'none', height: 20, padding: '0 4px' }}
+                    onClick={() => setIsBudgetManual(!isBudgetManual)}
+                    title="Bütçeyi manuel düzenle / Otomatik hesapla"
+                  />
+                }
+              />
             </Form.Item>
           </div>
           <Form.Item name="durum" label="Durum" rules={[{ required: true }]}>
@@ -236,6 +300,9 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
         }
         .ant-tree-node-content-wrapper:hover .tree-actions {
           opacity: 1;
+        }
+        .read-only-input {
+          background-color: #f5f5f5;
         }
       `}</style>
     </Card>

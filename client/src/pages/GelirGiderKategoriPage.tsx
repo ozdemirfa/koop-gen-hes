@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Table, Button, Modal, Form, Input, Select, message, Popconfirm, Card, Tag, Space } from 'antd'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, EditOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons'
@@ -76,27 +76,29 @@ export const GelirGiderKategoriPage: React.FC = () => {
     setIsModalOpen(true)
   }
 
+  const actions = useMemo(() => (
+    <Space size="small">
+      <Button 
+        size="small" 
+        icon={<ArrowLeftOutlined />} 
+        onClick={() => navigate('/gelir-gider')}
+      >
+        Geri
+      </Button>
+      <Button 
+        size="small" 
+        type="primary" 
+        icon={<PlusOutlined />} 
+        onClick={() => setIsModalOpen(true)}
+      >
+        Yeni Kategori
+      </Button>
+    </Space>
+  ), [navigate])
+
   usePageSettings({
     title: 'Gelir / Gider Kategorileri',
-    actions: (
-      <Space size="small">
-        <Button 
-          size="small" 
-          icon={<ArrowLeftOutlined />} 
-          onClick={() => navigate('/gelir-gider')}
-        >
-          Geri
-        </Button>
-        <Button 
-          size="small" 
-          type="primary" 
-          icon={<PlusOutlined />} 
-          onClick={() => setIsModalOpen(true)}
-        >
-          Yeni Kategori
-        </Button>
-      </Space>
-    )
+    actions
   })
 
   const columns = [
@@ -160,9 +162,8 @@ export const GelirGiderKategoriPage: React.FC = () => {
             </Select>
           </Form.Item>
           <Form.Item name="ad" label="Kategori Adı" rules={[{ required: true, message: 'Kategori adı zorunlu' }]}>
-            <Input placeholder="Örn: Kırtasiye, Aidat, Tamirat" />
-          </Form.Item>
-        </Form>
+            <Input placeholder="Örn: Kırtasiye, Aidat, Tamirat" autoComplete="off" />
+          </Form.Item>        </Form>
       </Modal>
     </div>
   )

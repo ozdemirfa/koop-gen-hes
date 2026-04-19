@@ -178,7 +178,7 @@ export const GelirGider: React.FC = () => {
   ), [tipFilter, navigate])
 
   usePageSettings({
-    title: 'Gelir / Gider İşlemleri',
+    title: 'Cari İşlemler',
     actions
   })
 
@@ -294,7 +294,7 @@ export const GelirGider: React.FC = () => {
       </Card>
 
       <Modal
-        title={editing ? 'Kayıt Düzenle' : 'Yeni Gelir/Gider'}
+        title={editing ? 'Cari Hareket Düzenle' : 'Yeni Cari hareket'}
         open={isModalOpen}
         onCancel={closeModal}
         onOk={() => form.submit()}
@@ -312,14 +312,14 @@ export const GelirGider: React.FC = () => {
         >
           <Row gutter={16}>
             <Col span={8}>
-              <Form.Item name="tip" label="Tip" rules={[{ required: true }]}>
+              <Form.Item name="tip" label="İşlem Tipi" rules={[{ required: true }]}>
                 <Select onChange={() => {
                   form.setFieldValue('kategori_id', undefined)
                   form.setFieldValue('uye_id', undefined)
                   form.setFieldValue('firma_id', undefined)
                 }}>
-                  <Select.Option value="gelir">Gelir</Select.Option>
-                  <Select.Option value="gider">Gider</Select.Option>
+                  <Select.Option value="gelir">Para Girişi (+)</Select.Option>
+                  <Select.Option value="gider">Para Çıkışı (-)</Select.Option>
                 </Select>
               </Form.Item>
             </Col>
@@ -348,7 +348,12 @@ export const GelirGider: React.FC = () => {
             </Col>
             <Col span={12}>
               <Form.Item name="tarih" label="Tarih" rules={[{ required: true }]}>
-                <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+                <DatePicker 
+                  size="small"
+                  style={{ width: '100%' }} 
+                  format="DD.MM.YYYY" 
+                  getPopupContainer={(triggerNode) => triggerNode.parentNode as HTMLElement}
+                />
               </Form.Item>
             </Col>
           </Row>

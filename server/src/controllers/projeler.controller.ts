@@ -2,6 +2,7 @@ import { Response } from 'express'
 import { AuthRequest } from '../middleware/auth'
 import { projeService } from '../services/proje.service'
 import { catchAsync } from '../utils/catchAsync'
+import { supabaseAdmin } from '../config/supabase'
 
 export const getProjeler = catchAsync(async (_req: AuthRequest<any, any, any, any>, res: Response) => {
   const data = await projeService.list()
@@ -23,8 +24,8 @@ export const updateProje = catchAsync(async (req: AuthRequest<any, any, any, any
   res.json({ success: true, data })
 })
 
-export const addIsKalemi = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await projeService.addIsKalemi(req.params.id, req.body)
+export const createIsKalemi = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const data = await projeService.createIsKalemi(req.params.id, req.body)
   res.status(201).json({ success: true, data })
 })
 
@@ -73,7 +74,24 @@ export const generateSerefiye = catchAsync(async (req: AuthRequest<any, any, any
   res.json({ success: true, data })
 })
 
+export const syncSerefiye = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const data = await projeService.syncSerefiye(req.params.id)
+  res.json({ success: true, data })
+})
+
+export const resetSerefiye = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const data = await projeService.resetSerefiye(req.params.id)
+  res.json({ success: true, data })
+})
+
 export const updateSerefiye = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   const data = await projeService.updateSerefiye(req.params.serefiyeId, req.body)
+  res.json({ success: true, data })
+})
+
+export const createYillikPlanKalemleriBulk = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const { kalemler } = req.body
+  const { data, error } = await supabaseAdmin.from('yillik_plan_kalemleri').insert(kalemler).select()
+  if (error) throw error
   res.json({ success: true, data })
 })

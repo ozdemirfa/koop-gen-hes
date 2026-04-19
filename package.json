@@ -13,7 +13,7 @@
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
-    "supabase": "^2.87.2"
+    "supabase": "^2.92.1"
   },
   "dependencies": {
     "@ant-design/icons": "^6.1.1",

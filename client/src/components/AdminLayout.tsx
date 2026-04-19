@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Layout, Menu, Button, theme, Space, Typography } from 'antd'
+import { Layout, Menu, Button, theme, Space, Typography, Tooltip } from 'antd'
 import {
   UserOutlined,
   LogoutOutlined,
@@ -14,8 +14,9 @@ import {
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { ProjectSelector } from './common/ProjectSelector'
+import { useProject } from '../contexts/ProjectContext'
 import { useLayout } from '../contexts/LayoutContext'
+import logo from '../assets/logo.png'
 
 const { Header, Sider, Content } = Layout
 
@@ -25,7 +26,7 @@ export const AdminLayout: React.FC = () => {
   const location = useLocation()
   const { token } = theme.useToken()
   const { title, headerActions } = useLayout()
-
+  const { activeProject } = useProject()
   const { signOut } = useAuth()
 
   const handleLogout = async () => {
@@ -39,7 +40,7 @@ export const AdminLayout: React.FC = () => {
     {
       key: 'gelir-gider-group',
       icon: <TransactionOutlined />,
-      label: 'Gelir / Gider',
+      label: 'Cari Hareketler',
       children: [
         { key: '/gelir-gider', label: 'İşlemler' },
         { key: '/gelir-gider/kategoriler', label: 'Kategoriler' },
@@ -96,20 +97,47 @@ export const AdminLayout: React.FC = () => {
           left: 0,
           height: '100vh',
           zIndex: 1000,
+          overflowY: 'auto'
         }}
       >
-        <div style={{ height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid #e2e8f0' }}>
-          <div style={{ 
-            background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', 
-            borderRadius: 8, 
-            padding: '4px 12px',
-            color: 'white',
-            fontWeight: 700,
-            fontSize: collapsed ? '14px' : '18px',
-            transition: 'all 0.2s'
-          }}>
-            {collapsed ? 'KG' : 'KoopGen'}
+        <div style={{ padding: '16px 0', borderBottom: '1px solid #e2e8f0', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
+            <img 
+              src={logo} 
+              alt="KoopGenHes Logo" 
+              style={{ 
+                height: collapsed ? '32px' : '40px',
+                maxWidth: '90%',
+                objectFit: 'contain',
+                transition: 'all 0.2s'
+              }} 
+            />
           </div>
+          {activeProject && (
+            <Tooltip title={collapsed ? `Aktif Proje: ${activeProject.proje_adi}` : ''} placement="right">
+              <div style={{ padding: collapsed ? '0' : '0 12px', textAlign: 'center' }}>
+                {!collapsed ? (
+                  <>
+                    <Typography.Text type="secondary" style={{ fontSize: '10px', display: 'block' }}>
+                      AKTİF PROJE
+                    </Typography.Text>
+                    <Typography.Text strong style={{ 
+                      fontSize: '12px', 
+                      color: '#4f46e5', 
+                      display: 'block', 
+                      overflow: 'hidden', 
+                      textOverflow: 'ellipsis', 
+                      whiteSpace: 'nowrap' 
+                    }}>
+                      {activeProject.proje_adi}
+                    </Typography.Text>
+                  </>
+                ) : (
+                  <ProjectOutlined style={{ color: '#4f46e5', fontSize: '16px', marginTop: '4px' }} />
+                )}
+              </div>
+            </Tooltip>
+          )}
         </div>
         <Menu
           theme="light"
@@ -117,7 +145,7 @@ export const AdminLayout: React.FC = () => {
           mode="inline"
           items={menuItems}
           onClick={({ key }) => navigate(key)}
-          style={{ borderRight: 0, marginTop: 8 }}
+          style={{ borderRight: 0, marginTop: 8, paddingBottom: 48 }}
         />
       </Sider>
       <Layout>
@@ -133,15 +161,24 @@ export const AdminLayout: React.FC = () => {
           zIndex: 999,
           height: 64
         }}>
-          <div id="header-left" style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-            <ProjectSelector />
+          <div id="header-left" style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1, minWidth: 0 }}>
             {title && (
-              <Typography.Title level={5} style={{ margin: 0, color: '#1e293b' }}>
-                {title}
-              </Typography.Title>
+              <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                <Typography.Text style={{ margin: 0, color: '#1e293b', whiteSpace: 'nowrap', fontWeight: 600, fontSize: '16px' }}>
+                  {title}
+                </Typography.Text>
+              </div>
             )}
+            
             {headerActions && (
-              <div style={{ display: 'flex', alignItems: 'center' }}>
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                marginLeft: '8px',
+                flex: 1,
+                minWidth: 0,
+                overflow: 'hidden'
+              }}>
                 {headerActions}
               </div>
             )}

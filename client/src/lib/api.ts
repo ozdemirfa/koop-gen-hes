@@ -15,7 +15,9 @@ api.interceptors.request.use(async (config) => {
 
   // Aktif proje ID'sini ekle
   const activeProjectId = localStorage.getItem('activeProjectId')
-  if (activeProjectId) {
+  const isProjeEndpoint = config.url?.startsWith('/projeler') || config.url?.includes('/serefiye') || config.url?.includes('/yillik-plan')
+
+  if (activeProjectId && !isProjeEndpoint) {
     if (config.method === 'get' || config.method === 'delete') {
       config.params = { ...config.params, proje_id: activeProjectId }
     } else {

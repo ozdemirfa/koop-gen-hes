@@ -1,13 +1,14 @@
 import React, { useState } from 'react'
 import { Button, Modal, Form, Input, InputNumber, DatePicker, Select, Space, message, Tag, Card, Row, Col, Statistic, Radio } from 'antd'
-import { PlusOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined, WalletOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
-import { PageHeader } from '../../components/common/PageHeader'
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
+import { usePageSettings } from '../../contexts/LayoutContext'
+import { useProject } from '../../contexts/ProjectContext'
 
 interface Cek {
   id: string
@@ -27,10 +28,35 @@ interface Cek {
 
 export const CekTakibiPage: React.FC = () => {
   const queryClient = useQueryClient()
+  const { activeProject } = useProject()
   const [modalOpen, setModalOpen] = useState(false)
   const [editingCek, setEditingCek] = useState<Cek | null>(null)
   const [filter, setFilter] = useState('all')
   const [form] = Form.useForm()
+
+  const headerActions = React.useMemo(() => (
+    <Button
+      size="small"
+      type="primary"
+      icon={<PlusOutlined />}
+      style={{ color: '#ffffff' }}
+      onClick={() => {
+        setEditingCek(null)
+        form.resetFields()
+        if (activeProject) {
+          form.setFieldsValue({ proje_id: activeProject.id })
+        }
+        setModalOpen(true)
+      }}
+    >
+      Yeni Çek Kaydı
+    </Button>
+  ), [form, activeProject])
+
+  usePageSettings({
+    title: 'Çek Takibi',
+    actions: headerActions
+  })
 
   const { data: cekler, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['cekler', filter],
@@ -126,24 +152,6 @@ export const CekTakibiPage: React.FC = () => {
 
   return (
     <div>
-      <PageHeader
-        title="Çek Takibi"
-        subtitle="Verilen çeklerin vade, tutar ve ödeme durumlarını yönetin"
-        extra={
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => {
-              setEditingCek(null)
-              form.resetFields()
-              setModalOpen(true)
-            }}
-          >
-            Yeni Çek Kaydı
-          </Button>
-        }
-      />
-
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={12}>
           <Card className="stat-card">
@@ -208,8 +216,8 @@ export const CekTakibiPage: React.FC = () => {
               {firmalar?.map((f: any) => <Select.Option key={f.id} value={f.id}>{f.unvan}</Select.Option>)}
             </Select>
           </Form.Item>
-          <Form.Item name="proje_id" label="İlgili Proje">
-            <Select placeholder="İsteğe bağlı">
+          <Form.Item name="proje_id" label="İlgili Proje" rules={[{ required: true }]}>
+            <Select placeholder="Proje seçin" disabled={!editingCek}>
               {projeler?.map((p: any) => <Select.Option key={p.id} value={p.id}>{p.proje_adi}</Select.Option>)}
             </Select>
           </Form.Item>
@@ -240,12 +248,12 @@ export const CekTakibiPage: React.FC = () => {
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item name="keside_tarihi" label="Keşide Tarihi">
-                <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+                <DatePicker size="small" style={{ width: '100%' }} format="DD.MM.YYYY" />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item name="vade_tarihi" label="Vade Tarihi" rules={[{ required: true }]}>
-                <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+                <DatePicker size="small" style={{ width: '100%' }} format="DD.MM.YYYY" />
               </Form.Item>
             </Col>
           </Row>

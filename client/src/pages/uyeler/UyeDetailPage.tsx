@@ -322,7 +322,7 @@ export const UyeDetailPage: React.FC = () => {
           </Form.Item>
           <div style={{ display: 'flex', gap: 16 }}>
             <Form.Item name="odeme_tarihi" label="Ödeme Tarihi" rules={[{ required: true }]} style={{ flex: 1 }}>
-              <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+              <DatePicker size="small" style={{ width: '100%' }} format="DD.MM.YYYY" />
             </Form.Item>
             <Form.Item name="odeme_yontemi" label="Yöntem" rules={[{ required: true }]} style={{ flex: 1 }}>
               <Select>

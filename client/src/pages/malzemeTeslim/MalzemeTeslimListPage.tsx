@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Button, Modal, Form, Input, InputNumber, DatePicker, Select, Space, message, Row, Col, Divider, Typography } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -92,33 +92,35 @@ export const MalzemeTeslimListPage: React.FC = () => {
     onError: (err: any) => message.error(err.message || 'Hata oluştu'),
   })
 
+  const actions = useMemo(() => (
+    <Space size="small">
+      <Input
+        placeholder="İrsaliye No Ara..."
+        prefix={<SearchOutlined style={{ color: 'var(--text-tertiary)' }} />}
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        allowClear
+        style={{ width: 220 }}
+        className="header-search-input"
+      />
+      <Button
+        type="primary"
+        icon={<PlusOutlined />}
+        onClick={() => {
+          setEditingIrsaliye(null)
+          form.resetFields()
+          form.setFieldsValue({ kalemler: [{ malzeme_adi: '', birim: 'Adet', miktar: 1, birim_fiyat: 0 }] })
+          setModalOpen(true)
+        }}
+      >
+        Yeni İrsaliye
+      </Button>
+    </Space>
+  ), [searchTerm, form])
+
   usePageSettings({
     title: 'Malzeme Teslimatı ve İrsaliye',
-    actions: (
-      <Space size="small">
-        <Input
-          placeholder="İrsaliye No Ara..."
-          prefix={<SearchOutlined style={{ color: 'var(--text-tertiary)' }} />}
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          allowClear
-          style={{ width: 220 }}
-          className="header-search-input"
-        />
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => {
-            setEditingIrsaliye(null)
-            form.resetFields()
-            form.setFieldsValue({ kalemler: [{ malzeme_adi: '', birim: 'Adet', miktar: 1, birim_fiyat: 0 }] })
-            setModalOpen(true)
-          }}
-        >
-          Yeni İrsaliye
-        </Button>
-      </Space>
-    )
+    actions
   })
 
   const columns = [

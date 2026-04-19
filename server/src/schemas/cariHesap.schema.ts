@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { CARI_HAREKET_TIPLERI } from '../config/constants'
 
 export const cariHareketSchema = z.object({
+  proje_id: z.string().uuid().optional(),
   firma_id: z.string().uuid(),
   hareket_tipi: z.enum(CARI_HAREKET_TIPLERI),
   tutar: z.number().positive(),

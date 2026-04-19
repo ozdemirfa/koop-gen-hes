@@ -10,6 +10,7 @@ import { ProjeIsKalemiTree } from '../../components/projeler/ProjeIsKalemiTree'
 import { LoadingState } from '../../components/common/LoadingState'
 import { EmptyState } from '../../components/common/EmptyState'
 import { ErrorState } from '../../components/common/ErrorState'
+import { usePageSettings } from '../../contexts/LayoutContext'
 
 const { Title, Paragraph, Text } = Typography
 
@@ -40,6 +41,11 @@ export const ProjeDetailPage: React.FC = () => {
     enabled: !!id
   })
 
+  usePageSettings({
+    title: proje?.proje_adi || 'Proje Detayı',
+    actions: null
+  })
+
   if (isLoading) return <LoadingState fullHeight />
   if (isError) return <ErrorState error={error} onRetry={() => refetch()} />
   if (!proje) return <EmptyState description="Proje bulunamadı" />
@@ -63,7 +69,13 @@ export const ProjeDetailPage: React.FC = () => {
             >
               Yıllık Plan
             </Button>
-            <Button type="primary" icon={<EditOutlined />}>Düzenle</Button>
+            <Button 
+              type="primary" 
+              icon={<EditOutlined />}
+              onClick={() => navigate('/projeler')}
+            >
+              Projeler Listesinde Düzenle
+            </Button>
           </Space>
         }
       />
@@ -85,10 +97,13 @@ export const ProjeDetailPage: React.FC = () => {
               <Divider style={{ margin: '12px 0' }} />
               <Row gutter={16}>
                 <Col span={12}>
-                  <Statistic title="Blok Sayısı" value={proje.blok_sayisi || 0} />
+                  <Statistic title="Blok Sayısı" value={proje.bloklar?.length || 0} />
                 </Col>
                 <Col span={12}>
-                  <Statistic title="Daire / Blok" value={proje.daire_sayisi_per_blok || 0} />
+                  <Statistic 
+                    title="Toplam Daire" 
+                    value={proje.bloklar?.reduce((acc: number, b: any) => acc + (b.toplam_daire || 0), 0) || 0} 
+                  />
                 </Col>
               </Row>
               <div>

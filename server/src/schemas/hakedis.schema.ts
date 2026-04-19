@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 export const createHakedisSchema = z.object({
+  proje_id: z.string().uuid().optional(),
   sozlesme_id: z.string().uuid(),
   donem_baslangic: z.string().optional().nullable(),
   donem_bitis: z.string().optional().nullable(),

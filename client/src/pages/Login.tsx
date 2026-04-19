@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Card, Form, Input, Button, message, Typography } from 'antd'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import logo from '../assets/logo.png'
 
 const { Title } = Typography
 
@@ -27,6 +28,7 @@ export const Login: React.FC = () => {
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#f0f2f5' }}>
       <Card style={{ width: 400, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <img src={logo} alt="Logo" style={{ height: 64, marginBottom: 16 }} />
           <Title level={3}>KoopGenHes Yönetim</Title>
         </div>
 

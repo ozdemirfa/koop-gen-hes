@@ -8,11 +8,16 @@ export const uyeService = {
     const pagination = parsePagination(query)
     const { from, to } = toSupabaseRange(pagination)
 
+    logger.info(`Üye listeleme isteği - ProjeID: ${query.proje_id}, Query: ${JSON.stringify(query)}`)
+
     let q = supabaseAdmin
       .from('uyeler')
       .select('*, bloklar(blok_adi)', { count: 'exact' })
 
-    if (query.proje_id) q = q.eq('proje_id', query.proje_id)
+    const activeProjeId = query.proje_id || query.activeProjectId
+    if (activeProjeId && activeProjeId !== 'null' && activeProjeId !== 'undefined') {
+      q = q.eq('proje_id', activeProjeId)
+    }
     if (query.durum) q = q.eq('durum', query.durum)
     if (query.blok_id) q = q.eq('blok_id', query.blok_id)
     if (query.search) {
@@ -20,6 +25,7 @@ export const uyeService = {
     }
 
     const { data, error, count } = await q
+      .order('durum', { ascending: true }) // aktif olanlar üstte
       .order('created_at', { ascending: false })
       .range(from, to)
 
@@ -45,9 +51,16 @@ export const uyeService = {
   },
 
   async create(body: Record<string, any>) {
+    // Proje ID'sini gövdeden al ve doğrula
+    const createData = { ...body }
+    if (!createData.proje_id) {
+      // Eğer body'de yoksa, aktif proje ID'sini kullanmayı deneyebiliriz veya hata döneriz
+      throw ApiError.badRequest('proje_id zorunludur')
+    }
+
     const { data, error } = await supabaseAdmin
       .from('uyeler')
-      .insert([body])
+      .insert([createData])
       .select('*, bloklar(blok_adi)')
       .single()
 
@@ -142,7 +155,7 @@ export const uyeService = {
   async getAidatlar(uyeId: string, query: Record<string, any>) {
     let q = supabaseAdmin
       .from('aidatlar')
-      .select('*, aidat_tanimlari(yil, ay, tutar)')
+      .select('*, aidat_tanimlari(yil, ay, katsayi_tutari)')
       .eq('uye_id', uyeId)
 
     if (query.proje_id) q = q.eq('proje_id', query.proje_id)

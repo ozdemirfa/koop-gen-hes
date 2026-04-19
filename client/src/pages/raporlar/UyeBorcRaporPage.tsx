@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Card, Table, Button, Space, Typography, Statistic, Row, Col } from 'antd'
 import { FilePdfOutlined, UserOutlined, TeamOutlined, DollarOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
@@ -22,18 +22,20 @@ export const UyeBorcRaporPage: React.FC = () => {
     }
   })
 
+  const actions = useMemo(() => (
+    <Button 
+      size="small"
+      icon={<FilePdfOutlined />} 
+      onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'}/raporlar/uye-borc-listesi/pdf`, '_blank')}
+      disabled
+    >
+      PDF İndir
+    </Button>
+  ), [])
+
   usePageSettings({
     title: 'Üye Borç Listesi',
-    actions: (
-      <Button 
-        size="small"
-        icon={<FilePdfOutlined />} 
-        onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'}/raporlar/uye-borc-listesi/pdf`, '_blank')}
-        disabled
-      >
-        PDF İndir
-      </Button>
-    )
+    actions
   })
 
   const columns = [

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Card, Space, Button, Table, Modal, Tag, message, Select, Input, Row, Col, Divider, Typography, Statistic, Alert } from 'antd'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { CheckCircleOutlined, SearchOutlined, SwapOutlined, SyncOutlined, InfoCircleOutlined } from '@ant-design/icons'
@@ -71,29 +71,31 @@ export const BankaUzlastirmaPage: React.FC = () => {
   const selectedBanka = bankaHareketleri?.find(b => b.id === selectedBankaId)
   const selectedCari = cariHareketler?.find(c => c.id === selectedCariId)
 
+  const actions = useMemo(() => (
+    <Space size="small">
+      <Button 
+        size="small" 
+        icon={<SyncOutlined />} 
+        onClick={() => { refetchBanka(); refetchCari() }}
+      >
+        Yenile
+      </Button>
+      <Button 
+        type="primary" 
+        size="small" 
+        icon={<CheckCircleOutlined />} 
+        disabled={!selectedBankaId || !selectedCariId}
+        loading={esleMutation.isPending}
+        onClick={() => esleMutation.mutate({ bankaId: selectedBankaId!, cariId: selectedCariId! })}
+      >
+        Eşleştirmeyi Onayla
+      </Button>
+    </Space>
+  ), [selectedBankaId, selectedCariId, esleMutation.isPending, refetchBanka, refetchCari])
+
   usePageSettings({
     title: 'Banka Uzlaştırma',
-    actions: (
-      <Space size="small">
-        <Button 
-          size="small" 
-          icon={<SyncOutlined />} 
-          onClick={() => { refetchBanka(); refetchCari() }}
-        >
-          Yenile
-        </Button>
-        <Button 
-          type="primary" 
-          size="small" 
-          icon={<CheckCircleOutlined />} 
-          disabled={!selectedBankaId || !selectedCariId}
-          loading={esleMutation.isPending}
-          onClick={() => esleMutation.mutate({ bankaId: selectedBankaId!, cariId: selectedCariId! })}
-        >
-          Eşleştirmeyi Onayla
-        </Button>
-      </Space>
-    )
+    actions
   })
 
   const bankaColumns = [

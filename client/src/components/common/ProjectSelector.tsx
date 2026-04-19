@@ -1,39 +1,106 @@
-import React from 'react'
-import { Select, Space, Typography } from 'antd'
-import { ProjectOutlined } from '@ant-design/icons'
+import React, { useState } from 'react'
+import { Select, Space, Typography, Card, Button, Divider, message } from 'antd'
+import { ProjectOutlined, CheckCircleOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import { useProject } from '../../contexts/ProjectContext'
 
 const { Text } = Typography
 
-export const ProjectSelector: React.FC = () => {
+interface ProjectSelectorProps {
+  inline?: boolean
+}
+
+export const ProjectSelector: React.FC<ProjectSelectorProps> = ({ inline = false }) => {
   const { projects, activeProject, setActiveProject, loading } = useProject()
+  const [selectedId, setSelectedId] = useState<string | undefined>(activeProject?.id)
 
   if (loading) return null
 
-  return (
-    <Space size="middle" style={{ marginRight: 24 }}>
-      <Text type="secondary" style={{ fontSize: 13 }}>Aktif Proje:</Text>
-      <Select
-        value={activeProject?.id}
-        placeholder="Proje Seçin"
-        style={{ width: 220 }}
-        onChange={(value) => {
-          const project = projects.find((p) => p.id === value)
-          setActiveProject(project || null)
-          // Sayfayı yenile ki tüm veriler yeni proje ile çekilsin
-          window.location.reload()
-        }}
-        dropdownStyle={{ minWidth: 250 }}
+  if (inline) {
+    const handleSetActive = () => {
+      if (!selectedId) {
+        message.warning('Lütfen bir proje seçin')
+        return
+      }
+      
+      if (selectedId === activeProject?.id) {
+        message.info('Bu proje zaten aktif')
+        return
+      }
+
+      const project = projects.find((p) => p.id === selectedId)
+      setActiveProject(project || null)
+      message.success(`${project?.proje_adi} aktif proje olarak ayarlandı`)
+      
+      // Sayfayı yenile ki tüm veriler yeni proje ile çekilsin
+      setTimeout(() => window.location.reload(), 500)
+    }
+
+    return (
+      <Card 
+        size="small" 
+        style={{ marginBottom: 16, border: '1px solid #e2e8f0', background: '#f8fafc' }} 
+        styles={{ body: { padding: '12px 16px' } }}
       >
-        {projects.map((project) => (
-          <Select.Option key={project.id} value={project.id}>
-            <Space>
-              <ProjectOutlined style={{ color: '#4f46e5' }} />
-              {project.proje_adi}
-            </Space>
-          </Select.Option>
-        ))}
-      </Select>
-    </Space>
-  )
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {activeProject ? (
+              <div style={{ 
+                padding: '6px 16px', 
+                background: '#ecfdf5', 
+                border: '1px solid #10b981', 
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <CheckCircleOutlined style={{ color: '#10b981', fontSize: '16px' }} />
+                <Space direction="vertical" size={0}>
+                  <Text strong style={{ color: '#065f46', fontSize: '13px', lineHeight: 1.2 }}>
+                    {activeProject.proje_adi}
+                  </Text>
+                  <Text style={{ color: '#059669', fontSize: '11px', lineHeight: 1 }}>ŞU AN AKTİF</Text>
+                </Space>
+              </div>
+            ) : (
+              <Space direction="vertical" size={0}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <ProjectOutlined style={{ color: '#ef4444' }} />
+                  <Text strong>Proje Seçilmedi</Text>
+                </div>
+                <Text type="secondary" style={{ fontSize: '11px' }}>Lütfen bir proje seçerek başlayın</Text>
+              </Space>
+            )}
+          </div>
+
+          <Space wrap>
+            <Select
+              showSearch
+              placeholder="Proje değiştir..."
+              style={{ width: 280 }}
+              value={selectedId}
+              onChange={setSelectedId}
+              optionFilterProp="label"
+              options={projects.map(p => ({
+                value: p.id,
+                label: p.proje_adi,
+                disabled: p.id === activeProject?.id
+              }))}
+              suffixIcon={<ProjectOutlined />}
+            />
+            <Button 
+              type="primary" 
+              icon={<ThunderboltOutlined />} 
+              onClick={handleSetActive}
+              disabled={!selectedId || selectedId === activeProject?.id}
+              style={{ color: '#ffffff' }}
+            >
+              Aktif Proje Yap
+            </Button>
+          </Space>
+        </div>
+      </Card>
+    )
+  }
+
+  return null
 }

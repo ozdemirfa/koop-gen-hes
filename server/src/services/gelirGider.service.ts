@@ -27,6 +27,31 @@ export const kategoriService = {
 
     if (error) throw error
     return data
+  },
+
+  async update(id: string, body: Record<string, any>) {
+    const { data, error } = await supabaseAdmin
+      .from('gelir_gider_kategorileri')
+      .update(body)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    if (!data) throw ApiError.notFound('Kategori bulunamadı')
+    return data
+  },
+
+  async delete(id: string) {
+    const { error } = await supabaseAdmin
+      .from('gelir_gider_kategorileri')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      if (error.code === '23503') throw ApiError.badRequest('Bu kategori kullanımda olduğu için silinemez')
+      throw error
+    }
   }
 }
 
