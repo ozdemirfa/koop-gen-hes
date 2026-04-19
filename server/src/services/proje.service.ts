@@ -240,6 +240,13 @@ export const projeService = {
       .single()
 
     if (error) throw ApiError.notFound('Yıllık plan bulunamadı')
+    
+    // Eğer toplam_butce 0 ise, kalemlerin toplamından veya proje genel bütçesinden fallback yapabiliriz
+    if (!plan.toplam_butce || plan.toplam_butce === 0) {
+      const { data: proje } = await supabaseAdmin.from('projeler').select('toplam_butce').eq('id', projeId).single()
+      plan.toplam_butce = proje?.toplam_butce || 0
+    }
+
     return plan
   },
 
@@ -447,7 +454,19 @@ export const projeService = {
   },
 
   async resetSerefiye(projeId: string) {
-    // 1. Mevcut kayıtları sil
+    // 1. Doluluk kontrolü yap
+    const { count: doluCount, error: checkError } = await supabaseAdmin
+      .from('serefiye_tablosu')
+      .select('id', { count: 'exact', head: true })
+      .eq('proje_id', projeId)
+      .eq('durum', 'dolu')
+
+    if (checkError) throw checkError
+    if ((doluCount || 0) > 0) {
+      throw ApiError.badRequest('Bu projede kayıtlı üyeler (dolu daireler) bulunduğu için tablo yenilenemez.')
+    }
+
+    // 2. Mevcut kayıtları sil
     const { error: deleteError } = await supabaseAdmin
       .from('serefiye_tablosu')
       .delete()
@@ -455,7 +474,7 @@ export const projeService = {
 
     if (deleteError) throw deleteError
 
-    // 2. Yeniden oluştur (mevcut generateSerefiye mantığını kullanabiliriz ama conflict kontrolü olmadan)
+    // 3. Yeniden oluştur
     const { data: bloklar, error: blokError } = await supabaseAdmin
       .from('bloklar')
       .select('*')
