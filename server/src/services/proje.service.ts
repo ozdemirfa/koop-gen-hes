@@ -454,55 +454,18 @@ export const projeService = {
   },
 
   async resetSerefiye(projeId: string) {
-    // 1. Doluluk kontrolü yap
-    const { count: doluCount, error: checkError } = await supabaseAdmin
-      .from('serefiye_tablosu')
-      .select('id', { count: 'exact', head: true })
-      .eq('proje_id', projeId)
-      .eq('durum', 'dolu')
+    const { data, error } = await supabaseAdmin.rpc('reset_serefiye_table', {
+      p_proje_id: projeId
+    })
 
-    if (checkError) throw checkError
-    if ((doluCount || 0) > 0) {
-      throw ApiError.badRequest('Bu projede kayıtlı üyeler (dolu daireler) bulunduğu için tablo yenilenemez.')
-    }
-
-    // 2. Mevcut kayıtları sil
-    const { error: deleteError } = await supabaseAdmin
-      .from('serefiye_tablosu')
-      .delete()
-      .eq('proje_id', projeId)
-
-    if (deleteError) throw deleteError
-
-    // 3. Yeniden oluştur
-    const { data: bloklar, error: blokError } = await supabaseAdmin
-      .from('bloklar')
-      .select('*')
-      .eq('proje_id', projeId)
-
-    if (blokError) throw blokError
-
-    const rows: any[] = []
-    for (const blok of bloklar) {
-      for (let i = 0; i < (blok.toplam_daire || 0); i++) {
-        const daireSiraNo = (blok.daire_baslangic_no || 1) + i
-        rows.push({
-          proje_id: projeId,
-          blok_id: blok.id,
-          daire_sira_no: daireSiraNo,
-          daire_no: `${blok.blok_adi}.${daireSiraNo}`,
-          serefiye_orani: 1.000,
-          durum: 'bos'
-        })
+    if (error) {
+      if (error.message.includes('dolu daireler')) {
+        throw ApiError.badRequest(error.message)
       }
+      throw error
     }
 
-    if (rows.length > 0) {
-      const { error } = await supabaseAdmin.from('serefiye_tablosu').insert(rows)
-      if (error) throw error
-    }
-
-    return { generated: rows.length }
+    return { generated: data }
   },
 
   async updateSerefiye(id: string, body: Record<string, any>) {
