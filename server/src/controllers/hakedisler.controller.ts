@@ -41,6 +41,11 @@ export const approveHakedis = catchAsync(async (req: AuthRequest<any, any, any, 
   res.json({ success: true, data })
 })
 
+export const unapproveHakedis = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const data = await hakedisService.unapprove(req.params.id)
+  res.json({ success: true, data })
+})
+
 export const updateKalemler = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   const data = await hakedisService.updateKalemler(req.params.id, req.body.kalemler)
   res.json({ success: true, data })

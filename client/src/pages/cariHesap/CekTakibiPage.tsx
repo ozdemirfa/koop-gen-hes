@@ -3,12 +3,13 @@ import { Button, Modal, Form, Input, InputNumber, DatePicker, Select, Space, mes
 import { PlusOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
-import api from '../../lib/api'
+import api, { payCheck } from '../../lib/api'
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { useProject } from '../../contexts/ProjectContext'
+import { trMoneyFormatter, trNumberParser } from '../../lib/format'
 
 interface Cek {
   id: string
@@ -30,9 +31,12 @@ export const CekTakibiPage: React.FC = () => {
   const queryClient = useQueryClient()
   const { activeProject } = useProject()
   const [modalOpen, setModalOpen] = useState(false)
+  const [payModalOpen, setPayModalOpen] = useState(false)
   const [editingCek, setEditingCek] = useState<Cek | null>(null)
+  const [payingCek, setPayingCek] = useState<Cek | null>(null)
   const [filter, setFilter] = useState('all')
   const [form] = Form.useForm()
+  const [payForm] = Form.useForm()
 
   const headerActions = React.useMemo(() => (
     <Button
@@ -53,10 +57,7 @@ export const CekTakibiPage: React.FC = () => {
     </Button>
   ), [form, activeProject])
 
-  usePageSettings({
-    title: 'Çek Takibi',
-    actions: headerActions
-  })
+  usePageSettings('Çek Takibi', headerActions)
 
   const { data: cekler, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['cekler', filter],
@@ -78,6 +79,14 @@ export const CekTakibiPage: React.FC = () => {
     queryKey: ['projeler-list'],
     queryFn: async () => {
       const { data } = await api.get('/projeler')
+      return data.data
+    }
+  })
+
+  const { data: bankaHesaplar } = useQuery({
+    queryKey: ['banka-hesaplar'],
+    queryFn: async () => {
+      const { data } = await api.get('/banka/hesaplar')
       return data.data
     }
   })
@@ -114,12 +123,26 @@ export const CekTakibiPage: React.FC = () => {
     }
   })
 
+  const payMutation = useMutation({
+    mutationFn: async ({ id, banka_hesap_id }: { id: string, banka_hesap_id: string }) => {
+      return await payCheck(id, { banka_hesap_id })
+    },
+    onSuccess: () => {
+      message.success('Çek ödemesi başarıyla kaydedildi')
+      queryClient.invalidateQueries({ queryKey: ['cekler'] })
+      setPayModalOpen(false)
+      payForm.resetFields()
+      setPayingCek(null)
+    },
+    onError: (err: any) => message.error(err.message || 'Ödeme kaydedilirken hata oluştu')
+  })
+
   const columns = [
     { title: 'Vade Tarihi', dataIndex: 'vade_tarihi', key: 'vade', render: (d: string) => dayjs(d).format('DD.MM.YYYY'), sorter: (a: any, b: any) => dayjs(a.vade_tarihi).unix() - dayjs(b.vade_tarihi).unix() },
     { title: 'Banka / Çek No', key: 'banka_no', render: (_: any, r: Cek) => <div><div>{r.banka}</div><small>{r.cek_no}</small></div> },
     { title: 'Firma', dataIndex: ['firmalar', 'unvan'], key: 'firma' },
     { title: 'Proje', dataIndex: ['projeler', 'proje_adi'], key: 'proje' },
-    { title: 'Tutar', dataIndex: 'tutar', key: 'tutar', render: (v: number) => <MoneyDisplay amount={v} colored /> },
+    { title: 'Tutar', dataIndex: 'tutar', key: 'tutar', align: 'right' as const, render: (v: number) => <MoneyDisplay amount={v} colored /> },
     {
       title: 'Durum',
       dataIndex: 'durum',
@@ -138,7 +161,18 @@ export const CekTakibiPage: React.FC = () => {
           <Button icon={<EditOutlined />} size="small" onClick={() => { setEditingCek(r); form.setFieldsValue({ ...r, vade_tarihi: dayjs(r.vade_tarihi), keside_tarihi: r.keside_tarihi ? dayjs(r.keside_tarihi) : null }); setModalOpen(true) }} />
           {r.durum === 'beklemede' && (
             <>
-              <Button icon={<CheckCircleOutlined />} size="small" type="primary" ghost onClick={() => updateDurumMutation.mutate({ id: r.id, durum: 'odendi' })} />
+              <Button 
+                size="small" 
+                type="primary" 
+                ghost 
+                onClick={() => {
+                  setPayingCek(r)
+                  payForm.resetFields()
+                  setPayModalOpen(true)
+                }}
+              >
+                Çek Öde
+              </Button>
               <Button icon={<CloseCircleOutlined />} size="small" danger ghost onClick={() => updateDurumMutation.mutate({ id: r.id, durum: 'iptal' })} />
             </>
           )}
@@ -159,7 +193,7 @@ export const CekTakibiPage: React.FC = () => {
               title="Bekleyen Çekler Toplamı" 
               value={totalBekleyen} 
               suffix="TL" 
-              precision={2} 
+              formatter={(v) => trMoneyFormatter(v as number)} 
               styles={{ content: { color: '#1890ff' } }} 
             />
           </Card>
@@ -170,7 +204,7 @@ export const CekTakibiPage: React.FC = () => {
               title="Ödenen Çekler Toplamı" 
               value={totalOdendi} 
               suffix="TL" 
-              precision={2} 
+              formatter={(v) => trMoneyFormatter(v as number)} 
               styles={{ content: { color: '#52c41a' } }} 
             />
           </Card>
@@ -241,7 +275,12 @@ export const CekTakibiPage: React.FC = () => {
             </Col>
             <Col span={12}>
               <Form.Item name="tutar" label="Tutar" rules={[{ required: true }]}>
-                <InputNumber style={{ width: '100%' }} min={0.01} />
+                <InputNumber 
+                  style={{ width: '100%' }} 
+                  min={0.01} 
+                  formatter={trMoneyFormatter}
+                  parser={trNumberParser}
+                />
               </Form.Item>
             </Col>
           </Row>
@@ -259,6 +298,34 @@ export const CekTakibiPage: React.FC = () => {
           </Row>
           <Form.Item name="aciklama" label="Açıklama">
             <Input.TextArea rows={2} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="Çek Ödemesi"
+        open={payModalOpen}
+        onCancel={() => {
+          setPayModalOpen(false)
+          setPayingCek(null)
+        }}
+        onOk={() => payForm.submit()}
+        confirmLoading={payMutation.isPending}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <p><strong>Çek No:</strong> {payingCek?.cek_no}</p>
+          <p><strong>Tutar:</strong> <MoneyDisplay amount={payingCek?.tutar || 0} /></p>
+          <p><strong>Banka:</strong> {payingCek?.banka}</p>
+        </div>
+        <Form form={payForm} layout="vertical" onFinish={(v) => payMutation.mutate({ id: payingCek!.id, ...v })}>
+          <Form.Item name="banka_hesap_id" label="Ödemenin Yapılacağı Banka Hesabı" rules={[{ required: true, message: 'Lütfen banka hesabı seçin' }]}>
+            <Select placeholder="Banka hesabı seçin">
+              {bankaHesaplar?.map((b: any) => (
+                <Select.Option key={b.id} value={b.id}>
+                  {b.hesap_adi} ({b.banka_adi})
+                </Select.Option>
+              ))}
+            </Select>
           </Form.Item>
         </Form>
       </Modal>

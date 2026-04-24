@@ -1,20 +1,22 @@
 import React, { useState } from 'react'
-import { Button, Select, Space, Tag, Modal, Form, DatePicker, Input, message } from 'antd'
+import { Button, Select, Space, Tag, Modal, Form, DatePicker, Input, message, Popconfirm, Tooltip } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { PlusOutlined, EyeOutlined } from '@ant-design/icons'
+import { PlusOutlined, EyeOutlined, RollbackOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { usePageSettings } from '../../contexts/LayoutContext'
+import { trNumberFormatter, trNumberParser } from '../../lib/format'
 
 interface Hakedis {
   id: string
   hakedis_no: number
   durum: string
-  toplam_tutar: number
+  ara_toplam: number
+  hakedis_toplam: number
   net_tutar: number
   donem_baslangic?: string
   donem_bitis?: string
@@ -44,6 +46,7 @@ export const HakedisListPage: React.FC = () => {
   const queryClient = useQueryClient()
   const [filterDurum, setFilterDurum] = useState<string | undefined>(undefined)
   const [createModalOpen, setCreateModalOpen] = useState(false)
+  const [selectedFirmaId, setSelectedFirmaId] = useState<string | null>(null)
   const [createForm] = Form.useForm()
 
   const headerActions = React.useMemo(() => (
@@ -67,17 +70,26 @@ export const HakedisListPage: React.FC = () => {
     </Space>
   ), [filterDurum])
 
-  usePageSettings({
-    title: 'Hakedişler',
-    actions: headerActions
+  usePageSettings('Hakedişler', headerActions)
+
+  const { data: firmalar } = useQuery({
+    queryKey: ['firmalar-select'],
+    queryFn: async () => {
+      const { data } = await api.get('/firmalar', { params: { aktif: 'true', limit: 500 } })
+      return data.data as { id: string; unvan: string }[]
+    },
+    enabled: createModalOpen
   })
 
   const { data: sozlesmeler } = useQuery({
-    queryKey: ['sozlesmeler-select'],
+    queryKey: ['sozlesmeler-select', selectedFirmaId],
     queryFn: async () => {
-      const { data } = await api.get('/sozlesmeler', { params: { limit: 500 } })
+      const params: any = { limit: 500 }
+      if (selectedFirmaId) params.firma_id = selectedFirmaId
+      const { data } = await api.get('/sozlesmeler', { params })
       return data.data as { id: string; sozlesme_no?: string; konu: string; firmalar?: { unvan: string } }[]
     },
+    enabled: createModalOpen && !!selectedFirmaId
   })
 
   const { data: hakedisData, isLoading, isError, error, refetch } = useQuery({
@@ -109,10 +121,27 @@ export const HakedisListPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['hakedisler'] })
       setCreateModalOpen(false)
       createForm.resetFields()
+      setSelectedFirmaId(null)
       if (data.data?.id) navigate(`/hakedisler/${data.data.id}`)
     },
     onError: (err: any) => message.error(err.message || 'Hata oluştu'),
   })
+
+  const unapproveMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return api.put(`/hakedisler/${id}/onay-iptal`)
+    },
+    onSuccess: () => {
+      message.success('Hakediş onayı iptal edildi, tekrar düzenlenebilir.')
+      queryClient.invalidateQueries({ queryKey: ['hakedisler'] })
+    },
+    onError: (err: any) => message.error(err.message || 'İşlem başarısız'),
+  })
+
+  const handleFirmaChange = (val: string) => {
+    setSelectedFirmaId(val)
+    createForm.setFieldsValue({ sozlesme_id: undefined })
+  }
 
   const columns = [
     {
@@ -143,9 +172,10 @@ export const HakedisListPage: React.FC = () => {
       },
     },
     {
-      title: 'Toplam',
-      dataIndex: 'toplam_tutar',
-      key: 'toplam_tutar',
+      title: 'Hakediş Toplam',
+      dataIndex: 'hakedis_toplam',
+      key: 'hakedis_toplam',
+      align: 'right' as const,
       width: 130,
       render: (v: number) => <MoneyDisplay amount={v} />,
     },
@@ -153,6 +183,7 @@ export const HakedisListPage: React.FC = () => {
       title: 'Net Tutar',
       dataIndex: 'net_tutar',
       key: 'net_tutar',
+      align: 'right' as const,
       width: 130,
       render: (v: number) => <MoneyDisplay amount={v} />,
     },
@@ -166,9 +197,28 @@ export const HakedisListPage: React.FC = () => {
     {
       title: 'İşlem',
       key: 'action',
-      width: 60,
+      width: 100,
       render: (_: unknown, r: Hakedis) => (
-        <Button icon={<EyeOutlined />} type="text" onClick={() => navigate(`/hakedisler/${r.id}`)} />
+        <Space>
+          <Button icon={<EyeOutlined />} type="text" onClick={() => navigate(`/hakedisler/${r.id}`)} />
+          {r.durum === 'onaylandi' && (
+            <Popconfirm
+              title="Hakediş onayı iptal edilecek ve cari hareketi silinecek. Emin misiniz?"
+              onConfirm={() => unapproveMutation.mutate(r.id)}
+              okText="Evet"
+              cancelText="Hayır"
+            >
+              <Tooltip title="Onay İptal (Revizyona Aç)">
+                <Button 
+                  icon={<RollbackOutlined />} 
+                  type="text" 
+                  danger 
+                  loading={unapproveMutation.isPending}
+                />
+              </Tooltip>
+            </Popconfirm>
+          )}
+        </Space>
       ),
     },
   ]
@@ -179,11 +229,12 @@ export const HakedisListPage: React.FC = () => {
         <ErrorState error={error} onRetry={() => refetch()} />
       ) : (
         <DataTable
+          variant="borderless"
           columns={columns}
           dataSource={hakedisData?.data}
           rowKey="id"
           loading={isLoading}
-          totalItems={hakedisData?.pagination?.total}
+          totalItems={hakedisData?.pagination?.totalCount}
           emptyDescription="Kayıtlı hakediş bulunamadı"
         />
       )}
@@ -191,10 +242,14 @@ export const HakedisListPage: React.FC = () => {
       <Modal
         title="Yeni Hakediş Oluştur"
         open={createModalOpen}
-        onCancel={() => { setCreateModalOpen(false); createForm.resetFields() }}
+        onCancel={() => { 
+          setCreateModalOpen(false)
+          createForm.resetFields()
+          setSelectedFirmaId(null)
+        }}
         onOk={() => createForm.submit()}
         confirmLoading={createMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
         okText="Oluştur"
         cancelText="İptal"
       >
@@ -204,15 +259,28 @@ export const HakedisListPage: React.FC = () => {
           onFinish={(v) => createMutation.mutate(v)}
           style={{ marginTop: 16 }}
         >
+          <Form.Item name="firma_id_virtual" label="Firma" rules={[{ required: true, message: 'Firma seçin' }]}>
+            <Select
+              showSearch
+              placeholder="Firma seçin"
+              optionFilterProp="children"
+              onChange={handleFirmaChange}
+            >
+              {firmalar?.map((f) => (
+                <Select.Option key={f.id} value={f.id}>{f.unvan}</Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
           <Form.Item name="sozlesme_id" label="Sözleşme" rules={[{ required: true, message: 'Sözleşme seçin' }]}>
             <Select
               showSearch
-              placeholder="Sözleşme seçin"
+              placeholder={selectedFirmaId ? "Sözleşme seçin" : "Önce firma seçin"}
               optionFilterProp="children"
+              disabled={!selectedFirmaId}
             >
               {sozlesmeler?.map((s) => (
                 <Select.Option key={s.id} value={s.id}>
-                  {s.firmalar?.unvan} - {s.konu} {s.sozlesme_no ? `(${s.sozlesme_no})` : ''}
+                  {s.konu} {s.sozlesme_no ? `(${s.sozlesme_no})` : ''}
                 </Select.Option>
               ))}
             </Select>

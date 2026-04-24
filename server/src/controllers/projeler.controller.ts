@@ -45,6 +45,7 @@ export const getYillikPlan = catchAsync(async (req: AuthRequest<any, any, any, a
 })
 
 export const createYillikPlan = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  console.log(`[DEBUG] Controller createYillikPlan hit. ProjeId: ${req.params.id}, Body:`, req.body)
   const data = await projeService.createYillikPlan(req.params.id, req.body)
   res.status(201).json({ success: true, data })
 })
@@ -52,6 +53,12 @@ export const createYillikPlan = catchAsync(async (req: AuthRequest<any, any, any
 export const updatePlanKalemi = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   const data = await projeService.updatePlanKalemi(req.params.id, req.body)
   res.json({ success: true, data })
+})
+
+export const deletePlanKalemleri = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const { planId, isKalemiId } = req.params
+  await projeService.deletePlanKalemleri(planId, isKalemiId)
+  res.json({ success: true, message: 'Kalemler plandan kaldırıldı' })
 })
 
 export const getAktifBloklar = catchAsync(async (_req: AuthRequest<any, any, any, any>, res: Response) => {
@@ -102,7 +109,7 @@ export const updateSerefiye = catchAsync(async (req: AuthRequest<any, any, any, 
 
 export const createYillikPlanKalemleriBulk = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   const { kalemler } = req.body
-  const { data, error } = await supabaseAdmin.from('yillik_plan_kalemleri').insert(kalemler).select()
+  const { data, error } = await supabaseAdmin.from('yillik_plan_kalemleri').upsert(kalemler, { onConflict: 'plan_id,proje_is_kalemi_id,ay' }).select()
   if (error) throw error
   res.json({ success: true, data })
 })

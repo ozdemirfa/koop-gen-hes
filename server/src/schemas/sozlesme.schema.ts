@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 export const createSozlesmeSchema = z.object({
+  proje_id: z.string().uuid().optional(),
   firma_id: z.string().uuid(),
   sozlesme_no: z.string().optional().nullable(),
   konu: z.string().min(1, 'Konu zorunlu'),

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Button, Modal, Form, Input, Space, message, Tag, Switch, Tooltip } from 'antd'
+import { Button, Modal, Form, Input, Space, message, Tag, Switch, Tooltip, Typography } from 'antd'
 import { PlusOutlined, EditOutlined, TransactionOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
@@ -7,6 +7,7 @@ import api from '../../lib/api'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
+import { formatIBAN, formatIBANInput, getIBANRaw } from '../../lib/format'
 
 interface BankaHesap {
   id: string
@@ -77,16 +78,22 @@ export const BankaHesapListPage: React.FC = () => {
     </Button>
   ), [form])
 
-  usePageSettings({
-    title: 'Banka Hesapları',
-    actions
-  })
+  usePageSettings('Banka Hesapları', actions)
 
   const columns = [
     { title: 'Banka Adı', dataIndex: 'banka_adi', key: 'banka_adi' },
     { title: 'Şube', dataIndex: 'sube', key: 'sube' },
     { title: 'Hesap No', dataIndex: 'hesap_no', key: 'hesap_no' },
-    { title: 'IBAN', dataIndex: 'iban', key: 'iban' },
+    { 
+      title: 'IBAN', 
+      dataIndex: 'iban', 
+      key: 'iban',
+      render: (v: string) => v ? (
+        <Typography.Text copyable={{ text: getIBANRaw(v), tooltips: ['Kopyala (Sadece Rakamlar)', 'Kopyalandı!'] }}>
+          {formatIBAN(v)}
+        </Typography.Text>
+      ) : '-'
+    },
     {
       title: 'Durum',
       dataIndex: 'aktif',
@@ -153,7 +160,7 @@ export const BankaHesapListPage: React.FC = () => {
         }}
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
         okText="Kaydet"
         cancelText="İptal"
       >
@@ -173,8 +180,30 @@ export const BankaHesapListPage: React.FC = () => {
           <Form.Item name="hesap_no" label="Hesap No">
             <Input />
           </Form.Item>
-          <Form.Item name="iban" label="IBAN">
-            <Input placeholder="TR..." />
+          <Form.Item 
+            name="iban" 
+            label="IBAN"
+            rules={[
+              {
+                validator: (_, value) => {
+                  if (!value) return Promise.resolve()
+                  // Boşlukları ve TR'yi temizle, sadece karakter sayısını kontrol et
+                  const clean = value.replace(/\s/g, '')
+                  if (clean.length !== 26) {
+                    return Promise.reject('IBAN TR dahil 26 karakter olmalıdır')
+                  }
+                  return Promise.resolve()
+                }
+              }
+            ]}
+          >
+            <Input 
+              placeholder="TR..." 
+              onChange={(e) => {
+                const formatted = formatIBANInput(e.target.value)
+                form.setFieldsValue({ iban: formatted })
+              }}
+            />
           </Form.Item>
           <Form.Item name="aktif" label="Durum" valuePropName="checked">
             <Switch checkedChildren="Aktif" unCheckedChildren="Pasif" />

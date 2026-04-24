@@ -11,6 +11,8 @@ import { LoadingState } from '../../components/common/LoadingState'
 import { EmptyState } from '../../components/common/EmptyState'
 import { ErrorState } from '../../components/common/ErrorState'
 
+import { trMoneyFormatter, trNumberParser } from '../../lib/format'
+
 const { Text } = Typography
 
 interface Fatura {
@@ -126,7 +128,8 @@ export const OdemePlaniPage: React.FC = () => {
           value={record.tutar} 
           onChange={(v) => handleFieldChange(index, 'tutar', v)} 
           style={{ width: '100%' }}
-          formatter={(v) => `₺ ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+          formatter={trMoneyFormatter}
+          parser={trNumberParser}
         />
       )
     },
@@ -163,19 +166,19 @@ export const OdemePlaniPage: React.FC = () => {
           <Card title="Fatura Özeti">
             <Statistic title="Firma" value={fatura.firmalar?.unvan} styles={{ content: { fontSize: 16 } }} />
             <Divider style={{ margin: '12px 0' }} />
-            <Statistic title="Toplam Tutar" value={fatura.toplam_tutar} prefix="₺" precision={2} />
+            <Statistic title="Toplam Tutar" value={fatura.toplam_tutar} prefix="₺" formatter={(v) => trMoneyFormatter(v as number)} />
             <Statistic 
               title="Planlanan Toplam" 
               value={planToplam} 
               prefix="₺" 
-              precision={2} 
+              formatter={(v) => trMoneyFormatter(v as number)} 
               styles={{ content: { color: planToplam === fatura.toplam_tutar ? '#52c41a' : '#faad14' } }} 
             />
             <Statistic 
               title="Kalan" 
               value={kalan} 
               prefix="₺" 
-              precision={2} 
+              formatter={(v) => trMoneyFormatter(v as number)} 
               styles={{ content: { color: kalan === 0 ? '#52c41a' : '#ff4d4f' } }} 
             />
           </Card>

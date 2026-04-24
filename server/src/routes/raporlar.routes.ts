@@ -8,5 +8,6 @@ router.get('/aylik-rapor/pdf', raporlarController.downloadAylikRaporPdf)
 router.get('/yillik-rapor', raporlarController.getYillikRapor)
 router.get('/uye-borc-listesi', raporlarController.getUyeBorcListesi)
 router.get('/hakedis-ozet', raporlarController.getHakedisOzet)
+router.get('/mizan', raporlarController.getMizan)
 
 export default router

@@ -11,6 +11,7 @@ router.get('/:id/pdf', hakedisController.downloadHakedisPdf)
 router.post('/', validate({ body: createHakedisSchema }), hakedisController.createHakedis)
 router.put('/:id', validate({ body: updateHakedisSchema }), hakedisController.updateHakedis)
 router.put('/:id/onayla', hakedisController.approveHakedis)
+router.put('/:id/onay-iptal', hakedisController.unapproveHakedis)
 router.post('/:id/kalemler', validate({ body: hakedisKalemlerBatchSchema }), hakedisController.updateKalemler)
 
 export default router

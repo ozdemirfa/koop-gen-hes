@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Card, Descriptions, Table, Button, Modal, Form, Input, InputNumber, Space, Tag, message, Row, Col } from 'antd'
+import { Card, Descriptions, Table, Button, Modal, Form, Input, InputNumber, Space, Tag, message, Row, Col, Select } from 'antd'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
@@ -8,7 +8,7 @@ import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { ConfirmDelete } from '../../components/common/ConfirmDelete'
-import { trNumberFormatter, trNumberParser } from '../../lib/format'
+import { trNumberFormatter, trNumberParser, trMoneyFormatter } from '../../lib/format'
 
 interface IsKalemi {
   id: string
@@ -33,18 +33,55 @@ export const SozlesmeDetailPage: React.FC = () => {
   const { data: sozlesme, isLoading } = useQuery({
     queryKey: ['sozlesme', id],
     queryFn: async () => {
-      const { data } = await api.get(`/sozlesmeler/${id}`)
-      return data.data
+      const response = await api.get(`/sozlesmeler/${id}`)
+      return response.data.data
     },
   })
 
   const { data: isKalemleri, isLoading: kalemLoading } = useQuery({
     queryKey: ['is-kalemleri', id],
     queryFn: async () => {
-      const { data } = await api.get(`/sozlesmeler/${id}/is-kalemleri`)
-      return data.data as IsKalemi[]
+      const response = await api.get(`/sozlesmeler/${id}/is-kalemleri`)
+      return response.data.data as IsKalemi[]
     },
   })
+
+  const { data: birimler } = useQuery({
+    queryKey: ['settings-birimler'],
+    queryFn: async () => {
+      const { data } = await api.get('/settings/birimler')
+      return data.data as { id: string, ad: string }[]
+    }
+  })
+
+  const { data: pozlar } = useQuery({
+    queryKey: ['settings-pozlar'],
+    queryFn: async () => {
+      const { data } = await api.get('/settings/pozlar')
+      return data.data as { id: string, poz_no: string, tanim: string, birimler?: { ad: string } }[]
+    }
+  })
+
+  const handleAddKalem = () => {
+    setEditingKalem(null)
+    kalemForm.resetFields()
+    const nextSira = isKalemleri && isKalemleri.length > 0 
+      ? Math.max(...isKalemleri.map(k => k.sira_no)) + 1 
+      : 1
+    kalemForm.setFieldsValue({ sira_no: nextSira })
+    setIsKalemiModalOpen(true)
+  }
+
+  const handlePozSelect = (pozId: string) => {
+    const selectedPoz = pozlar?.find(p => p.id === pozId)
+    if (selectedPoz) {
+      kalemForm.setFieldsValue({
+        poz_no: selectedPoz.poz_no,
+        tanim: selectedPoz.tanim,
+        birim: selectedPoz.birimler?.ad
+      })
+    }
+  }
 
   const saveKalemMutation = useMutation({
     mutationFn: async (values: Record<string, unknown>) => {
@@ -60,7 +97,7 @@ export const SozlesmeDetailPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['is-kalemleri', id] })
       closeKalemModal()
     },
-    onError: (err: any) => message.error(err.message || 'Hata oluştu'),
+    onError: (err: any) => message.error(err.error || err.message || 'Hata oluştu'),
   })
 
   const deleteKalemMutation = useMutation({
@@ -108,13 +145,15 @@ export const SozlesmeDetailPage: React.FC = () => {
       title: 'Miktar',
       dataIndex: 'miktar',
       key: 'miktar',
+      align: 'right' as const,
       width: 100,
-      render: (v: number) => v?.toLocaleString('tr-TR'),
+      render: (v: number) => trNumberFormatter(v),
     },
     {
       title: 'Birim Fiyat',
       dataIndex: 'birim_fiyat',
       key: 'birim_fiyat',
+      align: 'right' as const,
       width: 120,
       render: (v: number) => <MoneyDisplay amount={v} />,
     },
@@ -122,6 +161,7 @@ export const SozlesmeDetailPage: React.FC = () => {
       title: 'Toplam',
       dataIndex: 'toplam_tutar',
       key: 'toplam_tutar',
+      align: 'right' as const,
       width: 130,
       render: (v: number) => <MoneyDisplay amount={v} />,
     },
@@ -196,7 +236,7 @@ export const SozlesmeDetailPage: React.FC = () => {
       <Card
         title={`İş Kalemleri (${isKalemleri?.length || 0})`}
         extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsKalemiModalOpen(true)}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleAddKalem}>
             İş Kalemi Ekle
           </Button>
         }
@@ -231,9 +271,25 @@ export const SozlesmeDetailPage: React.FC = () => {
         onCancel={closeKalemModal}
         onOk={() => kalemForm.submit()}
         confirmLoading={saveKalemMutation.isPending}
-        width={600}
+        width={650}
       >
         <Form form={kalemForm} layout="vertical" onFinish={(v) => saveKalemMutation.mutate(v)}>
+          {!editingKalem && (
+            <Form.Item label="Hazır Pozlardan Seç" help="Ön tanımlı bir poz seçerek alanları otomatik doldurabilirsiniz.">
+              <Select 
+                showSearch
+                placeholder="Poz seçin" 
+                optionFilterProp="children"
+                onChange={handlePozSelect}
+                allowClear
+              >
+                {pozlar?.map(p => (
+                  <Select.Option key={p.id} value={p.id}>{p.poz_no} - {p.tanim}</Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+          )}
+          
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item name="sira_no" label="Sıra No">
@@ -242,7 +298,7 @@ export const SozlesmeDetailPage: React.FC = () => {
             </Col>
             <Col span={12}>
               <Form.Item name="poz_no" label="Poz No">
-                <Input />
+                <Input autoComplete="off" />
               </Form.Item>
             </Col>
           </Row>
@@ -252,7 +308,9 @@ export const SozlesmeDetailPage: React.FC = () => {
           <Row gutter={16}>
             <Col span={8}>
               <Form.Item name="birim" label="Birim" rules={[{ required: true, message: 'Birim zorunlu' }]}>
-                <Input placeholder="m2, m3..." />
+                <Select placeholder="Birim seçin">
+                  {birimler?.map(b => <Select.Option key={b.ad} value={b.ad}>{b.ad}</Select.Option>)}
+                </Select>
               </Form.Item>
             </Col>
             <Col span={8}>
@@ -263,6 +321,7 @@ export const SozlesmeDetailPage: React.FC = () => {
                   style={{ width: '100%' }}
                   formatter={trNumberFormatter}
                   parser={trNumberParser}
+                  decimalSeparator=","
                 />
               </Form.Item>
             </Col>
@@ -272,8 +331,9 @@ export const SozlesmeDetailPage: React.FC = () => {
                   min={0} 
                   step={0.01} 
                   style={{ width: '100%' }}
-                  formatter={trNumberFormatter}
+                  formatter={trMoneyFormatter}
                   parser={trNumberParser}
+                  decimalSeparator=","
                 />
               </Form.Item>
             </Col>

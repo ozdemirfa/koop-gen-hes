@@ -1,0 +1,3 @@
+-projeler tablosu
+--daire_kodlama_sistemi, daire_sayisi_per_blok, blok_sayisi sütunları sil. 
+-proje_is_kalemleri tablosu ust_kalem_id sil

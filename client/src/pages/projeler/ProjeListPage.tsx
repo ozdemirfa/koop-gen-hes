@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Button, Modal, Form, Input, Space, Tag, DatePicker, Card, Row, Col, Select, InputNumber, Divider, Typography, App } from 'antd'
 import { PlusOutlined, EditOutlined, ArrowRightOutlined, ProjectOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { ProjectSelector } from '../../components/common/ProjectSelector'
@@ -11,6 +11,7 @@ import { EmptyState } from '../../components/common/EmptyState'
 import { ErrorState } from '../../components/common/ErrorState'
 import { trNumberFormatter, trNumberParser } from '../../lib/format'
 import { usePageSettings } from '../../contexts/LayoutContext'
+import { useProject } from '../../contexts/ProjectContext'
 
 const { Text } = Typography
 
@@ -50,10 +51,11 @@ const durumEtiketleri: Record<string, string> = {
 export const ProjeListPage: React.FC = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { refreshProjects } = useProject()
   const [modalOpen, setModalOpen] = useState(false)
   const [editingProje, setEditingProje] = useState<Proje | null>(null)
   const [form] = Form.useForm()
-  const { message } = App.useApp()
+  const { message: messageApi } = App.useApp()
 
   const { data: projeler, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['projeler'],
@@ -76,8 +78,9 @@ export const ProjeListPage: React.FC = () => {
       return await api.post('/projeler', payload)
     },
     onSuccess: () => {
-      message.success('Proje kaydedildi')
+      messageApi.success('Proje kaydedildi')
       queryClient.invalidateQueries({ queryKey: ['projeler'] })
+      refreshProjects()
       setModalOpen(false)
       form.resetFields()
       setEditingProje(null)
@@ -89,7 +92,7 @@ export const ProjeListPage: React.FC = () => {
           errors: [detail.message]
         })))
       } else {
-        message.error(err.error || err.message || 'Hata oluştu')
+        messageApi.error(err.error || err.message || 'Hata oluştu')
       }
     },
   })
@@ -110,10 +113,7 @@ export const ProjeListPage: React.FC = () => {
     </Button>
   ), [form])
 
-  usePageSettings({
-    title: 'İnşaat Projeleri',
-    actions: headerActions
-  })
+  usePageSettings('İnşaat Projeleri', headerActions)
 
   const openEditModal = async (proje: Proje) => {
     try {
@@ -128,12 +128,12 @@ export const ProjeListPage: React.FC = () => {
       })
       setModalOpen(true)
     } catch (err) {
-      message.error('Proje detayları yüklenemedi')
+      messageApi.error('Proje detayları yüklenemedi')
     }
   }
 
   return (
-    <div style={{ zoom: '0.9', fontSize: '13px' }}>
+    <div className="animate-in fade-in duration-500" style={{ zoom: '0.9', fontSize: '13px' }}>
       <ProjectSelector inline />
       
       <Row gutter={[12, 12]}>
@@ -148,6 +148,7 @@ export const ProjeListPage: React.FC = () => {
             <Col xs={24} sm={12} lg={8} key={p.id}>
               <Card
                 hoverable
+                variant="borderless"
                 size="small"
                 style={{ cursor: 'default' }}
                 data-testid={`project-card-${p.id}`}
@@ -168,7 +169,7 @@ export const ProjeListPage: React.FC = () => {
                     style={{ color: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', cursor: 'pointer' }}
                     data-testid={`view-project-${p.id}`}
                     onClick={(e) => {
-                      e.stopPropagation()
+                      e.stopPropagation();
                       navigate(`/projeler/${p.id}`)
                     }}
                   >
@@ -238,7 +239,7 @@ export const ProjeListPage: React.FC = () => {
                 name="proje_adi" 
                 label={<span style={{ fontWeight: 500 }}>Proje Adı</span>} 
                 rules={[
-                  { required: true, message: 'Proje adı zorunludur' },
+                  { required: true, message: 'Proje adı zorunlu' },
                   {
                     validator: (_, value) => {
                       if (value && projeler?.some(p => p.proje_adi.toLowerCase() === value.toLowerCase() && p.id !== editingProje?.id)) {
@@ -275,7 +276,7 @@ export const ProjeListPage: React.FC = () => {
             label={<span style={{ fontWeight: 500 }}>Açıklama</span>}
             style={{ marginBottom: 12 }}
           >
-            <Input.TextArea rows={2} placeholder="Proje hakkında kısa bilgi..." size="small" />
+            <Input.TextArea rows={2} placeholder="Proje hakkında kısa bilgi..." size="small" autoComplete="off" />
           </Form.Item>
           
           <Row gutter={12}>
@@ -290,7 +291,7 @@ export const ProjeListPage: React.FC = () => {
                   style={{ width: '100%' }} 
                   format="DD.MM.YYYY" 
                   getPopupContainer={(triggerNode) => triggerNode.parentNode as HTMLElement}
-                  popupClassName="small-datepicker-popup"
+                  classNames={{ popup: { root: 'small-datepicker-popup' } }}
                 />
               </Form.Item>
             </Col>
@@ -305,7 +306,7 @@ export const ProjeListPage: React.FC = () => {
                   style={{ width: '100%' }} 
                   format="DD.MM.YYYY" 
                   getPopupContainer={(triggerNode) => triggerNode.parentNode as HTMLElement}
-                  popupClassName="small-datepicker-popup"
+                  classNames={{ popup: { root: 'small-datepicker-popup' } }}
                 />
               </Form.Item>
             </Col>
@@ -326,7 +327,7 @@ export const ProjeListPage: React.FC = () => {
             </Col>
           </Row>
 
-          <Divider orientation={"left" as any} style={{ margin: '12px 0', fontSize: '13px' }}>Bloklar</Divider>
+          <Divider titlePlacement="left" style={{ margin: '12px 0', fontSize: '13px' }}>Bloklar</Divider>
           
           <Form.List name="bloklar">
             {(fields, { add, remove }) => (
@@ -359,7 +360,7 @@ export const ProjeListPage: React.FC = () => {
                           rules={[{ required: true, message: '!' }]}
                           style={{ marginBottom: 0 }}
                         >
-                          <Input size="small" placeholder="Örn: A" />
+                          <Input size="small" placeholder="Örn: A" autoComplete="off" />
                         </Form.Item>
                       </Col>
                       <Col span={3}>
@@ -387,7 +388,7 @@ export const ProjeListPage: React.FC = () => {
                           name={[name, 'aciklama']}
                           style={{ marginBottom: 0 }}
                         >
-                          <Input size="small" placeholder="İsteğe bağlı" />
+                          <Input size="small" placeholder="İsteğe bağlı" autoComplete="off" />
                         </Form.Item>
                       </Col>
                       <Col span={2} style={{ textAlign: 'center' }}>

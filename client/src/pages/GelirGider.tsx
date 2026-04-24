@@ -1,12 +1,12 @@
 import React, { useState } from 'react'
-import { Table, Button, Modal, Form, Input, InputNumber, Select, message, Popconfirm, Card, Typography, Tag, Space, DatePicker, Row, Col, Statistic } from 'antd'
+import { Table, Button, Modal, Form, Input, InputNumber, Select, Popconfirm, Card, Typography, Tag, Space, DatePicker, Row, Col, Statistic, App } from 'antd'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { PlusOutlined, EditOutlined, DeleteOutlined, SettingOutlined, ArrowUpOutlined, ArrowDownOutlined, WalletOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, DeleteOutlined, SettingOutlined, ArrowUpOutlined, ArrowDownOutlined, WalletOutlined, BankOutlined, CreditCardOutlined, FileTextOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 import dayjs from 'dayjs'
 import { MoneyDisplay } from '../components/common/MoneyDisplay'
-import { trNumberFormatter, trNumberParser } from '../lib/format'
+import { trNumberFormatter, trNumberParser, trMoneyFormatter } from '../lib/format'
 import { usePageSettings } from '../contexts/LayoutContext'
 
 const { Title, Text } = Typography
@@ -27,9 +27,12 @@ interface GelirGider {
   belge_no?: string
   uye_id?: string
   firma_id?: string
+  islem_turu?: 'aidat_kayit' | 'hakedis' | 'gelen_odeme' | 'giden_odeme'
+  odeme_turu?: 'nakit' | 'banka' | 'kredi_karti' | 'cek'
   gelir_gider_kategorileri?: { ad: string; tip: string }
   uyeler?: { ad: string; soyad: string; uye_no: string }
   firmalar?: { unvan: string }
+  cari_hesaplar?: { cari_adi: string; cari_turu: string }
 }
 
 export const GelirGider: React.FC = () => {
@@ -39,6 +42,7 @@ export const GelirGider: React.FC = () => {
   const [tipFilter, setTipFilter] = useState<string>('')
   const [form] = Form.useForm()
   const queryClient = useQueryClient()
+  const { message: messageApi } = App.useApp()
 
   const selectedTip = Form.useWatch('tip', form)
 
@@ -93,11 +97,11 @@ export const GelirGider: React.FC = () => {
       return data
     },
     onSuccess: () => {
-      message.success('Kayıt oluşturuldu')
+      messageApi.success('Kayıt oluşturuldu')
       queryClient.invalidateQueries({ queryKey: ['gelir-gider'] })
       closeModal()
     },
-    onError: (err: any) => message.error(err.message || 'Hata oluştu'),
+    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu'),
   })
 
   const updateMutation = useMutation({
@@ -108,11 +112,11 @@ export const GelirGider: React.FC = () => {
       return data
     },
     onSuccess: () => {
-      message.success('Kayıt güncellendi')
+      messageApi.success('Kayıt güncellendi')
       queryClient.invalidateQueries({ queryKey: ['gelir-gider'] })
       closeModal()
     },
-    onError: (err: any) => message.error(err.message || 'Hata oluştu'),
+    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu'),
   })
 
   const deleteMutation = useMutation({
@@ -120,10 +124,10 @@ export const GelirGider: React.FC = () => {
       await api.delete(`/gelir-gider/${id}`)
     },
     onSuccess: () => {
-      message.success('Kayıt silindi')
+      messageApi.success('Kayıt silindi')
       queryClient.invalidateQueries({ queryKey: ['gelir-gider'] })
     },
-    onError: (err: any) => message.error(err.message || 'Hata oluştu'),
+    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu'),
   })
 
   const closeModal = () => {
@@ -177,10 +181,7 @@ export const GelirGider: React.FC = () => {
     </Space>
   ), [tipFilter, navigate])
 
-  usePageSettings({
-    title: 'Cari İşlemler',
-    actions
-  })
+  usePageSettings('Cari İşlemler', actions)
 
   const filteredKategoriler = kategoriler?.filter(k => !selectedTip || k.tip === selectedTip)
 
@@ -193,15 +194,53 @@ export const GelirGider: React.FC = () => {
       render: (d: string) => dayjs(d).format('DD.MM.YYYY')
     },
     {
-      title: 'Tip',
-      dataIndex: 'tip',
-      key: 'tip',
-      width: 70,
-      render: (t: string) => (
-        <Tag color={t === 'gelir' ? 'green' : 'red'} style={{ fontSize: '11px' }}>
-          {t.toUpperCase()}
-        </Tag>
-      ),
+      title: 'İşlem Türü',
+      dataIndex: 'islem_turu',
+      key: 'islem_turu',
+      width: 110,
+      render: (t: string) => {
+        if (!t) return '-'
+        const colors: Record<string, string> = {
+          gelen_odeme: 'green',
+          giden_odeme: 'red',
+          aidat_kayit: 'blue',
+          hakedis: 'orange'
+        }
+        const labels: Record<string, string> = {
+          gelen_odeme: 'Tahsilat',
+          giden_odeme: 'Ödeme',
+          aidat_kayit: 'Aidat',
+          hakedis: 'Hakediş'
+        }
+        return <Tag color={colors[t]} style={{ fontSize: '11px' }}>{labels[t] || t}</Tag>
+      }
+    },
+    {
+      title: 'Ödeme',
+      dataIndex: 'odeme_turu',
+      key: 'odeme_turu',
+      width: 110,
+      render: (t: string) => {
+        if (!t) return '-'
+        const icons: Record<string, React.ReactNode> = {
+          nakit: <WalletOutlined />,
+          banka: <BankOutlined />,
+          kredi_karti: <CreditCardOutlined />,
+          cek: <FileTextOutlined />
+        }
+        const labels: Record<string, string> = {
+          nakit: 'Nakit',
+          banka: 'Banka',
+          kredi_karti: 'Kart',
+          cek: 'Çek'
+        }
+        return (
+          <Space style={{ fontSize: '11px' }}>
+            {icons[t]}
+            <span>{labels[t] || t}</span>
+          </Space>
+        )
+      }
     },
     {
       title: 'Kategori',
@@ -212,6 +251,7 @@ export const GelirGider: React.FC = () => {
       title: 'İlgili Kişi / Firma',
       key: 'related',
       render: (_: unknown, r: GelirGider) => {
+        if (r.cari_hesaplar) return r.cari_hesaplar.cari_adi
         if (r.uyeler) return `${r.uyeler.ad} ${r.uyeler.soyad} (${r.uyeler.uye_no})`
         if (r.firmalar) return r.firmalar.unvan
         return '-'
@@ -250,6 +290,7 @@ export const GelirGider: React.FC = () => {
               title="Toplam Gelir"
               value={totals.gelir}
               precision={2}
+              formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#3f8600', fontSize: '18px' } }}
               prefix={<ArrowUpOutlined />}
               suffix="TL"
@@ -262,6 +303,7 @@ export const GelirGider: React.FC = () => {
               title="Toplam Gider"
               value={totals.gider}
               precision={2}
+              formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#cf1322', fontSize: '18px' } }}
               prefix={<ArrowDownOutlined />}
               suffix="TL"
@@ -274,6 +316,7 @@ export const GelirGider: React.FC = () => {
               title="Net Bakiye"
               value={totals.gelir - totals.gider}
               precision={2}
+              formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: totals.gelir - totals.gider >= 0 ? '#3f8600' : '#cf1322', fontSize: '18px' } }}
               prefix={<WalletOutlined />}
               suffix="TL"
@@ -300,6 +343,7 @@ export const GelirGider: React.FC = () => {
         onOk={() => form.submit()}
         confirmLoading={createMutation.isPending || updateMutation.isPending}
         width={640}
+        destroyOnHidden
         okText="Kaydet"
         cancelText="İptal"
       >
@@ -307,8 +351,9 @@ export const GelirGider: React.FC = () => {
           form={form} 
           layout="vertical" 
           onFinish={handleSubmit} 
-          initialValues={{ tip: 'gelir', tarih: dayjs() }}
+          initialValues={{ tip: 'gelir', odeme_turu: 'banka', tarih: dayjs() }}
           style={{ marginTop: 16 }}
+          autoComplete="off"
         >
           <Row gutter={16}>
             <Col span={8}>
@@ -323,7 +368,17 @@ export const GelirGider: React.FC = () => {
                 </Select>
               </Form.Item>
             </Col>
-            <Col span={16}>
+            <Col span={8}>
+              <Form.Item name="odeme_turu" label="Ödeme Türü" rules={[{ required: true }]}>
+                <Select placeholder="Ödeme Türü">
+                  <Select.Option value="banka">Banka</Select.Option>
+                  <Select.Option value="nakit">Nakit</Select.Option>
+                  <Select.Option value="kredi_karti">Kredi Kartı</Select.Option>
+                  <Select.Option value="cek">Çek</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={8}>
               <Form.Item name="kategori_id" label="Kategori" rules={[{ required: true }]}>
                 <Select placeholder="Kategori seçin" showSearch optionFilterProp="children">
                   {filteredKategoriler?.map(k => (
@@ -340,9 +395,10 @@ export const GelirGider: React.FC = () => {
                 <InputNumber 
                   min={0} 
                   style={{ width: '100%' }} 
-                  formatter={trNumberFormatter}
+                  formatter={trMoneyFormatter}
                   parser={trNumberParser}
                   placeholder="0,00"
+                  autoComplete="off"
                 />
               </Form.Item>
             </Col>
@@ -353,6 +409,7 @@ export const GelirGider: React.FC = () => {
                   style={{ width: '100%' }} 
                   format="DD.MM.YYYY" 
                   getPopupContainer={(triggerNode) => triggerNode.parentNode as HTMLElement}
+                  classNames={{ popup: { root: "small-datepicker-popup" } }}
                 />
               </Form.Item>
             </Col>
@@ -396,14 +453,15 @@ export const GelirGider: React.FC = () => {
           </Row>
 
           <Form.Item name="belge_no" label="Belge No">
-            <Input placeholder="Fatura, Makbuz no vb." />
+            <Input placeholder="Fatura, Makbuz no vb." autoComplete="off" />
           </Form.Item>
 
           <Form.Item name="aciklama" label="Açıklama">
-            <Input.TextArea rows={2} />
+            <Input.TextArea rows={2} autoComplete="off" />
           </Form.Item>
         </Form>
       </Modal>
     </div>
   )
 }
+

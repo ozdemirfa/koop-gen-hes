@@ -9,6 +9,7 @@ import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { usePageSettings } from '../../contexts/LayoutContext'
+import { trMoneyFormatter, trNumberParser } from '../../lib/format'
 
 const { Text } = Typography
 
@@ -90,10 +91,7 @@ export const BankaHareketleriPage: React.FC = () => {
     </Space>
   ), [navigate])
 
-  usePageSettings({
-    title: hesap ? `${hesap.banka_adi} - Hesap Hareketleri` : 'Banka Hareketleri',
-    actions
-  })
+  usePageSettings(hesap ? `${hesap.banka_adi} - Hesap Hareketleri` : 'Banka Hareketleri', actions)
 
   const columns = [
     {
@@ -157,7 +155,7 @@ export const BankaHareketleriPage: React.FC = () => {
         onCancel={() => setModalOpen(false)}
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
         okText="Ekle"
         cancelText="İptal"
       >
@@ -212,7 +210,13 @@ export const BankaHareketleriPage: React.FC = () => {
           </Row>
 
           <Form.Item name="tutar" label="Tutar" rules={[{ required: true, type: 'number', min: 0.01 }]}>
-            <InputNumber style={{ width: '100%' }} min={0.01} step={0.01} precision={2} />
+            <InputNumber 
+              style={{ width: '100%' }} 
+              min={0.01} 
+              step={0.01} 
+              formatter={trMoneyFormatter}
+              parser={trNumberParser}
+            />
           </Form.Item>
           <Form.Item name="aciklama" label="Açıklama" rules={[{ required: true }]}>
             <Input.TextArea rows={2} />

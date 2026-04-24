@@ -59,22 +59,30 @@ export const pdfGenerator = {
         {
           table: {
             headerRows: 1,
-            widths: ['auto', '*', 'auto', 'auto', 'auto'],
+            widths: ['auto', '*', 'auto', 'auto', 'auto', 'auto', 'auto'],
             body: [
               [
                 { text: 'Poz No', style: 'tableHeader' },
                 { text: 'İş Kalemi', style: 'tableHeader' },
                 { text: 'Birim', style: 'tableHeader' },
-                { text: 'Bu Ay Miktar', style: 'tableHeader', alignment: 'right' },
+                { text: 'Miktar', style: 'tableHeader', alignment: 'right' },
+                { text: 'B.Fiyat', style: 'tableHeader', alignment: 'right' },
+                { text: 'KDV (%)', style: 'tableHeader', alignment: 'right' },
                 { text: 'Tutar (TL)', style: 'tableHeader', alignment: 'right' }
               ],
-              ...kalemler.map((k: any) => [
-                k.sozlesme_is_kalemleri?.poz_no || '-',
-                k.sozlesme_is_kalemleri?.tanim || '-',
-                k.sozlesme_is_kalemleri?.birim || '-',
-                { text: k.bu_ay_miktar.toLocaleString('tr-TR'), alignment: 'right' },
-                { text: k.bu_ay_tutar.toLocaleString('tr-TR', { minimumFractionDigits: 2 }), alignment: 'right' }
-              ])
+              ...kalemler.map((k: any) => {
+                const tutar = Number(k.bu_ay_miktar) * Number(k.birim_fiyat);
+                const kdvliTutar = tutar * (1 + Number(k.kdv_orani || 0) / 100);
+                return [
+                  k.sozlesme_is_kalemleri?.poz_no || '-',
+                  k.sozlesme_is_kalemleri?.tanim || '-',
+                  k.sozlesme_is_kalemleri?.birim || '-',
+                  { text: k.bu_ay_miktar.toLocaleString('tr-TR'), alignment: 'right' },
+                  { text: k.birim_fiyat.toLocaleString('tr-TR', { minimumFractionDigits: 2 }), alignment: 'right' },
+                  { text: `%${k.kdv_orani || 0}`, alignment: 'right' },
+                  { text: kdvliTutar.toLocaleString('tr-TR', { minimumFractionDigits: 2 }), alignment: 'right' }
+                ];
+              })
             ]
           },
           layout: 'lightHorizontalLines'
@@ -84,11 +92,13 @@ export const pdfGenerator = {
           table: {
             widths: ['*', 'auto'],
             body: [
-              ['BRÜT TUTAR', { text: hakedis.toplam_tutar.toLocaleString('tr-TR', { minimumFractionDigits: 2 }), bold: true, alignment: 'right' }],
-              ['TEMİNAT KESİNTİSİ (%)', { text: hakedis.teminat_kesintisi.toLocaleString('tr-TR', { minimumFractionDigits: 2 }), alignment: 'right' }],
-              ['STOPAJ KESİNTİSİ (%)', { text: hakedis.stopaj_kesintisi.toLocaleString('tr-TR', { minimumFractionDigits: 2 }), alignment: 'right' }],
-              ['DİĞER KESİNTİLER', { text: hakedis.diger_kesintiler.toLocaleString('tr-TR', { minimumFractionDigits: 2 }), alignment: 'right' }],
-              [{ text: 'NET ÖDENECEK TUTAR', bold: true }, { text: hakedis.net_tutar.toLocaleString('tr-TR', { minimumFractionDigits: 2 }), bold: true, alignment: 'right', fontSize: 14 }]
+              ['ARA TOPLAM', { text: (hakedis.ara_toplam || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 }), bold: true, alignment: 'right' }],
+              ['KDV TOPLAM', { text: (hakedis.kdv_tutar || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 }), alignment: 'right' }],
+              ['HAKEDİŞ TOPLAM (KDV DAHİL)', { text: (hakedis.hakedis_toplam || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 }), bold: true, alignment: 'right' }],
+              ['TEMİNAT KESİNTİSİ', { text: (hakedis.teminat_kesintisi || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 }), alignment: 'right' }],
+              ['STOPAJ KESİNTİSİ', { text: (hakedis.stopaj_kesintisi || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 }), alignment: 'right' }],
+              ['DİĞER KESİNTİLER', { text: (hakedis.diger_kesintiler || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 }), alignment: 'right' }],
+              [{ text: 'NET ÖDENECEK TUTAR', bold: true }, { text: (hakedis.net_tutar || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 }), bold: true, alignment: 'right', fontSize: 14 }]
             ]
           },
           layout: 'noBorders'

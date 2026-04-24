@@ -12,7 +12,7 @@ export const uyeService = {
 
     let q = supabaseAdmin
       .from('uyeler')
-      .select('*, serefiye_tablosu(*, bloklar(blok_adi))', { count: 'exact' })
+      .select('*, serefiye_tablosu!serefiye_id(*, bloklar(blok_adi))', { count: 'exact' })
 
     const activeProjeId = query.proje_id || query.activeProjectId
     if (activeProjeId && activeProjeId !== 'null' && activeProjeId !== 'undefined') {
@@ -20,9 +20,18 @@ export const uyeService = {
     }
     if (query.durum) q = q.eq('durum', query.durum)
     
-    // Blok bazlı filtreleme artık serefiye_tablosu üzerinden yapılacak
-    if (query.blok_id) q = q.eq('serefiye_tablosu.blok_id', query.blok_id)
+    // Blok bazlı filtreleme (Sadece o bloka atanmış üyeleri getirir, atanmamışları eler)
+    if (query.blok_id) {
+      q = q.eq('serefiye_tablosu.blok_id', query.blok_id)
+    }
     
+    // Daire atama durumuna göre filtreleme
+    if (query.has_daire === 'false') {
+      q = q.is('serefiye_id', null)
+    } else if (query.has_daire === 'true') {
+      q = q.not('serefiye_id', 'is', null)
+    }
+
     if (query.search) {
       q = q.or(`ad.ilike.%${query.search}%,soyad.ilike.%${query.search}%,uye_no.ilike.%${query.search}%`)
     }
@@ -42,7 +51,7 @@ export const uyeService = {
   async getById(id: string) {
     const { data, error } = await supabaseAdmin
       .from('uyeler')
-      .select('*, serefiye_tablosu(*, bloklar(blok_adi))')
+      .select('*, serefiye_tablosu!serefiye_id(*, bloklar(blok_adi))')
       .eq('id', id)
       .single()
 
@@ -68,7 +77,7 @@ export const uyeService = {
     const { data, error } = await supabaseAdmin
       .from('uyeler')
       .insert([createData])
-      .select('*, serefiye_tablosu(*, bloklar(blok_adi))')
+      .select('*, serefiye_tablosu!serefiye_id(*, bloklar(blok_adi))')
       .single()
 
     if (error) {
@@ -110,8 +119,9 @@ export const uyeService = {
       .from('uyeler')
       .update(updateData)
       .eq('id', id)
-      .select('*, serefiye_tablosu(*, bloklar(blok_adi))')
+      .select('*, serefiye_tablosu!serefiye_id(*, bloklar(blok_adi))')
       .single()
+
 
     if (error) {
       logger.error(`Üye güncelleme hatası (ID: ${id}):`, error)

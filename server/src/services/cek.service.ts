@@ -49,24 +49,6 @@ export const cekService = {
 
     if (cekError) throw cekError
 
-    // 2. Cari harekete yansıt (Çek verildiğinde firmaya borç/alacak? Genelde firmaya verilen çek firmayı alacaklandırır? 
-    // Hayır, firmaya ödeme yapıyoruz, firma bizden alacaklıydı, şimdi borçlanıyor (bakiyesi azalıyor).
-    // Cari hareket tipi: 'borc' (firmaya yapılan ödeme gibi)
-    const { error: cariError } = await supabaseAdmin
-      .from('cari_hareketler')
-      .insert([{
-        firma_id: body.firma_id,
-        proje_id: body.proje_id,
-        hareket_tipi: 'borc',
-        tutar: body.tutar,
-        tarih: body.keside_tarihi || new Date().toISOString().split('T')[0],
-        aciklama: `${body.banka} - ${body.cek_no} nolu çek`,
-        belge_no: body.cek_no,
-        cek_id: cek.id
-      }])
-
-    if (cariError) throw cariError
-
     return cek
   },
 
@@ -93,5 +75,74 @@ export const cekService = {
 
     if (error) throw error
     return data
+  },
+
+  async payCheck(id: string, bankaHesapId: string) {
+    // 1. Çeki bul
+    const { data: cek, error: getErr } = await supabaseAdmin
+      .from('cekler')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (getErr || !cek) throw ApiError.notFound('Çek bulunamadı')
+    if (cek.durum === 'odendi') throw ApiError.badRequest('Çek zaten ödendi olarak işaretlenmiş')
+
+    // 2. Çeki "ödendi" yap
+    const { data: updatedCek, error: updateErr } = await supabaseAdmin
+      .from('cekler')
+      .update({ durum: 'odendi' })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (updateErr) throw updateErr
+
+    // 3. Cari hesabı bul
+    const { data: cari } = await supabaseAdmin
+      .from('cari_hesaplar')
+      .select('id')
+      .eq('proje_id', cek.proje_id)
+      .eq('firma_id', cek.firma_id)
+      .single()
+
+    // 4. Cari harekete kayıt at (Faz 2)
+    if (cari) {
+      const { data: hareket, error: chError } = await supabaseAdmin
+        .from('cari_hareketler')
+        .insert([{
+          proje_id: cek.proje_id,
+          cari_hesap_id: cari.id,
+          islem_turu: 'giden_odeme',
+          odeme_turu: 'cek',
+          alacak: Number(cek.tutar),
+          borc: 0,
+          tarih: new Date().toISOString().split('T')[0],
+          aciklama: `${cek.banka} - ${cek.cek_no} nolu çek ödemesi (Banka)`,
+          belge_no: cek.cek_no,
+          cek_id: cek.id
+        }])
+        .select()
+        .single()
+
+      if (chError) throw chError
+
+      // 5. Banka hareketi
+      const { error: bankaError } = await supabaseAdmin
+        .from('banka_hareketleri')
+        .insert([{
+          banka_hesap_id: bankaHesapId,
+          tarih: new Date().toISOString().split('T')[0],
+          tutar: Number(cek.tutar),
+          islem_tipi: 'gider',
+          aciklama: `${cek.banka} - ${cek.cek_no} nolu çek ödemesi`,
+          eslesen_cari_hareket_id: hareket.id,
+          eslesti: true
+        }])
+
+      if (bankaError) throw bankaError
+    }
+
+    return updatedCek
   }
 }

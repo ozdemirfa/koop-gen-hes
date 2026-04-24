@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Button, Input, Select, Space, Tag, message, App } from 'antd'
+import { Button, Input, Select, Space, Tag, App, Typography, Badge } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, EditOutlined, SearchOutlined, EyeOutlined } from '@ant-design/icons'
@@ -10,6 +10,7 @@ import { DataTable } from '../../components/common/DataTable'
 import { StrictConfirmDelete } from '../../components/common/StrictConfirmDelete'
 import { ErrorState } from '../../components/common/ErrorState'
 import { usePageSettings } from '../../contexts/LayoutContext'
+import { useProject } from '../../contexts/ProjectContext'
 
 interface Uye {
   id: string
@@ -28,36 +29,39 @@ interface Uye {
 export const UyeListPage: React.FC = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { activeProject } = useProject()
   const [search, setSearch] = useState('')
   const [filterDurum, setFilterDurum] = useState<string | undefined>(undefined)
   const [filterBlok, setFilterBlok] = useState<string | undefined>(undefined)
+  const [filterDaire, setFilterDaire] = useState<string | undefined>(undefined)
   const debouncedSearch = useDebounce(search, 300)
   const { message: messageApi } = App.useApp()
 
-  const activeProjectId = localStorage.getItem('activeProjectId')
-
   const { data: bloklar } = useQuery({
-    queryKey: ['bloklar', activeProjectId],
+    queryKey: ['bloklar', activeProject?.id],
     queryFn: async () => {
-      const params: Record<string, string> = {}
-      if (activeProjectId) params.proje_id = activeProjectId
-      const { data } = await api.get('/bloklar', { params })
+      if (!activeProject?.id) return []
+      const { data } = await api.get('/bloklar', { params: { proje_id: activeProject.id } })
       return data.data as { id: string; blok_adi: string }[]
     },
-    enabled: !!activeProjectId
+    enabled: !!activeProject?.id
   })
 
   const { data: uyeData, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['uyeler', debouncedSearch, filterDurum, filterBlok, activeProjectId],
+    queryKey: ['uyeler', debouncedSearch, filterDurum, filterBlok, filterDaire, activeProject?.id],
     queryFn: async () => {
-      const params: Record<string, string> = {}
+      if (!activeProject?.id) return { data: [], pagination: { totalCount: 0 } }
+      const params: Record<string, string> = { proje_id: activeProject.id }
       if (debouncedSearch) params.search = debouncedSearch
       if (filterDurum) params.durum = filterDurum
       if (filterBlok) params.blok_id = filterBlok
-      if (activeProjectId) params.proje_id = activeProjectId
+      if (filterDaire === 'atanmis') params.has_daire = 'true'
+      if (filterDaire === 'atanmamis') params.has_daire = 'false'
+      
       const { data } = await api.get('/uyeler', { params })
       return data
     },
+    enabled: !!activeProject?.id
   })
 
   const deleteMutation = useMutation({
@@ -72,13 +76,14 @@ export const UyeListPage: React.FC = () => {
   })
 
   const actions = React.useMemo(() => (
-    <Space size={20}>
+    <Space orientation="horizontal">
       <Input
         placeholder="Ad, soyad veya üye no ile ara..."
         prefix={<SearchOutlined />}
         allowClear
         onChange={(e) => setSearch(e.target.value)}
         style={{ width: 250 }}
+        autoComplete="off"
       />
       <Select
         placeholder="Durum"
@@ -103,16 +108,23 @@ export const UyeListPage: React.FC = () => {
           <Select.Option key={b.id} value={b.id}>{b.blok_adi}</Select.Option>
         ))}
       </Select>
+      <Select
+        placeholder="Daire Ataması"
+        value={filterDaire}
+        onChange={setFilterDaire}
+        allowClear
+        style={{ width: 150 }}
+      >
+        <Select.Option value="atanmis">Daire Atanmış</Select.Option>
+        <Select.Option value="atanmamis">Daire Atanmamış</Select.Option>
+      </Select>
       <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/uyeler/yeni')}>
         Yeni Üye
       </Button>
     </Space>
-  ), [filterDurum, filterBlok, bloklar, navigate])
+  ), [filterDurum, filterBlok, filterDaire, bloklar, navigate])
 
-  usePageSettings({
-    title: 'Üye Yönetimi',
-    actions
-  })
+  usePageSettings('Üye Yönetimi', actions)
 
   const durumRenk: Record<string, string> = {
     aktif: 'green',
@@ -130,12 +142,10 @@ export const UyeListPage: React.FC = () => {
       render: (_: unknown, r: Uye) => `${r.ad} ${r.soyad}`,
     },
     {
-      title: 'Blok / Daire',
-      key: 'blok_daire',
+      title: 'Daire Kod',
+      key: 'daire_kod',
       render: (_: unknown, r: Uye) => {
-        const blok = r.serefiye_tablosu?.bloklar?.blok_adi || '-'
-        const daire = r.serefiye_tablosu?.daire_no || '-'
-        return `${blok} / ${daire}`
+        return r.serefiye_tablosu?.daire_no || '-'
       },
     },
     { title: 'Telefon', dataIndex: 'telefon', key: 'telefon' },
@@ -150,7 +160,7 @@ export const UyeListPage: React.FC = () => {
       key: 'action',
       width: 150,
       render: (_: unknown, record: Uye) => (
-        <Space onClick={(e) => e.stopPropagation()}>
+        <Space onClick={(e) => e.stopPropagation()} orientation="horizontal">
           <Button 
             icon={<EyeOutlined />} 
             type="text" 
@@ -181,22 +191,29 @@ export const UyeListPage: React.FC = () => {
   ]
 
   return (
-    <div>
-      {isError ? (
-        <ErrorState error={error} onRetry={() => refetch()} />
+    <div className="animate-in fade-in duration-500">
+      {!activeProject ? (
+        <div style={{ padding: '24px', textAlign: 'center' }}>
+          <Typography.Title level={4}>Lütfen bir proje seçin</Typography.Title>
+          <Typography.Text type="secondary">Üye listesini görüntülemek için üst menüden bir proje seçmelisiniz.</Typography.Text>
+        </div>
       ) : (
-        <DataTable
-          columns={columns}
-          dataSource={uyeData?.data}
-          rowKey="id"
-          loading={isLoading}
-          totalItems={uyeData?.pagination?.total}
-          emptyDescription="Kayıtlı üye bulunamadı"
-          onRow={(record: Uye) => ({
-            onClick: () => navigate(`/uyeler/${record.id}`),
-            style: { cursor: 'pointer' }
-          })}
-        />
+        isError ? (
+          <ErrorState error={error} onRetry={() => refetch()} />
+        ) : (
+          <DataTable
+            columns={columns}
+            dataSource={uyeData?.data}
+            rowKey="id"
+            loading={isLoading}
+            totalItems={uyeData?.pagination?.totalCount}
+            emptyDescription="Kayıtlı üye bulunamadı"
+            onRow={(record: Uye) => ({
+              onClick: () => navigate(`/uyeler/${record.id}`),
+              style: { cursor: 'pointer' }
+            })}
+          />
+        )
       )}
     </div>
   )

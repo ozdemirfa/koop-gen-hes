@@ -6,6 +6,8 @@ import * as firmaController from '../controllers/firma.controller'
 const router = Router()
 
 router.get('/', firmaController.getFirmalar)
+router.get('/stats', firmaController.getStats)
+router.get('/:id/stats', firmaController.getFirmaStats)
 router.get('/:id', firmaController.getFirmaById)
 router.post('/', validate({ body: createFirmaSchema }), firmaController.createFirma)
 router.put('/:id', validate({ body: updateFirmaSchema }), firmaController.updateFirma)

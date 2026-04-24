@@ -8,7 +8,7 @@ import { ErrorState } from '../components/common/ErrorState'
 import { usePageSettings } from '../contexts/LayoutContext'
 import { useProject } from '../contexts/ProjectContext'
 import dayjs from 'dayjs'
-import { trNumberFormatter } from '../lib/format'
+import { trNumberFormatter, trMoneyFormatter } from '../lib/format'
 
 const { RangePicker } = DatePicker
 
@@ -52,16 +52,13 @@ export const Dashboard: React.FC = () => {
     </Space>
   ), [dates])
 
-  usePageSettings({
-    title: 'Dashboard',
-    actions
-  })
+  usePageSettings('Pano', actions)
 
   if (!activeProject) {
     return (
       <Card style={{ textAlign: 'center', marginTop: 50 }}>
         <Typography.Title level={4}>Lütfen bir proje seçin</Typography.Title>
-        <Typography.Text type="secondary">Dashboard verilerini görebilmek için üst menüden bir proje seçmelisiniz.</Typography.Text>
+        <Typography.Text type="secondary">Pano verilerini görebilmek için üst menüden bir proje seçmelisiniz.</Typography.Text>
       </Card>
     )
   }
@@ -70,85 +67,206 @@ export const Dashboard: React.FC = () => {
   if (isError) return <ErrorState error={error} onRetry={() => refetch()} />
 
   return (
-    <div>
-      <Row gutter={[12, 12]}>
-        <Col xs={24} sm={12} lg={8}>
-          <Card className="stat-card" size="small">
+    <div className="animate-in fade-in duration-500">
+      {/* 1. Satır: Proje Süresi, Aktif Üye Sayısı, Toplam Daire Sayısı */}
+      <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
+        <Col xs={24} sm={8}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small" style={{ background: '#f0f5ff' }}>
+            <Statistic
+              title="Proje Süresi"
+              value={`${ozet?.proje_suresi?.ay || 0} Ay, ${ozet?.proje_suresi?.gun || 0} Gün`}
+              prefix={<BankOutlined style={{ color: '#2f54eb', marginRight: 8 }} />}
+              styles={{ content: { color: '#2f54eb', fontWeight: 700, fontSize: '18px' } }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
               title="Aktif Üye Sayısı"
               value={ozet?.aktif_uye_sayisi || 0}
-              prefix={<UserOutlined style={{ color: 'var(--primary-color)', marginRight: 8 }} />}
+              prefix={<UserOutlined style={{ color: '#1677ff', marginRight: 8 }} />}
               formatter={(v) => trNumberFormatter(v as number)}
-              styles={{ content: { fontWeight: 700, fontSize: '20px' } }}
+              styles={{ content: { fontWeight: 700, fontSize: '18px' } }}
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={8}>
-          <Card className="stat-card" size="small">
+        <Col xs={24} sm={8}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
-              title="Toplam Gelir"
-              value={ozet?.toplam_gelir || 0}
-              prefix={<RiseOutlined style={{ color: 'var(--success)', marginRight: 8 }} />}
-              suffix="TL"
-              precision={2}
+              title="Toplam Daire Sayısı"
+              value={ozet?.toplam_daire_sayisi || 0}
+              prefix={<BankOutlined style={{ color: '#8c8c8c', marginRight: 8 }} />}
               formatter={(v) => trNumberFormatter(v as number)}
-              styles={{ content: { color: 'var(--success)', fontWeight: 700, fontSize: '20px' } }}
+              styles={{ content: { fontWeight: 700, fontSize: '18px' } }}
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={8}>
-          <Card className="stat-card" size="small">
+      </Row>
+
+      {/* 2. Satır: Toplam Tahsilat, Geciken Aidatlar, Gecikme Faiz Tahsilatı */}
+      <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
+        <Col xs={24} sm={8}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
-              title="Toplam Gider"
+              title="Toplam Tahsilat"
+              value={ozet?.toplam_tahsilat || 0}
+              prefix={<DollarOutlined style={{ color: '#52c41a', marginRight: 8 }} />}
+              suffix={<span style={{ fontSize: '12px', marginLeft: 4 }}>TL</span>}
+              formatter={(v) => trMoneyFormatter(v as number)}
+              styles={{ content: { color: '#52c41a', fontWeight: 700, fontSize: '18px' } }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small">
+            <Statistic
+              title="Geciken Aidatlar"
+              value={ozet?.bekleyen_alacak || 0}
+              prefix={<WarningOutlined style={{ color: '#cf1322', marginRight: 8 }} />}
+              suffix={<span style={{ fontSize: '12px', marginLeft: 4 }}>TL</span>}
+              formatter={(v) => trMoneyFormatter(v as number)}
+              styles={{ content: { color: '#cf1322', fontWeight: 700, fontSize: '18px' } }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small">
+            <Statistic
+              title="Gecikme Faiz Tahsilatı"
+              value={ozet?.gecikme_faiz_tahsilati || 0}
+              prefix={<RiseOutlined style={{ color: '#faad14', marginRight: 8 }} />}
+              suffix={<span style={{ fontSize: '12px', marginLeft: 4 }}>TL</span>}
+              formatter={(v) => trMoneyFormatter(v as number)}
+              styles={{ content: { color: '#faad14', fontWeight: 700, fontSize: '18px' } }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* 3. Satır: Tahakkuk eden gider, faturalar, fatura farkı */}
+      <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
+        <Col xs={24} sm={8}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small">
+            <Statistic
+              title="Tahakkuk Eden Gider"
               value={ozet?.toplam_gider || 0}
-              prefix={<FallOutlined style={{ color: 'var(--error)', marginRight: 8 }} />}
-              suffix="TL"
-              precision={2}
-              formatter={(v) => trNumberFormatter(v as number)}
-              styles={{ content: { color: 'var(--error)', fontWeight: 700, fontSize: '20px' } }}
+              prefix={<FallOutlined style={{ color: '#d4380d', marginRight: 8 }} />}
+              suffix={<span style={{ fontSize: '12px', marginLeft: 4 }}>TL</span>}
+              formatter={(v) => trMoneyFormatter(v as number)}
+              styles={{ content: { color: '#d4380d', fontWeight: 700, fontSize: '18px' } }}
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={8}>
-          <Card className="stat-card" size="small">
+        <Col xs={24} sm={8}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
-              title="Net Bakiye"
-              value={ozet?.net_bakiye || 0}
-              prefix={<BankOutlined style={{ color: (ozet?.net_bakiye || 0) >= 0 ? 'var(--info)' : 'var(--error)', marginRight: 8 }} />}
-              suffix="TL"
-              precision={2}
-              formatter={(v) => trNumberFormatter(v as number)}
+              title="Faturalar"
+              value={ozet?.toplam_fatura || 0}
+              prefix={<DollarOutlined style={{ color: '#faad14', marginRight: 8 }} />}
+              suffix={<span style={{ fontSize: '12px', marginLeft: 4 }}>TL</span>}
+              formatter={(v) => trMoneyFormatter(v as number)}
+              styles={{ content: { color: '#faad14', fontWeight: 700, fontSize: '18px' } }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small">
+            <Statistic
+              title="Fatura Farkı"
+              value={ozet?.fatura_farki || 0}
+              prefix={<WarningOutlined style={{ color: (ozet?.fatura_farki || 0) > 0 ? '#faad14' : 'inherit', marginRight: 8 }} />}
+              suffix={<span style={{ fontSize: '12px', marginLeft: 4 }}>TL</span>}
+              formatter={(v) => trMoneyFormatter(v as number)}
+              styles={{ content: { color: (ozet?.fatura_farki || 0) > 0 ? '#faad14' : 'inherit', fontWeight: 700, fontSize: '18px' } }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* 4. Satır: Toplam Cari Ödeme, Birikmiş Teminatlar, Cari Bakiye */}
+      <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
+        <Col xs={24} sm={8}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small">
+            <Statistic
+              title="Toplam Cari Ödeme"
+              value={ozet?.toplam_odeme || 0}
+              prefix={<FallOutlined style={{ color: '#cf1322', marginRight: 8 }} />}
+              suffix={<span style={{ fontSize: '12px', marginLeft: 4 }}>TL</span>}
+              formatter={(v) => trMoneyFormatter(v as number)}
+              styles={{ content: { color: '#cf1322', fontWeight: 700, fontSize: '18px' } }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small">
+            <Statistic
+              title="Birikmiş Teminatlar"
+              value={ozet?.birikmis_teminat || 0}
+              prefix={<BankOutlined style={{ color: '#13c2c2', marginRight: 8 }} />}
+              suffix={<span style={{ fontSize: '12px', marginLeft: 4 }}>TL</span>}
+              formatter={(v) => trMoneyFormatter(v as number)}
+              styles={{ content: { color: '#13c2c2', fontWeight: 700, fontSize: '18px' } }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small">
+            <Statistic
+              title="Cari Bakiye"
+              value={ozet?.cari_bakiye || 0}
+              prefix={<BankOutlined style={{ color: (ozet?.cari_bakiye || 0) >= 0 ? '#1677ff' : '#cf1322', marginRight: 8 }} />}
+              suffix={<span style={{ fontSize: '12px', marginLeft: 4 }}>TL</span>}
+              formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { 
-                color: (ozet?.net_bakiye || 0) >= 0 ? 'var(--info)' : 'var(--error)',
+                color: (ozet?.cari_bakiye || 0) >= 0 ? '#1677ff' : '#cf1322',
                 fontWeight: 700,
-                fontSize: '20px'
+                fontSize: '18px'
               } }}
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={8}>
-          <Card className="stat-card" size="small">
+      </Row>
+
+      {/* 5. Satır: Bankalar Bakiye Toplamı, Çekler, Ödemeler Sonrası Nakit */}
+      <Row gutter={[12, 12]}>
+        <Col xs={24} sm={8}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
-              title="Aidat Tahsilatı"
-              value={ozet?.aidat_tahsilat || 0}
-              prefix={<DollarOutlined style={{ color: 'var(--primary-color)', marginRight: 8 }} />}
-              suffix="TL"
-              precision={2}
-              formatter={(v) => trNumberFormatter(v as number)}
-              styles={{ content: { fontWeight: 700, fontSize: '20px' } }}
+              title="Bankalar Bakiye Toplamı"
+              value={ozet?.banka_toplami || 0}
+              prefix={<BankOutlined style={{ color: '#722ed1', marginRight: 8 }} />}
+              suffix={<span style={{ fontSize: '12px', marginLeft: 4 }}>TL</span>}
+              formatter={(v) => trMoneyFormatter(v as number)}
+              styles={{ content: { color: '#722ed1', fontWeight: 700, fontSize: '18px' } }}
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={8}>
-          <Card className="stat-card" size="small">
+        <Col xs={24} sm={8}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
-              title="Geciken Aidatlar"
-              value={ozet?.aidat_geciken || 0}
-              prefix={<WarningOutlined style={{ color: 'var(--warning)', marginRight: 8 }} />}
-              suffix="TL"
-              precision={2}
-              formatter={(v) => trNumberFormatter(v as number)}
-              styles={{ content: { color: 'var(--warning)', fontWeight: 700, fontSize: '20px' } }}
+              title="Çekler"
+              value={ozet?.cek_toplami || 0}
+              prefix={<DollarOutlined style={{ color: '#eb2f96', marginRight: 8 }} />}
+              suffix={<span style={{ fontSize: '12px', marginLeft: 4 }}>TL</span>}
+              formatter={(v) => trMoneyFormatter(v as number)}
+              styles={{ content: { color: '#eb2f96', fontWeight: 700, fontSize: '18px' } }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small" style={{ background: '#fff7e6' }}>
+            <Statistic
+              title="Ödemeler Sonrası Nakit"
+              value={ozet?.odeme_sonrasi_nakit || 0}
+              prefix={<RiseOutlined style={{ color: (ozet?.odeme_sonrasi_nakit || 0) >= 0 ? '#fa8c16' : '#cf1322', marginRight: 8 }} />}
+              suffix={<span style={{ fontSize: '12px', marginLeft: 4 }}>TL</span>}
+              formatter={(v) => trMoneyFormatter(v as number)}
+              styles={{ content: { 
+                color: (ozet?.odeme_sonrasi_nakit || 0) >= 0 ? '#fa8c16' : '#cf1322', 
+                fontWeight: 700, 
+                fontSize: '20px' 
+              } }}
             />
           </Card>
         </Col>
@@ -156,3 +274,4 @@ export const Dashboard: React.FC = () => {
     </div>
   )
 }
+

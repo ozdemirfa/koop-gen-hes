@@ -9,6 +9,8 @@ import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { LoadingState } from '../../components/common/LoadingState'
 import { ErrorState } from '../../components/common/ErrorState'
 
+import { trMoneyFormatter } from '../../lib/format'
+
 const { Title, Text } = Typography
 
 export const YillikRaporPage: React.FC = () => {
@@ -66,7 +68,7 @@ export const YillikRaporPage: React.FC = () => {
               value={rapor?.toplam_aidat || 0}
               prefix={<DollarOutlined />}
               suffix="TL"
-              precision={2}
+              formatter={(v) => trMoneyFormatter(v as number)}
             />
           </Card>
         </Col>
@@ -77,7 +79,7 @@ export const YillikRaporPage: React.FC = () => {
               value={rapor?.toplam_gelir || 0}
               prefix={<RiseOutlined />}
               suffix="TL"
-              precision={2}
+              formatter={(v) => trMoneyFormatter(v as number)}
             />
           </Card>
         </Col>
@@ -88,7 +90,7 @@ export const YillikRaporPage: React.FC = () => {
               value={rapor?.toplam_gider || 0}
               prefix={<FallOutlined />}
               suffix="TL"
-              precision={2}
+              formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#cf1322' } }}
             />
           </Card>
@@ -100,7 +102,7 @@ export const YillikRaporPage: React.FC = () => {
               value={(rapor?.toplam_aidat || 0) + (rapor?.toplam_gelir || 0) - (rapor?.toplam_gider || 0)}
               prefix={<BarChartOutlined />}
               suffix="TL"
-              precision={2}
+              formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#3f8600' } }}
             />
           </Card>

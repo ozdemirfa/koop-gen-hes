@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Button, Modal, Form, Input, InputNumber, DatePicker, Select, Space, message, Row, Col, Divider, Typography } from 'antd'
+import { Button, Modal, Form, Input, InputNumber, DatePicker, Select, Space, message, Row, Col, Divider, Typography, Tag, App } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
@@ -10,6 +10,7 @@ import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { ConfirmDelete } from '../../components/common/ConfirmDelete'
 import { useDebounce } from '../../hooks/useDebounce'
+import { trMoneyFormatter, trNumberParser } from '../../lib/format'
 
 const { Text } = Typography
 
@@ -18,8 +19,6 @@ interface IrsaliyeKalemi {
   malzeme_adi: string
   birim: string
   miktar: number
-  birim_fiyat: number
-  toplam_tutar: number
 }
 
 interface Irsaliye {
@@ -27,10 +26,12 @@ interface Irsaliye {
   firma_id: string
   proje_id?: string
   irsaliye_no?: string
+  hakedis_id?: string
   teslim_tarihi: string
   teslim_alan?: string
   notlar?: string
   firmalar?: { unvan: string }
+  hakedisler?: { hakedis_no: number }
   irsaliye_kalemleri: IrsaliyeKalemi[]
 }
 
@@ -38,11 +39,16 @@ const BIRIMLER = ['Adet', 'Metre', 'Kg', 'm2', 'm3', 'Ton', 'Litre', 'Set']
 
 export const MalzemeTeslimListPage: React.FC = () => {
   const queryClient = useQueryClient()
+  const { message: messageApi } = App.useApp()
   const [modalOpen, setModalOpen] = useState(false)
   const [editingIrsaliye, setEditingIrsaliye] = useState<Irsaliye | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [filterHakedis, setFilterHakedis] = useState<string | undefined>(undefined)
+  const [selectedFirmaId, setSelectedFirmaId] = useState<string | null>(null)
   const debouncedSearch = useDebounce(searchTerm, 500)
   const [form] = Form.useForm()
+
+  const activeProjectId = localStorage.getItem('activeProjectId')
 
   const { data: firmalar } = useQuery({
     queryKey: ['firmalar-select'],
@@ -52,21 +58,39 @@ export const MalzemeTeslimListPage: React.FC = () => {
     },
   })
 
-  const { data: irsaliyeData, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['irsaliyeler', debouncedSearch],
+  // Firma hakedişlerini getir
+  const { data: hakedisler } = useQuery({
+    queryKey: ['firma-hakedisler', selectedFirmaId],
     queryFn: async () => {
-      const { data } = await api.get('/malzeme-teslimleri', {
-        params: { search: debouncedSearch }
-      })
+      if (!selectedFirmaId) return []
+      const { data } = await api.get('/hakedisler', { params: { firma_id: selectedFirmaId, limit: 100 } })
+      return data.data as { id: string, hakedis_no: number }[]
+    },
+    enabled: !!selectedFirmaId
+  })
+
+  const { data: irsaliyeData, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['irsaliyeler', debouncedSearch, filterHakedis, activeProjectId],
+    queryFn: async () => {
+      const params: any = { search: debouncedSearch, proje_id: activeProjectId }
+      if (filterHakedis === 'yapildi') params.has_hakedis = 'true'
+      if (filterHakedis === 'yapilmadi') params.has_hakedis = 'false'
+      
+      const { data } = await api.get('/malzeme-teslimleri', { params })
       return data
     },
+    enabled: !!activeProjectId
   })
 
   const saveMutation = useMutation({
     mutationFn: async (values: any) => {
       const payload = {
         ...values,
+        proje_id: activeProjectId,
         teslim_tarihi: values.teslim_tarihi.format('YYYY-MM-DD'),
+        hakedis_id: values.hakedis_id || null,
+        sozlesme_id: values.sozlesme_id || null,
+        irsaliye_no: values.irsaliye_no || null,
       }
       if (editingIrsaliye) {
         return await api.put(`/malzeme-teslimleri/${editingIrsaliye.id}`, payload)
@@ -74,13 +98,14 @@ export const MalzemeTeslimListPage: React.FC = () => {
       return await api.post('/malzeme-teslimleri', payload)
     },
     onSuccess: () => {
-      message.success('İrsaliye kaydedildi')
+      messageApi.success('İrsaliye kaydedildi')
       queryClient.invalidateQueries({ queryKey: ['irsaliyeler'] })
       setModalOpen(false)
       form.resetFields()
       setEditingIrsaliye(null)
+      setSelectedFirmaId(null)
     },
-    onError: (err: any) => message.error(err.message || 'Hata oluştu'),
+    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu'),
   })
 
   const deleteMutation = useMutation({
@@ -100,28 +125,35 @@ export const MalzemeTeslimListPage: React.FC = () => {
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
         allowClear
-        style={{ width: 220 }}
+        style={{ width: 180 }}
         className="header-search-input"
       />
+      <Select
+        placeholder="Hakediş Durumu"
+        allowClear
+        style={{ width: 150 }}
+        value={filterHakedis}
+        onChange={setFilterHakedis}
+      >
+        <Select.Option value="yapildi">Yapıldı</Select.Option>
+        <Select.Option value="yapilmadi">Yapılmadı</Select.Option>
+      </Select>
       <Button
         type="primary"
         icon={<PlusOutlined />}
         onClick={() => {
           setEditingIrsaliye(null)
           form.resetFields()
-          form.setFieldsValue({ kalemler: [{ malzeme_adi: '', birim: 'Adet', miktar: 1, birim_fiyat: 0 }] })
+          form.setFieldsValue({ kalemler: [{ malzeme_adi: '', birim: 'Adet', miktar: 1 }] })
           setModalOpen(true)
         }}
       >
         Yeni İrsaliye
       </Button>
     </Space>
-  ), [searchTerm, form])
+  ), [searchTerm, filterHakedis, form])
 
-  usePageSettings({
-    title: 'Malzeme Teslimatı ve İrsaliye',
-    actions
-  })
+  usePageSettings('Malzeme Teslimatı ve İrsaliye', actions)
 
   const columns = [
     {
@@ -139,20 +171,15 @@ export const MalzemeTeslimListPage: React.FC = () => {
     },
     { title: 'Firma', key: 'firma', render: (_: any, r: Irsaliye) => r.firmalar?.unvan || '-' },
     {
+      title: 'Hakediş No',
+      key: 'hakedis',
+      render: (_: any, r: Irsaliye) => r.hakedisler ? <Tag color="blue">#{r.hakedisler.hakedis_no}</Tag> : <Tag color="default">Bekliyor</Tag>,
+    },
+    {
       title: 'Kalem Sayısı',
       key: 'kalemler',
       width: 100,
       render: (_: any, r: Irsaliye) => r.irsaliye_kalemleri?.length || 0,
-    },
-    {
-      title: 'Toplam Tutar',
-      key: 'toplam',
-      align: 'right' as const,
-      width: 130,
-      render: (_: any, r: Irsaliye) => {
-        const total = r.irsaliye_kalemleri?.reduce((sum, k) => sum + (k.miktar * (k.birim_fiyat || 0)), 0) || 0
-        return <MoneyDisplay amount={total} />
-      }
     },
     {
       title: 'İşlem',
@@ -167,6 +194,7 @@ export const MalzemeTeslimListPage: React.FC = () => {
             className="action-btn-edit"
             onClick={() => {
               setEditingIrsaliye(r)
+              setSelectedFirmaId(r.firma_id)
               form.setFieldsValue({ 
                 ...r, 
                 teslim_tarihi: dayjs(r.teslim_tarihi),
@@ -192,7 +220,7 @@ export const MalzemeTeslimListPage: React.FC = () => {
           rowKey="id"
           loading={isLoading}
           size="small"
-          totalItems={irsaliyeData?.pagination?.total}
+          totalItems={irsaliyeData?.pagination?.totalCount}
           emptyDescription="Kayıtlı teslim/irsaliye bulunamadı"
         />
       )}
@@ -203,11 +231,12 @@ export const MalzemeTeslimListPage: React.FC = () => {
         onCancel={() => {
           setModalOpen(false)
           setEditingIrsaliye(null)
+          setSelectedFirmaId(null)
         }}
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
         width={800}
-        destroyOnClose
+        destroyOnHidden
         okText="Kaydet"
         cancelText="İptal"
         styles={{ body: { paddingTop: 16 } }}
@@ -221,7 +250,15 @@ export const MalzemeTeslimListPage: React.FC = () => {
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item name="firma_id" label="Firma" rules={[{ required: true }]}>
-                <Select showSearch placeholder="Firma seçin" optionFilterProp="children">
+                <Select 
+                  showSearch 
+                  placeholder="Firma seçin" 
+                  optionFilterProp="children"
+                  onChange={(val) => {
+                    setSelectedFirmaId(val)
+                    form.setFieldsValue({ hakedis_id: undefined })
+                  }}
+                >
                   {firmalar?.map(f => <Select.Option key={f.id} value={f.id}>{f.unvan}</Select.Option>)}
                 </Select>
               </Form.Item>
@@ -240,25 +277,37 @@ export const MalzemeTeslimListPage: React.FC = () => {
           
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="teslim_alan" label="Teslim Alan">
-                <Input />
+              <Form.Item name="hakedis_id" label="Hakediş (Opsiyonel)">
+                <Select 
+                  showSearch 
+                  placeholder={selectedFirmaId ? "Hakediş bağla" : "Önce firma seçin"}
+                  optionFilterProp="children"
+                  allowClear
+                  disabled={!selectedFirmaId}
+                >
+                  {hakedisler?.map(h => <Select.Option key={h.id} value={h.id}>Hakediş #{h.hakedis_no}</Select.Option>)}
+                </Select>
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="notlar" label="Notlar">
+              <Form.Item name="teslim_alan" label="Teslim Alan">
                 <Input />
               </Form.Item>
             </Col>
           </Row>
 
-          <Divider orientation={"left" as any} style={{ margin: '12px 0' }}>Malzemeler</Divider>
+          <Form.Item name="notlar" label="Notlar">
+            <Input />
+          </Form.Item>
+
+          <Divider titlePlacement="left" style={{ margin: '12px 0' }}>Malzemeler</Divider>
           
           <Form.List name="kalemler">
             {(fields, { add, remove }) => (
               <>
                 {fields.map(({ key, name, ...restField }) => (
                   <Row key={key} gutter={8} align="middle" style={{ marginBottom: 4 }}>
-                    <Col span={10}>
+                    <Col span={14}>
                       <Form.Item
                         {...restField}
                         name={[name, 'malzeme_adi']}
@@ -288,15 +337,6 @@ export const MalzemeTeslimListPage: React.FC = () => {
                         noStyle
                       >
                         <InputNumber placeholder="Miktar" style={{ width: '100%' }} min={0.001} />
-                      </Form.Item>
-                    </Col>
-                    <Col span={4}>
-                      <Form.Item
-                        {...restField}
-                        name={[name, 'birim_fiyat']}
-                        noStyle
-                      >
-                        <InputNumber placeholder="Fiyat" style={{ width: '100%' }} min={0} />
                       </Form.Item>
                     </Col>
                     <Col span={2}>

@@ -9,6 +9,8 @@ import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { LoadingState } from '../../components/common/LoadingState'
 import { ErrorState } from '../../components/common/ErrorState'
 
+import { trMoneyFormatter } from '../../lib/format'
+
 const { Text } = Typography
 
 export const UyeBorcRaporPage: React.FC = () => {
@@ -33,10 +35,7 @@ export const UyeBorcRaporPage: React.FC = () => {
     </Button>
   ), [])
 
-  usePageSettings({
-    title: 'Üye Borç Listesi',
-    actions
-  })
+  usePageSettings('Üye Borç Listesi', actions)
 
   const columns = [
     { title: 'Üye No', dataIndex: 'uye_no', key: 'uye_no', width: 100 },
@@ -82,7 +81,7 @@ export const UyeBorcRaporPage: React.FC = () => {
               value={genelToplamBorc} 
               prefix={<DollarOutlined />} 
               suffix="TL"
-              precision={2} 
+              formatter={(v) => trMoneyFormatter(v as number)} 
               styles={{ content: { color: '#cf1322', fontSize: '1.2rem' } }}
             />
           </Card>

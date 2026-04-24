@@ -7,6 +7,9 @@ const router = Router()
 
 // === AİDAT TANIMLARI ===
 
+// POST /api/aidatlar/charge-tanim/:id
+router.post('/charge-tanim/:id', aidatController.chargeTanim)
+
 // GET /api/aidatlar/tanimlar
 router.get('/tanimlar', aidatController.getAidatTanimlari)
 
@@ -18,6 +21,12 @@ router.post('/yillik-plan', validate({ body: yillikPlanSchema }), aidatControlle
 
 // PUT /api/aidatlar/tanimlar/:id
 router.put('/tanimlar/:id', validate({ body: updateAidatTanimiSchema }), aidatController.updateAidatTanimi)
+
+// DELETE /api/aidatlar/tanimlar/:id
+router.delete('/tanimlar/:id', aidatController.deleteAidatTanimi)
+
+// POST /api/aidatlar/execute-charging
+router.post('/execute-charging', aidatController.executeCharging)
 
 // === AİDATLAR ===
 

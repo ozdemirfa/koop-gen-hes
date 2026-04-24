@@ -13,6 +13,25 @@ export const getFirmaById = catchAsync(async (req: AuthRequest<any, any, any, an
   res.json({ success: true, data })
 })
 
+export const getStats = catchAsync(async (req: AuthRequest, res: Response) => {
+  const projeId = req.query.proje_id as string
+  if (!projeId) {
+    return res.status(400).json({ success: false, error: 'proje_id gereklidir' })
+  }
+  const data = await firmaService.getStats(projeId)
+  res.json({ success: true, data })
+})
+
+export const getFirmaStats = catchAsync(async (req: AuthRequest, res: Response) => {
+  const { id } = req.params
+  const projeId = req.query.proje_id as string
+  if (!projeId) {
+    return res.status(400).json({ success: false, error: 'proje_id gereklidir' })
+  }
+  const data = await firmaService.getIndividualStats(id, projeId)
+  res.json({ success: true, data })
+})
+
 export const createFirma = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   const data = await firmaService.create(req.body)
   res.status(201).json({ success: true, data })

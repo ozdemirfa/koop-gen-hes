@@ -1,65 +1,108 @@
 import React, { useState, useMemo } from 'react'
-import { Card, Space, Select, DatePicker, Statistic, Row, Col, Tag, Button, message } from 'antd'
-import { DownloadOutlined } from '@ant-design/icons'
+import { Card, Space, Select, DatePicker, Statistic, Row, Col, Tag, Button, message, Typography, Badge } from 'antd'
+import { DownloadOutlined, AuditOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
-import { formatMoney } from '../../lib/format'
+import { trMoneyFormatter, trNumberParser } from '../../lib/format'
 import { usePageSettings } from '../../contexts/LayoutContext'
+import { useProject } from '../../contexts/ProjectContext'
 
 const { RangePicker } = DatePicker
 
+interface CariHesap {
+  id: string
+  cari_adi: string
+  cari_turu: 'uye' | 'firma'
+  firma_id?: string
+  uye_id?: string
+}
+
 interface CariHareket {
   id: string
-  firma_id: string
-  hareket_tipi: 'borc' | 'alacak'
-  tutar: number
+  cari_hesap_id: string
+  borc: number
+  alacak: number
+  islem_turu: string
+  odeme_turu?: string
   tarih: string
   aciklama?: string
   belge_no?: string
-  firmalar?: { unvan: string }
+  cari_hesaplar?: {
+    cari_adi: string
+    cari_turu: 'uye' | 'firma'
+  }
+}
+
+const ISLEM_TURU_LABELS: Record<string, { label: string, color: string }> = {
+  aidat_kayit: { label: 'Aidat Tahakkuku', color: 'orange' },
+  hakedis: { label: 'Hakediş', color: 'purple' },
+  gelen_odeme: { label: 'Tahsilat (Gelen)', color: 'green' },
+  giden_odeme: { label: 'Ödeme (Giden)', color: 'blue' },
+}
+
+const ODEME_TURU_LABELS: Record<string, string> = {
+  nakit: 'Nakit',
+  banka: 'Banka',
+  kredi_karti: 'Kredi Kartı',
+  cek: 'Çek',
 }
 
 export const CariEkstrePage: React.FC = () => {
+  const { activeProject } = useProject()
   const [dates, setDates] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null]>([
     dayjs().startOf('year'),
     dayjs().endOf('year'),
   ])
-  const [firmaId, setFirmaId] = useState<string | undefined>(undefined)
+  const [cariHesapId, setCariHesapId] = useState<string | undefined>(undefined)
 
-  const { data: firmalar } = useQuery({
-    queryKey: ['firmalar-select'],
+  // Cari Hesaplar (Sadece Firmalar) Fetch
+  const { data: accounts, isLoading: accountsLoading } = useQuery({
+    queryKey: ['cari-accounts', activeProject?.id, 'firma'],
     queryFn: async () => {
-      const { data } = await api.get('/firmalar', { params: { aktif: 'true', limit: 500 } })
-      return data.data as { id: string; unvan: string }[]
+      if (!activeProject?.id) return []
+      // Proje ID interceptor tarafından otomatik ekleniyor
+      const { data } = await api.get('/cari-hareketler/accounts', { 
+        params: { cari_turu: 'firma' } 
+      })
+      return data.data as CariHesap[]
     },
+    enabled: !!activeProject?.id
   })
 
+  // Hareketler Fetch
   const { data: hareketler, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['cari-ekstre-genel', dates, firmaId],
+    queryKey: ['cari-ekstre', activeProject?.id, dates, cariHesapId],
     queryFn: async () => {
-      const params: any = {}
+      if (!activeProject?.id) return []
+      const params: any = { 
+        cari_turu: 'firma'
+      }
       if (dates?.[0]) params.baslangic_tarihi = dates[0].format('YYYY-MM-DD')
       if (dates?.[1]) params.bitis_tarihi = dates[1].format('YYYY-MM-DD')
-      if (firmaId) params.firma_id = firmaId
+      if (cariHesapId) params.cari_hesap_id = cariHesapId
+      
       const { data } = await api.get('/cari-hareketler', { params })
       return data.data as CariHareket[]
     },
+    enabled: !!activeProject?.id
   })
 
-  // Birikmiş Teminat Sorgusu
-  const { data: teminatData } = useQuery({
-    queryKey: ['birikmis-teminat', firmaId],
+  // Birikmiş Teminat ve Hakediş Detayları Sorgusu
+  const selectedCari = useMemo(() => accounts?.find(a => a.id === cariHesapId), [accounts, cariHesapId])
+  const targetFirmaId = selectedCari?.firma_id
+
+  const { data: firmaStats } = useQuery({
+    queryKey: ['firma-summary-stats', targetFirmaId, activeProject?.id],
     queryFn: async () => {
-      if (!firmaId) return 0
-      const { data } = await api.get('/hakedisler', { params: { firma_id: firmaId, durum: 'onaylandi', limit: 1000 } })
-      const list = data.data as any[]
-      return list.reduce((sum, h) => sum + Number(h.teminat_kesintisi || 0), 0)
+      if (!targetFirmaId) return null
+      const { data } = await api.get(`/firmalar/${targetFirmaId}/stats`)
+      return data.data
     },
-    enabled: !!firmaId
+    enabled: !!targetFirmaId && !!activeProject?.id
   })
 
   const exportToCSV = () => {
@@ -68,14 +111,16 @@ export const CariEkstrePage: React.FC = () => {
       return
     }
     
-    const headers = ['Tarih', 'Firma', 'Açıklama', 'Belge No', 'Tip', 'Tutar']
+    const headers = ['Tarih', 'Cari Hesap', 'İşlem Türü', 'Ödeme Türü', 'Açıklama', 'Belge No', 'Borç', 'Alacak']
     const rows = hareketler.map(h => [
       dayjs(h.tarih).format('DD.MM.YYYY'),
-      h.firmalar?.unvan || '',
+      h.cari_hesaplar?.cari_adi || '',
+      ISLEM_TURU_LABELS[h.islem_turu]?.label || h.islem_turu,
+      h.odeme_turu ? (ODEME_TURU_LABELS[h.odeme_turu] || h.odeme_turu) : '',
       h.aciklama || '',
       h.belge_no || '',
-      h.hareket_tipi === 'borc' ? 'Borç' : 'Alacak',
-      formatMoney(h.tutar).replace(/\./g, '')
+      h.borc.toString().replace(/\./g, ','),
+      h.alacak.toString().replace(/\./g, ',')
     ])
 
     const csvContent = "\uFEFF" + [headers, ...rows].map(e => e.join(";")).join("\n")
@@ -91,126 +136,246 @@ export const CariEkstrePage: React.FC = () => {
 
   const actions = useMemo(() => (
     <Space size="small">
-      <Button size="small" icon={<DownloadOutlined />} onClick={exportToCSV}>CSV İndir</Button>
+      <Button icon={<DownloadOutlined />} onClick={exportToCSV}>CSV İndir</Button>
       <Select
-        size="small"
         showSearch
-        placeholder="Firma Filtresi"
-        value={firmaId}
-        onChange={setFirmaId}
+        placeholder="Firma Seçin"
+        value={cariHesapId}
+        onChange={setCariHesapId}
         allowClear
-        style={{ width: 220 }}
-        optionFilterProp="children"
-      >
-        {firmalar?.map((f) => (
-          <Select.Option key={f.id} value={f.id}>
-            {f.unvan}
-          </Select.Option>
-        ))}
-      </Select>
+        style={{ width: 280 }}
+        loading={accountsLoading}
+        optionFilterProp="label"
+        suffixIcon={<AuditOutlined />}
+        options={accounts?.map(acc => ({
+          value: acc.id,
+          label: acc.cari_adi
+        }))}
+      />
       <RangePicker
-        size="small"
         value={dates}
         onChange={(vals) => setDates(vals as any)}
         format="DD.MM.YYYY"
         style={{ width: 240 }}
       />
     </Space>
-  ), [firmaId, dates, firmalar, hareketler])
+  ), [cariHesapId, dates, accounts, accountsLoading])
 
-  usePageSettings({
-    title: 'Cari Ekstre',
-    actions
-  })
+  usePageSettings('Firma Ekstre', actions)
 
-  const totals = hareketler?.reduce(
-    (acc, curr) => {
-      if (curr.hareket_tipi === 'borc') acc.borc += Number(curr.tutar)
-      else acc.alacak += Number(curr.tutar)
-      return acc
-    },
-    { borc: 0, alacak: 0 }
-  ) || { borc: 0, alacak: 0 }
+  // Hesaplamalar (Firma seçiliyse firmaStats'dan, değilse hareketler toplamından)
+  const stats = useMemo(() => {
+    if (cariHesapId && firmaStats) {
+      return {
+        borc: firmaStats.toplam_kdvli, // Hak edilen
+        alacak: firmaStats.toplam_odeme, // Ödenen
+        bakiye: firmaStats.bakiye, // Cari Bakiye
+        teminat: firmaStats.birikmis_teminat,
+        toplamBakiye: firmaStats.bakiye - firmaStats.birikmis_teminat,
+        matrah: firmaStats.toplam_hakedis,
+        fatura: firmaStats.toplam_fatura
+      }
+    }
+
+    const totals = hareketler?.reduce(
+      (acc, curr) => {
+        acc.borc += Number(curr.borc || 0)
+        acc.alacak += Number(curr.alacak || 0)
+        return acc
+      },
+      { borc: 0, alacak: 0 }
+    ) || { borc: 0, alacak: 0 }
+
+    return {
+      borc: totals.borc,
+      alacak: totals.alacak,
+      bakiye: totals.alacak - totals.borc,
+      teminat: 0,
+      toplamBakiye: totals.alacak - totals.borc,
+      matrah: 0,
+      fatura: 0
+    }
+  }, [hareketler, firmaStats, cariHesapId])
 
   const columns = [
     {
       title: 'Tarih',
       dataIndex: 'tarih',
       key: 'tarih',
-      width: 100,
-      render: (d: string) => dayjs(d).format('DD.MM.YYYY'),
+      width: 110,
+      render: (d: string) => <span className="text-slate-600 font-medium">{dayjs(d).format('DD.MM.YYYY')}</span>,
     },
     {
-      title: 'Firma',
-      key: 'firma',
-      render: (_: any, r: CariHareket) => r.firmalar?.unvan || '-',
-    },
-    { title: 'Açıklama', dataIndex: 'aciklama', key: 'aciklama' },
-    { title: 'Belge No', dataIndex: 'belge_no', key: 'belge_no', width: 110 },
-    {
-      title: 'Tip',
-      dataIndex: 'hareket_tipi',
-      key: 'hareket_tipi',
-      width: 80,
-      render: (t: string) => (
-        <Tag color={t === 'borc' ? 'red' : 'green'} style={{ fontSize: '11px' }}>{t === 'borc' ? 'Borç' : 'Alacak'}</Tag>
+      title: 'Firma Adı',
+      key: 'cari_hesap',
+      width: 200,
+      render: (_: any, r: CariHareket) => (
+        <Typography.Text strong className="text-slate-800">{r.cari_hesaplar?.cari_adi || '-'}</Typography.Text>
       ),
     },
     {
-      title: 'Tutar',
-      dataIndex: 'tutar',
-      key: 'tutar',
-      width: 120,
+      title: 'İşlem / Tür',
+      key: 'islem_odeme',
+      width: 160,
+      render: (_: any, r: CariHareket) => {
+        const typeInfo = ISLEM_TURU_LABELS[r.islem_turu] || { label: r.islem_turu, color: 'default' }
+        return (
+          <Space orientation="vertical" size={2}>
+            <Tag color={typeInfo.color} style={{ fontSize: '11px', margin: 0, borderRadius: '4px' }}>
+              {typeInfo.label}
+            </Tag>
+            {r.odeme_turu && (
+              <Typography.Text type="secondary" italic style={{ fontSize: '11px', marginLeft: 4 }}>
+                {ODEME_TURU_LABELS[r.odeme_turu] || r.odeme_turu}
+              </Typography.Text>
+            )}
+          </Space>
+        )
+      }
+    },
+    { 
+      title: 'Açıklama', 
+      key: 'aciklama',
+      render: (_: any, r: CariHareket) => (
+        <Space orientation="vertical" size={0}>
+          <Typography.Text className="text-slate-600">{r.aciklama || '-'}</Typography.Text>
+          {r.belge_no && <Typography.Text type="secondary" style={{ fontSize: '11px' }}>Belge No: {r.belge_no}</Typography.Text>}
+        </Space>
+      )
+    },
+    {
+      title: 'Borç (TL)',
+      dataIndex: 'borc',
+      key: 'borc',
+      width: 130,
       align: 'right' as const,
-      render: (v: number) => <MoneyDisplay amount={v} />,
+      render: (v: number) => v > 0 ? (
+        <span style={{ color: '#cf1322', fontWeight: 500 }}>
+          <MoneyDisplay amount={v} />
+        </span>
+      ) : <Typography.Text type="disabled">-</Typography.Text>,
+    },
+    {
+      title: 'Alacak (TL)',
+      dataIndex: 'alacak',
+      key: 'alacak',
+      width: 130,
+      align: 'right' as const,
+      render: (v: number) => v > 0 ? (
+        <span style={{ color: '#3f8600', fontWeight: 500 }}>
+          <MoneyDisplay amount={v} />
+        </span>
+      ) : <Typography.Text type="disabled">-</Typography.Text>,
     },
   ]
 
+  if (!activeProject) {
+    return (
+      <Card variant="borderless" className="shadow-sm rounded-xl">
+        <Typography.Text type="secondary">Cari ekstre görüntülemek için lütfen bir proje seçiniz.</Typography.Text>
+      </Card>
+    )
+  }
+
   return (
-    <div>
-      <Row gutter={12} style={{ marginBottom: 12 }}>
-        <Col span={6}>
-          <Card bordered={false} className="stat-card" size="small">
-            <Statistic
-              title="Toplam Borç"
-              value={totals.borc}
-              precision={2}
-              styles={{ content: { color: '#cf1322', fontSize: '18px' } }}
-              suffix="TL"
-            />
+    <div className="animate-in fade-in duration-500">
+      {/* İki satırlı bilgi kartları */}
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={12} lg={4}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small">
+            <Space orientation="vertical" size={0} style={{ width: '100%' }}>
+              <Statistic 
+                title={<span style={{ fontSize: '12px' }}>Hakediş (Matrah)</span>} 
+                value={stats.matrah} 
+                formatter={(v) => trMoneyFormatter(v as number)}
+                styles={{ content: { color: '#1677ff', fontSize: '15px', fontWeight: 'bold' } }}
+              />
+              <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 4, paddingTop: 4 }}>
+                <Typography.Text type="secondary" style={{ fontSize: '11px' }}>KDVli: </Typography.Text>
+                <Typography.Text strong style={{ fontSize: '15px', color: '#1677ff' }}>
+                  {trMoneyFormatter(stats.borc)} TL
+                </Typography.Text>
+              </div>
+            </Space>
           </Card>
         </Col>
-        <Col span={6}>
-          <Card bordered={false} className="stat-card" size="small">
-            <Statistic
-              title="Toplam Alacak"
-              value={totals.alacak}
-              precision={2}
-              styles={{ content: { color: '#3f8600', fontSize: '18px' } }}
-              suffix="TL"
-            />
+
+        <Col xs={24} sm={12} lg={4}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small">
+            <Space orientation="vertical" size={0} style={{ width: '100%' }}>
+              <Statistic 
+                title={<span style={{ fontSize: '12px' }}>Gelen Faturalar</span>} 
+                value={stats.fatura} 
+                formatter={(v) => trMoneyFormatter(v as number)}
+                styles={{ content: { color: '#faad14', fontSize: '15px', fontWeight: 'bold' } }}
+              />
+              <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 4, paddingTop: 4 }}>
+                <Typography.Text type="secondary" style={{ fontSize: '11px' }}>Fatura Açığı: </Typography.Text>
+                <Typography.Text strong style={{ fontSize: '12px', color: (stats.fatura - stats.borc < 0) ? '#faad14' : 'inherit' }}>
+                  {trMoneyFormatter(stats.fatura - stats.borc)} TL
+                </Typography.Text>
+              </div>
+            </Space>
           </Card>
         </Col>
-        <Col span={6}>
-          <Card bordered={false} className="stat-card" size="small">
-            <Statistic
-              title="Net Bakiye"
-              value={Math.abs(totals.alacak - totals.borc)}
-              precision={2}
-              styles={{ content: { color: totals.alacak - totals.borc >= 0 ? '#3f8600' : '#cf1322', fontSize: '18px' } }}
-              suffix={totals.alacak - totals.borc >= 0 ? 'TL (A)' : 'TL (B)'}
+
+        <Col xs={24} sm={12} lg={4}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small">
+            <Statistic 
+              title={<span style={{ fontSize: '12px' }}>Birikmiş Teminat</span>} 
+              value={stats.teminat} 
+              formatter={(v) => trMoneyFormatter(v as number)}
+              styles={{ content: { color: '#722ed1', fontSize: '15px', fontWeight: 'bold' } }}
+              suffix={<span style={{ fontSize: '11px', fontWeight: 'normal', marginLeft: 4 }}>TL</span>}
             />
+            <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 4, paddingTop: 4 }}>
+              <Typography.Text type="secondary" style={{ fontSize: '11px' }}>Net Kalan Teminat</Typography.Text>
+            </div>
           </Card>
         </Col>
-        <Col span={6}>
-          <Card bordered={false} className="stat-card" size="small">
-            <Statistic
-              title="Birikmiş Teminat"
-              value={teminatData || 0}
-              precision={2}
-              styles={{ content: { color: '#1890ff', fontSize: '18px' } }}
-              suffix="TL"
+
+        <Col xs={24} sm={12} lg={4}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small">
+            <Statistic 
+              title={<span style={{ fontSize: '12px' }}>Toplam Ödeme</span>} 
+              value={stats.alacak} 
+              formatter={(v) => trMoneyFormatter(v as number)}
+              styles={{ content: { color: '#3f8600', fontSize: '15px', fontWeight: 'bold' } }}
+              suffix={<span style={{ fontSize: '11px', fontWeight: 'normal', marginLeft: 4 }}>TL</span>}
             />
+            <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 4, paddingTop: 4 }}>
+              <Typography.Text type="secondary" style={{ fontSize: '11px' }}>Yapılan Toplam Ödeme</Typography.Text>
+            </div>
+          </Card>
+        </Col>
+
+        <Col xs={24} sm={12} lg={4}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small" style={{ background: '#f0f5ff' }}>
+            <Statistic 
+              title={<span style={{ fontSize: '12px', fontWeight: 'bold' }}>Cari Bakiye</span>} 
+              value={stats.bakiye} 
+              formatter={(v) => trMoneyFormatter(v as number)}
+              styles={{ content: { color: stats.bakiye < 0 ? '#cf1322' : '#1677ff', fontSize: '16px', fontWeight: 'bold' } }}
+              suffix={<span style={{ fontSize: '12px', fontWeight: 'normal', marginLeft: 4 }}>TL</span>}
+            />
+            <div style={{ borderTop: '1px solid #ddecff', marginTop: 4, paddingTop: 4 }}>
+              <Typography.Text type="secondary" style={{ fontSize: '10px' }}>Ödeme-KDVli-Teminat</Typography.Text>
+            </div>
+          </Card>
+        </Col>
+
+        <Col xs={24} sm={12} lg={4}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small" style={{ background: '#fff1f0' }}>
+            <Statistic 
+              title={<span style={{ fontSize: '12px', fontWeight: 'bold' }}>Toplam Bakiye</span>} 
+              value={stats.toplamBakiye} 
+              formatter={(v) => trMoneyFormatter(v as number)}
+              styles={{ content: { color: stats.toplamBakiye < 0 ? '#cf1322' : '#d4380d', fontSize: '16px', fontWeight: 'bold' } }}
+              suffix={<span style={{ fontSize: '12px', fontWeight: 'normal', marginLeft: 4 }}>TL</span>}
+            />
+            <div style={{ borderTop: '1px solid #ffa39e', marginTop: 4, paddingTop: 4 }}>
+              <Typography.Text type="secondary" style={{ fontSize: '10px' }}>Cari Bakiye - Teminat</Typography.Text>
+            </div>
           </Card>
         </Col>
       </Row>
@@ -218,15 +383,21 @@ export const CariEkstrePage: React.FC = () => {
       {isError ? (
         <ErrorState error={error} onRetry={() => refetch()} />
       ) : (
-        <DataTable
-          columns={columns}
-          dataSource={hareketler}
-          rowKey="id"
-          loading={isLoading}
-          pagination={false}
-          size="small"
-          emptyDescription="Seçilen dönem için cari hareket bulunamadı"
-        />
+        <Card variant="borderless" styles={{ body: { padding: 0 } }} className="shadow-sm overflow-hidden rounded-xl">
+          <DataTable
+            columns={columns}
+            dataSource={hareketler}
+            rowKey="id"
+            loading={isLoading}
+            pagination={{ 
+              total: hareketler?.length || 0,
+              pageSize: 50, 
+              showSizeChanger: true 
+            }}
+            size="small"
+            emptyDescription="Seçilen kriterlere uygun cari hareket bulunamadı"
+          />
+        </Card>
       )}
     </div>
   )

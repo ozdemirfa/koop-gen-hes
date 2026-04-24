@@ -22,16 +22,11 @@ export const projeService = {
 
     if (error) throw ApiError.notFound('Proje bulunamadı')
 
-    // İş kalemlerini ağaç yapısına dönüştür
-    if (data.proje_is_kalemleri) {
-      data.is_kalemleri_agac = buildTree(data.proje_is_kalemleri)
-    }
-
     return data
   },
 
   async create(body: Record<string, any>) {
-    const { bloklar, proje_id: _, ...projeData } = body
+    const { bloklar, ...projeData } = body
     
     // Aynı isimde birden fazla blok gönderilmiş mi kontrol et
     if (bloklar && bloklar.length > 0) {
@@ -65,7 +60,7 @@ export const projeService = {
   },
 
   async update(id: string, body: Record<string, any>) {
-    const { bloklar, id: _, created_at, is_kalemleri_agac, proje_id: __, ...projeData } = body
+    const { bloklar, id: _, created_at, ...projeData } = body
 
     // Aynı isimde birden fazla blok gönderilmiş mi kontrol et
     if (bloklar && bloklar.length > 0) {
@@ -169,32 +164,28 @@ export const projeService = {
       }
 
       // Eğer yeni bir ANA kalem eklendiyse ve bu proje için yıllık plan(lar) varsa, 12 aylık boş kayıtlarını oluştur
-      if (!data.ust_kalem_id) {
-        const { data: plans } = await supabaseAdmin
-          .from('yillik_harcama_planlari')
-          .select('id')
-          .eq('proje_id', projeId)
+      const { data: plans } = await supabaseAdmin
+        .from('yillik_harcama_planlari')
+        .select('id')
+        .eq('proje_id', projeId)
 
-        if (plans && plans.length > 0) {
-          const planKalemleri: any[] = []
-          plans.forEach(plan => {
-            for (let ay = 1; ay <= 12; ay++) {
-              planKalemleri.push({
-                plan_id: plan.id,
-                proje_is_kalemi_id: data.id,
-                ay,
-                planlanan_tutar: 0,
-                gerceklesen_tutar: 0
-              })
-            }
-          })
-          const { error: planError } = await supabaseAdmin.from('yillik_plan_kalemleri').insert(planKalemleri)
-          if (planError) {
-            console.error('yillik_plan_kalemleri insert error:', planError)
-            // Ana kalem oluştu ama plan kalemleri oluşamadıysa bunu da loglayıp devam edebiliriz veya hata verebiliriz
-            // Şimdilik hata verelim ki tam oluşsun
-            throw planError
+      if (plans && plans.length > 0) {
+        const planKalemleri: any[] = []
+        plans.forEach(plan => {
+          for (let ay = 1; ay <= 12; ay++) {
+            planKalemleri.push({
+              plan_id: plan.id,
+              proje_is_kalemi_id: data.id,
+              ay,
+              planlanan_tutar: 0,
+              gerceklesen_tutar: 0
+            })
           }
+        })
+        const { error: planError } = await supabaseAdmin.from('yillik_plan_kalemleri').insert(planKalemleri)
+        if (planError) {
+          console.error('yillik_plan_kalemleri insert error:', planError)
+          throw planError
         }
       }
 
@@ -237,9 +228,10 @@ export const projeService = {
       .select('*, yillik_plan_kalemleri(*, proje_is_kalemleri(kalem_kodu, tanim))')
       .eq('proje_id', projeId)
       .eq('yil', yil)
-      .single()
+      .maybeSingle()
 
-    if (error) throw ApiError.notFound('Yıllık plan bulunamadı')
+    if (error) throw error
+    if (!plan) return null
     
     // Eğer toplam_butce 0 ise, kalemlerin toplamından veya proje genel bütçesinden fallback yapabiliriz
     if (!plan.toplam_butce || plan.toplam_butce === 0) {
@@ -251,43 +243,81 @@ export const projeService = {
   },
 
   async createYillikPlan(projeId: string, body: Record<string, any>) {
-    // 1. Proje iş kalemleri (Harcama kalemleri) var mı kontrol et
+    // 1. Proje bilgilerini al (Başlangıç/Bitiş yılları için)
+    const { data: proje, error: pErr } = await supabaseAdmin
+      .from('projeler')
+      .select('baslangic_tarihi, bitis_tarihi')
+      .eq('id', projeId)
+      .single()
+
+    if (pErr || !proje) throw ApiError.notFound('Proje bulunamadı')
+
+    // 2. Proje iş kalemleri (Harcama kalemleri) var mı kontrol et
     const { data: isKalemleri } = await supabaseAdmin
       .from('proje_is_kalemleri')
       .select('id')
       .eq('proje_id', projeId)
-      .is('ust_kalem_id', null) // Sadece ana kalemler (plan bunlara göre yapılır)
 
     if (!isKalemleri || isKalemleri.length === 0) {
       throw ApiError.badRequest('Bu projeye ait Harcama Kalemi bulunamadı. Önce Harcama Kalemi eklemelisiniz.')
     }
 
-    // 2. Plan oluştur
-    const { data: plan, error } = await supabaseAdmin
-      .from('yillik_harcama_planlari')
-      .insert([{ proje_id: projeId, ...body }])
-      .select()
-      .single()
-
-    if (error) {
-      if (error.code === '23505') throw ApiError.conflict('Bu yıl için plan zaten var')
-      throw error
-    }
-
-    // 3. Plan kalemlerini oluştur (12 ay)
-    const planKalemleri: Record<string, any>[] = []
-    for (const kalem of isKalemleri) {
-      for (let ay = 1; ay <= 12; ay++) {
-        planKalemleri.push({
-          plan_id: plan.id,
-          proje_is_kalemi_id: kalem.id,
-          ay
-        })
+    // 3. Yılları belirle
+    let targetYears: number[] = []
+    if (body.yil) {
+      targetYears = [parseInt(body.yil)]
+    } else {
+      const startYear = proje.baslangic_tarihi ? new Date(proje.baslangic_tarihi).getFullYear() : new Date().getFullYear()
+      const endYear = proje.bitis_tarihi ? new Date(proje.bitis_tarihi).getFullYear() : startYear + 1
+      for (let y = startYear; y <= endYear; y++) {
+        targetYears.push(y)
       }
     }
-    await supabaseAdmin.from('yillik_plan_kalemleri').insert(planKalemleri)
 
-    return plan
+    const results = []
+
+    for (const targetYear of targetYears) {
+      // Bu yıl için plan var mı kontrol et
+      const { data: existingPlan } = await supabaseAdmin
+        .from('yillik_harcama_planlari')
+        .select('id')
+        .eq('proje_id', projeId)
+        .eq('yil', targetYear)
+        .maybeSingle()
+
+      if (existingPlan) continue // Zaten varsa atla
+
+      // Plan oluştur
+      const { data: plan, error } = await supabaseAdmin
+        .from('yillik_harcama_planlari')
+        .insert([{ proje_id: projeId, yil: targetYear, ...body, yil: targetYear }]) // body'deki yılı ez
+        .select()
+        .single()
+
+      if (error) {
+        if (error.code === '23505') continue
+        throw error
+      }
+
+      // 3. Plan kalemlerini oluştur (12 ay)
+      const planKalemleri: Record<string, any>[] = []
+      for (const kalem of isKalemleri) {
+        for (let ay = 1; ay <= 12; ay++) {
+          planKalemleri.push({
+            plan_id: plan.id,
+            proje_is_kalemi_id: kalem.id,
+            ay,
+            planlanan_tutar: 0,
+            gerceklesen_tutar: 0
+          })
+        }
+      }
+      // ON CONFLICT (plan_id, proje_is_kalemi_id, ay) DO NOTHING
+      await supabaseAdmin.from('yillik_plan_kalemleri').upsert(planKalemleri, { onConflict: 'plan_id,proje_is_kalemi_id,ay' })
+      results.push(plan)
+    }
+
+    return results.length > 0 ? results[0] : { message: 'Tüm dönemler için planlar zaten mevcut.' }
   },
 
   async updatePlanKalemi(id: string, body: Record<string, any>) {
@@ -304,6 +334,16 @@ export const projeService = {
     if (error) throw error
     if (!data) throw ApiError.notFound('Plan kalemi bulunamadı')
     return data
+  },
+
+  async deletePlanKalemleri(planId: string, isKalemiId: string) {
+    const { error } = await supabaseAdmin
+      .from('yillik_plan_kalemleri')
+      .delete()
+      .eq('plan_id', planId)
+      .eq('proje_is_kalemi_id', isKalemiId)
+
+    if (error) throw error
   },
 
   async getAktifProje() {
@@ -346,7 +386,7 @@ export const projeService = {
   async getSerefiye(projeId: string) {
     const { data, error } = await supabaseAdmin
       .from('serefiye_tablosu')
-      .select('*, bloklar(blok_adi)')
+      .select('*, bloklar(blok_adi), uyeler!uye_id(ad, soyad, uye_no)')
       .eq('proje_id', projeId)
       .order('daire_sira_no', { ascending: true })
 
@@ -499,26 +539,12 @@ export const projeService = {
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      if (error.code === '23505') {
+        throw ApiError.badRequest('Bu üye zaten başka bir daireye atanmış.')
+      }
+      throw error
+    }
     return data
   }
-}
-
-function buildTree(items: any[]): any[] {
-  const map: Record<string, any> = {}
-  const roots: any[] = []
-
-  items.forEach(item => {
-    map[item.id] = { ...item, children: [] }
-  })
-
-  items.forEach(item => {
-    if (item.ust_kalem_id && map[item.ust_kalem_id]) {
-      map[item.ust_kalem_id].children.push(map[item.id])
-    } else {
-      roots.push(map[item.id])
-    }
-  })
-
-  return roots.sort((a, b) => (a.sira_no || 0) - (b.sira_no || 0))
 }

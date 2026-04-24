@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Button, Select, Space, Tag, Modal, Form, Input, InputNumber, DatePicker, message, Row, Col, Divider, Typography } from 'antd'
+import { Button, Select, Space, Tag, Modal, Form, Input, InputNumber, DatePicker, App, Row, Col, Divider, Typography } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, DeleteOutlined, ScheduleOutlined, EditOutlined } from '@ant-design/icons'
@@ -10,6 +10,7 @@ import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { ConfirmDelete } from '../../components/common/ConfirmDelete'
 import { usePageSettings } from '../../contexts/LayoutContext'
+import { trMoneyFormatter, trNumberParser } from '../../lib/format'
 
 const { Text } = Typography
 
@@ -45,6 +46,7 @@ const durumRenk: Record<string, string> = { bekliyor: 'blue', odendi: 'green', k
 const BIRIMLER = ['Adet', 'Metre', 'Kg', 'm2', 'm3', 'Ton', 'Litre', 'Set', 'Hizmet']
 
 export const FaturaListPage: React.FC = () => {
+  const { message } = App.useApp()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [filterTip, setFilterTip] = useState<string | undefined>(undefined)
@@ -97,10 +99,7 @@ export const FaturaListPage: React.FC = () => {
     </Space>
   ), [filterTip, filterDurum, form])
 
-  usePageSettings({
-    title: 'Fatura Yönetimi',
-    actions
-  })
+  usePageSettings('Fatura Yönetimi', actions)
 
   const { data: firmalar } = useQuery({
     queryKey: ['firmalar-select'],
@@ -205,6 +204,7 @@ export const FaturaListPage: React.FC = () => {
       title: 'Toplam',
       dataIndex: 'toplam_tutar',
       key: 'toplam_tutar',
+      align: 'right' as const,
       width: 130,
       render: (v: number) => <MoneyDisplay amount={v} />,
     },
@@ -269,7 +269,7 @@ export const FaturaListPage: React.FC = () => {
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
         width={900}
-        destroyOnClose
+        destroyOnHidden
         okText="Kaydet"
         cancelText="İptal"
       >
@@ -279,6 +279,7 @@ export const FaturaListPage: React.FC = () => {
           onFinish={(v) => saveMutation.mutate(v)}
           onValuesChange={calculateTotals}
           style={{ marginTop: 8 }}
+          autoComplete="off"
         >          <Row gutter={16}>
             <Col span={10}>
               <Form.Item name="firma_id" label="Firma" rules={[{ required: true }]} style={{ marginBottom: 12 }}>
@@ -307,7 +308,7 @@ export const FaturaListPage: React.FC = () => {
             </Col>
           </Row>
 
-          <Divider orientation={"left" as any} style={{ margin: '8px 0 16px 0' }}>Fatura Kalemleri</Divider>
+          <Divider titlePlacement="left" style={{ margin: '8px 0 16px 0' }}>Fatura Kalemleri</Divider>
           
           <Row gutter={8} style={{ marginBottom: 4, paddingLeft: 4 }}>
             <Col span={9}><Text type="secondary" style={{ fontSize: '11px' }}>Ürün/Hizmet Tanımı</Text></Col>
@@ -342,7 +343,14 @@ export const FaturaListPage: React.FC = () => {
                     </Col>
                     <Col span={4}>
                       <Form.Item {...restField} name={[name, 'birim_fiyat']} rules={[{ required: true }]} noStyle>
-                        <InputNumber size="small" placeholder="B.Fiyat" style={{ width: '100%' }} min={0} />
+                        <InputNumber 
+                          size="small" 
+                          placeholder="B.Fiyat" 
+                          style={{ width: '100%' }} 
+                          min={0} 
+                          formatter={trMoneyFormatter}
+                          parser={trNumberParser}
+                        />
                       </Form.Item>
                     </Col>
                     <Col span={3}>
@@ -373,17 +381,17 @@ export const FaturaListPage: React.FC = () => {
           <Row gutter={16} justify="end">
             <Col span={6}>
               <Form.Item name="ara_toplam" label="Ara Toplam" style={{ marginBottom: 8 }}>
-                <InputNumber size="small" disabled style={{ width: '100%' }} />
+                <InputNumber size="small" disabled style={{ width: '100%' }} formatter={trMoneyFormatter} parser={trNumberParser} />
               </Form.Item>
             </Col>
             <Col span={6}>
               <Form.Item name="kdv_tutar" label="KDV Toplam" style={{ marginBottom: 8 }}>
-                <InputNumber size="small" disabled style={{ width: '100%' }} />
+                <InputNumber size="small" disabled style={{ width: '100%' }} formatter={trMoneyFormatter} parser={trNumberParser} />
               </Form.Item>
             </Col>
             <Col span={6}>
               <Form.Item name="toplam_tutar" label="Genel Toplam" style={{ marginBottom: 8 }}>
-                <InputNumber size="small" disabled style={{ width: '100%', fontWeight: 'bold' }} />
+                <InputNumber size="small" disabled style={{ width: '100%', fontWeight: 'bold' }} formatter={trMoneyFormatter} parser={trNumberParser} />
               </Form.Item>
             </Col>
           </Row>

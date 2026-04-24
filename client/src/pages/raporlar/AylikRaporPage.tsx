@@ -9,6 +9,8 @@ import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { LoadingState } from '../../components/common/LoadingState'
 import { ErrorState } from '../../components/common/ErrorState'
 
+import { trMoneyFormatter } from '../../lib/format'
+
 export const AylikRaporPage: React.FC = () => {
   const [targetDate, setTargetDate] = useState(dayjs())
 
@@ -39,10 +41,7 @@ export const AylikRaporPage: React.FC = () => {
     </Space>
   ), [targetDate])
 
-  usePageSettings({
-    title: 'Aylık Mali Rapor',
-    actions
-  })
+  usePageSettings('Aylık Mali Rapor', actions)
 
   const gelirColumns = [
     { title: 'Tarih', dataIndex: 'tarih', key: 'tarih', render: (t: string) => dayjs(t).format('DD.MM.YYYY') },
@@ -85,7 +84,7 @@ export const AylikRaporPage: React.FC = () => {
               value={rapor?.toplam_aidat_tahsilat || 0}
               prefix={<DollarOutlined />}
               suffix="TL"
-              precision={2}
+              formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#3f8600', fontSize: '1.2rem' } }}
             />
           </Card>
@@ -97,7 +96,7 @@ export const AylikRaporPage: React.FC = () => {
               value={rapor?.toplam_gelir || 0}
               prefix={<RiseOutlined />}
               suffix="TL"
-              precision={2}
+              formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#3f8600', fontSize: '1.2rem' } }}
             />
           </Card>
@@ -109,7 +108,7 @@ export const AylikRaporPage: React.FC = () => {
               value={rapor?.toplam_gider || 0}
               prefix={<FallOutlined />}
               suffix="TL"
-              precision={2}
+              formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#cf1322', fontSize: '1.2rem' } }}
             />
           </Card>
@@ -127,7 +126,7 @@ export const AylikRaporPage: React.FC = () => {
               <Statistic
                 title="Bu Ay (T)"
                 value={rapor?.yaklasan_odemeler?.t || 0}
-                precision={2}
+                formatter={(v) => trMoneyFormatter(v as number)}
                 suffix="TL"
                 styles={{ content: { fontSize: '1.1rem' } }}
               />
@@ -138,7 +137,7 @@ export const AylikRaporPage: React.FC = () => {
               <Statistic
                 title="Gelecek Ay (T+1)"
                 value={rapor?.yaklasan_odemeler?.t1 || 0}
-                precision={2}
+                formatter={(v) => trMoneyFormatter(v as number)}
                 suffix="TL"
                 styles={{ content: { fontSize: '1.1rem' } }}
               />
@@ -149,7 +148,7 @@ export const AylikRaporPage: React.FC = () => {
               <Statistic
                 title="Sonraki Ay (T+2)"
                 value={rapor?.yaklasan_odemeler?.t2 || 0}
-                precision={2}
+                formatter={(v) => trMoneyFormatter(v as number)}
                 suffix="TL"
                 styles={{ content: { fontSize: '1.1rem' } }}
               />

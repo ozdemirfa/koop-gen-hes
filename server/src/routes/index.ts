@@ -1,5 +1,16 @@
 import { Router } from 'express'
 import { authMiddleware } from '../middleware/auth'
+import { validate } from '../middleware/validate'
+import { birimSchema, pozSchema } from '../schemas/settings.schema'
+import {
+  getBirimler,
+  createBirim,
+  deleteBirim,
+  getPozlar,
+  createPoz,
+  updatePoz,
+  deletePoz
+} from '../controllers/settings.controller'
 
 import uyelerRoutes from './uyeler.routes'
 import bloklarRoutes from './bloklar.routes'
@@ -21,6 +32,15 @@ const router = Router()
 
 // Tüm API route'ları auth middleware ile korunuyor
 router.use(authMiddleware)
+
+// === SETTINGS (Integrated) ===
+router.get('/settings/birimler', getBirimler)
+router.post('/settings/birimler', validate({ body: birimSchema }), createBirim)
+router.delete('/settings/birimler/:id', deleteBirim)
+router.get('/settings/pozlar', getPozlar)
+router.post('/settings/pozlar', validate({ body: pozSchema }), createPoz)
+router.put('/settings/pozlar/:id', validate({ body: pozSchema.partial() }), updatePoz)
+router.delete('/settings/pozlar/:id', deletePoz)
 
 // Modül route'ları
 router.use('/uyeler', uyelerRoutes)

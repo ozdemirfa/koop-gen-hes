@@ -22,7 +22,6 @@ export const updateProjeSchema = projeSchema.partial()
 
 export const projeIsKalemiSchema = z.object({
   proje_id: z.string().uuid().optional(),
-  ust_kalem_id: z.string().uuid().optional().nullable(),
   sira_no: z.number().int().optional(),
   kalem_kodu: z.string().optional().nullable(),
   tanim: z.string().min(1, 'Tanım zorunlu'),
@@ -36,7 +35,7 @@ export const projeIsKalemiSchema = z.object({
 
 export const yillikPlanSchema = z.object({
   proje_id: z.string().uuid().optional(),
-  yil: z.number().int().min(2020).max(2100),
+  yil: z.number().int().min(2020).max(2100).optional(),
   toplam_butce: z.number().min(0).optional(),
   aciklama: z.string().optional().nullable()
 })

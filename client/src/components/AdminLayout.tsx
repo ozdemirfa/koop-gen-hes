@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Layout, Menu, Button, theme, Space, Typography, Tooltip } from 'antd'
+import { Layout, Menu, Button, theme, Space, Typography, Tooltip, Dropdown } from 'antd'
 import {
   UserOutlined,
   LogoutOutlined,
@@ -11,6 +11,7 @@ import {
   ProjectOutlined,
   PieChartOutlined,
   WalletOutlined,
+  SettingOutlined,
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
@@ -24,7 +25,6 @@ export const AdminLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
-  const { token } = theme.useToken()
   const { title, headerActions } = useLayout()
   const { activeProject } = useProject()
   const { signOut } = useAuth()
@@ -33,8 +33,16 @@ export const AdminLayout: React.FC = () => {
     await signOut()
   }
 
+  const settingsMenu = {
+    items: [
+      { key: '/ayarlar/birimler', label: 'Birimler' },
+      { key: '/ayarlar/pozlar', label: 'Pozlar' },
+    ],
+    onClick: ({ key }: { key: string }) => navigate(key),
+  }
+
   const menuItems = [
-    { key: '/', icon: <BankOutlined />, label: 'Dashboard' },
+    { key: '/', icon: <BankOutlined />, label: 'Pano' },
     { key: '/uyeler', icon: <UserOutlined />, label: 'Üye Yönetimi' },
     {
       key: 'aidat-group',
@@ -46,15 +54,6 @@ export const AdminLayout: React.FC = () => {
       ],
     },
     {
-      key: 'gelir-gider-group',
-      icon: <TransactionOutlined />,
-      label: 'Cari Hareketler',
-      children: [
-        { key: '/gelir-gider', label: 'İşlemler' },
-        { key: '/gelir-gider/kategoriler', label: 'Kategoriler' },
-      ],
-    },
-    {
       key: 'firmalar-group',
       icon: <ShopOutlined />,
       label: 'Firmalar',
@@ -62,16 +61,19 @@ export const AdminLayout: React.FC = () => {
         { key: '/firmalar', label: 'Firma Listesi' },
         { key: '/hakedisler', label: 'Hakedişler' },
         { key: '/faturalar', label: 'Faturalar' },
-        { key: '/cari-hesaplar', label: 'Cari Ekstre' },
-        { key: '/cek-takibi', label: 'Çek Takibi' },
+        { key: '/cari-hesaplar', label: 'Firma Ekstre' },
       ],
     },
     {
-      key: 'cari-banka-group',
+      key: 'payment-management-group',
       icon: <WalletOutlined />,
-      label: 'Bankalar',
+      label: 'Ödeme Yönetimi',
       children: [
         { key: '/banka-hesaplari', label: 'Banka Hesapları' },
+        { key: '/cari-hesaplar/odeme-kayit', label: 'Ödeme/Tahsilat Kaydı' },
+        { key: '/cek-takibi', label: 'Çek Takibi' },
+        { key: '/gelir-gider', label: 'Cari Hareketler' },
+        { key: '/gelir-gider/kategoriler', label: 'Gider Kategorileri' },
         { key: '/banka-uzlastirma', label: 'Banka Uzlaştırma' },
       ],
     },
@@ -85,6 +87,7 @@ export const AdminLayout: React.FC = () => {
         { key: '/raporlar/aylik', label: 'Aylık Mali Rapor' },
         { key: '/raporlar/yillik', label: 'Yıllık Mali Rapor' },
         { key: '/raporlar/uye-borc', label: 'Üye Borç Listesi' },
+        { key: '/raporlar/mizan', label: 'Genel Mizan' },
       ],
     },
   ]
@@ -192,7 +195,25 @@ export const AdminLayout: React.FC = () => {
               </div>
             )}
           </div>
-          <div id="header-right" style={{ display: 'flex', alignItems: 'center' }}>
+          <div id="header-right" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Dropdown menu={settingsMenu} placement="bottomRight" arrow>
+              <Button 
+                type="text" 
+                icon={<SettingOutlined />} 
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  color: '#64748b',
+                  height: 40,
+                  width: 40,
+                  borderRadius: 8
+                }}
+              />
+            </Dropdown>
+            
+            <div style={{ width: '1px', height: '24px', background: '#e2e8f0', margin: '0 4px' }} />
+
             <Button 
               type="text" 
               icon={<LogoutOutlined />} 

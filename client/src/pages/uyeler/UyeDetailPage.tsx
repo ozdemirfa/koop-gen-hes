@@ -10,6 +10,8 @@ import { PageHeader } from '../../components/common/PageHeader'
 import { DataTable } from '../../components/common/DataTable'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 
+import { trNumberFormatter, trNumberParser, trMoneyFormatter } from '../../lib/format'
+
 const { Text } = Typography
 
 interface AidatOdeme {
@@ -170,7 +172,7 @@ export const UyeDetailPage: React.FC = () => {
     <div>
       <PageHeader 
         title={uye ? `${uye.ad} ${uye.soyad}` : "Üye Detayı"} 
-        subtitle={uye ? `Üye No: ${uye.uye_no} | ${blokAdi} Blok / Daire ${daireNo}` : ""}
+        subtitle={uye ? `Üye No: ${uye.uye_no} | Daire Kod: ${daireNo}` : ""}
         onBack={() => navigate('/uyeler')}
         extra={
           <Button type="primary" size="large" icon={<PlusOutlined />} onClick={() => setOdemeModalOpen(true)}>
@@ -186,7 +188,7 @@ export const UyeDetailPage: React.FC = () => {
               title="Toplam Tahakkuk" 
               value={toplamBorc} 
               prefix="₺" 
-              precision={2} 
+              formatter={(v) => trMoneyFormatter(v as number)} 
               styles={{ content: { fontWeight: 700 } }}
             />
           </Card>
@@ -197,7 +199,7 @@ export const UyeDetailPage: React.FC = () => {
               title="Toplam Ödeme" 
               value={toplamOdenen} 
               prefix="₺" 
-              precision={2} 
+              formatter={(v) => trMoneyFormatter(v as number)} 
               styles={{ content: { color: 'var(--success)', fontWeight: 700 } }} 
             />
           </Card>
@@ -208,7 +210,7 @@ export const UyeDetailPage: React.FC = () => {
               title="Güncel Borç" 
               value={kalanBakiye} 
               prefix="₺" 
-              precision={2} 
+              formatter={(v) => trMoneyFormatter(v as number)} 
               styles={{ content: { 
                 color: kalanBakiye > 0 ? 'var(--error)' : 'var(--success)',
                 fontWeight: 700 
@@ -268,15 +270,15 @@ export const UyeDetailPage: React.FC = () => {
                     <Descriptions 
                       bordered 
                       column={{ xxl: 3, xl: 3, lg: 2, md: 2, sm: 1, xs: 1 }}
-                      labelStyle={{ background: '#f8fafc', fontWeight: 600, width: '150px' }}
+                      styles={{ label: { background: '#f8fafc', fontWeight: 600, width: '150px' } }}
                     >
                       <Descriptions.Item label="Üye No">{uye.uye_no}</Descriptions.Item>
                       <Descriptions.Item label="TC Kimlik">{uye.tc_kimlik || '-'}</Descriptions.Item>
                       <Descriptions.Item label="Durum">
                         <Tag color={durumRenk[uye.durum]}>{uye.durum.toUpperCase()}</Tag>
                       </Descriptions.Item>
-                      <Descriptions.Item label="Blok / Daire">
-                        {blokAdi} / {daireNo}
+                      <Descriptions.Item label="Daire Kod">
+                        {daireNo}
                       </Descriptions.Item>
                       <Descriptions.Item label="Şerefiye Oranı">
                         {uye.serefiye_tablosu?.serefiye_orani || '-'}
@@ -309,7 +311,13 @@ export const UyeDetailPage: React.FC = () => {
         </div>
         <Form form={form} layout="vertical" onFinish={(v) => bulkOdemeMutation.mutate(v)} initialValues={{ odeme_tarihi: dayjs(), odeme_yontemi: 'nakit' }}>
           <Form.Item name="tutar" label="Ödeme Tutarı (TL)" rules={[{ required: true, message: 'Tutar zorunlu' }]}>
-            <InputNumber min={0.01} style={{ width: '100%' }} placeholder="Örn: 5000" />
+            <InputNumber 
+              min={0.01} 
+              style={{ width: '100%' }} 
+              placeholder="Örn: 5000" 
+              formatter={trMoneyFormatter}
+              parser={trNumberParser}
+            />
           </Form.Item>
           <div style={{ display: 'flex', gap: 16 }}>
             <Form.Item name="odeme_tarihi" label="Ödeme Tarihi" rules={[{ required: true }]} style={{ flex: 1 }}>

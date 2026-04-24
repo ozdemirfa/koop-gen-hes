@@ -28,22 +28,25 @@ export const useLayout = () => {
   return context
 }
 
-export const usePageSettings = (settings: { title: string; actions?: React.ReactNode }) => {
+export const usePageSettings = (title: string, actions: React.ReactNode = null) => {
   const { title: currentTitle, setTitle, setHeaderActions } = useLayout()
 
   // Update title immediately in layout phase to avoid flickering
   React.useLayoutEffect(() => {
-    if (settings.title !== currentTitle) {
-      setTitle(settings.title)
+    if (title !== currentTitle) {
+      setTitle(title)
     }
-  }, [settings.title, setTitle, currentTitle])
+  }, [title, setTitle, currentTitle])
 
   // Defer actions update to avoid infinite loop when actions is a new JSX element
   React.useEffect(() => {
     const timer = setTimeout(() => {
-      setHeaderActions(settings.actions || null)
+      setHeaderActions(actions)
     }, 0)
     
-    return () => clearTimeout(timer)
-  }, [settings.actions, setHeaderActions])
+    return () => {
+      clearTimeout(timer)
+      setHeaderActions(null)
+    }
+  }, [actions, setHeaderActions])
 }

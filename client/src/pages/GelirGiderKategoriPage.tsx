@@ -96,10 +96,7 @@ export const GelirGiderKategoriPage: React.FC = () => {
     </Space>
   ), [navigate])
 
-  usePageSettings({
-    title: 'Gelir / Gider Kategorileri',
-    actions
-  })
+  usePageSettings('Gelir / Gider Kategorileri', actions)
 
   const columns = [
     {

@@ -1,13 +1,13 @@
 import React from 'react'
-import { Form, InputNumber, Select, Button, Space, Card, Typography, message, Row, Col } from 'antd'
+import { Form, InputNumber, Select, Button, Space, Card, Typography, Row, Col, App } from 'antd'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { SaveOutlined } from '@ant-design/icons'
+import { SaveOutlined, PlusOutlined } from '@ant-design/icons'
 import api from '../lib/api'
 import dayjs from 'dayjs'
 import { PageHeader } from '../components/common/PageHeader'
 import { useProject } from '../contexts/ProjectContext'
-import { trNumberFormatter, trNumberParser } from '../lib/format'
+import { trNumberFormatter, trNumberParser, trMoneyFormatter } from '../lib/format'
 
 const { Text } = Typography
 
@@ -18,6 +18,7 @@ export const AidatYillikPlanPage: React.FC = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { activeProject } = useProject()
+  const { message: messageApi } = App.useApp()
   const kalemler = Form.useWatch('kalemler', form)
 
   // Toplam yıllık ödemeyi hesapla
@@ -41,13 +42,12 @@ export const AidatYillikPlanPage: React.FC = () => {
       })
       return data
     },
-    onSuccess: (data) => {
-      message.success(`Aidat planı oluşturuldu. ${data.data.olusturulan_aidat_sayisi} üyeye borç kaydı açıldı.`)
+    onSuccess: () => {
+      messageApi.success(`Aidat planı kaydedildi. Borçlandırma her ayın 1'inde otomatik yapılacaktır.`)
       queryClient.invalidateQueries({ queryKey: ['aidat-tanimlari'] })
-      queryClient.invalidateQueries({ queryKey: ['aidatlar'] })
-      navigate('/aidatlar')
+      navigate('/aidatlar/tanimlar')
     },
-    onError: (err: any) => message.error(err.message || 'Hata oluştu'),
+    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu'),
   })
 
   const handleKatsayiChange = (value: number | null, index: number) => {
@@ -84,12 +84,12 @@ export const AidatYillikPlanPage: React.FC = () => {
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
       <PageHeader
         title="Yeni Yıllık Aidat Planı"
-        subtitle="Seçilen yıl için aylık aidat ve ara ödeme planı oluşturun"
+        subtitle="Seçilen yıl için aylık aidat ve ara ödeme planı hazırlayın (Sadece taslak olarak kaydedilir)"
         showBack
-        backPath="/aidatlar"
+        backPath="/aidatlar/tanimlar"
         extra={
           <Button type="primary" icon={<SaveOutlined />} onClick={() => form.submit()} loading={createTanimMutation.isPending}>
-            Planı Kaydet ve Borçlandır
+            Yıllık Planı Kaydet
           </Button>
         }
       />
@@ -100,18 +100,19 @@ export const AidatYillikPlanPage: React.FC = () => {
           layout="vertical" 
           onFinish={(v) => createTanimMutation.mutate(v)}
           initialValues={{ yil: dayjs().year(), kalemler: initialKalemler }}
+          autoComplete="off"
         >
           <Row gutter={16} align="middle">
             <Col span={6}>
               <Form.Item name="yil" label="Hangi Yıl İçin Planlanıyor?" rules={[{ required: true }]}>
-                 <InputNumber style={{ width: '100%' }} placeholder="Örn: 2026" />
+                 <InputNumber style={{ width: '100%' }} placeholder="Örn: 2026" autoComplete="off" />
               </Form.Item>
             </Col>
             <Col span={6}>
               <div style={{ padding: '0 8px' }}>
                 <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Yıllık Toplam Ödeme (1 Pay)</Text>
                 <Text strong style={{ fontSize: '20px', color: '#1890ff' }}>
-                  ₺ {trNumberFormatter(toplamYillikOdeme)}
+                  ₺ {trMoneyFormatter(toplamYillikOdeme)}
                 </Text>
               </div>
             </Col>
@@ -126,18 +127,29 @@ export const AidatYillikPlanPage: React.FC = () => {
           </Row>
 
           <div style={{ marginTop: 10 }}>
-            <div style={{ display: 'flex', fontWeight: 'bold', marginBottom: 8, padding: '0 8px' }}>
-              <div style={{ width: 130 }}>Ay</div>
-              <div style={{ width: 130 }}>Tür</div>
-              <div style={{ width: 160 }}>Katsayı Tutarı (TL)</div>
-              <div style={{ width: 110 }}>Son Gün</div>
-              <div style={{ width: 110 }}>Gecikme %</div>
-              <div style={{ flex: 1 }}>İşlemler</div>
-            </div>
-
             <Form.List name="kalemler">
               {(fields, { add, remove }) => (
                 <>
+                  <div style={{ marginBottom: 16, display: 'flex' }}>
+                    <Button 
+                      type="primary" 
+                      onClick={() => add()} 
+                      icon={<PlusOutlined />}
+                      style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+                    >
+                      Yeni Ay Ekle
+                    </Button>
+                  </div>
+
+                  <div style={{ display: 'flex', fontWeight: 'bold', marginBottom: 8, padding: '0 8px' }}>
+                    <div style={{ width: 130 }}>Ay</div>
+                    <div style={{ width: 130 }}>Tür</div>
+                    <div style={{ width: 160 }}>Katsayı Tutarı (TL)</div>
+                    <div style={{ width: 110 }}>Son Gün</div>
+                    <div style={{ width: 110 }}>Gecikme %</div>
+                    <div style={{ flex: 1 }}>İşlemler</div>
+                  </div>
+
                   {fields.map(({ key, name, ...restField }) => (
                     <Card size="small" style={{ marginBottom: 8 }} key={key} styles={{ body: { padding: '12px 8px' } }}>
                       <Space style={{ display: 'flex' }} align="baseline">
@@ -173,11 +185,13 @@ export const AidatYillikPlanPage: React.FC = () => {
                           <InputNumber 
                             placeholder="Tutar" 
                             min={0} 
+                            step={0.01}
                             style={{ width: 150 }} 
                             onChange={(val) => handleKatsayiChange(val as number | null, name)}
-                            formatter={trNumberFormatter}
+                            formatter={trMoneyFormatter}
                             parser={trNumberParser}
                             decimalSeparator=","
+                            autoComplete="off"
                           />
                         </Form.Item>
 
@@ -186,7 +200,7 @@ export const AidatYillikPlanPage: React.FC = () => {
                           name={[name, 'son_odeme_gunu']}
                           style={{ marginBottom: 0 }}
                         >
-                          <InputNumber placeholder="Gün" min={1} max={31} style={{ width: 100 }} />
+                          <InputNumber placeholder="Gün" min={1} max={31} style={{ width: 100 }} autoComplete="off" />
                         </Form.Item>
 
                         <Form.Item
@@ -204,6 +218,7 @@ export const AidatYillikPlanPage: React.FC = () => {
                             formatter={trNumberFormatter}
                             parser={trNumberParser}
                             decimalSeparator=","
+                            autoComplete="off"
                           />
                         </Form.Item>
 
@@ -220,9 +235,6 @@ export const AidatYillikPlanPage: React.FC = () => {
                       </Space>
                     </Card>
                   ))}
-                  <Button type="dashed" onClick={() => add()} block style={{ marginTop: 8 }}>
-                    + Yeni Ay Ekle
-                  </Button>
                 </>
               )}
             </Form.List>
@@ -232,3 +244,4 @@ export const AidatYillikPlanPage: React.FC = () => {
     </div>
   )
 }
+

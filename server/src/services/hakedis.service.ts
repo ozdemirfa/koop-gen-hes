@@ -26,7 +26,7 @@ export const hakedisService = {
   async getById(id: string) {
     const { data, error } = await supabaseAdmin
       .from('hakedisler')
-      .select('*, sozlesmeler(sozlesme_no, konu, teminat_orani, stopaj_orani, firmalar(unvan)), hakedis_kalemleri(*, sozlesme_is_kalemleri(poz_no, tanim, birim, miktar))')
+      .select('*, sozlesmeler(sozlesme_no, konu, teminat_orani, stopaj_orani, firmalar(unvan)), hakedis_kalemleri(*, sozlesme_is_kalemleri(poz_no, tanim, birim, miktar, kdv_orani))')
       .eq('id', id)
       .single()
 
@@ -91,7 +91,8 @@ export const hakedisService = {
         is_kalemi_id: ik.id,
         onceki_miktar: oncekiMiktarlar[ik.id] || 0,
         bu_ay_miktar: 0,
-        birim_fiyat: Number(ik.birim_fiyat)
+        birim_fiyat: Number(ik.birim_fiyat),
+        kdv_orani: Number(ik.kdv_orani || 20)
       }))
 
       await supabaseAdmin.from('hakedis_kalemleri').insert(kalemler)
@@ -129,23 +130,43 @@ export const hakedisService = {
 
     const { data: yeniKalemler, error: insertErr } = await supabaseAdmin
       .from('hakedis_kalemleri')
-      .insert(kalemler.map(k => ({ hakedis_id: hakedisId, ...k })))
+      .insert(kalemler.map(k => ({ 
+        hakedis_id: hakedisId, 
+        is_kalemi_id: k.is_kalemi_id,
+        bu_ay_miktar: k.bu_ay_miktar,
+        birim_fiyat: k.birim_fiyat,
+        kdv_orani: k.kdv_orani,
+        onceki_miktar: k.onceki_miktar || 0
+      })))
       .select()
 
     if (insertErr) throw insertErr
 
     // Hakediş toplamlarını hesapla
-    const brutTutar = yeniKalemler?.reduce((sum, k) => sum + Number(k.bu_ay_tutar || 0), 0) || 0
+    let araToplam = 0
+    let kdvToplam = 0
+    
+    yeniKalemler?.forEach(k => {
+      const kalemTutar = Number(k.bu_ay_miktar || 0) * Number(k.birim_fiyat || 0)
+      const kalemKdv = kalemTutar * (Number(k.kdv_orani || 0) / 100)
+      araToplam += kalemTutar
+      kdvToplam += kalemKdv
+    })
+
+    const hakedisToplam = araToplam + kdvToplam
+
     const sozlesme = hakedis.sozlesmeler as any
-    const teminatKesintisi = brutTutar * (Number(sozlesme?.teminat_orani || 0) / 100)
-    const stopajKesintisi = brutTutar * (Number(sozlesme?.stopaj_orani || 0) / 100)
+    const teminatKesintisi = araToplam * (Number(sozlesme?.teminat_orani || 0) / 100)
+    const stopajKesintisi = araToplam * (Number(sozlesme?.stopaj_orani || 0) / 100)
     const digerKesintiler = Number((hakedis as any).diger_kesintiler || 0)
-    const netTutar = brutTutar - teminatKesintisi - stopajKesintisi - digerKesintiler
+    const netTutar = hakedisToplam - teminatKesintisi - stopajKesintisi - digerKesintiler
 
     await supabaseAdmin
       .from('hakedisler')
       .update({
-        brut_tutar: brutTutar,
+        ara_toplam: araToplam,
+        kdv_tutar: kdvToplam,
+        hakedis_toplam: hakedisToplam,
         teminat_kesintisi: teminatKesintisi,
         stopaj_kesintisi: stopajKesintisi,
         net_tutar: netTutar
@@ -175,22 +196,63 @@ export const hakedisService = {
 
     if (error) throw error
 
-    // Otomatik cari hareket oluştur (borç)
+    // Otomatik cari hareket oluştur (Faz 2)
     const sozlesme = hakedis.sozlesmeler as any
-    if (sozlesme?.firma_id && hakedis.net_tutar > 0) {
-      await supabaseAdmin
-        .from('cari_hareketler')
-        .insert([{
-          proje_id: hakedis.proje_id,
-          firma_id: sozlesme.firma_id,
-          hareket_tipi: 'borc',
-          tutar: hakedis.net_tutar,
-          tarih: new Date().toISOString().split('T')[0],
-          aciklama: `Hakediş #${hakedis.hakedis_no} onayı`,
-          hakedis_id: id
-        }])
+    if (sozlesme?.firma_id && Number(hakedis.net_tutar) > 0) {
+      // Cari hesabı bul
+      const { data: cari } = await supabaseAdmin
+        .from('cari_hesaplar')
+        .select('id')
+        .eq('proje_id', hakedis.proje_id)
+        .eq('firma_id', sozlesme.firma_id)
+        .single()
+
+      if (cari) {
+        await supabaseAdmin
+          .from('cari_hareketler')
+          .insert([{
+            proje_id: hakedis.proje_id,
+            cari_hesap_id: cari.id,
+            islem_turu: 'hakedis',
+            borc: Number(hakedis.net_tutar),
+            alacak: 0,
+            tarih: new Date().toISOString().split('T')[0],
+            aciklama: `Hakediş #${hakedis.hakedis_no} onayı`,
+            kaynak_tipi: 'hakedis',
+            kaynak_id: id
+          }])
+      }
     }
 
+    return data
+  },
+
+  async unapprove(id: string) {
+    const { data: hakedis, error: getErr } = await supabaseAdmin
+      .from('hakedisler')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (getErr || !hakedis) throw ApiError.notFound('Hakediş bulunamadı')
+    if (hakedis.durum !== 'onaylandi') throw ApiError.badRequest('Sadece onaylı hakedişlerin onayı iptal edilebilir')
+
+    // İlişkili cari hareketi sil
+    await supabaseAdmin
+      .from('cari_hareketler')
+      .delete()
+      .eq('kaynak_tipi', 'hakedis')
+      .eq('kaynak_id', id)
+
+    // Hakediş durumunu taslağa çek
+    const { data, error } = await supabaseAdmin
+      .from('hakedisler')
+      .update({ durum: 'taslak', onay_tarihi: null })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
     return data
   },
 
@@ -215,6 +277,7 @@ export const hakedisService = {
           bu_ay_tutar,
           toplam_miktar,
           toplam_tutar,
+          kdv_orani,
           sozlesme_is_kalemleri (
             poz_no,
             tanim,

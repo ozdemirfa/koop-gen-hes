@@ -46,3 +46,9 @@ export const getHakedisOzet = catchAsync(async (req: AuthRequest<any, any, any, 
   const data = await raporService.hakedisOzet(projeId)
   res.json({ success: true, data })
 })
+
+export const getMizan = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const projeId = req.query.projeId as string
+  const data = await raporService.getMizan(projeId)
+  res.json({ success: true, data })
+})

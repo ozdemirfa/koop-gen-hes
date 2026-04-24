@@ -1,16 +1,15 @@
-import React, { useState, useEffect } from 'react'
-import { Tree, Button, Modal, Form, Input, InputNumber, Select, Space, message, Popconfirm, Card, Typography } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined, NodeIndexOutlined, SearchOutlined } from '@ant-design/icons'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import React, { useState } from 'react'
+import { Table, Button, Modal, Form, Input, InputNumber, Select, Space, App, Popconfirm, Card, Typography } from 'antd'
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { trNumberFormatter, trNumberParser } from '../../lib/format'
+import { trNumberFormatter, trNumberParser, trMoneyFormatter } from '../../lib/format'
 
 const { Text } = Typography
 
 interface ProjeIsKalemi {
   id: string
   proje_id: string
-  ust_kalem_id?: string
   sira_no: number
   kalem_kodu?: string
   tanim: string
@@ -19,7 +18,6 @@ interface ProjeIsKalemi {
   birim_fiyat?: number
   butce_tutari: number
   durum: 'planli' | 'devam_ediyor' | 'tamamlandi' | 'iptal'
-  children?: ProjeIsKalemi[]
 }
 
 interface Props {
@@ -33,13 +31,35 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
   const queryClient = useQueryClient()
   const [modalOpen, setModalOpen] = useState(false)
   const [editingKalem, setEditingKalem] = useState<any>(null)
-  const [parentKalem, setParentKalem] = useState<any>(null)
   const [isBudgetManual, setIsBudgetManual] = useState(false)
   const [form] = Form.useForm()
+  const { message: messageApi } = App.useApp()
+
+  // Pozlar listesini getir
+  const { data: pozlar } = useQuery({
+    queryKey: ['settings-pozlar'],
+    queryFn: async () => {
+      const { data } = await api.get('/settings/pozlar')
+      return data.data as any[]
+    },
+  })
+
+  // Data prop zaten düz liste (ust_kalem_id kalktığı için)
+  const flatList = [...(data || [])].sort((a, b) => (a.sira_no || 0) - (b.sira_no || 0))
+
+  const handlePozSelect = (pozId: string) => {
+    const selectedPoz = pozlar?.find(p => p.id === pozId)
+    if (selectedPoz) {
+      form.setFieldsValue({
+        kalem_kodu: selectedPoz.poz_no,
+        tanim: selectedPoz.tanim,
+        birim: selectedPoz.birimler?.ad || selectedPoz.birim
+      })
+    }
+  }
 
   const saveMutation = useMutation({
     mutationFn: async (values: any) => {
-      // Boş stringleri temizle
       const cleanValues = { ...values }
       if (cleanValues.kalem_kodu === '') delete cleanValues.kalem_kodu
       if (cleanValues.notlar === '') delete cleanValues.notlar
@@ -47,21 +67,17 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
       if (editingKalem) {
         return await api.put(`/projeler/is-kalemleri/${editingKalem.id}`, cleanValues)
       }
-      return await api.post(`/projeler/${projeId}/is-kalemleri`, {
-        ...cleanValues,
-        ust_kalem_id: parentKalem?.id || null
-      })
+      return await api.post(`/projeler/${projeId}/is-kalemleri`, cleanValues)
     },
     onSuccess: () => {
-      message.success('İş kalemi kaydedildi')
+      messageApi.success('İş kalemi kaydedildi')
       queryClient.invalidateQueries({ queryKey: ['proje', projeId] })
       setModalOpen(false)
       form.resetFields()
       setEditingKalem(null)
-      setParentKalem(null)
       setIsBudgetManual(false)
     },
-    onError: (err: any) => message.error(err.message || 'Hata oluştu')
+    onError: (err: any) => messageApi.error(err.error || err.message || 'Hata oluştu')
   })
 
   const deleteMutation = useMutation({
@@ -69,125 +85,108 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
       return await api.delete(`/projeler/is-kalemleri/${id}`)
     },
     onSuccess: () => {
-      message.success('İş kalemi silindi')
+      messageApi.success('İş kalemi silindi')
       queryClient.invalidateQueries({ queryKey: ['proje', projeId] })
     },
-    onError: (err: any) => message.error(err.message || 'Hata oluştu')
+    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu')
   })
 
-  // Sonraki sıra numarasını bul
-  const getNextSiraNo = (items: ProjeIsKalemi[], parentId?: string) => {
-    let siblings: ProjeIsKalemi[] = []
-    if (!parentId) {
-      siblings = items
-    } else {
-      const findParent = (list: ProjeIsKalemi[]): ProjeIsKalemi | undefined => {
-        for (const item of list) {
-          if (item.id === parentId) return item
-          if (item.children) {
-            const found = findParent(item.children)
-            if (found) return found
-          }
-        }
-      }
-      const p = findParent(items)
-      siblings = p?.children || []
-    }
-    const maxSira = siblings.reduce((max, curr) => Math.max(max, curr.sira_no || 0), 0)
-    return maxSira === 0 ? 1 : maxSira + 1
-  }
-
-  const renderTitle = (node: ProjeIsKalemi) => (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', minWidth: 400 }}>
-      <Space>
-        <Text strong>{node.kalem_kodu}</Text>
-        <Text>{node.tanim}</Text>
-        {node.butce_tutari > 0 && <Text type="secondary">({new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(node.butce_tutari)})</Text>}
-      </Space>
-      <Space className="tree-actions">
-        <Button 
-          type="text" 
-          size="small" 
-          icon={<PlusOutlined />} 
-          onClick={(e) => {
-            e.stopPropagation()
-            setParentKalem(node)
-            setEditingKalem(null)
-            form.resetFields()
-            form.setFieldsValue({ sira_no: getNextSiraNo(data, node.id) })
-            setIsBudgetManual(false)
-            setModalOpen(true)
-          }} 
-        />
-        <Button 
-          type="text" 
-          size="small" 
-          icon={<EditOutlined />} 
-          onClick={(e) => {
-            e.stopPropagation()
-            setEditingKalem(node)
-            setParentKalem(null)
-            form.setFieldsValue(node)
-            setIsBudgetManual(false)
-            setModalOpen(true)
-          }} 
-        />
-        <Popconfirm title="Bu kalemi silmek istediğinize emin misiniz?" onConfirm={(e) => {
-          e?.stopPropagation()
-          deleteMutation.mutate(node.id)
-        }}>
+  const columns = [
+    { title: 'Sıra No', dataIndex: 'sira_no', key: 'sira_no', width: 80, sorter: (a: any, b: any) => a.sira_no - b.sira_no },
+    { 
+      title: 'Poz / Tanım', 
+      key: 'tanim', 
+      render: (_: any, r: any) => (
+        <Space orientation="vertical" size={0}>
+          <Text strong style={{ fontSize: '12px' }}>{r.kalem_kodu}</Text>
+          <Text>{r.tanim}</Text>
+        </Space>
+      )
+    },
+    { title: 'Birim', dataIndex: 'birim', key: 'birim', width: 80 },
+    { title: 'Miktar', dataIndex: 'miktar', key: 'miktar', width: 100, align: 'right' as const, render: (v: number) => trNumberFormatter(v) },
+    { 
+      title: 'Bütçe Tutarı', 
+      dataIndex: 'butce_tutari', 
+      key: 'butce', 
+      width: 130, 
+      align: 'right' as const, 
+      render: (v: number) => trMoneyFormatter(v) 
+    },
+    {
+      title: 'İşlem',
+      key: 'action',
+      width: 80,
+      render: (_: any, r: any) => (
+        <Space orientation="horizontal">
           <Button 
             type="text" 
             size="small" 
-            danger 
-            icon={<DeleteOutlined />} 
-            onClick={(e) => e.stopPropagation()}
+            icon={<EditOutlined />} 
+            onClick={() => {
+              setEditingKalem(r)
+              form.setFieldsValue(r)
+              setIsBudgetManual(false)
+              setModalOpen(true)
+            }} 
           />
-        </Popconfirm>
-      </Space>
-    </div>
-  )
-
-  const convertToTreeData = (items: ProjeIsKalemi[]): any[] => {
-    return items.map(item => ({
-      key: item.id,
-      title: renderTitle(item),
-      children: item.children ? convertToTreeData(item.children) : []
-    }))
-  }
+          <Popconfirm title="Bu kalemi silmek istediğinize emin misiniz?" onConfirm={() => deleteMutation.mutate(r.id)}>
+            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      )
+    }
+  ]
 
   const handleValuesChange = (changedValues: any, allValues: any) => {
-    const { miktar, birim_fiyat, butce_tutari } = allValues
-
-    // Eğer miktar veya birim fiyat değiştiyse ve Manuel Bütçe Modu kapalıysa
-    if ((changedValues.miktar !== undefined || changedValues.birim_fiyat !== undefined) && !isBudgetManual) {
-      const calculatedTotal = (miktar || 0) * (birim_fiyat || 0)
-      form.setFieldsValue({ butce_tutari: calculatedTotal })
-    }
+    // Değerleri sayıya çevir (null/undefined ise 0 kabul et)
+    const miktar = Number(allValues.miktar) || 0
+    const birimFiyat = Number(allValues.birim_fiyat) || 0
+    const butceTutari = Number(allValues.butce_tutari) || 0
     
-    // Eğer bütçe tutarı değiştiyse (Manuel moddayken)
-    if (changedValues.butce_tutari !== undefined && isBudgetManual) {
-      if (miktar && miktar > 0) {
-        const calculatedUnitPrice = (butce_tutari || 0) / miktar
-        form.setFieldsValue({ birim_fiyat: calculatedUnitPrice })
+    if (!isBudgetManual) {
+      // Otomatik mod: Miktar veya birim fiyat değişince bütçeyi güncelle
+      if (changedValues.miktar !== undefined || changedValues.birim_fiyat !== undefined) {
+        const calculatedBudget = Math.round(miktar * birimFiyat * 100) / 100
+        form.setFieldsValue({ butce_tutari: calculatedBudget })
       }
+    } else {
+      // Manuel mod: Bütçe tutarı değişince (miktar > 0 ise) birim fiyatı güncelle
+      if (changedValues.butce_tutari !== undefined && miktar > 0) {
+        const calculatedPrice = Math.round((butceTutari / miktar) * 100) / 100
+        form.setFieldsValue({ birim_fiyat: calculatedPrice })
+      }
+      // Manuel modda miktar değişirse bütçeyi sabit tutup birim fiyatı güncelle
+      if (changedValues.miktar !== undefined && miktar > 0) {
+        const calculatedPrice = Math.round((butceTutari / miktar) * 100) / 100
+        form.setFieldsValue({ birim_fiyat: calculatedPrice })
+      }
+    }
+  }
+
+  const toggleBudgetMode = () => {
+    const newMode = !isBudgetManual
+    setIsBudgetManual(newMode)
+    
+    // Otomatik moda geçerken mevcut değerlerle bütçeyi hemen eşitle
+    if (!newMode) {
+      const values = form.getFieldsValue()
+      const miktar = Number(values.miktar) || 0
+      const birimFiyat = Number(values.birim_fiyat) || 0
+      form.setFieldsValue({ butce_tutari: Math.round(miktar * birimFiyat * 100) / 100 })
     }
   }
 
   return (
     <Card 
-      title={
-        <Space>
-          <NodeIndexOutlined />
-          İş Kalemleri (Ağaç Yapısı)
-        </Space>
-      }
+      title="İş Kalemleri"
+      variant="borderless"
+      styles={{ body: { padding: 0 } }}
       extra={
         <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => {
-          setParentKalem(null)
           setEditingKalem(null)
           form.resetFields()
-          form.setFieldsValue({ sira_no: getNextSiraNo(data) })
+          form.setFieldsValue({ sira_no: flatList.length + 1 })
           setIsBudgetManual(false)
           setModalOpen(true)
         }}>
@@ -195,27 +194,23 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
         </Button>
       }
     >
-      {data && data.length > 0 ? (
-        <Tree
-          treeData={convertToTreeData(data)}
-          blockNode
-          defaultExpandAll
-          selectable={false}
-        />
-      ) : (
-        <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>Henüz harcama kalemi eklenmemiş.</div>
-      )}
+      <Table
+        dataSource={flatList}
+        columns={columns}
+        rowKey="id"
+        size="small"
+        pagination={false}
+        loading={deleteMutation.isPending}
+      />
 
       <Modal
-        title={editingKalem ? 'İş Kalemi Düzenle' : (parentKalem ? `${parentKalem.tanim} Altına Kalem Ekle` : 'Yeni Harcama Kalemi')}
+        title={editingKalem ? 'İş Kalemi Düzenle' : 'Yeni Harcama Kalemi'}
         open={modalOpen}
-        onCancel={() => {
-          setModalOpen(false)
-          setIsBudgetManual(false)
-        }}
+        onCancel={() => setModalOpen(false)}
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
-        width={500}
+        width={600}
+        destroyOnHidden
       >
         <Form 
           form={form} 
@@ -224,17 +219,34 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
           onValuesChange={handleValuesChange}
           initialValues={{ durum: 'planli', sira_no: 0 }}
           autoComplete="off"
+          size="small"
         >
-          <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item name="kalem_kodu" label="Poz No / Kalem Kodu" style={{ flex: 1 }}>
-              <Input placeholder="Arama yapmak için yazın..." suffix={<SearchOutlined />} />
+          {!editingKalem && (
+            <Form.Item label="Pozlar Tablosundan Seç">
+              <Select
+                showSearch
+                placeholder="Poz no veya tanım ile ara..."
+                optionFilterProp="label"
+                onChange={handlePozSelect}
+                allowClear
+                options={pozlar?.map(p => ({
+                  value: p.id,
+                  label: `${p.poz_no} - ${p.tanim}`
+                }))}
+              />
             </Form.Item>
-            <Form.Item name="sira_no" label="Sıra No" style={{ flex: 1 }}>
+          )}
+
+          <div style={{ display: 'flex', gap: 16 }}>
+            <Form.Item name="kalem_kodu" label="Poz No / Kalem Kodu" style={{ flex: 1 }} rules={[{ required: true }]}>
+              <Input placeholder="Örn: 15.120.1001" autoComplete="off" />
+            </Form.Item>
+            <Form.Item name="sira_no" label="Sıra No" style={{ flex: 1 }} rules={[{ required: true }]}>
               <InputNumber style={{ width: '100%' }} />
             </Form.Item>
           </div>
           <Form.Item name="tanim" label="Tanım" rules={[{ required: true }]}>
-            <Input />
+            <Input autoComplete="off" />
           </Form.Item>
           <div style={{ display: 'flex', gap: 16 }}>
             <Form.Item name="birim" label="Birim" style={{ flex: 1 }}>
@@ -245,8 +257,11 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
             <Form.Item name="miktar" label="Miktar" style={{ flex: 1 }}>
               <InputNumber 
                 style={{ width: '100%' }} 
-                formatter={trNumberFormatter}
-                parser={trNumberParser}
+                formatter={trNumberFormatter} 
+                parser={trNumberParser} 
+                decimalSeparator=","
+                precision={2}
+                autoComplete="off"
               />
             </Form.Item>
           </div>
@@ -254,29 +269,31 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
             <Form.Item name="birim_fiyat" label="Birim Fiyat" style={{ flex: 1 }}>
               <InputNumber 
                 style={{ width: '100%' }} 
-                formatter={trNumberFormatter}
-                parser={trNumberParser}
+                formatter={trMoneyFormatter} 
+                parser={trNumberParser} 
+                decimalSeparator=","
+                precision={2}
+                autoComplete="off"
               />
             </Form.Item>
             <Form.Item name="butce_tutari" label="Bütçe Tutarı" style={{ flex: 1 }}>
-              <InputNumber 
-                style={{ width: '100%' }} 
-                formatter={trNumberFormatter}
-                parser={trNumberParser}
-                readOnly={!isBudgetManual}
-                placeholder={isBudgetManual ? "Manuel giriş" : "Otomatik hesaplanır"}
-                className={!isBudgetManual ? "read-only-input" : ""}
-                addonAfter={
-                  <Button 
-                    type={isBudgetManual ? "primary" : "default"} 
-                    size="small" 
-                    icon={<EditOutlined />} 
-                    style={{ border: 'none', height: 20, padding: '0 4px' }}
-                    onClick={() => setIsBudgetManual(!isBudgetManual)}
-                    title="Bütçeyi manuel düzenle / Otomatik hesapla"
-                  />
-                }
-              />
+              <Space.Compact style={{ width: '100%' }}>
+                <InputNumber 
+                  style={{ width: 'calc(100% - 32px)' }} 
+                  formatter={trMoneyFormatter} 
+                  parser={trNumberParser} 
+                  readOnly={!isBudgetManual}
+                  decimalSeparator=","
+                  precision={2}
+                  autoComplete="off"
+                />
+                <Button 
+                  type={isBudgetManual ? "primary" : "default"} 
+                  icon={<EditOutlined />} 
+                  onClick={toggleBudgetMode}
+                  title="Bütçeyi manuel düzenle / Otomatik hesapla"
+                />
+              </Space.Compact>
             </Form.Item>
           </div>
           <Form.Item name="durum" label="Durum" rules={[{ required: true }]}>
@@ -288,23 +305,10 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
             </Select>
           </Form.Item>
           <Form.Item name="notlar" label="Notlar">
-            <Input.TextArea rows={2} />
+            <Input.TextArea rows={2} autoComplete="off" />
           </Form.Item>
         </Form>
       </Modal>
-
-      <style>{`
-        .tree-actions {
-          opacity: 0;
-          transition: opacity 0.2s;
-        }
-        .ant-tree-node-content-wrapper:hover .tree-actions {
-          opacity: 1;
-        }
-        .read-only-input {
-          background-color: #f5f5f5;
-        }
-      `}</style>
     </Card>
   )
 }

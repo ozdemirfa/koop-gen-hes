@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react'
-import { Button, Form, Input, Select, Space, Switch, Tag, Modal, message } from 'antd'
+import { Button, Form, Input, Select, Space, Switch, Tag, Modal, message, Row, Col, Statistic, Card, Typography } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, EditOutlined, EyeOutlined, SearchOutlined } from '@ant-design/icons'
 import api from '../../lib/api'
 import { useDebounce } from '../../hooks/useDebounce'
 import { usePageSettings } from '../../contexts/LayoutContext'
+import { formatIBAN, formatIBANInput, getIBANRaw, trMoneyFormatter } from '../../lib/format'
 import { DataTable } from '../../components/common/DataTable'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { ErrorState } from '../../components/common/ErrorState'
@@ -38,6 +39,8 @@ export const FirmaListPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editing, setEditing] = useState<Firma | null>(null)
   const [form] = Form.useForm()
+
+  const activeProjectId = localStorage.getItem('activeProjectId')
 
   const headerActions = useMemo(() => (
     <Space wrap>
@@ -74,12 +77,7 @@ export const FirmaListPage: React.FC = () => {
     </Space>
   ), [filterTip, filterAktif])
 
-  usePageSettings({
-    title: 'Firma Listesi',
-    actions: headerActions
-  })
-
-  const activeProjectId = localStorage.getItem('activeProjectId')
+  usePageSettings('Firma Listesi', headerActions)
 
   const { data: firmaData, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['firmalar', debouncedSearch, filterTip, filterAktif, activeProjectId],
@@ -92,6 +90,15 @@ export const FirmaListPage: React.FC = () => {
       const { data } = await api.get('/firmalar', { params })
       return data
     },
+  })
+
+  const { data: stats } = useQuery({
+    queryKey: ['firmalar-stats', activeProjectId],
+    queryFn: async () => {
+      const { data } = await api.get('/firmalar/stats', { params: { proje_id: activeProjectId } })
+      return data.data
+    },
+    enabled: !!activeProjectId
   })
 
   const saveMutation = useMutation({
@@ -159,6 +166,17 @@ export const FirmaListPage: React.FC = () => {
     },
     { title: 'Telefon', dataIndex: 'telefon', key: 'telefon', width: 130 },
     {
+      title: 'IBAN',
+      dataIndex: 'iban',
+      key: 'iban',
+      width: 250,
+      render: (v: string) => v ? (
+        <Typography.Text copyable={{ text: getIBANRaw(v), tooltips: ['Kopyala (Sadece Rakamlar)', 'Kopyalandı!'] }}>
+          {formatIBAN(v)}
+        </Typography.Text>
+      ) : '-'
+    },
+    {
       title: 'Durum',
       dataIndex: 'aktif',
       key: 'aktif',
@@ -193,18 +211,107 @@ export const FirmaListPage: React.FC = () => {
   ]
 
   return (
-    <div>
+    <div className="animate-in fade-in duration-500">
+      {/* İki satırlı bilgi kartları */}
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={12} lg={4}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small">
+            <Space orientation="vertical" size={0} style={{ width: '100%' }}>
+              <Statistic 
+                title={<span style={{ fontSize: '12px' }}>Hakediş (Matrah)</span>} 
+                value={stats?.toplam_hakedis || 0} 
+                formatter={(v) => trMoneyFormatter(v as number)}
+                styles={{ content: { color: '#1677ff', fontSize: '15px', fontWeight: 'bold' } }}
+              />
+              <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 4, paddingTop: 4 }}>
+                <Typography.Text type="secondary" style={{ fontSize: '11px' }}>KDVli: </Typography.Text>
+                <Typography.Text strong style={{ fontSize: '15px', color: '#1677ff' }}>{trMoneyFormatter(stats?.toplam_kdvli || 0)} TL</Typography.Text>
+              </div>
+            </Space>
+          </Card>
+        </Col>
+
+        <Col xs={24} sm={12} lg={4}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small">
+            <Space orientation="vertical" size={0} style={{ width: '100%' }}>
+              <Statistic 
+                title={<span style={{ fontSize: '12px' }}>Gelen Faturalar</span>} 
+                value={stats?.toplam_fatura || 0} 
+                formatter={(v) => trMoneyFormatter(v as number)}
+                styles={{ content: { color: '#faad14', fontSize: '15px', fontWeight: 'bold' } }}
+              />
+              <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 4, paddingTop: 4 }}>
+                <Typography.Text type="secondary" style={{ fontSize: '11px' }}>Fatura Açığı: </Typography.Text>
+                <Typography.Text strong style={{ fontSize: '12px', color: (stats?.toplam_fatura || 0) - (stats?.toplam_kdvli || 0) < 0 ? '#faad14' : 'inherit' }}>
+                  {trMoneyFormatter((stats?.toplam_fatura || 0) - (stats?.toplam_kdvli || 0))} TL
+                </Typography.Text>
+              </div>
+            </Space>
+          </Card>
+        </Col>
+
+        <Col xs={24} sm={12} lg={4}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small">
+            <Statistic 
+              title={<span style={{ fontSize: '12px' }}>Birikmiş Teminat</span>} 
+              value={stats?.birikmis_teminat || 0} 
+              formatter={(v) => trMoneyFormatter(v as number)}
+              styles={{ content: { color: '#722ed1', fontSize: '15px', fontWeight: 'bold' } }}
+              suffix={<span style={{ fontSize: '11px', fontWeight: 'normal', marginLeft: 4 }}>TL</span>}
+            />
+            <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 4, paddingTop: 4 }}>
+              <Typography.Text type="secondary" style={{ fontSize: '11px' }}>Net Kalan Teminat</Typography.Text>
+            </div>
+          </Card>
+        </Col>
+
+        <Col xs={24} sm={12} lg={4}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small">
+            <Statistic 
+              title={<span style={{ fontSize: '12px' }}>Toplam Ödeme</span>} 
+              value={stats?.toplam_odeme || 0} 
+              formatter={(v) => trMoneyFormatter(v as number)}
+              styles={{ content: { color: '#3f8600', fontSize: '15px', fontWeight: 'bold' } }}
+              suffix={<span style={{ fontSize: '11px', fontWeight: 'normal', marginLeft: 4 }}>TL</span>}
+            />
+            <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 4, paddingTop: 4 }}>
+              <Typography.Text type="secondary" style={{ fontSize: '11px' }}>Yapılan Toplam Ödeme</Typography.Text>
+            </div>
+          </Card>
+        </Col>
+
+        <Col xs={24} sm={24} lg={8}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small" style={{ background: '#f0f5ff' }}>
+            <Statistic 
+              title={<span style={{ fontSize: '12px', fontWeight: 'bold' }}>Cari Bakiye</span>} 
+              value={stats?.bakiye || 0} 
+              formatter={(v) => trMoneyFormatter(v as number)}
+              styles={{ content: { color: (stats?.bakiye || 0) < 0 ? '#cf1322' : '#1677ff', fontSize: '20px', fontWeight: 'bold' } }}
+              suffix={<span style={{ fontSize: '12px', fontWeight: 'normal', marginLeft: 4 }}>TL</span>}
+            />
+            <div style={{ borderTop: '1px solid #ddecff', marginTop: 4, paddingTop: 4 }}>
+              <Typography.Text type="secondary" style={{ fontSize: '11px' }}>Ödeme - KDVli Tutar - Teminat</Typography.Text>
+            </div>
+          </Card>
+        </Col>
+      </Row>
+
       {isError ? (
         <ErrorState error={error} onRetry={() => refetch()} />
       ) : (
-        <DataTable
-          columns={columns}
-          dataSource={firmaData?.data}
-          rowKey="id"
-          loading={isLoading}
-          totalItems={firmaData?.pagination?.total}
-          emptyDescription="Kayıtlı firma bulunamadı"
-        />
+        <Card variant="borderless" styles={{ body: { padding: 0 } }} className="shadow-sm overflow-hidden rounded-xl">
+          <DataTable
+            columns={columns}
+            dataSource={firmaData?.data}
+            rowKey="id"
+            loading={isLoading}
+            totalItems={firmaData?.pagination?.totalCount}
+            onRow={(record) => ({
+              onClick: () => navigate(`/firmalar/${record.id}`),
+              style: { cursor: 'pointer' }
+            })}
+          />
+        </Card>
       )}
 
       <Modal
@@ -214,7 +321,7 @@ export const FirmaListPage: React.FC = () => {
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
         width={640}
-        destroyOnClose
+        destroyOnHidden
         okText="Kaydet"
         cancelText="İptal"
       >
@@ -251,7 +358,8 @@ export const FirmaListPage: React.FC = () => {
                ]}
              >
               <Input maxLength={10} placeholder="5xxxxxxxxx" />
-            </Form.Item>            <Form.Item name="email" label="E-posta" rules={[{ type: 'email', message: 'Geçerli e-posta girin' }]} style={{ flex: 1 }}>
+            </Form.Item>            
+            <Form.Item name="email" label="E-posta" rules={[{ type: 'email', message: 'Geçerli e-posta girin' }]} style={{ flex: 1 }}>
               <Input />
             </Form.Item>
           </div>
@@ -259,8 +367,31 @@ export const FirmaListPage: React.FC = () => {
             <Form.Item name="yetkili_kisi" label="Yetkili Kişi" style={{ flex: 1 }}>
               <Input />
             </Form.Item>
-            <Form.Item name="iban" label="IBAN" style={{ flex: 1 }}>
-              <Input maxLength={34} />
+            <Form.Item 
+              name="iban" 
+              label="IBAN" 
+              style={{ flex: 1 }}
+              rules={[
+                {
+                  validator: (_, value) => {
+                    if (!value) return Promise.resolve()
+                    const clean = value.replace(/\s/g, '')
+                    if (clean.length !== 26) {
+                      return Promise.reject('IBAN TR dahil 26 karakter olmalıdır')
+                    }
+                    return Promise.resolve()
+                  }
+                }
+              ]}
+            >
+              <Input 
+                maxLength={34} 
+                placeholder="TR..."
+                onChange={(e) => {
+                  const formatted = formatIBANInput(e.target.value)
+                  form.setFieldsValue({ iban: formatted })
+                }}
+              />
             </Form.Item>
           </div>
           <Form.Item name="adres" label="Adres">

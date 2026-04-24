@@ -10,5 +10,6 @@ router.get('/:id', ceklerController.getCekById)
 router.post('/', validate({ body: cekSchema }), ceklerController.createCek)
 router.put('/:id', validate({ body: updateCekSchema }), ceklerController.updateCek)
 router.patch('/:id/durum', validate({ body: cekDurumSchema }), ceklerController.updateCekDurum)
+router.patch('/:id/pay', ceklerController.payCek)
 
 export default router

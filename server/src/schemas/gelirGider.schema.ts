@@ -8,6 +8,7 @@ export const kategoriSchema = z.object({
 })
 
 export const gelirGiderSchema = z.object({
+  proje_id: z.string().uuid('Geçerli bir proje ID gereklidir'),
   tip: z.enum(ISLEM_TIPLERI),
   kategori_id: z.string().uuid('Kategori seçimi zorunlu'),
   tutar: z.number().positive('Tutar pozitif olmalı'),

@@ -27,3 +27,8 @@ export const updateCekDurum = catchAsync(async (req: AuthRequest<any, any, any, 
   const data = await cekService.updateDurum(req.params.id, req.body.durum)
   res.json({ success: true, data })
 })
+
+export const payCek = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const data = await cekService.payCheck(req.params.id, req.body.banka_hesap_id)
+  res.json({ success: true, data })
+})

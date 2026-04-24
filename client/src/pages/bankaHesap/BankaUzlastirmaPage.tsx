@@ -6,6 +6,7 @@ import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { usePageSettings } from '../../contexts/LayoutContext'
+import { trMoneyFormatter } from '../../lib/format'
 
 const { Text, Title } = Typography
 
@@ -93,10 +94,7 @@ export const BankaUzlastirmaPage: React.FC = () => {
     </Space>
   ), [selectedBankaId, selectedCariId, esleMutation.isPending, refetchBanka, refetchCari])
 
-  usePageSettings({
-    title: 'Banka Uzlaştırma',
-    actions
-  })
+  usePageSettings('Banka Uzlaştırma', actions)
 
   const bankaColumns = [
     {
@@ -193,7 +191,8 @@ export const BankaUzlastirmaPage: React.FC = () => {
                   title="Seçili Banka" 
                   value={selectedBanka?.tutar || 0} 
                   prefix="₺" 
-                  precision={2} 
+                  formatter={(v) => trMoneyFormatter(v as number)}
+ 
                   styles={{ content: { fontSize: '16px', fontWeight: 600 } }}
                 />
               </Col>
@@ -205,7 +204,8 @@ export const BankaUzlastirmaPage: React.FC = () => {
                   title="Seçili Cari" 
                   value={selectedCari?.tutar || 0} 
                   prefix="₺" 
-                  precision={2} 
+                  formatter={(v) => trMoneyFormatter(v as number)}
+ 
                   styles={{ content: { fontSize: '16px', fontWeight: 600 } }}
                 />
               </Col>

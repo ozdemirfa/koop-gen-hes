@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Row, Col, Card, Statistic, Tag, Button, Space, Divider, Typography } from 'antd'
@@ -11,6 +11,7 @@ import { LoadingState } from '../../components/common/LoadingState'
 import { EmptyState } from '../../components/common/EmptyState'
 import { ErrorState } from '../../components/common/ErrorState'
 import { usePageSettings } from '../../contexts/LayoutContext'
+import { trMoneyFormatter } from '../../lib/format'
 
 const { Title, Paragraph, Text } = Typography
 
@@ -41,48 +42,43 @@ export const ProjeDetailPage: React.FC = () => {
     enabled: !!id
   })
 
-  usePageSettings({
-    title: proje?.proje_adi || 'Proje Detayı',
-    actions: null
-  })
+  const actions = useMemo(() => (
+    <Space>
+      <Button 
+        icon={<HomeOutlined />} 
+        onClick={() => navigate(`/projeler/${id}/serefiye`)}
+        style={{ background: 'white' }}
+      >
+        Şerefiye Tablosu
+      </Button>
+      <Button 
+        icon={<BarChartOutlined />} 
+        onClick={() => navigate(`/projeler/${id}/yillik-plan/${dayjs().year()}`)}
+        style={{ background: 'white' }}
+      >
+        Yıllık Plan
+      </Button>
+      <Button 
+        icon={<EditOutlined />}
+        onClick={() => navigate('/projeler')}
+        style={{ background: 'white' }}
+      >
+        Projeler Listesinde Düzenle
+      </Button>
+    </Space>
+  ), [id, navigate])
+
+  usePageSettings(proje?.proje_adi || 'Proje Detayı', actions)
 
   if (isLoading) return <LoadingState fullHeight />
   if (isError) return <ErrorState error={error} onRetry={() => refetch()} />
   if (!proje) return <EmptyState description="Proje bulunamadı" />
 
   return (
-    <div>
-      <PageHeader
-        title={proje.proje_adi}
-        onBack={() => navigate('/projeler')}
-        extra={
-          <Space>
-            <Button 
-              icon={<HomeOutlined />} 
-              onClick={() => navigate(`/projeler/${id}/serefiye`)}
-            >
-              Şerefiye Tablosu
-            </Button>
-            <Button 
-              icon={<BarChartOutlined />} 
-              onClick={() => navigate(`/projeler/${id}/yillik-plan/${dayjs().year()}`)}
-            >
-              Yıllık Plan
-            </Button>
-            <Button 
-              type="primary" 
-              icon={<EditOutlined />}
-              onClick={() => navigate('/projeler')}
-            >
-              Projeler Listesinde Düzenle
-            </Button>
-          </Space>
-        }
-      />
-
+    <div className="animate-in fade-in duration-500">
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={8}>
-          <Card title="Proje Bilgileri">
+          <Card title="Proje Bilgileri" variant="borderless">
             <Space orientation="vertical" style={{ width: '100%' }}>
               <div>
                 <Text type="secondary">Durum</Text>
@@ -106,28 +102,23 @@ export const ProjeDetailPage: React.FC = () => {
                   />
                 </Col>
               </Row>
-              <div>
-                <Text type="secondary">Daire Kodlama</Text>
-                <div>{proje.daire_kodlama_sistemi || 'Belirtilmemiş'}</div>
-              </div>
               <Divider style={{ margin: '12px 0' }} />
               <Statistic 
                 title="Toplam Bütçe" 
                 value={proje.toplam_butce || 0} 
                 prefix="₺" 
-                groupSeparator="." 
-                decimalSeparator=","
+                formatter={(v) => trMoneyFormatter(v as number)}
               />
             </Space>
           </Card>
           
-          <Card title="Açıklama" style={{ marginTop: 16 }}>
+          <Card title="Açıklama" variant="borderless" style={{ marginTop: 16 }}>
             <Paragraph>{proje.aciklama || 'Açıklama girilmemiş.'}</Paragraph>
           </Card>
         </Col>
 
         <Col xs={24} lg={16}>
-          <ProjeIsKalemiTree projeId={id!} data={proje.is_kalemleri_agac || []} />
+          <ProjeIsKalemiTree projeId={id!} data={proje.proje_is_kalemleri || []} />
         </Col>
       </Row>
     </div>

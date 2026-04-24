@@ -6,6 +6,8 @@ import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
 
+import { trNumberFormatter, trNumberParser, trMoneyFormatter } from '../../lib/format'
+
 export const SozlesmeFormPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const [searchParams] = useSearchParams()
@@ -23,20 +25,25 @@ export const SozlesmeFormPage: React.FC = () => {
     },
   })
 
-  const { isLoading: sozlesmeLoading } = useQuery({
+  const { data: sozlesme, isLoading: sozlesmeLoading } = useQuery({
     queryKey: ['sozlesme', id],
     queryFn: async () => {
-      const { data } = await api.get(`/sozlesmeler/${id}`)
-      const s = data.data
-      form.setFieldsValue({
-        ...s,
-        baslangic_tarihi: s.baslangic_tarihi ? dayjs(s.baslangic_tarihi) : undefined,
-        bitis_tarihi: s.bitis_tarihi ? dayjs(s.bitis_tarihi) : undefined,
-      })
-      return s
+      const response = await api.get(`/sozlesmeler/${id}`)
+      return response.data.data // The actual contract object
     },
     enabled: isEditing,
   })
+
+  // Veri yüklendiğinde formu doldur
+  React.useEffect(() => {
+    if (sozlesme) {
+      form.setFieldsValue({
+        ...sozlesme,
+        baslangic_tarihi: sozlesme.baslangic_tarihi ? dayjs(sozlesme.baslangic_tarihi) : undefined,
+        bitis_tarihi: sozlesme.bitis_tarihi ? dayjs(sozlesme.bitis_tarihi) : undefined,
+      })
+    }
+  }, [sozlesme, form])
 
   // firma_id URL'den geliyorsa formu önceden doldur
   React.useEffect(() => {
@@ -106,7 +113,7 @@ export const SozlesmeFormPage: React.FC = () => {
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item name="sozlesme_no" label="Sözleşme No">
-                <Input />
+                <Input placeholder="Boş bırakılırsa otomatik üretilir" />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -118,7 +125,13 @@ export const SozlesmeFormPage: React.FC = () => {
                   { type: 'number', min: 0.01, message: 'Tutar sıfırdan büyük olmalı' },
                 ]}
               >
-                <InputNumber min={0} style={{ width: '100%' }} />
+                <InputNumber 
+                  min={0} 
+                  style={{ width: '100%' }} 
+                  formatter={trMoneyFormatter}
+                  parser={trNumberParser}
+                  decimalSeparator=","
+                />
               </Form.Item>
             </Col>
           </Row>

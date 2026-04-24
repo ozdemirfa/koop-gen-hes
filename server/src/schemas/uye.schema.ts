@@ -28,6 +28,7 @@ export const createUyeSchema = z.object({
 export const updateUyeSchema = createUyeSchema.partial()
 
 export const blokSchema = z.object({
+  proje_id: z.string().uuid().optional(),
   blok_adi: z.string().min(1, 'Blok adı zorunlu'),
   toplam_daire: z.number().int().min(1, 'Toplam daire en az 1 olmalı'),
   aciklama: z.union([z.string(), z.null(), z.undefined()]).transform(v => v === '' ? null : v).optional().nullable()

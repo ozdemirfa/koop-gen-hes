@@ -4,13 +4,13 @@ export const irsaliyeKalemiSchema = z.object({
   id: z.string().uuid().optional(),
   malzeme_adi: z.string().min(1, 'Malzeme adı zorunlu'),
   birim: z.string().min(1, 'Birim zorunlu'),
-  miktar: z.number().positive('Miktar pozitif olmalı'),
-  birim_fiyat: z.number().min(0).optional().default(0)
+  miktar: z.number().positive('Miktar pozitif olmalı')
 })
 
 export const irsaliyeSchema = z.object({
   firma_id: z.string().uuid('Firma seçimi zorunlu'),
   sozlesme_id: z.string().uuid().optional().nullable(),
+  hakedis_id: z.string().uuid().optional().nullable(),
   proje_id: z.string().uuid().optional().nullable(),
   teslim_tarihi: z.string().optional(),
   irsaliye_no: z.string().optional().nullable(),
