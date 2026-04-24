@@ -23,6 +23,7 @@ interface Aidat {
   durum: string
   son_odeme_tarihi: string
   gecikme_faizi: number
+  gecikme_gun_sayisi: number
   ad: string
   soyad: string
   uye_no: string
@@ -216,7 +217,7 @@ export const Aidatlar: React.FC = () => {
   // Mutation: Gecikme Faizi Hesapla
   const gecikmeMutation = useMutation({
     mutationFn: async () => {
-      const { data } = await api.post('/aidatlar/gecikme-faizi-hesapla', { proje_id: activeProject?.id })
+      const { data } = await api.post('/aidatlar/gecikme-hesapla', { proje_id: activeProject?.id })
       return data
     },
     onSuccess: () => {
@@ -248,13 +249,14 @@ export const Aidatlar: React.FC = () => {
   }
 
   const listActions = useMemo(() => (
-    <Space orientation="horizontal">
+    <Space orientation="horizontal" size="small" wrap>
       <Select
         placeholder="Yıl"
         value={filterYil}
         onChange={setFilterYil}
         allowClear
-        style={{ width: 100 }}
+        style={{ width: 80 }}
+        size="small"
       >
         {yearOptions.map(y => <Select.Option key={y} value={y}>{y}</Select.Option>)}
       </Select>
@@ -263,10 +265,11 @@ export const Aidatlar: React.FC = () => {
         value={filterAy}
         onChange={setFilterAy}
         allowClear
-        style={{ width: 100 }}
+        style={{ width: 80 }}
+        size="small"
       >
         {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-          <Select.Option key={m} value={m}>{m}. Ay</Select.Option>
+          <Select.Option key={m} value={m}>{m}</Select.Option>
         ))}
       </Select>
       <Select
@@ -274,54 +277,62 @@ export const Aidatlar: React.FC = () => {
         value={filterDurum}
         onChange={setFilterDurum}
         allowClear
-        style={{ width: 120 }}
+        style={{ width: 100 }}
+        size="small"
       >
         <Select.Option value="bekliyor">Bekliyor</Select.Option>
         <Select.Option value="gecikti">Gecikti</Select.Option>
         <Select.Option value="odendi">Ödendi</Select.Option>
       </Select>
       <Select
-        placeholder="Blok Seçin"
+        placeholder="Blok"
         value={filterBlokId}
         onChange={setFilterBlokId}
         allowClear
-        style={{ width: 120 }}
+        style={{ width: 90 }}
+        size="small"
       >
         {bloklar?.map(b => (
           <Select.Option key={b.id} value={b.id}>{b.blok_adi}</Select.Option>
         ))}
       </Select>
       <Select
-        placeholder="Daire Ataması"
+        placeholder="Daire"
         value={filterHasDaire}
         onChange={setFilterHasDaire}
         allowClear
-        style={{ width: 140 }}
+        style={{ width: 110 }}
+        size="small"
       >
-        <Select.Option value="atanmis">Daire Atanmış</Select.Option>
-        <Select.Option value="atanmamis">Daire Atanmamış</Select.Option>
+        <Select.Option value="atanmis">Atanmış</Select.Option>
+        <Select.Option value="atanmamis">Atanmamış</Select.Option>
       </Select>
-      <Button
-        type="primary"
-        size="middle"
-        icon={<CalculatorOutlined />}
-        onClick={() => gecikmeMutation.mutate()}
-        loading={gecikmeMutation.isPending}
-        style={{ color: '#ffffff' }}
-      >
-        Faiz Hesapla
-      </Button>
     </Space>
-  ), [filterYil, filterAy, filterDurum, filterBlokId, filterHasDaire, yearOptions, bloklar, gecikmeMutation])
+  ), [filterYil, filterAy, filterDurum, filterBlokId, filterHasDaire, yearOptions, bloklar])
+
+  // Mutation: Tekil Gecikme Faizi Hesapla
+  const singleGecikmeMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.post(`/aidatlar/${id}/gecikme-hesapla`)
+      return data
+    },
+    onSuccess: (data) => {
+      messageApi.success(data.data?.message || 'Faiz güncellendi')
+      queryClient.invalidateQueries({ queryKey: ['aidatlar'] })
+      queryClient.invalidateQueries({ queryKey: ['aidat-ozet'] })
+    },
+    onError: (err: any) => messageApi.error(err.message || 'İşlem başarısız')
+  })
 
   const tanimActions = useMemo(() => (
-    <Space orientation="horizontal">
+    <Space orientation="horizontal" size="small">
       <Select
         placeholder="Yıl"
         value={filterTanimYil}
         onChange={setFilterTanimYil}
         allowClear
-        style={{ width: 100 }}
+        style={{ width: 90 }}
+        size="small"
       >
         {yearOptions.map(y => <Select.Option key={y} value={y}>{y}</Select.Option>)}
       </Select>
@@ -329,18 +340,17 @@ export const Aidatlar: React.FC = () => {
         type="primary"
         icon={<PlusOutlined />}
         onClick={handleAdd}
-        size="middle"
-        style={{ color: '#ffffff' }}
+        size="small"
       >
-        Yeni Tanım
+        Yeni
       </Button>
       <Button
         type="default"
         icon={<HistoryOutlined />}
         onClick={() => navigate('/aidatlar/yillik-plan')}
-        size="middle"
+        size="small"
       >
-        Yıllık Aidat Planı
+        Yıllık Plan
       </Button>
     </Space>
   ), [filterTanimYil, yearOptions, navigate])
@@ -357,7 +367,7 @@ export const Aidatlar: React.FC = () => {
     {
       title: 'Üye',
       key: 'uye',
-      render: (_: unknown, r: Aidat) => r.ad ? `${r.ad} ${r.soyad}` : <Text type="secondary">Sahipsiz Daire</Text>,
+      render: (_: unknown, r: Aidat) => r.ad ? `${r.ad} ${r.soyad}` : <Text type="secondary">Üye yok</Text>,
     },
     { title: 'Dönem', key: 'donem', render: (_: unknown, r: Aidat) => `${r.ay}/${r.yil}` },
     {
@@ -369,10 +379,25 @@ export const Aidatlar: React.FC = () => {
     },
     {
       title: 'Gecikme Faizi',
-      dataIndex: 'gecikme_faizi',
       key: 'faiz',
       align: 'right' as const,
-      render: (v: number) => v > 0 ? <MoneyDisplay amount={v} colored /> : '-',
+      render: (_: any, r: Aidat) => (
+        <Space orientation="vertical" size={0} style={{ width: '100%', alignItems: 'flex-end' }}>
+          {r.gecikme_faizi > 0 ? <MoneyDisplay amount={r.gecikme_faizi} colored /> : '-'}
+          {r.durum !== 'odendi' && r.gecikme_gun_sayisi > 0 && (
+            <Button 
+              size="small" 
+              type="link" 
+              icon={<CalculatorOutlined />} 
+              onClick={() => singleGecikmeMutation.mutate(r.id)}
+              loading={singleGecikmeMutation.isPending && singleGecikmeMutation.variables === r.id}
+              style={{ padding: 0, height: 'auto', fontSize: '11px' }}
+            >
+              Faiz Hesapla
+            </Button>
+          )}
+        </Space>
+      )
     },
     {
       title: 'Toplam',
@@ -399,11 +424,17 @@ export const Aidatlar: React.FC = () => {
     },
     {
       title: 'Durum',
-      dataIndex: 'durum',
       key: 'durum',
-      render: (d: string) => {
+      render: (_: any, r: Aidat) => {
         const colors: Record<string, string> = { bekliyor: 'blue', gecikti: 'red', odendi: 'green' }
-        return <Tag color={colors[d]}>{d.toUpperCase()}</Tag>
+        return (
+          <Space orientation="vertical" size={0}>
+            <Tag color={colors[r.durum]}>{r.durum.toUpperCase()}</Tag>
+            {r.durum === 'gecikti' && r.gecikme_gun_sayisi > 0 && (
+              <Text type="danger" style={{ fontSize: '11px' }}>{r.gecikme_gun_sayisi} Gün Gecikme</Text>
+            )}
+          </Space>
+        )
       },
     },
   ]

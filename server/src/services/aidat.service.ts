@@ -211,8 +211,8 @@ export const aidatService = {
 
     if (query.proje_id) q = q.eq('proje_id', query.proje_id)
     if (query.uye_id) q = q.eq('uye_id', query.uye_id)
-    if (query.durum) q = q.eq('durum', query.durum)
-    if (query.blok_id) q = q.eq('blok_id', query.blok_id)
+    if (query.durum) q = q.eq('durum', String(query.durum))
+    if (query.blok_id) q = q.eq('filter_blok_id', query.blok_id)
     
     // Daire atama durumuna göre filtreleme
     if (query.has_daire === 'false') {
@@ -387,6 +387,15 @@ export const aidatService = {
       throw error
     }
     return { message: 'Gecikme faizleri hesaplandı' }
+  },
+
+  async calculateSingleLateFee(id: string) {
+    const { data, error } = await supabaseAdmin.rpc('fn_calculate_single_aidat_late_fee', { p_aidat_id: id })
+    if (error) {
+      logger.error(`Tekil gecikme faizi hesaplama hatası (ID: ${id}):`, error)
+      throw error
+    }
+    return data
   },
 
   async recordBulkPayment(uyeId: string, body: { proje_id?: string, tutar: number, odeme_tarihi: string, odeme_yontemi: string, makbuz_no?: string, aciklama?: string }) {
