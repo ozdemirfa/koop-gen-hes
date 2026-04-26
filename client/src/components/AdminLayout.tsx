@@ -52,8 +52,6 @@ const menuItems = [
       { key: '/banka-hesaplari', label: 'Banka Hesapları' },
       { key: '/cari-hesaplar/odeme-kayit', label: 'Ödeme/Tahsilat Kaydı' },
       { key: '/cek-takibi', label: 'Çek Takibi' },
-      { key: '/gelir-gider', label: 'Cari Hareketler' },
-      { key: '/gelir-gider/kategoriler', label: 'Gider Kategorileri' },
     ],
   },
   { key: '/fatura-irsaliye', icon: <TruckOutlined />, label: 'Malzeme Teslimat' },
