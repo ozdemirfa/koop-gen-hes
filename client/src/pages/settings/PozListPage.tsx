@@ -76,6 +76,21 @@ export const PozListPage: React.FC = () => {
     form.resetFields()
   }
 
+  const formatPozNo = (value: string) => {
+    const digits = value.replace(/\D/g, '').substring(0, 9);
+    let formatted = '';
+    if (digits.length > 0) {
+      formatted += digits.substring(0, 2);
+      if (digits.length > 2) {
+        formatted += '.' + digits.substring(2, 5);
+        if (digits.length > 5) {
+          formatted += '.' + digits.substring(5, 9);
+        }
+      }
+    }
+    return formatted;
+  }
+
   const handleEdit = (record: Poz) => {
     setEditingPoz(record)
     form.setFieldsValue(record)
@@ -139,10 +154,11 @@ export const PozListPage: React.FC = () => {
             label="Poz No" 
             rules={[
               { required: true, message: 'Poz no zorunlu' },
-              { max: 6, message: 'En fazla 6 karakter olabilir' }
+              { max: 11, message: 'En fazla 11 karakter olabilir' }
             ]}
+            getValueFromEvent={(e) => formatPozNo(e.target.value)}
           >
-            <Input placeholder="Örn: 150101" maxLength={6} />
+            <Input placeholder="Örn: 10.100.1001" maxLength={11} />
           </Form.Item>
           <Form.Item name="tanim" label="Tanım" rules={[{ required: true, message: 'Tanım zorunlu' }]}>
             <Input.TextArea rows={2} placeholder="İş kalemi açıklaması" />
