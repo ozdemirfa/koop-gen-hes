@@ -290,7 +290,7 @@ export const projeService = {
       // Plan oluştur
       const { data: plan, error } = await supabaseAdmin
         .from('yillik_harcama_planlari')
-        .insert([{ proje_id: projeId, yil: targetYear, ...body, yil: targetYear }]) // body'deki yılı ez
+        .insert([{ proje_id: projeId, ...body, yil: targetYear }]) // body'deki yılı ez
         .select()
         .single()
 

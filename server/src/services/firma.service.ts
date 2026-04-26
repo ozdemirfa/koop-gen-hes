@@ -38,9 +38,8 @@ export const firmaService = {
         // 1. Ödemeler (Project Perspective: ALACAK is payment/outflow for project)
         let hareketQuery = supabaseAdmin
           .from('cari_hareketler')
-          .select('alacak, borc, islem_turu')
+          .select('alacak, borc, islem_turu, kaynak_tipi, cari_hesaplar!inner(firma_id)')
           .eq('cari_hesaplar.firma_id', firma.id)
-          .innerJoin('cari_hesaplar', 'cari_hareketler.cari_hesap_id', 'cari_hesaplar.id')
 
         if (pId) {
           hareketQuery = hareketQuery.eq('proje_id', pId)
@@ -48,7 +47,7 @@ export const firmaService = {
 
         const { data: hareketler } = await hareketQuery
 
-        hareketler?.forEach(h => {
+        hareketler?.forEach((h: any) => {
           if (h.islem_turu === 'giden_odeme' || h.islem_turu === 'odeme') {
             toplamOdeme += Number(h.alacak || 0)
           }
@@ -73,7 +72,7 @@ export const firmaService = {
         // Hakedişlerden yapılan toplam kesintiler bu tabloda trigger ile güncelleniyor.
         // Buradan iadeler düşülmüş HALİNİ alıyoruz: Kesinti (birikmis_teminatlar tablosu) - İade (cari_hareketler alacak)
         let odenenTeminatlar = 0
-        hareketler?.forEach(h => {
+        hareketler?.forEach((h: any) => {
           if (h.kaynak_tipi === 'teminat' && (h.islem_turu === 'giden_odeme' || h.islem_turu === 'odeme')) {
             odenenTeminatlar += Number(h.alacak || 0)
           }
