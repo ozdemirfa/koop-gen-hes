@@ -6,7 +6,7 @@ import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { useProject } from '../../contexts/ProjectContext'
-import { trMoneyFormatter, trNumberParser } from '../../lib/format'
+import { trMoneyFormatter, trNumberParser, formatMoney } from '../../lib/format'
 
 const { Option } = Select
 const { TextArea } = Input
@@ -38,7 +38,7 @@ export const OdemeKayit: React.FC = () => {
     queryKey: ['banka-hesaplari'],
     queryFn: async () => {
       const { data } = await api.get('/banka/hesaplar')
-      return data.data as { id: string; banka_adi: string; hesap_no?: string }[]
+      return data.data as { id: string; banka_adi: string; hesap_no?: string; bakiye?: number }[]
     },
   })
 
@@ -193,7 +193,7 @@ export const OdemeKayit: React.FC = () => {
               <Col span={24}>
                 <Form.Item name="is_teminat" valuePropName="checked" noStyle>
                   <Checkbox>
-                    <Typography.Text strong>Bu bir Teminat İadesi / Ödemesidir</Typography.Text> (Cari bakiyeden bağımsız teminat hesabından düşülür)
+                    <Typography.Text strong>Teminat Ödemesi</Typography.Text>
                   </Checkbox>
                 </Form.Item>
               </Col>
@@ -217,7 +217,7 @@ export const OdemeKayit: React.FC = () => {
                   >
                     {bankaHesaplari?.map(b => (
                       <Option key={b.id} value={b.id}>
-                        {b.banka_adi} {b.hesap_no ? `(${b.hesap_no})` : ''}
+                        {b.banka_adi} {b.hesap_no ? `(${b.hesap_no})` : ''} - {formatMoney(b.bakiye)} TL
                       </Option>
                     ))}
                   </Select>

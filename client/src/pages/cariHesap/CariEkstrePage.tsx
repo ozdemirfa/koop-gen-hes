@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
-import { Card, Space, Select, DatePicker, Statistic, Row, Col, Tag, Button, message, Typography, Badge } from 'antd'
-import { DownloadOutlined, AuditOutlined } from '@ant-design/icons'
-import { useQuery } from '@tanstack/react-query'
+import { Card, Space, Select, DatePicker, Statistic, Row, Col, Tag, Button, message, Typography, Badge, Popconfirm } from 'antd'
+import { DownloadOutlined, AuditOutlined, RollbackOutlined } from '@ant-design/icons'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { DataTable } from '../../components/common/DataTable'
@@ -31,6 +31,8 @@ interface CariHareket {
   tarih: string
   aciklama?: string
   belge_no?: string
+  kaynak_tipi?: string
+  kaynak_id?: string
   cari_hesaplar?: {
     cari_adi: string
     cari_turu: 'uye' | 'firma'
@@ -53,11 +55,27 @@ const ODEME_TURU_LABELS: Record<string, string> = {
 
 export const CariEkstrePage: React.FC = () => {
   const { activeProject } = useProject()
+  const queryClient = useQueryClient()
   const [dates, setDates] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null]>([
     dayjs().startOf('year'),
     dayjs().endOf('year'),
   ])
   const [cariHesapId, setCariHesapId] = useState<string | undefined>(undefined)
+
+  // Undo Match Mutation
+  const undoMatchMutation = useMutation({
+    mutationFn: async (hakedisId: string) => {
+      const { data } = await api.post(`/cari-hareketler/hakedis/${hakedisId}/undo-closure`)
+      return data
+    },
+    onSuccess: () => {
+      message.success('Hakediş eşleşmeleri başarıyla kaldırıldı')
+      queryClient.invalidateQueries({ queryKey: ['cari-ekstre'] })
+      queryClient.invalidateQueries({ queryKey: ['firma-summary-stats'] })
+      queryClient.invalidateQueries({ queryKey: ['aidatlar'] })
+    },
+    onError: (err: any) => message.error(err.message || 'Hata oluştu')
+  })
 
   // Cari Hesaplar (Sadece Firmalar) Fetch
   const { data: accounts, isLoading: accountsLoading } = useQuery({
@@ -74,7 +92,7 @@ export const CariEkstrePage: React.FC = () => {
   })
 
   // Hareketler Fetch
-  const { data: hareketler, isLoading, isError, error, refetch } = useQuery({
+  const { data: rawHareketler, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['cari-ekstre', activeProject?.id, dates, cariHesapId],
     queryFn: async () => {
       if (!activeProject?.id) return []
@@ -91,18 +109,29 @@ export const CariEkstrePage: React.FC = () => {
     enabled: !!activeProject?.id
   })
 
+  // Fatura dışı işlemleri filtrele
+  const hareketler = useMemo(() => {
+    if (!rawHareketler) return []
+    return rawHareketler.filter(h => 
+      h.islem_turu === 'hakedis' || 
+      h.islem_turu === 'giden_odeme' || 
+      h.islem_turu === 'odeme'
+    )
+  }, [rawHareketler])
+
   // Birikmiş Teminat ve Hakediş Detayları Sorgusu
   const selectedCari = useMemo(() => accounts?.find(a => a.id === cariHesapId), [accounts, cariHesapId])
   const targetFirmaId = selectedCari?.firma_id
 
-  const { data: firmaStats } = useQuery({
+  const { data: summaryStats } = useQuery({
     queryKey: ['firma-summary-stats', targetFirmaId, activeProject?.id],
     queryFn: async () => {
-      if (!targetFirmaId) return null
-      const { data } = await api.get(`/firmalar/${targetFirmaId}/stats`)
+      if (!activeProject?.id) return null
+      const url = targetFirmaId ? `/firmalar/${targetFirmaId}/stats` : `/firmalar/stats`
+      const { data } = await api.get(url, { params: { proje_id: activeProject.id } })
       return data.data
     },
-    enabled: !!targetFirmaId && !!activeProject?.id
+    enabled: !!activeProject?.id
   })
 
   const exportToCSV = () => {
@@ -163,39 +192,28 @@ export const CariEkstrePage: React.FC = () => {
 
   usePageSettings('Firma Ekstre', actions)
 
-  // Hesaplamalar (Firma seçiliyse firmaStats'dan, değilse hareketler toplamından)
+  // Hesaplamalar (summaryStats'tan gelir, bakiye Ödeme - KDVli Tutar olarak standartlaştırıldı)
   const stats = useMemo(() => {
-    if (cariHesapId && firmaStats) {
+    if (summaryStats) {
       return {
-        borc: firmaStats.toplam_kdvli, // Hak edilen
-        alacak: firmaStats.toplam_odeme, // Ödenen
-        bakiye: firmaStats.bakiye, // Cari Bakiye
-        teminat: firmaStats.birikmis_teminat,
-        toplamBakiye: firmaStats.bakiye - firmaStats.birikmis_teminat,
-        matrah: firmaStats.toplam_hakedis,
-        fatura: firmaStats.toplam_fatura
+        borc: summaryStats.toplam_kdvli, // Hak edilen
+        alacak: summaryStats.toplam_odeme, // Ödenen
+        bakiye: summaryStats.bakiye, // Cari Bakiye (Ödeme - KDVli)
+        teminat: summaryStats.birikmis_teminat,
+        matrah: summaryStats.toplam_hakedis,
+        fatura: summaryStats.toplam_fatura
       }
     }
 
-    const totals = hareketler?.reduce(
-      (acc, curr) => {
-        acc.borc += Number(curr.borc || 0)
-        acc.alacak += Number(curr.alacak || 0)
-        return acc
-      },
-      { borc: 0, alacak: 0 }
-    ) || { borc: 0, alacak: 0 }
-
     return {
-      borc: totals.borc,
-      alacak: totals.alacak,
-      bakiye: totals.alacak - totals.borc,
+      borc: 0,
+      alacak: 0,
+      bakiye: 0,
       teminat: 0,
-      toplamBakiye: totals.alacak - totals.borc,
       matrah: 0,
       fatura: 0
     }
-  }, [hareketler, firmaStats, cariHesapId])
+  }, [summaryStats])
 
   const columns = [
     {
@@ -216,17 +234,45 @@ export const CariEkstrePage: React.FC = () => {
     {
       title: 'İşlem / Tür',
       key: 'islem_odeme',
-      width: 160,
+      width: 180,
       render: (_: any, r: CariHareket) => {
         const typeInfo = ISLEM_TURU_LABELS[r.islem_turu] || { label: r.islem_turu, color: 'default' }
+        
+        // Hakediş satırı mı ve bu hakedişe bağlı ödeme var mı kontrol et
+        const isHakedis = r.islem_turu === 'hakedis';
+        // kaynak_id hakedis satırında hakedis.id'yi tutuyor. 
+        // Ödemelerde de kaynak_id hakedis.id'yi tutuyor.
+        const hasMatchedPayments = isHakedis && r.kaynak_id && hareketler?.some(m => m.kaynak_id === r.kaynak_id && m.islem_turu !== 'hakedis');
+
         return (
           <Space orientation="vertical" size={2}>
-            <Tag color={typeInfo.color} style={{ fontSize: '11px', margin: 0, borderRadius: '4px' }}>
-              {typeInfo.label}
-            </Tag>
+            <Space>
+              <Tag color={typeInfo.color} style={{ fontSize: '11px', margin: 0, borderRadius: '4px' }}>
+                {typeInfo.label}
+              </Tag>
+              {hasMatchedPayments && (
+                <Popconfirm
+                  title="Eşleşmeyi Kaldır"
+                  description="Bu hakedişe bağlı tüm ödemeler serbest bırakılacaktır. Emin misiniz?"
+                  onConfirm={() => undoMatchMutation.mutate(r.kaynak_id!)}
+                  okText="Evet, Kaldır"
+                  cancelText="Vazgeç"
+                >
+                  <Button 
+                    type="text" 
+                    size="small" 
+                    danger 
+                    icon={<RollbackOutlined style={{ fontSize: '12px' }} />}
+                    loading={undoMatchMutation.isPending && undoMatchMutation.variables === r.kaynak_id}
+                    title="Eşleşmeleri Geri Al"
+                  />
+                </Popconfirm>
+              )}
+            </Space>
             {r.odeme_turu && (
               <Typography.Text type="secondary" italic style={{ fontSize: '11px', marginLeft: 4 }}>
                 {ODEME_TURU_LABELS[r.odeme_turu] || r.odeme_turu}
+                {r.kaynak_id && r.islem_turu !== 'hakedis' && ` (Eşleşmiş)`}
               </Typography.Text>
             )}
           </Space>
@@ -253,7 +299,7 @@ export const CariEkstrePage: React.FC = () => {
         <span style={{ color: '#cf1322', fontWeight: 500 }}>
           <MoneyDisplay amount={v} />
         </span>
-      ) : <Typography.Text type="disabled">-</Typography.Text>,
+      ) : <Typography.Text type="secondary">-</Typography.Text>,
     },
     {
       title: 'Alacak (TL)',
@@ -265,7 +311,7 @@ export const CariEkstrePage: React.FC = () => {
         <span style={{ color: '#3f8600', fontWeight: 500 }}>
           <MoneyDisplay amount={v} />
         </span>
-      ) : <Typography.Text type="disabled">-</Typography.Text>,
+      ) : <Typography.Text type="secondary">-</Typography.Text>,
     },
   ]
 
@@ -279,7 +325,7 @@ export const CariEkstrePage: React.FC = () => {
 
   return (
     <div className="animate-in fade-in duration-500">
-      {/* İki satırlı bilgi kartları */}
+      {/* 5 Bilgi Kartı Düzeni */}
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} lg={4}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small">
@@ -311,7 +357,7 @@ export const CariEkstrePage: React.FC = () => {
               />
               <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 4, paddingTop: 4 }}>
                 <Typography.Text type="secondary" style={{ fontSize: '11px' }}>Fatura Açığı: </Typography.Text>
-                <Typography.Text strong style={{ fontSize: '12px', color: (stats.fatura - stats.borc < 0) ? '#faad14' : 'inherit' }}>
+                <Typography.Text strong style={{ fontSize: '12px', color: (stats.fatura - stats.borc < 0) ? '#b91c1c' : '#faad14' }}>
                   {trMoneyFormatter(stats.fatura - stats.borc)} TL
                 </Typography.Text>
               </div>
@@ -349,32 +395,17 @@ export const CariEkstrePage: React.FC = () => {
           </Card>
         </Col>
 
-        <Col xs={24} sm={12} lg={4}>
+        <Col xs={24} sm={24} lg={8}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small" style={{ background: '#f0f5ff' }}>
             <Statistic 
               title={<span style={{ fontSize: '12px', fontWeight: 'bold' }}>Cari Bakiye</span>} 
               value={stats.bakiye} 
               formatter={(v) => trMoneyFormatter(v as number)}
-              styles={{ content: { color: stats.bakiye < 0 ? '#cf1322' : '#1677ff', fontSize: '16px', fontWeight: 'bold' } }}
+              styles={{ content: { color: stats.bakiye < 0 ? '#cf1322' : '#1677ff', fontSize: '20px', fontWeight: 'bold' } }}
               suffix={<span style={{ fontSize: '12px', fontWeight: 'normal', marginLeft: 4 }}>TL</span>}
             />
             <div style={{ borderTop: '1px solid #ddecff', marginTop: 4, paddingTop: 4 }}>
-              <Typography.Text type="secondary" style={{ fontSize: '10px' }}>Ödeme-KDVli-Teminat</Typography.Text>
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} lg={4}>
-          <Card variant="borderless" className="stat-card shadow-sm" size="small" style={{ background: '#fff1f0' }}>
-            <Statistic 
-              title={<span style={{ fontSize: '12px', fontWeight: 'bold' }}>Toplam Bakiye</span>} 
-              value={stats.toplamBakiye} 
-              formatter={(v) => trMoneyFormatter(v as number)}
-              styles={{ content: { color: stats.toplamBakiye < 0 ? '#cf1322' : '#d4380d', fontSize: '16px', fontWeight: 'bold' } }}
-              suffix={<span style={{ fontSize: '12px', fontWeight: 'normal', marginLeft: 4 }}>TL</span>}
-            />
-            <div style={{ borderTop: '1px solid #ffa39e', marginTop: 4, paddingTop: 4 }}>
-              <Typography.Text type="secondary" style={{ fontSize: '10px' }}>Cari Bakiye - Teminat</Typography.Text>
+              <Typography.Text type="secondary" style={{ fontSize: '11px' }}>Ödeme - KDVli Tutar</Typography.Text>
             </div>
           </Card>
         </Col>

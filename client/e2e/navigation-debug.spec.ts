@@ -23,10 +23,10 @@ test.describe('Navigation Debug Flow', () => {
 
   const pagesToTest = [
     { label: 'Üye Yönetimi', url: '/uyeler', expectedHeader: 'Üye Yönetimi' },
-    { label: 'Aidat Yönetimi', url: '/aidatlar', expectedHeader: 'Aidat Yönetimi' },
-    { label: 'Gelir / Gider', subLabel: 'İşlemler', url: '/gelir-gider', expectedHeader: 'İşlemler' },
+    { label: 'Aidat Yönetimi', subLabel: 'Aidat Listesi', url: '/aidatlar', expectedHeader: 'Aidat Listesi' },
+    { label: 'Ödeme Yönetimi', subLabel: 'Cari Hareketler', url: '/gelir-gider', expectedHeader: 'Cari Hareketler' },
     { label: 'Firmalar', subLabel: 'Firma Listesi', url: '/firmalar', expectedHeader: 'Firma Listesi' },
-    { label: 'Proje Yönetimi', url: '/projeler', expectedHeader: 'İnşaat Projeleri' },
+    { label: 'İnşaat Projeleri', url: '/projeler', expectedHeader: 'İnşaat Projeleri' },
   ]
 
   for (const target of pagesToTest) {
@@ -35,7 +35,7 @@ test.describe('Navigation Debug Flow', () => {
       
       // Go to Dashboard first to ensure consistent starting point
       await page.goto('/')
-      await expect(page.locator('#header-left')).toContainText('Dashboard')
+      await expect(page.locator('#header-left')).toContainText('Pano')
 
       if (target.subLabel) {
         // Handle grouped menu items

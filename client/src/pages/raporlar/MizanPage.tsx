@@ -20,8 +20,9 @@ import { trNumberFormatter, trMoneyFormatter } from '../../lib/format'
 const { Text, Title } = Typography
 
 interface MizanData {
+  id: string
   cari_adi: string
-  tur: 'Üye' | 'Firma'
+  cari_turu: 'uye' | 'firma'
   toplam_borc: number
   toplam_alacak: number
   bakiye: number
@@ -87,23 +88,23 @@ export const MizanPage: React.FC = () => {
     },
     { 
       title: 'Tür', 
-      dataIndex: 'tur', 
-      key: 'tur',
+      dataIndex: 'cari_turu', 
+      key: 'cari_turu',
       width: 120,
       render: (tur: string) => (
         <Tag 
-          color={tur === 'Üye' ? 'blue' : 'orange'} 
-          icon={tur === 'Üye' ? <TeamOutlined /> : <ShopOutlined />}
+          color={tur === 'uye' ? 'blue' : 'orange'} 
+          icon={tur === 'uye' ? <TeamOutlined /> : <ShopOutlined />}
           style={{ borderRadius: '4px', padding: '2px 8px' }}
         >
-          {tur.toUpperCase()}
+          {tur === 'uye' ? 'ÜYE' : 'FİRMA'}
         </Tag>
       ),
       filters: [
-        { text: 'Üye', value: 'Üye' },
-        { text: 'Firma', value: 'Firma' },
+        { text: 'Üye', value: 'uye' },
+        { text: 'Firma', value: 'firma' },
       ],
-      onFilter: (value: any, record: MizanData) => record.tur === value,
+      onFilter: (value: any, record: MizanData) => record.cari_turu === value,
     },
     { 
       title: 'Toplam Borç', 
@@ -163,7 +164,7 @@ export const MizanPage: React.FC = () => {
     <div className="animate-in fade-in duration-500">
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12}>
-          <Card bordered={false} className="shadow-sm" style={{ borderRadius: '12px', borderLeft: '4px solid #1890ff' }}>
+          <Card variant="borderless" className="shadow-sm" style={{ borderRadius: '12px', borderLeft: '4px solid #1890ff' }}>
             <Statistic
               title={<Text type="secondary">Toplam Alacağımız (Borçlu Üyeler/Firmalar)</Text>}
               value={stats.totalWeAreOwed}
@@ -178,7 +179,7 @@ export const MizanPage: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={12}>
-          <Card bordered={false} className="shadow-sm" style={{ borderRadius: '12px', borderLeft: '4px solid #ff4d4f' }}>
+          <Card variant="borderless" className="shadow-sm" style={{ borderRadius: '12px', borderLeft: '4px solid #ff4d4f' }}>
             <Statistic
               title={<Text type="secondary">Toplam Borçlu Olduğumuz (Alacaklı Firmalar/Üyeler)</Text>}
               value={stats.totalWeOwe}
@@ -203,13 +204,13 @@ export const MizanPage: React.FC = () => {
         <Table
           dataSource={list || []}
           columns={columns}
-          rowKey={(record) => `${record.cari_adi}-${record.tur}`}
+          rowKey="id"
           size="middle"
           pagination={{ 
             pageSize: 50,
             showSizeChanger: true,
             pageSizeOptions: ['20', '50', '100', '500'],
-            position: ['bottomRight']
+            placement: ['bottomRight']
           }}
           scroll={{ x: 800 }}
           summary={(pageData) => {

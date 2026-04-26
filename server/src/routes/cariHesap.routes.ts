@@ -9,5 +9,8 @@ router.get('/', cariHesapController.getCariHareketler)
 router.get('/accounts', cariHesapController.getCariHesaplar)
 router.post('/', validate({ body: cariHareketSchema }), cariHesapController.createCariHareket)
 router.post('/payment', validate({ body: cariPaymentSchema }), cariHesapController.createPayment)
+router.post('/fifo-kapama', cariHesapController.performFifoClosure)
+router.post('/:id/undo-closure', cariHesapController.undoClosure)
+router.post('/hakedis/:id/undo-closure', cariHesapController.undoHakedisClosure)
 
 export default router

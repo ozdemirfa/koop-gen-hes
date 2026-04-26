@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Button, Modal, Form, Input, Space, Tag, DatePicker, Card, Row, Col, Select, InputNumber, Divider, Typography, App } from 'antd'
-import { PlusOutlined, EditOutlined, ArrowRightOutlined, ProjectOutlined, DeleteOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, EyeOutlined, ProjectOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
@@ -173,7 +173,7 @@ export const ProjeListPage: React.FC = () => {
                       navigate(`/projeler/${p.id}`)
                     }}
                   >
-                    <ArrowRightOutlined />
+                    <EyeOutlined />
                   </div>,
                 ]}
                 title={

@@ -57,20 +57,29 @@ export const faturaService = {
       if (kalemError) throw kalemError
     }
 
-    // Cari harekete yansıtma: Gelen fatura borç, Giden fatura alacak?
-    // Gelen fatura firmadan aldığımız bir borç (biz borçlanıyoruz, firmanın alacağı artıyor).
-    // Cari hareket tipi: 'alacak' (firmanın bizden alacağı artıyor)
+    // Cari harekete yansıtma: Gelen fatura borç (Projenin borcu artıyor)
     if (masterData.fatura_tipi === 'gelen') {
-      await supabaseAdmin.from('cari_hareketler').insert([{
-        firma_id: masterData.firma_id,
-        proje_id: masterData.proje_id,
-        hareket_tipi: 'alacak',
-        tutar: masterData.toplam_tutar,
-        tarih: masterData.fatura_tarihi,
-        aciklama: `Fatura: ${masterData.fatura_no}`,
-        belge_no: masterData.fatura_no,
-        fatura_id: fatura.id
-      }])
+      const { data: cari } = await supabaseAdmin
+        .from('cari_hesaplar')
+        .select('id')
+        .eq('proje_id', masterData.proje_id)
+        .eq('firma_id', masterData.firma_id)
+        .single()
+
+      if (cari) {
+        await supabaseAdmin.from('cari_hareketler').insert([{
+          proje_id: masterData.proje_id,
+          cari_hesap_id: cari.id,
+          islem_turu: 'fatura',
+          borc: masterData.toplam_tutar,
+          alacak: 0,
+          tarih: masterData.fatura_tarihi,
+          aciklama: `Fatura: ${masterData.fatura_no}`,
+          belge_no: masterData.fatura_no,
+          kaynak_tipi: 'fatura',
+          kaynak_id: fatura.id
+        }])
+      }
     }
 
     return this.getById(fatura.id)

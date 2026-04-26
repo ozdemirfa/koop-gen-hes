@@ -7,7 +7,12 @@ import { catchAsync } from '../utils/catchAsync'
 export const getAylikRapor = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   const yil = parseInt(req.query.yil as string) || new Date().getFullYear()
   const ay = parseInt(req.query.ay as string) || new Date().getMonth() + 1
-  const projeId = req.query.projeId as string
+  const projeId = (req.query.projeId || req.query.proje_id) as string
+  
+  if (!projeId || projeId === 'undefined' || projeId === 'null') {
+    return res.status(400).json({ success: false, error: 'Geçerli bir Proje ID gereklidir' });
+  }
+
   const data = await raporService.aylikRapor(yil, ay, projeId)
   res.json({ success: true, data })
 })
@@ -15,7 +20,12 @@ export const getAylikRapor = catchAsync(async (req: AuthRequest<any, any, any, a
 export const downloadAylikRaporPdf = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   const yil = parseInt(req.query.yil as string) || new Date().getFullYear()
   const ay = parseInt(req.query.ay as string) || new Date().getMonth() + 1
-  const projeId = req.query.projeId as string
+  const projeId = (req.query.projeId || req.query.proje_id) as string
+  
+  if (!projeId || projeId === 'undefined' || projeId === 'null') {
+    return res.status(400).json({ success: false, error: 'Geçerli bir Proje ID gereklidir' });
+  }
+
   const data = await raporService.aylikRapor(yil, ay, projeId)
   
   const docDefinition = pdfGenerator.generateMaliRaporPDF(data)
@@ -30,25 +40,45 @@ export const downloadAylikRaporPdf = catchAsync(async (req: AuthRequest<any, any
 
 export const getYillikRapor = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   const yil = parseInt(req.query.yil as string) || new Date().getFullYear()
-  const projeId = req.query.projeId as string
+  const projeId = (req.query.projeId || req.query.proje_id) as string
+  
+  if (!projeId || projeId === 'undefined' || projeId === 'null') {
+    return res.status(400).json({ success: false, error: 'Geçerli bir Proje ID gereklidir' });
+  }
+
   const data = await raporService.yillikRapor(yil, projeId)
   res.json({ success: true, data })
 })
 
 export const getUyeBorcListesi = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const projeId = req.query.projeId as string
+  const projeId = (req.query.projeId || req.query.proje_id) as string
+  
+  if (!projeId || projeId === 'undefined' || projeId === 'null') {
+    return res.status(400).json({ success: false, error: 'Geçerli bir Proje ID gereklidir' });
+  }
+
   const data = await raporService.uyeBorcListesi(projeId)
   res.json({ success: true, data })
 })
 
 export const getHakedisOzet = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const projeId = req.query.projeId as string
+  const projeId = (req.query.projeId || req.query.proje_id) as string
+  
+  if (!projeId || projeId === 'undefined' || projeId === 'null') {
+    return res.status(400).json({ success: false, error: 'Geçerli bir Proje ID gereklidir' });
+  }
+
   const data = await raporService.hakedisOzet(projeId)
   res.json({ success: true, data })
 })
 
 export const getMizan = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const projeId = req.query.projeId as string
+  const projeId = (req.query.projeId || req.query.proje_id) as string
+  
+  if (!projeId || projeId === 'undefined' || projeId === 'null') {
+    return res.status(400).json({ success: false, error: 'Geçerli bir Proje ID gereklidir' });
+  }
+
   const data = await raporService.getMizan(projeId)
   res.json({ success: true, data })
 })

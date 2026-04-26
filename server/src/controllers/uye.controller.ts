@@ -38,3 +38,9 @@ export const bulkPayment = catchAsync(async (req: AuthRequest<{ id: string }, an
   const data = await aidatService.recordBulkPayment(req.params.id, req.body)
   res.json({ success: true, data })
 })
+
+export const matchPaymentsFIFO = catchAsync(async (req: AuthRequest<{ id: string }, any, any, any>, res: Response) => {
+  const { proje_id } = req.query
+  const data = await uyeService.matchPaymentsFIFO(req.params.id, proje_id as string)
+  res.json({ success: true, data })
+})

@@ -10,15 +10,17 @@ export const cekService = {
     if (query.firma_id) q = q.eq('firma_id', query.firma_id)
     if (query.proje_id) q = q.eq('proje_id', query.proje_id)
 
-    // Vade filtreleri — `filter` parametresi `durum`u override eder (çakışma olmasın)
+    // Filtreleme mantığı
     const today = new Date().toISOString().split('T')[0]
+    
     if (query.filter === 'vadesi_gelenler') {
       q = q.lte('vade_tarihi', today).eq('durum', 'beklemede')
     } else if (query.filter === 'bu_ay') {
       const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
       const endOfMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0]
       q = q.gte('vade_tarihi', startOfMonth).lte('vade_tarihi', endOfMonth)
-      if (query.durum) q = q.eq('durum', query.durum)
+    } else if (query.filter === 'beklemede' || query.filter === 'odendi' || query.filter === 'iade' || query.filter === 'iptal') {
+      q = q.eq('durum', query.filter)
     } else if (query.durum) {
       q = q.eq('durum', query.durum)
     }

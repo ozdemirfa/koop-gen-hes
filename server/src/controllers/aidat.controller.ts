@@ -66,6 +66,12 @@ export const calculateSingleLateFee = catchAsync(async (req: AuthRequest<any, an
   res.json({ success: true, data })
 })
 
+export const toggleInterest = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const { active } = req.body
+  const data = await aidatService.toggleInterest(req.params.id, active)
+  res.json({ success: true, data })
+})
+
 export const getAidatById = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   const data = await aidatService.getById(req.params.id)
   res.json({ success: true, data })

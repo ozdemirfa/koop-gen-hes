@@ -72,7 +72,7 @@ export const BirimListPage: React.FC = () => {
   ]
 
   return (
-    <Card bordered={false}>
+    <Card variant="borderless" className="shadow-sm">
       <div style={{ marginBottom: 24, padding: '16px', background: '#f8fafc', borderRadius: '8px' }}>
         <Typography.Title level={5} style={{ marginTop: 0 }}>Yeni Birim Ekle</Typography.Title>
         <Form 

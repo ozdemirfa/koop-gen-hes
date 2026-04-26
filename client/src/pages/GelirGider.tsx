@@ -285,7 +285,7 @@ export const GelirGider: React.FC = () => {
     <div>
       <Row gutter={12} style={{ marginBottom: 12 }}>
         <Col span={8}>
-          <Card className="stat-card" size="small">
+          <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
               title="Toplam Gelir"
               value={totals.gelir}
@@ -298,7 +298,7 @@ export const GelirGider: React.FC = () => {
           </Card>
         </Col>
         <Col span={8}>
-          <Card className="stat-card" size="small">
+          <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
               title="Toplam Gider"
               value={totals.gider}
@@ -311,7 +311,7 @@ export const GelirGider: React.FC = () => {
           </Card>
         </Col>
         <Col span={8}>
-          <Card className="stat-card" size="small">
+          <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
               title="Net Bakiye"
               value={totals.gelir - totals.gider}
@@ -325,7 +325,7 @@ export const GelirGider: React.FC = () => {
         </Col>
       </Row>
 
-      <Card styles={{ body: { padding: 0 } }}>
+      <Card variant="borderless" className="shadow-sm" styles={{ body: { padding: 0 } }}>
         <Table
           columns={columns}
           dataSource={listData?.data}

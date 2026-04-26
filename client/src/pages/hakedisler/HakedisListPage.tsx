@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Button, Select, Space, Tag, Modal, Form, DatePicker, Input, message, Popconfirm, Tooltip } from 'antd'
+import { Button, Select, Space, Tag, Modal, Form, DatePicker, Input, Popconfirm, Tooltip, App } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, EyeOutlined, RollbackOutlined } from '@ant-design/icons'
@@ -44,6 +44,7 @@ const durumLabel: Record<string, string> = {
 export const HakedisListPage: React.FC = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { message } = App.useApp()
   const [filterDurum, setFilterDurum] = useState<string | undefined>(undefined)
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [selectedFirmaId, setSelectedFirmaId] = useState<string | null>(null)
@@ -172,11 +173,19 @@ export const HakedisListPage: React.FC = () => {
       },
     },
     {
-      title: 'Hakediş Toplam',
+      title: 'Matrah',
+      dataIndex: 'ara_toplam',
+      key: 'ara_toplam',
+      align: 'right' as const,
+      width: 120,
+      render: (v: number) => <MoneyDisplay amount={v} />,
+    },
+    {
+      title: 'Hakediş Toplamı (KDVli)',
       dataIndex: 'hakedis_toplam',
       key: 'hakedis_toplam',
       align: 'right' as const,
-      width: 130,
+      width: 150,
       render: (v: number) => <MoneyDisplay amount={v} />,
     },
     {
@@ -229,7 +238,6 @@ export const HakedisListPage: React.FC = () => {
         <ErrorState error={error} onRetry={() => refetch()} />
       ) : (
         <DataTable
-          variant="borderless"
           columns={columns}
           dataSource={hakedisData?.data}
           rowKey="id"
@@ -263,27 +271,22 @@ export const HakedisListPage: React.FC = () => {
             <Select
               showSearch
               placeholder="Firma seçin"
-              optionFilterProp="children"
+              optionFilterProp="label"
               onChange={handleFirmaChange}
-            >
-              {firmalar?.map((f) => (
-                <Select.Option key={f.id} value={f.id}>{f.unvan}</Select.Option>
-              ))}
-            </Select>
+              options={firmalar?.map(f => ({ value: f.id, label: f.unvan }))}
+            />
           </Form.Item>
           <Form.Item name="sozlesme_id" label="Sözleşme" rules={[{ required: true, message: 'Sözleşme seçin' }]}>
             <Select
               showSearch
               placeholder={selectedFirmaId ? "Sözleşme seçin" : "Önce firma seçin"}
-              optionFilterProp="children"
+              optionFilterProp="label"
               disabled={!selectedFirmaId}
-            >
-              {sozlesmeler?.map((s) => (
-                <Select.Option key={s.id} value={s.id}>
-                  {s.konu} {s.sozlesme_no ? `(${s.sozlesme_no})` : ''}
-                </Select.Option>
-              ))}
-            </Select>
+              options={sozlesmeler?.map(s => ({ 
+                value: s.id, 
+                label: `${s.konu} ${s.sozlesme_no ? `(${s.sozlesme_no})` : ''}` 
+              }))}
+            />
           </Form.Item>
           <div style={{ display: 'flex', gap: 16 }}>
             <Form.Item name="donem_baslangic" label="Dönem Başlangıç" style={{ flex: 1 }}>

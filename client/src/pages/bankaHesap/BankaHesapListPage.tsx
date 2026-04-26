@@ -5,9 +5,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import api from '../../lib/api'
 import { usePageSettings } from '../../contexts/LayoutContext'
+import { useProject } from '../../contexts/ProjectContext'
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
-import { formatIBAN, formatIBANInput, getIBANRaw } from '../../lib/format'
+import { formatIBAN, formatIBANInput, getIBANRaw, formatMoney } from '../../lib/format'
 
 interface BankaHesap {
   id: string
@@ -16,6 +17,7 @@ interface BankaHesap {
   hesap_no?: string
   iban?: string
   aktif: boolean
+  bakiye?: number
 }
 
 export const BankaHesapListPage: React.FC = () => {
@@ -25,12 +27,15 @@ export const BankaHesapListPage: React.FC = () => {
   const [editingHesap, setEditingHesap] = useState<BankaHesap | null>(null)
   const [form] = Form.useForm()
 
+  const { activeProject } = useProject()
   const { data: hesaplar, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['banka-hesaplari'],
+    queryKey: ['banka-hesaplari', activeProject?.id],
     queryFn: async () => {
-      const { data } = await api.get('/banka/hesaplar')
+      if (!activeProject?.id) return []
+      const { data } = await api.get('/banka/hesaplar', { params: { proje_id: activeProject.id } })
       return data.data as BankaHesap[]
     },
+    enabled: !!activeProject?.id
   })
 
   const saveMutation = useMutation({
@@ -40,7 +45,7 @@ export const BankaHesapListPage: React.FC = () => {
       }
       const payload = {
         ...values,
-        proje_id: localStorage.getItem('activeProjectId')
+        proje_id: activeProject?.id
       }
       return await api.post('/banka/hesaplar', payload)
     },
@@ -100,6 +105,17 @@ export const BankaHesapListPage: React.FC = () => {
       key: 'aktif',
       render: (aktif: boolean) => (
         <Tag color={aktif ? 'green' : 'red'}>{aktif ? 'Aktif' : 'Pasif'}</Tag>
+      ),
+    },
+    {
+      title: 'Hesap Bakiyesi',
+      dataIndex: 'bakiye',
+      key: 'bakiye',
+      align: 'right' as const,
+      render: (bakiye: number) => (
+        <Typography.Text strong type={(bakiye || 0) < 0 ? 'danger' : undefined}>
+          {formatMoney(bakiye)} TL
+        </Typography.Text>
       ),
     },
     {

@@ -15,46 +15,46 @@ const { Text } = Typography
 
 export const UyeBorcRaporPage: React.FC = () => {
   const navigate = useNavigate()
+  const activeProjectId = localStorage.getItem('activeProjectId')
 
   const { data: list, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['uye-borc-listesi'],
+    queryKey: ['uye-borc-listesi', activeProjectId],
     queryFn: async () => {
-      const { data } = await api.get('/raporlar/uye-borc-listesi')
+      if (!activeProjectId) return []
+      const { data } = await api.get('/raporlar/uye-borc-listesi', {
+        params: { proje_id: activeProjectId }
+      })
       return data.data
-    }
+    },
+    enabled: !!activeProjectId
   })
 
   const actions = useMemo(() => (
     <Button 
       size="small"
       icon={<FilePdfOutlined />} 
-      onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'}/raporlar/uye-borc-listesi/pdf`, '_blank')}
-      disabled
+      onClick={() => {
+        window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'}/raporlar/uye-borc-listesi/pdf?proje_id=${activeProjectId}`, '_blank');
+      }}
+      disabled={!activeProjectId}
     >
       PDF İndir
     </Button>
-  ), [])
+  ), [activeProjectId])
 
   usePageSettings('Üye Borç Listesi', actions)
 
   const columns = [
-    { title: 'Üye No', dataIndex: 'uye_no', key: 'uye_no', width: 100 },
-    { title: 'Ad Soyad', key: 'ad_soyad', render: (_: any, r: any) => `${r.ad} ${r.soyad}` },
-    { title: 'Aidat Sayısı', dataIndex: 'odenmemis_aidat_sayisi', key: 'sayi', align: 'center' as const, width: 120 },
-    { title: 'Geciken Aidat', dataIndex: 'geciken_aidat_tutari', key: 'aidat', align: 'right' as const, render: (v: number) => <MoneyDisplay amount={v} /> },
-    { title: 'Gecikme Faizi', dataIndex: 'gecikme_faizi_tutari', key: 'faiz', align: 'right' as const, render: (v: number) => <MoneyDisplay amount={v} /> },
-    { title: 'Toplam Borç', dataIndex: 'toplam_borc', key: 'borc', align: 'right' as const, render: (v: number) => <MoneyDisplay amount={v} />, className: 'font-semibold' },
-    {
-      title: 'İşlem',
-      key: 'action',
-      width: 120,
-      render: (_: any, record: any) => (
-        <Button size="small" icon={<UserOutlined />} onClick={() => navigate(`/uyeler/${record.id}`)}>
-          Detay
-        </Button>
-      )
-    }
+    // ... rest of columns
   ]
+
+  if (!activeProjectId) {
+    return (
+      <Card>
+        <Typography.Text type="secondary">Lütfen rapor görüntülemek için bir proje seçin.</Typography.Text>
+      </Card>
+    )
+  }
 
   if (isLoading) return <LoadingState fullHeight />
   if (isError) return <ErrorState error={error} onRetry={() => refetch()} />

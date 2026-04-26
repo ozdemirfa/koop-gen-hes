@@ -9,6 +9,8 @@ import { PageHeader } from '../components/common/PageHeader'
 import { useProject } from '../contexts/ProjectContext'
 import { trNumberFormatter, trNumberParser, trMoneyFormatter } from '../lib/format'
 
+import { usePageSettings } from '../contexts/LayoutContext'
+
 const { Text } = Typography
 
 const aylar = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
@@ -21,18 +23,28 @@ export const AidatYillikPlanPage: React.FC = () => {
   const { message: messageApi } = App.useApp()
   const kalemler = Form.useWatch('kalemler', form)
 
+  usePageSettings('Yeni Yıllık Aidat Planı')
+
   // Toplam yıllık ödemeyi hesapla
   const toplamYillikOdeme = React.useMemo(() => {
     return (kalemler || []).reduce((sum: number, k: any) => sum + (Number(k.katsayi_tutari) || 0), 0)
   }, [kalemler])
 
-  const initialKalemler = Array.from({ length: 12 }, (_, i) => ({
-    ay: i + 1,
-    tur: 'normal',
-    katsayi_tutari: 0,
-    son_odeme_gunu: 15,
-    gecikme_faiz_orani: 0
-  }))
+  const initialKalemler = React.useMemo(() => {
+    const saved = localStorage.getItem('system_parameters')
+    const params = saved ? JSON.parse(saved) : {
+      default_gecikme_faizi: 5,
+      default_son_odeme_gunu: 15
+    }
+
+    return Array.from({ length: 12 }, (_, i) => ({
+      ay: i + 1,
+      tur: 'normal',
+      katsayi_tutari: 0,
+      son_odeme_gunu: params.default_son_odeme_gunu,
+      gecikme_faiz_orani: params.default_gecikme_faizi
+    }))
+  }, [])
 
   const createTanimMutation = useMutation({
     mutationFn: async (values: any) => {

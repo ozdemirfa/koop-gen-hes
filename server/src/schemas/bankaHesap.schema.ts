@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { ISLEM_TIPLERI, ODEME_YONTEMLERI } from '../config/constants'
 
 export const bankaHesapSchema = z.object({
+  proje_id: z.string().uuid().optional().nullable(),
   banka_adi: z.string().min(1, 'Banka adı zorunlu'),
   sube: z.string().optional().nullable(),
   hesap_no: z.string().optional().nullable(),

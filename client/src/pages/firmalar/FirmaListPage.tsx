@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { Button, Form, Input, Select, Space, Switch, Tag, Modal, message, Row, Col, Statistic, Card, Typography } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -8,7 +8,6 @@ import { useDebounce } from '../../hooks/useDebounce'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { formatIBAN, formatIBANInput, getIBANRaw, trMoneyFormatter } from '../../lib/format'
 import { DataTable } from '../../components/common/DataTable'
-import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { ErrorState } from '../../components/common/ErrorState'
 
 interface Firma {
@@ -41,6 +40,14 @@ export const FirmaListPage: React.FC = () => {
   const [form] = Form.useForm()
 
   const activeProjectId = localStorage.getItem('activeProjectId')
+
+  // Modal kapandığında verileri sıfırla
+  useEffect(() => {
+    if (!isModalOpen) {
+      setEditing(null)
+      form.resetFields()
+    }
+  }, [isModalOpen, form])
 
   const headerActions = useMemo(() => (
     <Space wrap>
@@ -113,16 +120,10 @@ export const FirmaListPage: React.FC = () => {
     onSuccess: () => {
       message.success(editing ? 'Firma güncellendi' : 'Firma eklendi')
       queryClient.invalidateQueries({ queryKey: ['firmalar'] })
-      closeModal()
+      setIsModalOpen(false)
     },
     onError: (err: any) => message.error(err.message || 'Hata oluştu'),
   })
-
-  const closeModal = () => {
-    setIsModalOpen(false)
-    setEditing(null)
-    form.resetFields()
-  }
 
   const openEdit = (firma: Firma) => {
     setEditing(firma)
@@ -153,16 +154,37 @@ export const FirmaListPage: React.FC = () => {
       dataIndex: 'guncel_bakiye',
       key: 'bakiye',
       align: 'right' as const,
-      width: 130,
-      render: (v: number) => <MoneyDisplay amount={v} colored />
+      width: 150,
+      render: (v: number) => (
+        <div style={{ 
+          background: '#f0f9ff', 
+          padding: '4px 8px', 
+          borderRadius: '6px', 
+          fontWeight: 600,
+          color: v >= 0 ? '#0369a1' : '#b91c1c'
+        }}>
+          {trMoneyFormatter(v)} TL
+        </div>
+      )
     },
     {
       title: 'Birikmiş Teminat',
       dataIndex: 'toplam_teminat',
       key: 'teminat',
       align: 'right' as const,
-      width: 140,
-      render: (v: number) => <MoneyDisplay amount={v} />
+      width: 150,
+      render: (v: number) => (
+        <div style={{ 
+          background: '#f8fafc', 
+          padding: '4px 8px', 
+          borderRadius: '6px', 
+          border: '1px solid #e2e8f0',
+          fontWeight: 600,
+          color: '#475569'
+        }}>
+          {trMoneyFormatter(v)} TL
+        </div>
+      )
     },
     { title: 'Telefon', dataIndex: 'telefon', key: 'telefon', width: 130 },
     {
@@ -212,7 +234,6 @@ export const FirmaListPage: React.FC = () => {
 
   return (
     <div className="animate-in fade-in duration-500">
-      {/* İki satırlı bilgi kartları */}
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} lg={4}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small">
@@ -242,7 +263,7 @@ export const FirmaListPage: React.FC = () => {
               />
               <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 4, paddingTop: 4 }}>
                 <Typography.Text type="secondary" style={{ fontSize: '11px' }}>Fatura Açığı: </Typography.Text>
-                <Typography.Text strong style={{ fontSize: '12px', color: (stats?.toplam_fatura || 0) - (stats?.toplam_kdvli || 0) < 0 ? '#faad14' : 'inherit' }}>
+                <Typography.Text strong style={{ fontSize: '12px', color: (stats?.toplam_fatura || 0) - (stats?.toplam_kdvli || 0) < 0 ? '#b91c1c' : '#faad14' }}>
                   {trMoneyFormatter((stats?.toplam_fatura || 0) - (stats?.toplam_kdvli || 0))} TL
                 </Typography.Text>
               </div>
@@ -290,7 +311,7 @@ export const FirmaListPage: React.FC = () => {
               suffix={<span style={{ fontSize: '12px', fontWeight: 'normal', marginLeft: 4 }}>TL</span>}
             />
             <div style={{ borderTop: '1px solid #ddecff', marginTop: 4, paddingTop: 4 }}>
-              <Typography.Text type="secondary" style={{ fontSize: '11px' }}>Ödeme - KDVli Tutar - Teminat</Typography.Text>
+              <Typography.Text type="secondary" style={{ fontSize: '11px' }}>Ödeme - KDVli Tutar</Typography.Text>
             </div>
           </Card>
         </Col>
@@ -317,7 +338,7 @@ export const FirmaListPage: React.FC = () => {
       <Modal
         title={editing ? 'Firma Düzenle' : 'Yeni Firma'}
         open={isModalOpen}
-        onCancel={closeModal}
+        onCancel={() => setIsModalOpen(false)}
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
         width={640}
@@ -338,7 +359,7 @@ export const FirmaListPage: React.FC = () => {
             </Select>
           </Form.Item>
           <Form.Item name="unvan" label="Ünvan" rules={[{ required: true, message: 'Ünvan zorunlu' }]}>
-            <Input autoComplete="off" />
+            <Input />
           </Form.Item>
           <div style={{ display: 'flex', gap: 16 }}>
             <Form.Item name="vergi_no" label="Vergi No" style={{ flex: 1 }}>

@@ -15,7 +15,6 @@ import {
 import uyelerRoutes from './uyeler.routes'
 import bloklarRoutes from './bloklar.routes'
 import aidatlarRoutes from './aidatlar.routes'
-import gelirGiderRoutes from './gelirGider.routes'
 import firmalarRoutes from './firmalar.routes'
 import sozlesmelerRoutes from './sozlesmeler.routes'
 import hakedislerRoutes from './hakedisler.routes'
@@ -46,7 +45,6 @@ router.delete('/settings/pozlar/:id', deletePoz)
 router.use('/uyeler', uyelerRoutes)
 router.use('/bloklar', bloklarRoutes)
 router.use('/aidatlar', aidatlarRoutes)
-router.use('/gelir-gider', gelirGiderRoutes)
 router.use('/firmalar', firmalarRoutes)
 router.use('/sozlesmeler', sozlesmelerRoutes)
 router.use('/hakedisler', hakedislerRoutes)

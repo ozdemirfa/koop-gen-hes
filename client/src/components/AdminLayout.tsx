@@ -21,76 +21,149 @@ import logo from '../assets/logo.png'
 
 const { Header, Sider, Content } = Layout
 
+const menuItems = [
+  { key: '/', icon: <BankOutlined />, label: 'Pano' },
+  { key: '/uyeler', icon: <UserOutlined />, label: 'Üye Yönetimi' },
+  {
+    key: 'aidat-group',
+    icon: <DollarOutlined />,
+    label: 'Aidat Yönetimi',
+    children: [
+      { key: '/aidatlar', label: 'Aidat Listesi' },
+      { key: '/aidatlar/tanimlar', label: 'Aidat Tanımları' },
+    ],
+  },
+  {
+    key: 'firmalar-group',
+    icon: <ShopOutlined />,
+    label: 'Firmalar',
+    children: [
+      { key: '/firmalar', label: 'Firma Listesi' },
+      { key: '/hakedisler', label: 'Hakedişler' },
+      { key: '/faturalar', label: 'Faturalar' },
+      { key: '/cari-hesaplar', label: 'Firma Ekstre' },
+    ],
+  },
+  {
+    key: 'payment-management-group',
+    icon: <WalletOutlined />,
+    label: 'Ödeme Yönetimi',
+    children: [
+      { key: '/banka-hesaplari', label: 'Banka Hesapları' },
+      { key: '/cari-hesaplar/odeme-kayit', label: 'Ödeme/Tahsilat Kaydı' },
+      { key: '/cek-takibi', label: 'Çek Takibi' },
+      { key: '/gelir-gider', label: 'Cari Hareketler' },
+      { key: '/gelir-gider/kategoriler', label: 'Gider Kategorileri' },
+    ],
+  },
+  { key: '/fatura-irsaliye', icon: <TruckOutlined />, label: 'Malzeme Teslimat' },
+  { key: '/projeler', icon: <ProjectOutlined />, label: 'İnşaat Projeleri' },
+  {
+    key: 'raporlar-group',
+    icon: <PieChartOutlined />,
+    label: 'Raporlar',
+    children: [
+      { key: '/raporlar/aylik', label: 'Aylık Mali Rapor' },
+      { key: '/raporlar/yillik', label: 'Yıllık Mali Rapor' },
+      { key: '/raporlar/uye-borc', label: 'Üye Borç Listesi' },
+      { key: '/raporlar/mizan', label: 'Genel Mizan' },
+    ],
+  },
+]
+
 export const AdminLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false)
+  const [openKeys, setOpenKeys] = useState<string[]>([])
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const navigate = useNavigate()
   const location = useLocation()
   const { title, headerActions } = useLayout()
   const { activeProject } = useProject()
   const { signOut } = useAuth()
 
+  // Handle window resize
+  React.useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  // Find the matching menu key and its parent group
+  const { selectedKey, parentKey } = React.useMemo(() => {
+    const pathname = location.pathname
+    
+    // 1. Exact match
+    for (const item of menuItems) {
+      if (item.children) {
+        const child = item.children.find(c => c.key === pathname)
+        if (child) return { selectedKey: child.key, parentKey: item.key }
+      } else if (item.key === pathname) {
+        return { selectedKey: item.key, parentKey: null }
+      }
+    }
+
+    // 2. Prefix match
+    let bestMatch = { selectedKey: '', parentKey: null as string | null }
+    for (const item of menuItems) {
+      if (item.children) {
+        for (const child of item.children) {
+          if (pathname.startsWith(child.key) && child.key !== '/' && child.key.length > bestMatch.selectedKey.length) {
+            bestMatch = { selectedKey: child.key, parentKey: item.key }
+          }
+        }
+      } else if (item.key !== '/' && pathname.startsWith(item.key) && item.key.length > bestMatch.selectedKey.length) {
+        bestMatch = { selectedKey: item.key, parentKey: null }
+      }
+    }
+
+    if (pathname === '/' && !bestMatch.selectedKey) return { selectedKey: '/', parentKey: null }
+    return bestMatch
+  }, [location.pathname])
+
+  // Sync openKeys when selection changes
+  React.useEffect(() => {
+    if (parentKey && !openKeys.includes(parentKey)) {
+      setOpenKeys(prev => [...prev, parentKey])
+    }
+  }, [parentKey])
+
   const handleLogout = async () => {
     await signOut()
+  }
+
+  const handleNavigation = (key: string) => {
+    console.log('Navigating to:', key);
+    if (key.includes('-group')) {
+        console.log('Group clicked, ignoring navigation');
+        return;
+    }
+    
+    // Rota yapısına uygun olarak '/' ile başlayan mutlak yolları düzeltiyoruz
+    const path = key.startsWith('/') ? key.substring(1) : key;
+    navigate(path === '' ? '/' : path);
+    
+    // On mobile, ensure sidebar closes
+    if (isMobile) {
+      setCollapsed(true)
+    }
+  }
+
+  const handleOpenChange = (keys: string[]) => {
+    // Keep only the latest open key (accordion behavior)
+    const latestOpenKey = keys.find(key => openKeys.indexOf(key) === -1)
+    setOpenKeys(latestOpenKey ? [latestOpenKey] : [])
   }
 
   const settingsMenu = {
     items: [
       { key: '/ayarlar/birimler', label: 'Birimler' },
       { key: '/ayarlar/pozlar', label: 'Pozlar' },
+      { key: '/ayarlar/parametreler', label: 'Parametreler' },
     ],
-    onClick: ({ key }: { key: string }) => navigate(key),
+    onClick: ({ key }: { key: string }) => handleNavigation(key),
   }
-
-  const menuItems = [
-    { key: '/', icon: <BankOutlined />, label: 'Pano' },
-    { key: '/uyeler', icon: <UserOutlined />, label: 'Üye Yönetimi' },
-    {
-      key: 'aidat-group',
-      icon: <DollarOutlined />,
-      label: 'Aidat Yönetimi',
-      children: [
-        { key: '/aidatlar', label: 'Aidat Listesi' },
-        { key: '/aidatlar/tanimlar', label: 'Aidat Tanımları' },
-      ],
-    },
-    {
-      key: 'firmalar-group',
-      icon: <ShopOutlined />,
-      label: 'Firmalar',
-      children: [
-        { key: '/firmalar', label: 'Firma Listesi' },
-        { key: '/hakedisler', label: 'Hakedişler' },
-        { key: '/faturalar', label: 'Faturalar' },
-        { key: '/cari-hesaplar', label: 'Firma Ekstre' },
-      ],
-    },
-    {
-      key: 'payment-management-group',
-      icon: <WalletOutlined />,
-      label: 'Ödeme Yönetimi',
-      children: [
-        { key: '/banka-hesaplari', label: 'Banka Hesapları' },
-        { key: '/cari-hesaplar/odeme-kayit', label: 'Ödeme/Tahsilat Kaydı' },
-        { key: '/cek-takibi', label: 'Çek Takibi' },
-        { key: '/gelir-gider', label: 'Cari Hareketler' },
-        { key: '/gelir-gider/kategoriler', label: 'Gider Kategorileri' },
-        { key: '/banka-uzlastirma', label: 'Banka Uzlaştırma' },
-      ],
-    },
-    { key: '/fatura-irsaliye', icon: <TruckOutlined />, label: 'Malzeme Teslimat' },
-    { key: '/projeler', icon: <ProjectOutlined />, label: 'İnşaat Projeleri' },
-    {
-      key: 'raporlar-group',
-      icon: <PieChartOutlined />,
-      label: 'Raporlar',
-      children: [
-        { key: '/raporlar/aylik', label: 'Aylık Mali Rapor' },
-        { key: '/raporlar/yillik', label: 'Yıllık Mali Rapor' },
-        { key: '/raporlar/uye-borc', label: 'Üye Borç Listesi' },
-        { key: '/raporlar/mizan', label: 'Genel Mizan' },
-      ],
-    },
-  ]
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -99,7 +172,7 @@ export const AdminLayout: React.FC = () => {
         collapsed={collapsed}
         onCollapse={(value) => setCollapsed(value)}
         breakpoint="lg"
-        collapsedWidth={window.innerWidth < 768 ? 0 : 80}
+        collapsedWidth={isMobile ? 0 : 80}
         theme="light"
         style={{
           borderRight: '1px solid #e2e8f0',
@@ -153,10 +226,12 @@ export const AdminLayout: React.FC = () => {
         </div>
         <Menu
           theme="light"
-          selectedKeys={[location.pathname]}
+          selectedKeys={selectedKey ? [selectedKey] : []}
+          openKeys={openKeys}
+          onOpenChange={handleOpenChange}
           mode="inline"
           items={menuItems}
-          onClick={({ key }) => navigate(key)}
+          onClick={({ key }) => handleNavigation(key)}
           style={{ borderRight: 0, marginTop: 8, paddingBottom: 48 }}
         />
       </Sider>

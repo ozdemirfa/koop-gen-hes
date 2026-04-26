@@ -26,4 +26,7 @@ router.get('/:id/aidatlar', uyeController.getUyeAidatlar)
 // POST /api/uyeler/:id/toplu-odeme
 router.post('/:id/toplu-odeme', uyeController.bulkPayment)
 
+// POST /api/uyeler/:id/match-payments
+router.post('/:id/match-payments', uyeController.matchPaymentsFIFO)
+
 export default router

@@ -12,7 +12,33 @@ export const bankaHesapService = {
     const { data, error } = await q.order('banka_adi')
 
     if (error) throw error
-    return data
+
+    // Bakiyeleri hesapla
+    const updatedData = await Promise.all((data || []).map(async (hesap) => {
+      let bakiye = 0
+      try {
+        const { data: hareketler, error: hError } = await supabaseAdmin
+          .from('banka_hareketleri')
+          .select('tutar, islem_tipi')
+          .eq('banka_hesap_id', hesap.id)
+        
+        if (hError) throw hError
+
+        hareketler?.forEach(h => {
+          const tutar = Number(h.tutar || 0)
+          if (h.islem_tipi === 'gelir') {
+            bakiye += tutar
+          } else if (h.islem_tipi === 'gider') {
+            bakiye -= tutar
+          }
+        })
+      } catch (err) {
+        console.error(`Bakiye hesaplama hatası (Banka: ${hesap.id}):`, err)
+      }
+      return { ...hesap, bakiye }
+    }))
+
+    return updatedData
   },
 
   async createHesap(body: Record<string, any>) {
@@ -42,13 +68,13 @@ export const bankaHesapService = {
   async listHareketler(query: Record<string, any>) {
     let q = supabaseAdmin
       .from('banka_hareketleri')
-      .select('*, banka_hesaplari(banka_adi), cari_hareketler!banka_hareket_id(firmalar(unvan))')
+      .select('*, banka_hesaplari!inner(banka_adi, proje_id), cari_hareketler!banka_hareket_id(firmalar(unvan))')
 
-    // Eğer banka_hesap_id varsa proje_id filtresine gerek yok, hatta proje_id null ise sorun çıkarabilir
+    // Filtreleme: banka_hesap_id varsa ona göre, yoksa proje_id varsa banka_hesaplari üzerinden filtrele
     if (query.banka_hesap_id) {
       q = q.eq('banka_hesap_id', query.banka_hesap_id)
     } else if (query.proje_id) {
-      q = q.eq('proje_id', query.proje_id)
+      q = q.eq('banka_hesaplari.proje_id', query.proje_id)
     }
 
     if (query.eslesti !== undefined) q = q.eq('eslesti', query.eslesti === 'true')
@@ -70,35 +96,46 @@ export const bankaHesapService = {
 
     // 2. Eğer firma_id varsa cari hareket de oluştur
     if (body.firma_id && hareket) {
-      // islem_tipi: 'gelir' (bize para geliyor) -> cari hareket: 'borc' (firmaya borç yazarız/bizden mal aldı gibi)
-      // islem_tipi: 'gider' (bizden para çıkıyor) -> cari hareket: 'alacak' (firma bizden alacağını tahsil etti/ödeme yaptık)
-      const hareket_tipi = body.islem_tipi === 'gelir' ? 'borc' : 'alacak';
+      // Proje Perspektifinde: Gelir/Tahsilat = BORC (projenin borcu artıyor), Gider/Ödeme = ALACAK (projenin alacağı artıyor/borcu kapanıyor)
+      const borc = body.islem_tipi === 'gelir' ? body.tutar : 0;
+      const alacak = body.islem_tipi === 'gider' ? body.tutar : 0;
       
-      const cariBody = {
-        firma_id: body.firma_id,
-        proje_id: body.proje_id,
-        tarih: body.tarih,
-        tutar: body.tutar,
-        hareket_tipi,
-        odeme_yontemi: body.odeme_yontemi || 'banka',
-        aciklama: body.aciklama,
-        banka_hareket_id: hareket.id
-      }
+      // Cari hesabı bul
+      const { data: cari } = await supabaseAdmin
+        .from('cari_hesaplar')
+        .select('id')
+        .eq('proje_id', body.proje_id)
+        .eq('firma_id', body.firma_id)
+        .single()
 
-      const { error: cariError } = await supabaseAdmin
-        .from('cari_hareketler')
-        .insert([cariBody])
+      if (cari) {
+        const cariBody = {
+          cari_hesap_id: cari.id,
+          proje_id: body.proje_id,
+          islem_turu: body.islem_tipi === 'gelir' ? 'gelen_odeme' : 'giden_odeme',
+          tarih: body.tarih,
+          borc,
+          alacak,
+          odeme_turu: body.odeme_yontemi || 'banka',
+          aciklama: body.aciklama,
+          banka_hareket_id: hareket.id
+        }
 
-      if (cariError) {
-        console.error('Cari hareket oluşturulurken hata:', cariError)
-        // Banka hareketi silinmesin ama hata loglansın. 
-        // İstenirse rollback mekanizması eklenebilir.
-      } else {
-        // Cari hareket oluşturulduysa banka hareketini 'eslesti' olarak işaretle
-        await supabaseAdmin
-          .from('banka_hareketleri')
-          .update({ eslesti: true })
-          .eq('id', hareket.id)
+        const { error: cariError } = await supabaseAdmin
+          .from('cari_hareketler')
+          .insert([cariBody])
+
+        if (cariError) {
+          console.error('Cari hareket oluşturulurken hata:', cariError)
+          // Banka hareketi silinmesin ama hata loglansın. 
+          // İstenirse rollback mekanizması eklenebilir.
+        } else {
+          // Cari hareket oluşturulduysa banka hareketini 'eslesti' olarak işaretle
+          await supabaseAdmin
+            .from('banka_hareketleri')
+            .update({ eslesti: true })
+            .eq('id', hareket.id)
+        }
       }
     }
 

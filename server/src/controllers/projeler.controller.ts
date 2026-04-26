@@ -3,8 +3,10 @@ import { AuthRequest } from '../middleware/auth'
 import { projeService } from '../services/proje.service'
 import { catchAsync } from '../utils/catchAsync'
 import { supabaseAdmin } from '../config/supabase'
+import logger from '../utils/logger'
 
 export const getProjeler = catchAsync(async (_req: AuthRequest<any, any, any, any>, res: Response) => {
+  logger.info('Proje listeleme isteği')
   const data = await projeService.list()
   res.json({ success: true, data })
 })

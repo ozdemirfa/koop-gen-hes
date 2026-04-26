@@ -10,19 +10,26 @@ export const uyeService = {
 
     logger.info(`Üye listeleme isteği - ProjeID: ${query.proje_id}, Query: ${JSON.stringify(query)}`)
 
+    // !serefiye_id explicitly tells PostgREST to use the serefiye_id FK on the uyeler table
+    let selectQuery = '*, serefiye_tablosu!serefiye_id(*, bloklar(blok_adi))'
+    
     let q = supabaseAdmin
       .from('uyeler')
-      .select('*, serefiye_tablosu!serefiye_id(*, bloklar(blok_adi))', { count: 'exact' })
+      .select(selectQuery, { count: 'exact' })
 
     const activeProjeId = query.proje_id || query.activeProjectId
     if (activeProjeId && activeProjeId !== 'null' && activeProjeId !== 'undefined') {
       q = q.eq('proje_id', activeProjeId)
     }
+    
     if (query.durum) q = q.eq('durum', query.durum)
     
-    // Blok bazlı filtreleme (Sadece o bloka atanmış üyeleri getirir, atanmamışları eler)
+    // Blok bazlı filtreleme
     if (query.blok_id) {
+      // Filter on joined table
       q = q.eq('serefiye_tablosu.blok_id', query.blok_id)
+      // To ensure parent records are filtered out if join is empty or mismatched, 
+      // we might need !inner but PostgREST behavior varies by version.
     }
     
     // Daire atama durumuna göre filtreleme
@@ -37,7 +44,7 @@ export const uyeService = {
     }
 
     const { data, error, count } = await q
-      .order('durum', { ascending: true }) // aktif olanlar üstte
+      .order('durum', { ascending: true })
       .order('created_at', { ascending: false })
       .range(from, to)
 
@@ -190,6 +197,22 @@ export const uyeService = {
       logger.error(`Üye aidatları çekme hatası (UyeID: ${uyeId}):`, error)
       throw error
     }
+    return data
+  },
+
+  async matchPaymentsFIFO(uyeId: string, projeId: string) {
+    if (!projeId) throw ApiError.badRequest('proje_id zorunludur')
+    
+    const { data, error } = await supabaseAdmin.rpc('fn_match_member_payments_fifo', {
+      p_proje_id: projeId,
+      p_uye_id: uyeId
+    })
+
+    if (error) {
+      logger.error(`FIFO eşleştirme hatası (UyeID: ${uyeId}, ProjeID: ${projeId}):`, error)
+      throw error
+    }
+
     return data
   }
 }

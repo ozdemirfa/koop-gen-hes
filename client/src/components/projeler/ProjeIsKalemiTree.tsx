@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Table, Button, Modal, Form, Input, InputNumber, Select, Space, App, Popconfirm, Card, Typography } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
@@ -18,6 +18,7 @@ interface ProjeIsKalemi {
   birim_fiyat?: number
   butce_tutari: number
   durum: 'planli' | 'devam_ediyor' | 'tamamlandi' | 'iptal'
+  notlar?: string
 }
 
 interface Props {
@@ -30,7 +31,7 @@ const BIRIMLER = ['m2', 'm3', 'mt', 'adet', 'ton', 'kg', 'litre', 'set', 'gun', 
 export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
   const queryClient = useQueryClient()
   const [modalOpen, setModalOpen] = useState(false)
-  const [editingKalem, setEditingKalem] = useState<any>(null)
+  const [editingKalem, setEditingKalem] = useState<ProjeIsKalemi | null>(null)
   const [isBudgetManual, setIsBudgetManual] = useState(false)
   const [form] = Form.useForm()
   const { message: messageApi } = App.useApp()
@@ -46,6 +47,24 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
 
   // Data prop zaten düz liste (ust_kalem_id kalktığı için)
   const flatList = [...(data || [])].sort((a, b) => (a.sira_no || 0) - (b.sira_no || 0))
+
+  // Modal her açıldığında veya editingKalem değiştiğinde form değerlerini kontrol et
+  useEffect(() => {
+    if (modalOpen) {
+      if (editingKalem) {
+        form.setFieldsValue(editingKalem)
+        // Eğer bütçe tutarı 0 geliyorsa ama miktar/fiyat varsa hesapla
+        if (!editingKalem.butce_tutari && editingKalem.miktar && editingKalem.birim_fiyat) {
+          const m = Number(editingKalem.miktar) || 0
+          const f = Number(editingKalem.birim_fiyat) || 0
+          form.setFieldsValue({ butce_tutari: Math.round(m * f * 100) / 100 })
+        }
+      } else {
+        form.resetFields()
+        form.setFieldsValue({ sira_no: flatList.length + 1, durum: 'planli' })
+      }
+    }
+  }, [modalOpen, editingKalem, form, flatList.length])
 
   const handlePozSelect = (pozId: string) => {
     const selectedPoz = pozlar?.find(p => p.id === pozId)
@@ -125,7 +144,6 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
             icon={<EditOutlined />} 
             onClick={() => {
               setEditingKalem(r)
-              form.setFieldsValue(r)
               setIsBudgetManual(false)
               setModalOpen(true)
             }} 
@@ -185,8 +203,6 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
       extra={
         <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => {
           setEditingKalem(null)
-          form.resetFields()
-          form.setFieldsValue({ sira_no: flatList.length + 1 })
           setIsBudgetManual(false)
           setModalOpen(true)
         }}>
@@ -206,18 +222,19 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
       <Modal
         title={editingKalem ? 'İş Kalemi Düzenle' : 'Yeni Harcama Kalemi'}
         open={modalOpen}
-        onCancel={() => setModalOpen(false)}
+        onCancel={() => {
+          setModalOpen(false)
+          setEditingKalem(null)
+        }}
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
         width={600}
-        destroyOnHidden
       >
         <Form 
           form={form} 
           layout="vertical" 
           onFinish={(v) => saveMutation.mutate(v)} 
           onValuesChange={handleValuesChange}
-          initialValues={{ durum: 'planli', sira_no: 0 }}
           autoComplete="off"
           size="small"
         >
@@ -276,17 +293,19 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
                 autoComplete="off"
               />
             </Form.Item>
-            <Form.Item name="butce_tutari" label="Bütçe Tutarı" style={{ flex: 1 }}>
+            <Form.Item label="Bütçe Tutarı" style={{ flex: 1 }}>
               <Space.Compact style={{ width: '100%' }}>
-                <InputNumber 
-                  style={{ width: 'calc(100% - 32px)' }} 
-                  formatter={trMoneyFormatter} 
-                  parser={trNumberParser} 
-                  readOnly={!isBudgetManual}
-                  decimalSeparator=","
-                  precision={2}
-                  autoComplete="off"
-                />
+                <Form.Item name="butce_tutari" noStyle>
+                  <InputNumber 
+                    style={{ width: 'calc(100% - 32px)' }} 
+                    formatter={trMoneyFormatter} 
+                    parser={trNumberParser} 
+                    readOnly={!isBudgetManual}
+                    decimalSeparator=","
+                    precision={2}
+                    autoComplete="off"
+                  />
+                </Form.Item>
                 <Button 
                   type={isBudgetManual ? "primary" : "default"} 
                   icon={<EditOutlined />} 

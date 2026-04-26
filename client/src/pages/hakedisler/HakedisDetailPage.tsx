@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { Card, Descriptions, Table, Button, InputNumber, Tag, Row, Col, Statistic, Space, message, Popconfirm, Select, Modal, Typography } from 'antd'
+import { Card, Descriptions, Table, Button, InputNumber, Tag, Row, Col, Statistic, Space, Popconfirm, Select, Modal, Typography, App } from 'antd'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { CheckOutlined, SaveOutlined, FilePdfOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons'
+import { CheckOutlined, SaveOutlined, FilePdfOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined, RollbackOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
@@ -60,6 +60,7 @@ export const HakedisDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { message } = App.useApp()
   const [editableKalemler, setEditableKalemler] = useState<EditableKalem[]>([])
   const [hasChanges, setHasChanges] = useState(false)
   const [addModalOpen, setAddModalOpen] = useState(false)
@@ -126,6 +127,10 @@ export const HakedisDetailPage: React.FC = () => {
 
   const approveMutation = useMutation({
     mutationFn: async () => {
+      // Eğer değişiklik varsa önce kaydet
+      if (hasChanges) {
+        await saveMutation.mutateAsync()
+      }
       const { data } = await api.put(`/hakedisler/${id}/onayla`)
       return data
     },
@@ -135,6 +140,18 @@ export const HakedisDetailPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['hakedisler'] })
     },
     onError: (err: any) => message.error(err.message || 'Hata oluştu'),
+  })
+
+  const unapproveMutation = useMutation({
+    mutationFn: async () => {
+      return api.put(`/hakedisler/${id}/onay-iptal`)
+    },
+    onSuccess: () => {
+      message.success('Hakediş onayı iptal edildi, tekrar düzenlenebilir.')
+      queryClient.invalidateQueries({ queryKey: ['hakedis', id] })
+      queryClient.invalidateQueries({ queryKey: ['hakedisler'] })
+    },
+    onError: (err: any) => message.error(err.message || 'İşlem başarısız'),
   })
 
   const handleMiktarChange = (index: number, value: number | null) => {
@@ -205,7 +222,7 @@ export const HakedisDetailPage: React.FC = () => {
   const digerKesintiler = Number(hakedis?.diger_kesintiler || 0)
   const netTutar = hakedisToplam - teminatKesintisi - stopajKesintisi - digerKesintiler
 
-  const handlePdfDownload = async () => {
+  const handlePdfDownload = React.useCallback(async () => {
     try {
       const { data } = await api.get(`/hakedisler/${id}/pdf`, { responseType: 'blob' })
       const blob = new Blob([data], { type: 'application/pdf' })
@@ -221,7 +238,7 @@ export const HakedisDetailPage: React.FC = () => {
       console.error('PDF Download Error:', err)
       message.error('PDF indirilirken hata oluştu')
     }
-  }
+  }, [id, hakedis?.hakedis_no])
 
   const actions = useMemo(() => (
     <Space>
@@ -249,14 +266,14 @@ export const HakedisDetailPage: React.FC = () => {
           </Button>
           <Popconfirm
             title="Hakediş onayla"
-            description="Hakediş onaylanacak ve cari hareket oluşturulacak. Onaylıyor musunuz?"
+            description={hasChanges ? "Hakediş önce kaydedilecek, sonra onaylanacaktır. Onaylıyor musunuz?" : "Hakediş onaylanacak ve cari hareket oluşturulacak. Onaylıyor musunuz?"}
             onConfirm={() => approveMutation.mutate()}
             okText="Onayla"
             cancelText="Vazgeç"
           >
             <Button
               icon={<CheckOutlined />}
-              loading={approveMutation.isPending}
+              loading={approveMutation.isPending || saveMutation.isPending}
               style={{ backgroundColor: '#52c41a', borderColor: '#52c41a', color: '#fff' }}
             >
               Onayla
@@ -264,8 +281,24 @@ export const HakedisDetailPage: React.FC = () => {
           </Popconfirm>
         </Space>
       )}
+      {hakedis?.durum === 'onaylandi' && (
+        <Popconfirm
+          title="Hakediş onayı iptal edilecek ve cari hareketi silinecek. Emin misiniz?"
+          onConfirm={() => unapproveMutation.mutate()}
+          okText="Evet"
+          cancelText="Hayır"
+        >
+          <Button
+            icon={<RollbackOutlined />}
+            loading={unapproveMutation.isPending}
+            danger
+          >
+            Onaydan Geri Al
+          </Button>
+        </Popconfirm>
+      )}
     </Space>
-  ), [navigate, handlePdfDownload, isTaslak, hasChanges, saveMutation.isPending, approveMutation.isPending])
+  ), [navigate, handlePdfDownload, isTaslak, hakedis?.durum, hasChanges, saveMutation.isPending, approveMutation.isPending, unapproveMutation.isPending])
 
   usePageSettings(hakedis ? `Hakediş #${hakedis.hakedis_no}` : 'Hakediş Detayı', actions)
 
@@ -302,7 +335,7 @@ export const HakedisDetailPage: React.FC = () => {
             value={kalem.bu_ay_miktar}
             min={0}
             step={0.001}
-            onChange={(v) => handleMiktarChange(index, v)}
+            onChange={(v) => handleMiktarChange(index, v as number | null)}
             size="small"
             style={{ width: '100%' }}
             formatter={trNumberFormatter}
@@ -326,7 +359,7 @@ export const HakedisDetailPage: React.FC = () => {
             value={kalem.birim_fiyat}
             min={0}
             step={0.01}
-            onChange={(v) => handleFiyatChange(index, v)}
+            onChange={(v) => handleFiyatChange(index, v as number | null)}
             size="small"
             style={{ width: '100%' }}
             formatter={trMoneyFormatter}
@@ -361,7 +394,7 @@ export const HakedisDetailPage: React.FC = () => {
             value={kalem.kdv_orani}
             min={0}
             max={100}
-            onChange={(v) => handleKdvChange(index, v)}
+            onChange={(v) => handleKdvChange(index, v as number | null)}
             size="small"
             style={{ width: '100%' }}
           />
@@ -414,7 +447,7 @@ export const HakedisDetailPage: React.FC = () => {
             <Descriptions.Item label="Onay Tarihi">
               {hakedis.onay_tarihi ? dayjs(hakedis.onay_tarihi).format('DD.MM.YYYY') : '-'}
             </Descriptions.Item>
-            <Descriptions.Item label="Açıklama" span={3}>
+            <Descriptions.Item label="Açıklama" span={2}>
               {hakedis.aciklama || '-'}
             </Descriptions.Item>
           </Descriptions>
@@ -502,12 +535,14 @@ export const HakedisDetailPage: React.FC = () => {
             <Table.Summary fixed>
               <Table.Summary.Row>
                 <Table.Summary.Cell index={0} colSpan={7} align="right">
-                  <strong>Hakediş Toplam:</strong>
+                  <strong>Matrah Toplamı:</strong>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={7}>
                   <strong><MoneyDisplay amount={araToplam} /></strong>
                 </Table.Summary.Cell>
-                <Table.Summary.Cell index={8} />
+                <Table.Summary.Cell index={8} align="right">
+                  <strong>KDVli Toplam:</strong>
+                </Table.Summary.Cell>
                 <Table.Summary.Cell index={9}>
                   <strong><MoneyDisplay amount={hakedisToplam} /></strong>
                 </Table.Summary.Cell>

@@ -9,40 +9,79 @@ export const raporService = {
         .eq('id', projeId)
         .single();
 
+      // 1. Proje bazlı tüm hareketleri çek (Join ile cari türünü al)
       const { data: hareketler, error: hError } = await supabaseAdmin
         .from('cari_hareketler')
-        .select('islem_turu, borc, alacak, cari_hesap_id, cari_hesaplar(cari_turu)')
+        .select(`
+          islem_turu, 
+          borc, 
+          alacak, 
+          cari_hesap_id, 
+          odeme_turu, 
+          cari_hesaplar!inner(cari_turu)
+        `)
         .eq('proje_id', projeId);
 
       if (hError) throw hError;
 
+      // 2. Hakedişler üzerinden Gerçek Tahakkuk Eden Gider (KDVli) - Referans için tutuluyor
+      const { data: dbHakedisler } = await supabaseAdmin
+        .from('hakedisler')
+        .select('hakedis_toplam, ara_toplam, kdv_tutar, teminat_kesintisi')
+        .eq('proje_id', projeId)
+        .in('durum', ['onaylandi', 'odendi']);
+
+      const hakedis_toplam_gider = dbHakedisler?.reduce((s, h) => s + Number(h.hakedis_toplam || (Number(h.ara_toplam || 0) + Number(h.kdv_tutar || 0))), 0) || 0;
+      const birikmis_teminat = dbHakedisler?.reduce((acc, h) => acc + Number(h.teminat_kesintisi || 0), 0) || 0;
+
+      // 3. Toplamları Hesapla
       let toplam_gelir = 0;
-      let toplam_gider = 0;
       let toplam_tahsilat = 0;
       let toplam_odeme = 0;
-      let cari_bakiye = 0;
+      let kasa_borc = 0;
+      let kasa_alacak = 0;
+      let firma_toplam_alacak = 0;
+      let firma_toplam_borc = 0;
 
       const balances: Record<string, { bakiye: number; tur: string }> = {};
 
       hareketler?.forEach(h => {
         const borc = Number(h.borc || 0);
         const alacak = Number(h.alacak || 0);
+        const tur = (h.cari_hesaplar as any)?.cari_turu;
 
-        if (h.islem_turu === 'aidat_kayit') toplam_gelir += alacak;
-        if (h.islem_turu === 'hakedis') toplam_gider += borc;
-        if (h.islem_turu === 'gelen_odeme') toplam_tahsilat += borc;
-        if (h.islem_turu === 'giden_odeme') toplam_odeme += alacak;
-
-        cari_bakiye += (alacak - borc);
-
-        const id = h.cari_hesap_id;
-        const tur = (h.cari_hesaplar as any)?.cari_turu || 'bilinmiyor';
-        
-        if (!balances[id]) {
-          balances[id] = { bakiye: 0, tur };
+        if (tur === 'uye') {
+          if (h.islem_turu === 'aidat_kayit') toplam_gelir += alacak;
+          if (h.islem_turu === 'gelen_odeme') toplam_tahsilat += borc;
+        } else if (tur === 'firma') {
+          // Cari Bakiye için ham kolon toplamları (Kesin Kural: Alacak - Borç)
+          firma_toplam_alacak += alacak;
+          firma_toplam_borc += borc;
+          
+          // Yapılan gerçek ödemeler (Giden ödeme satırları)
+          if (h.islem_turu === 'giden_odeme' || h.islem_turu === 'odeme') {
+            toplam_odeme += alacak;
+          }
         }
-        balances[id].bakiye += (alacak - borc);
+
+        // Kasa Nakit: Nakit işlemlerin borç-alacak farkı
+        if (h.odeme_turu?.toLowerCase() === 'nakit') {
+          kasa_borc += borc;
+          kasa_alacak += alacak;
+        }
+
+        if (h.cari_hesap_id) {
+          if (!balances[h.cari_hesap_id]) {
+            balances[h.cari_hesap_id] = { bakiye: 0, tur };
+          }
+          balances[h.cari_hesap_id].bakiye += (alacak - borc);
+        }
       });
+
+      const kasa_nakit = kasa_borc - kasa_alacak;
+      const cari_bakiye = firma_toplam_alacak - firma_toplam_borc; 
+      const toplam_gider = hakedis_toplam_gider; 
+
 
       let bekleyen_alacak = 0;
       let bekleyen_borc = 0;
@@ -77,31 +116,24 @@ export const raporService = {
         .from('cekler')
         .select('tutar')
         .eq('proje_id', projeId)
-        .eq('durum', 'bekliyor');
+        .eq('durum', 'beklemede');
       const cek_toplami = cekler?.reduce((acc, c) => acc + Number(c.tutar || 0), 0) || 0;
 
-      // Birikmiş Teminatlar
-      const { data: hakedisler } = await supabaseAdmin
-        .from('hakedisler')
-        .select('teminat_kesintisi')
-        .eq('proje_id', projeId)
-        .in('durum', ['onaylandi', 'odendi']);
-      const birikmis_teminat = hakedisler?.reduce((acc, h) => acc + Number(h.teminat_kesintisi || 0), 0) || 0;
-
+      // Çekler (Bekleyen çekler toplamı)
       // Gecikme Faiz Tahsilatı
       const { data: aidatlar } = await supabaseAdmin
         .from('aidatlar')
         .select('gecikme_faizi')
         .eq('proje_id', projeId)
-        .eq('durum', 'odendi');
+        .eq('durum', 'odendi')
+        .eq('faiz_yansitildi', true);
       const gecikme_faiz_tahsilati = aidatlar?.reduce((acc, a) => acc + Number(a.gecikme_faizi || 0), 0) || 0;
-
       // Banka Bakiyeleri
       const { data: bankaHareketleri } = await supabaseAdmin
         .from('banka_hareketleri')
         .select('tutar, islem_tipi, banka_hesaplari!inner(proje_id)')
         .eq('banka_hesaplari.proje_id', projeId);
-      
+
       let banka_toplami = 0;
       bankaHareketleri?.forEach(bh => {
         if (bh.islem_tipi === 'gelir') banka_toplami += Number(bh.tutar || 0);
@@ -129,8 +161,11 @@ export const raporService = {
         toplam_tahsilat,
         toplam_odeme,
         toplam_fatura,
-        fatura_farki: toplam_fatura - toplam_gider, // User: faturalar - gider tahakkuk
+        fatura_farki: toplam_fatura - toplam_gider,
         kasa_banka: banka_toplami,
+        kasa_nakit,
+        kasa_borc,
+        kasa_alacak,
         bekleyen_alacak,
         bekleyen_borc,
         aktif_uye_sayisi: uyeSayisi || 0,
@@ -141,10 +176,9 @@ export const raporService = {
         gecikme_faiz_tahsilati,
         banka_toplami,
         proje_suresi,
-        odeme_sonrasi_nakit: banka_toplami + cari_bakiye - cek_toplami
+        odeme_sonrasi_nakit: banka_toplami + kasa_nakit + (cari_bakiye < 0 ? cari_bakiye : 0) - cek_toplami - birikmis_teminat
       };
     } catch (err) {
-
       console.error('Fatal error in dashboardOzet:', err);
       throw err;
     }
@@ -197,38 +231,18 @@ export const raporService = {
 
   async getMizan(projeId: string) {
     const { data, error } = await supabaseAdmin
-      .from('cari_hesaplar')
-      .select(`
-        id,
-        cari_adi,
-        cari_turu,
-        uye_id,
-        firma_id,
-        cari_hareketler (alacak, borc)
-      `)
-      .eq('proje_id', projeId);
+      .rpc('get_cari_mizan', { p_proje_id: projeId });
 
     if (error) throw error;
 
-    return (data || []).map(item => {
-      const hareketler = (item.cari_hareketler as any[]) || [];
-      let toplamBorc = 0;
-      let toplamAlacak = 0;
-
-      hareketler.forEach(h => {
-        toplamAlacak += Number(h.alacak || 0);
-        toplamBorc += Number(h.borc || 0);
-      });
-
-      return {
-        id: item.id,
-        cari_adi: item.cari_adi,
-        cari_turu: item.cari_turu,
-        toplam_alacak: toplamAlacak,
-        toplam_borc: toplamBorc,
-        bakiye: toplamAlacak - toplamBorc
-      };
-    });
+    return (data || []).map((item: any) => ({
+      id: item.cari_hesap_id,
+      cari_adi: item.cari_adi,
+      cari_turu: item.cari_turu,
+      toplam_alacak: Number(item.toplam_alacak || 0),
+      toplam_borc: Number(item.toplam_borc || 0),
+      bakiye: Number(item.bakiye || 0) // alacak - borc
+    }));
   },
 
   async uyeBorcListesi(projeId: string) {
@@ -269,42 +283,57 @@ export const raporService = {
   },
 
   async aylikRapor(yil: number, ay: number, projeId: string) {
-    const baslangic = `${yil}-${String(ay).padStart(2, '0')}-01`;
-    const sonGun = new Date(yil, ay, 0).getDate();
-    const bitis = `${yil}-${String(ay).padStart(2, '0')}-${sonGun}`;
+    try {
+      if (!projeId || projeId === 'undefined') {
+        throw new Error('Proje ID zorunludur');
+      }
 
-    const { data: hareketler, error } = await supabaseAdmin
-      .from('cari_hareketler')
-      .select('*, cari_hesaplar(cari_adi)')
-      .eq('proje_id', projeId)
-      .gte('tarih', baslangic)
-      .lte('tarih', bitis)
-      .order('tarih');
+      const baslangic = `${yil}-${String(ay).padStart(2, '0')}-01`;
+      const lastDay = new Date(yil, ay, 0).getDate();
+      const bitis = `${yil}-${String(ay).padStart(2, '0')}-${lastDay}`;
 
-    if (error) throw error;
+      const { data: hareketler, error } = await supabaseAdmin
+        .from('cari_hareketler')
+        .select('*, cari_hesaplar(cari_adi)')
+        .eq('proje_id', projeId)
+        .gte('tarih', baslangic)
+        .lte('tarih', bitis)
+        .order('tarih');
 
-    const data = hareketler || [];
-    
-    // Gelir: aidat_kayit alacak
-    const gelirler = data.filter(h => h.islem_turu === 'aidat_kayit');
-    // Gider: hakedis borc
-    const giderler = data.filter(h => h.islem_turu === 'hakedis');
-    // Tahsilat: gelen_odeme borc
-    const tahsilatlar = data.filter(h => h.islem_turu === 'gelen_odeme');
-    // Odeme: giden_odeme alacak
-    const odemeler = data.filter(h => h.islem_turu === 'giden_odeme');
+      if (error) {
+        console.error('Aylık rapor sorgu hatası:', error);
+        throw error;
+      }
 
-    return {
-      donem: { yil, ay },
-      gelirler,
-      giderler,
-      tahsilatlar,
-      odemeler,
-      toplam_gelir: gelirler.reduce((s, r) => s + Number(r.alacak), 0),
-      toplam_gider: giderler.reduce((s, r) => s + Number(r.borc), 0),
-      toplam_tahsilat: tahsilatlar.reduce((s, r) => s + Number(r.borc), 0),
-      toplam_odeme: odemeler.reduce((s, r) => s + Number(r.alacak), 0)
-    };
+      const data = hareketler || [];
+      
+      // Gelir: aidat_kayit alacak
+      const gelirler = data.filter(h => h.islem_turu === 'aidat_kayit');
+      // Gider: hakedis veya fatura borc
+      const giderler = data.filter(h => h.islem_turu === 'hakedis' || h.islem_turu === 'fatura');
+      // Tahsilat: gelen_odeme borc
+      const tahsilatlar = data.filter(h => h.islem_turu === 'gelen_odeme');
+      // Odeme: giden_odeme alacak
+      const odemeler = data.filter(h => h.islem_turu === 'giden_odeme');
+
+      return {
+        donem: { yil, ay },
+        gelirler,
+        giderler,
+        tahsilatlar,
+        aidat_tahsilat: tahsilatlar, // Frontend compatibility
+        odemeler,
+        toplam_gelir: gelirler.reduce((s, r) => s + Number(r.alacak || 0), 0),
+        toplam_gider: giderler.reduce((s, r) => s + Number(r.borc || 0), 0),
+        toplam_tahsilat: tahsilatlar.reduce((s, r) => s + Number(r.borc || 0), 0),
+        toplam_aidat_tahsilat: tahsilatlar.reduce((s, r) => s + Number(r.borc || 0), 0),
+        toplam_odeme: odemeler.reduce((s, r) => s + Number(r.alacak || 0), 0),
+        yaklasan_odemeler: { t: 0, t1: 0, t2: 0 }
+      };
+    } catch (err) {
+      console.error('Fatal error in aylikRapor:', err);
+      throw err;
+    }
   },
 
   async yillikRapor(yil: number, projeId: string) {
@@ -333,23 +362,25 @@ export const raporService = {
   async hakedisOzet(projeId: string) {
     const { data, error } = await supabaseAdmin
       .from('hakedisler')
-      .select('durum, ara_toplam, net_tutar, sozlesmeler(sozlesme_no, firmalar(unvan))')
+      .select('durum, ara_toplam, hakedis_toplam, net_tutar, sozlesmeler(sozlesme_no, firmalar(unvan))')
       .eq('proje_id', projeId)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
     const ozet = {
-      toplam_hakedis: data?.length || 0,
+      toplam_hakedis_sayisi: data?.length || 0,
       taslak: 0,
       onaylanan: 0,
       odenen: 0,
-      toplam_tutar: 0,
+      toplam_matrah: 0,
+      toplam_kdvli: 0,
       toplam_net: 0
     };
 
     data?.forEach(h => {
-      ozet.toplam_tutar += Number(h.ara_toplam || 0);
+      ozet.toplam_matrah += Number(h.ara_toplam || 0);
+      ozet.toplam_kdvli += Number(h.hakedis_toplam || 0);
       ozet.toplam_net += Number(h.net_tutar || 0);
       if (h.durum === 'taslak') ozet.taslak++;
       if (h.durum === 'onaylandi') ozet.onaylanan++;

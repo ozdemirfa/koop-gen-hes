@@ -1,25 +1,62 @@
 import { supabaseAdmin } from '../config/supabase'
 import { ApiError } from '../utils/ApiError'
 import { parsePagination, toSupabaseRange, paginationMeta } from '../utils/pagination'
+import logger from '../utils/logger'
 
 export const hakedisService = {
   async list(query: Record<string, any>) {
     const pagination = parsePagination(query)
     const { from, to } = toSupabaseRange(pagination)
 
+    logger.debug('Hakediş listesi sorgulanıyor:', query)
+
     let q = supabaseAdmin
       .from('hakedisler')
-      .select('*, sozlesmeler(sozlesme_no, konu, firmalar(unvan))', { count: 'exact' })
+      .select('*, sozlesmeler(sozlesme_no, konu, firma_id, firmalar(unvan))', { count: 'exact' })
 
-    if (query.proje_id) q = q.eq('proje_id', query.proje_id)
-    if (query.sozlesme_id) q = q.eq('sozlesme_id', query.sozlesme_id)
-    if (query.durum) q = q.eq('durum', query.durum)
+    // 1. Proje Filtresi
+    if (query.proje_id) {
+      q = q.eq('proje_id', query.proje_id)
+    }
+    
+    // 2. Sözleşme Filtresi
+    if (query.sozlesme_id) {
+      q = q.eq('sozlesme_id', query.sozlesme_id)
+    }
+    
+    // 3. Firma Filtresi (Cerrahi Müdahale: In-Clause Yöntemi)
+    if (query.firma_id) {
+      // Önce bu firmaya ait tüm sözleşmeleri bul
+      const { data: firmaSozlesmeleri } = await supabaseAdmin
+        .from('sozlesmeler')
+        .select('id')
+        .eq('firma_id', query.firma_id);
+      
+      const sozlesmeIds = firmaSozlesmeleri?.map(s => s.id) || [];
+      
+      if (sozlesmeIds.length === 0) {
+        // Eğer firmanın hiç sözleşmesi yoksa, boş liste dön
+        return { data: [], pagination: paginationMeta(pagination, 0) };
+      }
+      
+      // Sadece bu sözleşmelere ait hakedişleri getir
+      q = q.in('sozlesme_id', sozlesmeIds);
+    }
+    
+    // 4. Durum Filtresi
+    if (query.durum) {
+      q = q.eq('durum', query.durum)
+    }
 
     const { data, error, count } = await q
-      .order('created_at', { ascending: false })
+      .order('hakedis_no', { ascending: false })
       .range(from, to)
 
-    if (error) throw error
+    if (error) {
+      logger.error('Hakediş listesi çekilirken hata:', error)
+      throw error
+    }
+    
     return { data, pagination: paginationMeta(pagination, count || 0) }
   },
 
@@ -148,7 +185,8 @@ export const hakedisService = {
     
     yeniKalemler?.forEach(k => {
       const kalemTutar = Number(k.bu_ay_miktar || 0) * Number(k.birim_fiyat || 0)
-      const kalemKdv = kalemTutar * (Number(k.kdv_orani || 0) / 100)
+      const kdvOrani = k.kdv_orani !== null && k.kdv_orani !== undefined ? Number(k.kdv_orani) : 20
+      const kalemKdv = kalemTutar * (kdvOrani / 100)
       araToplam += kalemTutar
       kdvToplam += kalemKdv
     })
@@ -156,8 +194,11 @@ export const hakedisService = {
     const hakedisToplam = araToplam + kdvToplam
 
     const sozlesme = hakedis.sozlesmeler as any
-    const teminatKesintisi = araToplam * (Number(sozlesme?.teminat_orani || 0) / 100)
-    const stopajKesintisi = araToplam * (Number(sozlesme?.stopaj_orani || 0) / 100)
+    const teminatOrani = Number(sozlesme?.teminat_orani || 0)
+    const stopajOrani = Number(sozlesme?.stopaj_orani || 0)
+    
+    const teminatKesintisi = araToplam * (teminatOrani / 100)
+    const stopajKesintisi = araToplam * (stopajOrani / 100)
     const digerKesintiler = Number((hakedis as any).diger_kesintiler || 0)
     const netTutar = hakedisToplam - teminatKesintisi - stopajKesintisi - digerKesintiler
 
@@ -177,50 +218,102 @@ export const hakedisService = {
   },
 
   async approve(id: string) {
+    logger.info(`Hakediş onaylama işlemi başlatıldı: ${id}`)
+    
     const { data: hakedis, error: getErr } = await supabaseAdmin
       .from('hakedisler')
-      .select('*, sozlesmeler(firma_id)')
+      .select('*, sozlesmeler(firma_id, teminat_orani, stopaj_orani), hakedis_kalemleri(*)')
       .eq('id', id)
       .single()
 
-    if (getErr || !hakedis) throw ApiError.notFound('Hakediş bulunamadı')
-    if (hakedis.durum !== 'taslak') throw ApiError.badRequest('Sadece taslak hakediş onaylanabilir')
+    if (getErr || !hakedis) {
+      logger.error(`Hakediş bulunamadı: ${id}`, getErr)
+      throw ApiError.notFound('Hakediş bulunamadı')
+    }
+    
+    if (hakedis.durum !== 'taslak') {
+      throw ApiError.badRequest('Sadece taslak hakediş onaylanabilir')
+    }
 
-    // Hakediş'i onayla
+    // Onaylamadan önce toplamları hakediş kalemlerine göre yeniden hesapla (Güvenlik için)
+    let araToplam = 0
+    let kdvToplam = 0
+    
+    const kalemler = hakedis.hakedis_kalemleri || []
+    kalemler.forEach((k: any) => {
+      const miktar = Number(k.bu_ay_miktar || 0)
+      const fiyat = Number(k.birim_fiyat || 0)
+      const kalemTutar = miktar * fiyat
+      const kdvOrani = k.kdv_orani !== null && k.kdv_orani !== undefined ? Number(k.kdv_orani) : 20
+      const kalemKdv = kalemTutar * (kdvOrani / 100)
+      araToplam += kalemTutar
+      kdvToplam += kalemKdv
+    })
+
+    const hakedisToplam = araToplam + kdvToplam
+    const sozlesme = hakedis.sozlesmeler as any
+    const teminatKesintisi = araToplam * (Number(sozlesme?.teminat_orani || 0) / 100)
+    const stopajKesintisi = araToplam * (Number(sozlesme?.stopaj_orani || 0) / 100)
+    const digerKesintiler = Number(hakedis.diger_kesintiler || 0)
+    const netTutar = hakedisToplam - teminatKesintisi - stopajKesintisi - digerKesintiler
+
+    logger.info(`Hakediş hesaplamaları tamamlandı. Toplam: ${hakedisToplam}, Net: ${netTutar}`)
+
+    // Hakediş'i güncelle ve onayla
     const { data, error } = await supabaseAdmin
       .from('hakedisler')
-      .update({ durum: 'onaylandi', onay_tarihi: new Date().toISOString().split('T')[0] })
+      .update({ 
+        durum: 'onaylandi', 
+        onay_tarihi: new Date().toISOString().split('T')[0],
+        ara_toplam: araToplam,
+        kdv_tutar: kdvToplam,
+        hakedis_toplam: hakedisToplam,
+        teminat_kesintisi: teminatKesintisi,
+        stopaj_kesintisi: stopajKesintisi,
+        net_tutar: netTutar
+      })
       .eq('id', id)
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      logger.error('Hakediş güncelleme hatası:', error)
+      throw error
+    }
 
-    // Otomatik cari hareket oluştur (Faz 2)
-    const sozlesme = hakedis.sozlesmeler as any
-    if (sozlesme?.firma_id && Number(hakedis.net_tutar) > 0) {
-      // Cari hesabı bul
+    // Otomatik cari hareket oluştur
+    if (sozlesme?.firma_id && Number(data.hakedis_toplam) > 0) {
       const { data: cari } = await supabaseAdmin
         .from('cari_hesaplar')
         .select('id')
         .eq('proje_id', hakedis.proje_id)
         .eq('firma_id', sozlesme.firma_id)
-        .single()
+        .maybeSingle()
 
-      if (cari) {
-        await supabaseAdmin
-          .from('cari_hareketler')
-          .insert([{
-            proje_id: hakedis.proje_id,
-            cari_hesap_id: cari.id,
-            islem_turu: 'hakedis',
-            borc: Number(hakedis.net_tutar),
-            alacak: 0,
-            tarih: new Date().toISOString().split('T')[0],
-            aciklama: `Hakediş #${hakedis.hakedis_no} onayı`,
-            kaynak_tipi: 'hakedis',
-            kaynak_id: id
-          }])
+      if (!cari) {
+        logger.error(`Cari hesap bulunamadı: Proje ${hakedis.proje_id}, Firma ${sozlesme.firma_id}`)
+        throw ApiError.badRequest('Firmaya ait cari hesap bulunamadı. Lütfen önce cari hesap oluşturun.')
+      }
+
+      const { error: movementError } = await supabaseAdmin
+        .from('cari_hareketler')
+        .insert([{
+          proje_id: hakedis.proje_id,
+          cari_hesap_id: cari.id,
+          islem_turu: 'hakedis',
+          borc: Number(data.hakedis_toplam),
+          alacak: 0,
+          tarih: new Date().toISOString().split('T')[0],
+          aciklama: `Hakediş #${hakedis.hakedis_no} onayı (KDV Dahil)`,
+          kaynak_tipi: 'hakedis',
+          kaynak_id: id
+        }])
+
+      if (movementError) {
+        logger.error('Cari hareket oluşturma hatası:', movementError)
+        // Hakediş onayını geri alma veya hatayı yönetme
+        await supabaseAdmin.from('hakedisler').update({ durum: 'taslak', onay_tarihi: null }).eq('id', id)
+        throw movementError
       }
     }
 

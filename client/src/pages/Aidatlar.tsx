@@ -11,6 +11,7 @@ import { useProject } from '../contexts/ProjectContext'
 import { trNumberFormatter, trNumberParser, formatMoney, trMoneyFormatter } from '../lib/format'
 import { LoadingState } from '../components/common/LoadingState'
 import { ErrorState } from '../components/common/ErrorState'
+import { useDebounce } from '../hooks/useDebounce'
 
 const { Text, Title } = Typography
 
@@ -24,6 +25,7 @@ interface Aidat {
   son_odeme_tarihi: string
   gecikme_faizi: number
   gecikme_gun_sayisi: number
+  faiz_yansitildi: boolean
   ad: string
   soyad: string
   uye_no: string
@@ -73,6 +75,8 @@ export const Aidatlar: React.FC = () => {
   const [filterDurum, setFilterDurum] = useState<string | undefined>(undefined)
   const [filterBlokId, setFilterBlokId] = useState<string | undefined>(undefined)
   const [filterHasDaire, setFilterHasDaire] = useState<string | undefined>(undefined)
+  const [filterUyeAdi, setFilterUyeAdi] = useState<string | undefined>(undefined)
+  const debouncedUyeAdi = useDebounce(filterUyeAdi, 300)
   const [pagination, setPagination] = useState({ current: 1, pageSize: 50 })
 
   // Filtre state'leri (Aidat Tanımları)
@@ -136,7 +140,7 @@ export const Aidatlar: React.FC = () => {
 
   // Aidatlar listesi (filtreli + sayfalı)
   const { data: aidatData, isLoading: aidatLoading } = useQuery({
-    queryKey: ['aidatlar', activeProject?.id, filterYil, filterAy, filterDurum, filterBlokId, filterHasDaire, pagination.current, pagination.pageSize],
+    queryKey: ['aidatlar', activeProject?.id, filterYil, filterAy, filterDurum, filterBlokId, filterHasDaire, debouncedUyeAdi, pagination.current, pagination.pageSize],
     queryFn: async () => {
       if (!activeProject?.id) return { data: [], pagination: { totalCount: 0 } }
       const params: Record<string, string> = {
@@ -150,6 +154,7 @@ export const Aidatlar: React.FC = () => {
       if (filterBlokId) params.blok_id = filterBlokId
       if (filterHasDaire === 'atanmis') params.has_daire = 'true'
       if (filterHasDaire === 'atanmamis') params.has_daire = 'false'
+      if (debouncedUyeAdi) params.uye_adi = debouncedUyeAdi
       
       const { data } = await api.get('/aidatlar', { params })
       return data
@@ -159,7 +164,7 @@ export const Aidatlar: React.FC = () => {
 
   // Aidat özet (filtrelere göre)
   const { data: ozet } = useQuery({
-    queryKey: ['aidat-ozet', activeProject?.id, filterYil, filterAy, filterDurum, filterBlokId, filterHasDaire],
+    queryKey: ['aidat-ozet', activeProject?.id, filterYil, filterAy, filterDurum, filterBlokId, filterHasDaire, debouncedUyeAdi],
     queryFn: async () => {
       if (!activeProject?.id) return null
       const params: Record<string, string> = { proje_id: activeProject.id }
@@ -169,6 +174,7 @@ export const Aidatlar: React.FC = () => {
       if (filterBlokId) params.blok_id = filterBlokId
       if (filterHasDaire === 'atanmis') params.has_daire = 'true'
       if (filterHasDaire === 'atanmamis') params.has_daire = 'false'
+      if (debouncedUyeAdi) params.uye_adi = debouncedUyeAdi
       
       const { data } = await api.get('/aidatlar/ozet', { params })
       return data.data
@@ -179,7 +185,7 @@ export const Aidatlar: React.FC = () => {
   // Filtreler değişince başa dön
   useEffect(() => {
     setPagination(prev => ({ ...prev, current: 1 }))
-  }, [filterYil, filterAy, filterDurum, filterBlokId, filterHasDaire, activeProject?.id])
+  }, [filterYil, filterAy, filterDurum, filterBlokId, filterHasDaire, debouncedUyeAdi, activeProject?.id])
 
   // Mutation: Aidat Tanımı Kaydet
   const saveMutation = useMutation({
@@ -194,10 +200,14 @@ export const Aidatlar: React.FC = () => {
     onSuccess: () => {
       messageApi.success('Aidat tanımı kaydedildi')
       queryClient.invalidateQueries({ queryKey: ['aidat-tanimlari'] })
-      setModalOpen(false)
+      setModalVisible(false)
+      setEditingTanim(null)
       form.resetFields()
     },
-    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu')
+    onError: (err: any) => {
+      const errorMsg = err.response?.data?.message || err.message || 'Hata oluştu'
+      messageApi.error(errorMsg)
+    }
   })
 
   // Mutation: Borçlandır (Tahakkuk ettir)
@@ -228,6 +238,20 @@ export const Aidatlar: React.FC = () => {
     onError: (err: any) => messageApi.error(err.message || 'İşlem başarısız')
   })
 
+  // Mutation: Faiz Toggle (Ekle/Sil)
+  const toggleInterestMutation = useMutation({
+    mutationFn: async ({ id, active }: { id: string, active: boolean }) => {
+      const { data } = await api.post(`/aidatlar/${id}/toggle-faiz`, { active })
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['aidatlar'] })
+      queryClient.invalidateQueries({ queryKey: ['aidat-ozet'] })
+      messageApi.success('Faiz durumu güncellendi')
+    },
+    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu')
+  })
+
   const setModalOpen = (visible: boolean) => {
     setModalVisible(visible)
     if (!visible) {
@@ -250,6 +274,15 @@ export const Aidatlar: React.FC = () => {
 
   const listActions = useMemo(() => (
     <Space orientation="horizontal" size="small" wrap>
+      <Input
+        placeholder="Üye Adı Ara"
+        prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+        value={filterUyeAdi}
+        onChange={(e) => setFilterUyeAdi(e.target.value)}
+        allowClear
+        style={{ width: 140 }}
+        size="small"
+      />
       <Select
         placeholder="Yıl"
         value={filterYil}
@@ -308,7 +341,7 @@ export const Aidatlar: React.FC = () => {
         <Select.Option value="atanmamis">Atanmamış</Select.Option>
       </Select>
     </Space>
-  ), [filterYil, filterAy, filterDurum, filterBlokId, filterHasDaire, yearOptions, bloklar])
+  ), [filterYil, filterAy, filterDurum, filterBlokId, filterHasDaire, filterUyeAdi, yearOptions, bloklar])
 
   // Mutation: Tekil Gecikme Faizi Hesapla
   const singleGecikmeMutation = useMutation({
@@ -381,30 +414,67 @@ export const Aidatlar: React.FC = () => {
       title: 'Gecikme Faizi',
       key: 'faiz',
       align: 'right' as const,
-      render: (_: any, r: Aidat) => (
-        <Space orientation="vertical" size={0} style={{ width: '100%', alignItems: 'flex-end' }}>
-          {r.gecikme_faizi > 0 ? <MoneyDisplay amount={r.gecikme_faizi} colored /> : '-'}
-          {r.durum !== 'odendi' && r.gecikme_gun_sayisi > 0 && (
-            <Button 
-              size="small" 
-              type="link" 
-              icon={<CalculatorOutlined />} 
-              onClick={() => singleGecikmeMutation.mutate(r.id)}
-              loading={singleGecikmeMutation.isPending && singleGecikmeMutation.variables === r.id}
-              style={{ padding: 0, height: 'auto', fontSize: '11px' }}
-            >
-              Faiz Hesapla
-            </Button>
-          )}
-        </Space>
-      )
+      width: 140,
+      render: (_: any, r: Aidat) => {
+        const hasInterest = Number(r.gecikme_faizi || 0) >= 0.01;
+        const isOverdue = r.son_odeme_tarihi && dayjs(r.son_odeme_tarihi).isBefore(dayjs(), 'day');
+        const showButton = (r.durum === 'gecikti' || (r.durum === 'bekliyor' && isOverdue)) && hasInterest && r.durum !== 'odendi';
+
+        return (
+          <Space orientation="vertical" size={2} style={{ width: '100%', alignItems: 'flex-end' }}>
+            <Text type={r.faiz_yansitildi ? "danger" : "secondary"} strong={r.faiz_yansitildi}>
+              {r.gecikme_faizi > 0 ? <MoneyDisplay amount={r.gecikme_faizi} /> : '-'}
+            </Text>
+            {showButton && (
+              r.faiz_yansitildi ? (
+                <Popconfirm
+                  title="Faiz Silinsin mi?"
+                  description="Bu işlem ilgili muhasebe kaydını (tahakkuk) silecek ve faizi borçtan düşecektir."
+                  onConfirm={() => toggleInterestMutation.mutate({ id: r.id, active: false })}
+                  okText="Evet, Sil"
+                  cancelText="Vazgeç"
+                  okButtonProps={{ danger: true }}
+                >
+                  <Button 
+                    size="small" 
+                    type="primary"
+                    danger
+                    loading={toggleInterestMutation.isPending && toggleInterestMutation.variables?.id === r.id}
+                    style={{ fontSize: '11px', height: '24px' }}
+                  >
+                    Faiz Sil
+                  </Button>
+                </Popconfirm>
+              ) : (
+                <Button 
+                  size="small" 
+                  onClick={() => toggleInterestMutation.mutate({ id: r.id, active: true })}
+                  loading={toggleInterestMutation.isPending && toggleInterestMutation.variables?.id === r.id}
+                  disabled={!r.ad}
+                  style={{ 
+                    fontSize: '11px', 
+                    height: '24px',
+                    color: '#fa8c16',
+                    borderColor: '#fa8c16'
+                  }}
+                >
+                  Faiz Ekle
+                </Button>
+              )
+            )}
+          </Space>
+        )
+      }
     },
     {
       title: 'Toplam',
-      dataIndex: 'toplam_borc',
       key: 'toplam_borc',
       align: 'right' as const,
-      render: (v: number) => <MoneyDisplay amount={v} strong />,
+      render: (_: any, r: Aidat) => {
+        // Frontend'de de garantiye alalım: Faiz yansıtılmadıysa sadece ana borcu göster
+        const gosterilecekToplam = Number(r.hesaplanan_tutar) + (r.faiz_yansitildi ? Number(r.gecikme_faizi || 0) : 0)
+        return <MoneyDisplay amount={gosterilecekToplam} strong />
+      },
     },
     {
       title: 'Ödenen',
@@ -418,7 +488,8 @@ export const Aidatlar: React.FC = () => {
       key: 'bakiye',
       align: 'right' as const,
       render: (_: any, r: Aidat) => {
-        const bakiye = r.toplam_borc - r.dinamik_odenen_tutar
+        const gosterilecekToplam = Number(r.hesaplanan_tutar) + (r.faiz_yansitildi ? Number(r.gecikme_faizi || 0) : 0)
+        const bakiye = gosterilecekToplam - Number(r.dinamik_odenen_tutar || 0)
         return bakiye > 0 ? <MoneyDisplay amount={bakiye} colored /> : <Tag color="green">ÖDENDİ</Tag>
       }
     },
@@ -482,12 +553,12 @@ export const Aidatlar: React.FC = () => {
           </Col>
           <Col xs={24} sm={12} lg={6}>
             <Card variant="borderless" className="stat-card shadow-sm" size="small">
-              <Statistic title="Geciken Alacak" value={ozet?.geciken || 0} suffix="TL" formatter={(v) => trMoneyFormatter(v as number)} styles={{ content: { color: '#cf1322', fontWeight: 700 } }} />
+              <Statistic title="Geciken Aidat" value={ozet?.geciken || 0} suffix="TL" formatter={(v) => trMoneyFormatter(v as number)} styles={{ content: { color: '#cf1322', fontWeight: 700 } }} />
             </Card>
           </Col>
           <Col xs={24} sm={12} lg={6}>
             <Card variant="borderless" className="stat-card shadow-sm" size="small" style={{ background: '#fff7e6' }}>
-              <Statistic title="Net Bakiye" value={(ozet?.toplam_aidat || 0) - (ozet?.toplam_tahsilat || 0)} suffix="TL" formatter={(v) => trMoneyFormatter(v as number)} styles={{ content: { color: '#d46b08', fontWeight: 700 } }} />
+              <Statistic title="Bekleyen Aidat" value={ozet?.bekleyen || 0} suffix="TL" formatter={(v) => trMoneyFormatter(v as number)} styles={{ content: { color: '#d46b08', fontWeight: 700 } }} />
             </Card>
           </Col>
         </Row>
@@ -495,7 +566,7 @@ export const Aidatlar: React.FC = () => {
 
       <Card variant="borderless" className="shadow-sm" styles={{ body: { padding: 0 } }}>
         <Table
-          columns={isTanimlarPage ? tanimColumns : aidatColumns}
+          columns={(isTanimlarPage ? tanimColumns : aidatColumns) as any[]}
           dataSource={isTanimlarPage ? tanimlar : aidatData?.data}
           rowKey="id"
           loading={isTanimlarPage ? tanimLoading : aidatLoading}

@@ -13,8 +13,15 @@ export const LayoutProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [title, setTitle] = useState('')
   const [headerActions, setHeaderActions] = useState<React.ReactNode | null>(null)
 
+  const value = React.useMemo(() => ({
+    title,
+    setTitle,
+    headerActions,
+    setHeaderActions
+  }), [title, headerActions])
+
   return (
-    <LayoutContext.Provider value={{ title, setTitle, headerActions, setHeaderActions }}>
+    <LayoutContext.Provider value={value}>
       {children}
     </LayoutContext.Provider>
   )
@@ -29,24 +36,33 @@ export const useLayout = () => {
 }
 
 export const usePageSettings = (title: string, actions: React.ReactNode = null) => {
-  const { title: currentTitle, setTitle, setHeaderActions } = useLayout()
+  const { title: currentTitle, setTitle, headerActions: currentActions, setHeaderActions } = useLayout()
 
-  // Update title immediately in layout phase to avoid flickering
+  // Update title only if it changed
   React.useLayoutEffect(() => {
     if (title !== currentTitle) {
       setTitle(title)
     }
-  }, [title, setTitle, currentTitle])
+  }, [title, currentTitle, setTitle])
 
-  // Defer actions update to avoid infinite loop when actions is a new JSX element
+  // Update actions only if they are different
+  // Note: We use a simple reference check for actions since they are usually memoized
   React.useEffect(() => {
-    const timer = setTimeout(() => {
-      setHeaderActions(actions)
-    }, 0)
-    
+    if (actions !== currentActions) {
+      const timer = setTimeout(() => {
+        setHeaderActions(actions)
+      }, 0)
+      
+      return () => {
+        clearTimeout(timer)
+      }
+    }
+  }, [actions, currentActions, setHeaderActions])
+
+  // Clear actions on unmount
+  React.useEffect(() => {
     return () => {
-      clearTimeout(timer)
       setHeaderActions(null)
     }
-  }, [actions, setHeaderActions])
+  }, [setHeaderActions])
 }

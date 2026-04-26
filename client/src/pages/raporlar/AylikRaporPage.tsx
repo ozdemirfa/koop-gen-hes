@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Card, Table, Row, Col, Statistic, DatePicker, Button, Space, Tag } from 'antd'
+import { Card, Table, Row, Col, Statistic, DatePicker, Button, Space, Tag, Typography } from 'antd'
 import { FilePdfOutlined, RiseOutlined, FallOutlined, DollarOutlined, CalendarOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
@@ -13,13 +13,22 @@ import { trMoneyFormatter } from '../../lib/format'
 
 export const AylikRaporPage: React.FC = () => {
   const [targetDate, setTargetDate] = useState(dayjs())
+  const activeProjectId = localStorage.getItem('activeProjectId')
 
   const { data: rapor, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['aylik-rapor', targetDate.year(), targetDate.month() + 1],
+    queryKey: ['aylik-rapor', targetDate.year(), targetDate.month() + 1, activeProjectId],
     queryFn: async () => {
-      const { data } = await api.get(`/raporlar/aylik-rapor?yil=${targetDate.year()}&ay=${targetDate.month() + 1}`)
+      if (!activeProjectId) return null
+      const { data } = await api.get(`/raporlar/aylik-rapor`, {
+        params: { 
+          yil: targetDate.year(), 
+          ay: targetDate.month() + 1,
+          proje_id: activeProjectId
+        }
+      })
       return data.data
-    }
+    },
+    enabled: !!activeProjectId
   })
 
   const actions = useMemo(() => (
@@ -34,42 +43,55 @@ export const AylikRaporPage: React.FC = () => {
       <Button 
         size="small"
         icon={<FilePdfOutlined />} 
-        onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'}/raporlar/aylik-rapor/pdf?yil=${targetDate.year()}&ay=${targetDate.month() + 1}`, '_blank')}
+        onClick={() => {
+          window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'}/raporlar/aylik-rapor/pdf?yil=${targetDate.year()}&ay=${targetDate.month() + 1}&proje_id=${activeProjectId}`, '_blank');
+        }}
+        disabled={!activeProjectId}
       >
         PDF İndir
       </Button>
     </Space>
-  ), [targetDate])
+  ), [targetDate, activeProjectId])
 
   usePageSettings('Aylık Mali Rapor', actions)
 
   const gelirColumns = [
     { title: 'Tarih', dataIndex: 'tarih', key: 'tarih', render: (t: string) => dayjs(t).format('DD.MM.YYYY') },
-    { title: 'Kategori', dataIndex: ['gelir_gider_kategorileri', 'ad'], key: 'kategori' },
+    { title: 'Cari/Kaynak', dataIndex: ['cari_hesaplar', 'cari_adi'], key: 'cari' },
     { title: 'Açıklama', dataIndex: 'aciklama', key: 'aciklama' },
-    { title: 'Tutar', dataIndex: 'tutar', key: 'tutar', align: 'right' as const, render: (v: number) => <MoneyDisplay amount={v} /> }
+    { title: 'Tutar', dataIndex: 'alacak', key: 'tutar', align: 'right' as const, render: (v: number) => <MoneyDisplay amount={v} /> }
   ]
 
   const giderColumns = [
     { title: 'Tarih', dataIndex: 'tarih', key: 'tarih', render: (t: string) => dayjs(t).format('DD.MM.YYYY') },
     { 
-      title: 'Kaynak/Tip', 
+      title: 'Tür', 
       key: 'tip', 
       render: (_: any, r: any) => (
-        <Tag color={r.kategori === 'Hakediş' ? 'blue' : 'orange'}>
-          {r.kategori === 'Hakediş' ? 'Hakediş' : (r.gelir_gider_kategorileri?.ad || 'Gider')}
+        <Tag color={r.islem_turu === 'hakedis' ? 'blue' : 'orange'}>
+          {r.islem_turu === 'hakedis' ? 'Hakediş' : (r.islem_turu === 'fatura' ? 'Fatura' : 'Gider')}
         </Tag>
       ) 
     },
+    { title: 'Cari/Firma', dataIndex: ['cari_hesaplar', 'cari_adi'], key: 'cari' },
     { title: 'Açıklama', dataIndex: 'aciklama', key: 'aciklama' },
-    { title: 'Tutar', dataIndex: 'tutar', key: 'tutar', align: 'right' as const, render: (v: number) => <MoneyDisplay amount={v} /> }
+    { title: 'Tutar', dataIndex: 'borc', key: 'tutar', align: 'right' as const, render: (v: number) => <MoneyDisplay amount={v} /> }
   ]
 
   const aidatColumns = [
-    { title: 'Tarih', dataIndex: 'odeme_tarihi', key: 'tarih', render: (t: string) => dayjs(t).format('DD.MM.YYYY') },
-    { title: 'Ödeme Yöntemi', dataIndex: 'odeme_yontemi', key: 'yontem', render: (v: string) => <Tag>{v.toUpperCase()}</Tag> },
-    { title: 'Tutar', dataIndex: 'tutar', key: 'tutar', align: 'right' as const, render: (v: number) => <MoneyDisplay amount={v} /> }
+    { title: 'Tarih', dataIndex: 'tarih', key: 'tarih', render: (t: string) => dayjs(t).format('DD.MM.YYYY') },
+    { title: 'Üye', dataIndex: ['cari_hesaplar', 'cari_adi'], key: 'uye' },
+    { title: 'Ödeme Yöntemi', dataIndex: 'odeme_turu', key: 'yontem', render: (v: string) => <Tag>{(v || 'Banka').toUpperCase()}</Tag> },
+    { title: 'Tutar', dataIndex: 'borc', key: 'tutar', align: 'right' as const, render: (v: number) => <MoneyDisplay amount={v} /> }
   ]
+
+  if (!activeProjectId) {
+    return (
+      <Card>
+        <Typography.Text type="secondary">Lütfen rapor görüntülemek için bir proje seçin.</Typography.Text>
+      </Card>
+    )
+  }
 
   if (isLoading) return <LoadingState fullHeight />
   if (isError) return <ErrorState error={error} onRetry={() => refetch()} />
@@ -78,7 +100,7 @@ export const AylikRaporPage: React.FC = () => {
     <div style={{ padding: '0 0 24px 0' }}>
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col span={8}>
-          <Card size="small" className="stat-card">
+          <Card variant="borderless" size="small" className="stat-card shadow-sm">
             <Statistic
               title="Toplam Aidat Tahsilatı"
               value={rapor?.toplam_aidat_tahsilat || 0}
@@ -90,7 +112,7 @@ export const AylikRaporPage: React.FC = () => {
           </Card>
         </Col>
         <Col span={8}>
-          <Card size="small" className="stat-card">
+          <Card variant="borderless" size="small" className="stat-card shadow-sm">
             <Statistic
               title="Diğer Gelirler"
               value={rapor?.toplam_gelir || 0}
@@ -102,7 +124,7 @@ export const AylikRaporPage: React.FC = () => {
           </Card>
         </Col>
         <Col span={8}>
-          <Card size="small" className="stat-card">
+          <Card variant="borderless" size="small" className="stat-card shadow-sm">
             <Statistic
               title="Toplam Giderler"
               value={rapor?.toplam_gider || 0}

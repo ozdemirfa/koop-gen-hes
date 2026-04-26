@@ -48,4 +48,7 @@ router.post('/:id/odeme', validate({ body: aidatOdemeSchema }), aidatController.
 // POST /api/aidatlar/:id/gecikme-hesapla (Tek bir aidat için)
 router.post('/:id/gecikme-hesapla', aidatController.calculateSingleLateFee)
 
+// POST /api/aidatlar/:id/toggle-faiz (Faiz Ekle/Sil)
+router.post('/:id/toggle-faiz', aidatController.toggleInterest)
+
 export default router

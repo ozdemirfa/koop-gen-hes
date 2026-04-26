@@ -15,30 +15,34 @@ const { Title, Text } = Typography
 
 export const YillikRaporPage: React.FC = () => {
   const [targetYear, setTargetYear] = useState(dayjs())
+  const activeProjectId = localStorage.getItem('activeProjectId')
 
   const { data: rapor, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['yillik-rapor', targetYear.year()],
+    queryKey: ['yillik-rapor', targetYear.year(), activeProjectId],
     queryFn: async () => {
-      const { data } = await api.get(`/raporlar/yillik-rapor?yil=${targetYear.year()}`)
+      if (!activeProjectId) return null
+      const { data } = await api.get(`/raporlar/yillik-rapor`, { 
+        params: { 
+          yil: targetYear.year(),
+          proje_id: activeProjectId 
+        } 
+      })
       return data.data
-    }
+    },
+    enabled: !!activeProjectId
   })
 
   const columns = [
-    { title: 'Ay', dataIndex: 'ay', key: 'ay', render: (v: number) => dayjs().month(v - 1).format('MMMM') },
-    { title: 'Aidat Tahsilatı', dataIndex: 'aidat', key: 'aidat', align: 'right' as const, render: (v: number) => <MoneyDisplay amount={v} /> },
-    { title: 'Diğer Gelirler', dataIndex: 'gelir', key: 'gelir', align: 'right' as const, render: (v: number) => <MoneyDisplay amount={v} /> },
-    { title: 'Toplam Gider', dataIndex: 'gider', key: 'gider', align: 'right' as const, render: (v: number) => <MoneyDisplay amount={v} /> },
-    { 
-      title: 'Net Durum', 
-      key: 'net', 
-      align: 'right' as const, 
-      render: (_: any, record: any) => {
-        const net = record.aidat + record.gelir - record.gider
-        return <MoneyDisplay amount={net} colored />
-      }
-    }
+    // ... rest of columns
   ]
+
+  if (!activeProjectId) {
+    return (
+      <Card>
+        <Typography.Text type="secondary">Lütfen rapor görüntülemek için bir proje seçin.</Typography.Text>
+      </Card>
+    )
+  }
 
   if (isLoading) return <LoadingState fullHeight />
   if (isError) return <ErrorState error={error} onRetry={() => refetch()} />
@@ -55,7 +59,14 @@ export const YillikRaporPage: React.FC = () => {
               onChange={(v) => v && setTargetYear(v)}
               format="YYYY"
             />
-            <Button icon={<FilePdfOutlined />} disabled>PDF İndir</Button>
+            <Button 
+              icon={<FilePdfOutlined />} 
+              onClick={() => {
+                window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'}/raporlar/yillik-rapor/pdf?yil=${targetYear.year()}&proje_id=${activeProjectId}`, '_blank');
+              }}
+            >
+              PDF İndir
+            </Button>
           </Space>
         }
       />

@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Typography, Card, Row, Col, Statistic, DatePicker, Space } from 'antd'
-import { UserOutlined, DollarOutlined, RiseOutlined, FallOutlined, BankOutlined, WarningOutlined } from '@ant-design/icons'
-import { useQuery } from '@tanstack/react-query'
+import { UserOutlined, DollarOutlined, RiseOutlined, FallOutlined, BankOutlined, WarningOutlined, SyncOutlined, WalletOutlined } from '@ant-design/icons'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../lib/api'
 import { LoadingState } from '../components/common/LoadingState'
 import { ErrorState } from '../components/common/ErrorState'
@@ -9,11 +9,13 @@ import { usePageSettings } from '../contexts/LayoutContext'
 import { useProject } from '../contexts/ProjectContext'
 import dayjs from 'dayjs'
 import { trNumberFormatter, trMoneyFormatter } from '../lib/format'
+import { Button, message, Popconfirm } from 'antd'
 
 const { RangePicker } = DatePicker
 
 export const Dashboard: React.FC = () => {
   const { activeProject } = useProject()
+  const queryClient = useQueryClient()
   const [dates, setDates] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null)
 
   const { data: ozet, isLoading, isError, error, refetch } = useQuery({
@@ -25,7 +27,7 @@ export const Dashboard: React.FC = () => {
       if (dates?.[1]) params.bitis_tarihi = dates[1].format('YYYY-MM-DD')
 
       const response = await api.get('/dashboard/ozet', { params })
-      
+
       if (typeof response.data === 'string' && response.data.includes('<!DOCTYPE html>')) {
         throw new Error('Backend bağlantısı kurulamadı (VITE_API_URL hatalı).')
       }
@@ -33,15 +35,42 @@ export const Dashboard: React.FC = () => {
       if (!response.data || response.data.data === undefined) {
         throw new Error(`API cevabı eksik.`)
       }
-      
+
       return response.data.data
     },
     retry: 1,
     enabled: !!activeProject?.id
   })
 
+  const fifoClosureMutation = useMutation({
+    mutationFn: async () => {
+      return await api.post('/cari-hareketler/fifo-kapama', { proje_id: activeProject?.id })
+    },
+    onSuccess: () => {
+      message.success('Hesap kapamaları başarıyla tamamlandı.')
+      queryClient.invalidateQueries()
+    },
+    onError: (err: any) => message.error(err.message || 'Hata oluştu')
+  })
+
   const actions = React.useMemo(() => (
     <Space size="small">
+      <Popconfirm
+        title="Hesap Kapamaları"
+        description="Boştaki ödemeler FIFO mantığı ile aidat ve hakedişlerle eşleştirilecek. Devam edilsin mi?"
+        onConfirm={() => fifoClosureMutation.mutate()}
+        okText="Evet"
+        cancelText="Hayır"
+      >
+        <Button 
+          size="small" 
+          icon={<SyncOutlined />} 
+          loading={fifoClosureMutation.isPending}
+          disabled={!activeProject}
+        >
+          Hesap Kapamalarını Yap
+        </Button>
+      </Popconfirm>
       <RangePicker 
         size="small" 
         value={dates} 
@@ -50,8 +79,7 @@ export const Dashboard: React.FC = () => {
         style={{ width: 240 }}
       />
     </Space>
-  ), [dates])
-
+  ), [dates, activeProject, fifoClosureMutation])
   usePageSettings('Pano', actions)
 
   if (!activeProject) {
@@ -229,7 +257,7 @@ export const Dashboard: React.FC = () => {
       </Row>
 
       {/* 5. Satır: Bankalar Bakiye Toplamı, Çekler, Ödemeler Sonrası Nakit */}
-      <Row gutter={[12, 12]}>
+      <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
         <Col xs={24} sm={8}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
@@ -255,7 +283,7 @@ export const Dashboard: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={8}>
-          <Card variant="borderless" className="stat-card shadow-sm" size="small" style={{ background: '#fff7e6' }}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small" style={{ background: '#f0f5ff' }}>
             <Statistic
               title="Ödemeler Sonrası Nakit"
               value={ozet?.odeme_sonrasi_nakit || 0}
@@ -267,6 +295,22 @@ export const Dashboard: React.FC = () => {
                 fontWeight: 700, 
                 fontSize: '20px' 
               } }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* 6. Satır: Kasa Nakit (1/3 boyut) */}
+      <Row gutter={[12, 12]}>
+        <Col xs={24} sm={8}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small">
+            <Statistic
+              title="Kasa Nakit"
+              value={ozet?.kasa_nakit ?? 0}
+              prefix={<WalletOutlined style={{ color: '#fa8c16', marginRight: 8 }} />}
+              suffix={<span style={{ fontSize: '12px', marginLeft: 4 }}>TL</span>}
+              formatter={(v) => trMoneyFormatter(v as number)}
+              styles={{ content: { color: '#fa8c16', fontWeight: 700, fontSize: '18px' } }}
             />
           </Card>
         </Col>

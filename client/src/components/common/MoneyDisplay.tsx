@@ -8,12 +8,14 @@ interface MoneyDisplayProps {
   amount: number
   colored?: boolean // true ise pozitifler yeşil, negatifler kırmızı
   currency?: string
+  strong?: boolean
 }
 
 export const MoneyDisplay: React.FC<MoneyDisplayProps> = ({ 
   amount, 
   colored = false, 
-  currency = 'TL' 
+  currency = 'TL',
+  strong = false
 }) => {
   if (amount == null) return <span>-</span>;
   
@@ -26,7 +28,7 @@ export const MoneyDisplay: React.FC<MoneyDisplayProps> = ({
   }
 
   return (
-    <Text style={{ color }}>
+    <Text strong={strong} style={{ color }}>
       {formatted} {currency}
     </Text>
   )

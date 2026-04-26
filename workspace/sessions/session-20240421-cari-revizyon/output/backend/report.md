@@ -1,5 +1,5 @@
 Agent: backend
-Görev: session-20240421-aidat-charging — Aidat planlama ve borçlandırma mantığı ayrımı
+Görev: session-20240421-cari-revizyon — US-CARI-04, 05: Proje Perspektifi Muhasebe Adaptasyonu
 Durum: TAMAMLANDI
 Sonraki adım: Frontend Agent spec.md ve output/backend/report.md'yi okuyarak UI'ı yazabilir
 ---
@@ -7,28 +7,27 @@ Sonraki adım: Frontend Agent spec.md ve output/backend/report.md'yi okuyarak UI
 ## Oluşturulan / Güncellenen Dosyalar
 | Dosya | Açıklama |
 |-------|---------|
-| `server/src/config/constants.ts` | `AIDAT_TANIMI_DURUMLARI` eklendi. |
-| `server/src/services/aidat.service.ts` | `createTanim`, `updateTanim`, `deleteTanim` ve `executeCharging` metodları eklendi. |
-| `server/src/controllers/aidat.controller.ts` | Yeni servis metodları için controller'lar eklendi. |
-| `server/src/routes/aidatlar.routes.ts` | Yeni route tanımları eklendi. |
-| `server/src/index.ts` | Uygulama başlangıcında `executeCharging` çağrısı eklendi. |
+| `server/src/services/bankaHesap.service.ts` | Gelen tahsilatın (Gelir) => BORC, giden ödemenin (Gider) => ALACAK olarak kaydedilmesi (`cari_hesap_id` ile birlikte) sağlandı. Eski `hareket_tipi` ve `firma_id` mantığı güncel tablo yapısına uyarlandı. |
+| `server/src/services/fatura.service.ts` | Gelen faturaların proje perspektifine göre onaylandığında projenin borcunu artıracak (BORC kolonu) şekilde insert atması sağlandı. Yeni `cari_hesap_id` mantığına uyarlandı. |
+| `server/src/services/rapor.service.ts` | Mizan (`getMizan`) metodunun, Node.js üzerinden in-memory (alacak-borç) hesaplamak yerine doğrudan veritabanı performanslı RPC fonksiyonu `get_cari_mizan` çağıracak şekilde optimize edilmesi sağlandı. |
+
+## İncelenen Ancak Revize Edilmeyen Dosyalar
+| Dosya | Açıklama |
+|-------|---------|
+| `server/src/services/gelirGider.service.ts` | Gelir/Gider (ve kasa) işlemleri kontrol edildi; mevcut durumda Gelir=Borç, Gider=Alacak olarak doğru bir 'Proje Perspektifi' yapısı kurulduğu için dokunulmadı. |
+| `server/src/services/aidat.service.ts` | Manuel aidat tahsilatlarının (gelen_odeme) BORC olarak kaydedilmesi kuralı incelendi; `cariHesapService.createPayment` methodunun bu işlemi halihazırda doğru gerçekleştirdiği tespit edildi. |
+| `server/src/services/hakedis.service.ts` | Onaylanan hakediş kayıtlarının BORC (`hakedis_toplam`) olarak işlenmesi kuralının halihazırda sorunsuz çalıştığı tespit edildi. |
 
 ## Endpoint Listesi
+*(Endpointlerin mevcut rotaları değişmedi, arka plan servisleri Proje Perspektifine uyumlu hale getirildi.)*
 | Metot | Yol | Açıklama | Auth? |
 |-------|-----|---------|-------|
-| POST  | `/api/aidatlar/tanimlar` | Tekil aidat tanımı oluşturur. | Evet |
-| PUT   | `/api/aidatlar/tanimlar/:id` | Aidat tanımını günceller (Sadece `plan` durumunda). | Evet |
-| DELETE| `/api/aidatlar/tanimlar/:id` | Aidat tanımını siler (Sadece `plan` durumunda). | Evet |
-| POST  | `/api/aidatlar/execute-charging` | Borçlandırma işlemini manuel tetikler. | Evet |
-| POST  | `/api/aidatlar/yillik-plan` | Yıllık aidat planı oluşturur (RPC üzerinden). | Evet |
+| POST  | `/api/fatura` | Gelen fatura kayıtlarında projenin borcunu artırır. | Evet |
+| POST  | `/api/banka/hareketler` | Banka tahsilatı/ödemesi cari hesaba BORC/ALACAK yönüyle yansıtılır. | Evet |
+| GET   | `/api/raporlar/mizan` | Cari hesapların mizan özetlerini `get_cari_mizan` RPC'si üzerinden döndürür. | Evet |
 
 ## Supabase Entegrasyonları
-- RPC: `fn_execute_aidat_charging` -> Aidat tanımlarını borçlandırır ve `aidatlar` tablosunda kayıtlar oluşturur.
-- RLS: `aidat_tanimlari` tablosundaki `durum` kolonuna bağlı olarak güncellemeler DB seviyesinde de tetikleyicilerle korunmaktadır.
-
-## Test Özeti
-- Derleme kontrolü: `npm run build` BAŞARILI.
-- Birim testleri: Bu aşamada sadece manuel kod doğrulaması yapıldı (Server tarafında test altyapısı eksik).
+- **RPC:** `get_cari_mizan` (Mizan raporlarında performans amaçlı kullanıma alındı).
 
 ## Eksik / Beklemede
-- Yok.
+- Yok. Tüm gereksinimler Proje Perspektifi'ne (Bakiye = Alacak - Borç, Borç=Projenin Borcu/Gelen Para, Alacak=Projenin Hakkı/Giden Para) uygun olarak Node.js Express servislerine yansıtıldı.

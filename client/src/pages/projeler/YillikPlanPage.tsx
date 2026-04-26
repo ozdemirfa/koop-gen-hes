@@ -305,7 +305,7 @@ export const YillikPlanPage: React.FC = () => {
                 Sadece {yil} Yılı İçin Oluştur
               </Button>
               <Button 
-                onClick={() => createPlanMutation.mutate()} 
+                onClick={() => createPlanMutation.mutate(undefined)} 
                 loading={createPlanMutation.isPending}
                 disabled={!hasKalemler}
               >
@@ -412,7 +412,6 @@ export const YillikPlanPage: React.FC = () => {
           onChange={setSelectedKalemId}
           showSearch
           optionFilterProp="children"
-          autoComplete="off"
         >
           {projeIsKalemleri?.filter((k: any) => !dataSource.some(d => d.kalem_id === k.id)).map((k: any) => (
             <Select.Option key={k.id} value={k.id}>

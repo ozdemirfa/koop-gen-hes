@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react'
-import { Card, Descriptions, Tabs, Tag, Table, Button, Space, Row, Col, Statistic, Typography } from 'antd'
+import { Card, Descriptions, Tabs, Tag, Table, Button, Space, Row, Col, Statistic, Typography, Popconfirm, message, App, Modal, Tooltip } from 'antd'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { PlusOutlined, FileTextOutlined, DollarOutlined, SolutionOutlined, FileSearchOutlined, EditOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { PlusOutlined, FileTextOutlined, DollarOutlined, SolutionOutlined, FileSearchOutlined, EditOutlined, InfoCircleOutlined, RollbackOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
@@ -32,9 +32,43 @@ const { Text } = Typography
 export const FirmaDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const { message: messageApi } = App.useApp()
   const activeProjectId = localStorage.getItem('activeProjectId')
 
-  const { data: firma, isLoading } = useQuery({
+  // --- Mutations ---
+  
+  const undoMatchMutation = useMutation({
+    mutationFn: async (movementId: string) => {
+      const { data } = await api.post(`/cari-hareketler/${movementId}/undo-closure`)
+      return data
+    },
+    onSuccess: () => {
+      messageApi.success('Eşleşme başarıyla kaldırıldı')
+      queryClient.invalidateQueries({ queryKey: ['firma', id] })
+      queryClient.invalidateQueries({ queryKey: ['hakedisler'] })
+      queryClient.invalidateQueries({ queryKey: ['cari-ekstre'] })
+      queryClient.invalidateQueries({ queryKey: ['firma-stats'] })
+    },
+    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu')
+  })
+
+  const unapproveMutation = useMutation({
+    mutationFn: async (hakedisId: string) => {
+      return api.put(`/hakedisler/${hakedisId}/onay-iptal`)
+    },
+    onSuccess: () => {
+      messageApi.success('Hakediş onayı iptal edildi ve cari hareketi silindi.')
+      queryClient.invalidateQueries({ queryKey: ['hakedisler'] })
+      queryClient.invalidateQueries({ queryKey: ['firma-stats'] })
+      queryClient.invalidateQueries({ queryKey: ['cari-ekstre'] })
+    },
+    onError: (err: any) => messageApi.error(err.message || 'İşlem başarısız'),
+  })
+
+  // --- Queries ---
+
+  const { data: firma, isLoading: firmaLoading } = useQuery({
     queryKey: ['firma', id],
     queryFn: async () => {
       const { data } = await api.get(`/firmalar/${id}`)
@@ -58,7 +92,7 @@ export const FirmaDetailPage: React.FC = () => {
       const params: any = { firma_id: id, limit: 1000 }
       if (activeProjectId) params.proje_id = activeProjectId
       const { data } = await api.get('/hakedisler', { params })
-      return data.data as any[]
+      return (data.data || []) as any[]
     },
   })
 
@@ -68,7 +102,7 @@ export const FirmaDetailPage: React.FC = () => {
       const params: any = { firma_id: id, limit: 1000 }
       if (activeProjectId) params.proje_id = activeProjectId
       const { data } = await api.get('/faturalar', { params })
-      return data.data as any[]
+      return (data.data || []) as any[]
     },
   })
 
@@ -81,6 +115,19 @@ export const FirmaDetailPage: React.FC = () => {
       return data.data
     },
   })
+
+  const { data: statsData } = useQuery({
+    queryKey: ['firma-stats', id, activeProjectId],
+    queryFn: async () => {
+      const params: any = {}
+      if (activeProjectId) params.proje_id = activeProjectId
+      const { data } = await api.get(`/firmalar/${id}/stats`, { params })
+      return data.data
+    },
+    enabled: !!id
+  })
+
+  // --- Column Definitions ---
 
   const sozlesmeColumns = [
     { title: 'Sözleşme No', dataIndex: 'sozlesme_no', key: 'sozlesme_no', width: 130 },
@@ -122,11 +169,13 @@ export const FirmaDetailPage: React.FC = () => {
       key: 'action',
       width: 80,
       render: (_: unknown, r: Sozlesme) => (
-        <Button
-          icon={<FileTextOutlined />}
-          type="text"
-          onClick={() => navigate(`/sozlesmeler/${r.id}`)}
-        />
+        <Tooltip title="Sözleşmeyi Görüntüle">
+          <Button
+            icon={<FileTextOutlined />}
+            type="text"
+            onClick={() => navigate(`/sozlesmeler/${r.id}`)}
+          />
+        </Tooltip>
       ),
     },
   ]
@@ -135,8 +184,8 @@ export const FirmaDetailPage: React.FC = () => {
     { title: 'No', dataIndex: 'hakedis_no', key: 'no', width: 60 },
     { title: 'Dönem', key: 'donem', width: 90, render: (_: any, r: any) => r.donem_ay ? `${r.donem_ay}/${r.donem_yil}` : dayjs(r.donem_baslangic).format('MM/YYYY') },
     { title: 'Onay Tarihi', dataIndex: 'onay_tarihi', key: 'onay_tarihi', width: 110, render: (d: string) => d ? dayjs(d).format('DD.MM.YYYY') : '-' },
-    { title: 'Hakediş Toplamı', key: 'brut', align: 'right' as const, width: 130, render: (_: any, r: any) => <MoneyDisplay amount={r.ara_toplam || r.brut_tutar || 0} /> },
-    { title: 'KDVli Tutar', dataIndex: 'hakedis_toplam', key: 'kdvli', align: 'right' as const, width: 130, render: (v: number) => <MoneyDisplay amount={v} /> },
+    { title: 'Matrah', key: 'brut', align: 'right' as const, width: 130, render: (_: any, r: any) => <MoneyDisplay amount={r.ara_toplam || r.brut_tutar || 0} /> },
+    { title: 'Hakediş Toplamı (KDVli)', key: 'kdvli', align: 'right' as const, width: 150, render: (_: any, r: any) => <MoneyDisplay amount={r.hakedis_toplam || (Number(r.ara_toplam || r.brut_tutar || 0) + Number(r.kdv_tutar || 0))} /> },
     { title: 'Teminat', dataIndex: 'teminat_kesintisi', key: 'teminat', align: 'right' as const, width: 110, render: (v: number) => <MoneyDisplay amount={v} colored /> },
     { title: 'Stopaj', dataIndex: 'stopaj_kesintisi', key: 'stopaj', align: 'right' as const, width: 110, render: (v: number) => <MoneyDisplay amount={v} colored /> },
     { title: 'Net Ödeme', dataIndex: 'net_tutar', key: 'net', align: 'right' as const, width: 130, render: (v: number) => <MoneyDisplay amount={v} /> },
@@ -145,11 +194,35 @@ export const FirmaDetailPage: React.FC = () => {
       title: 'İşlem', 
       key: 'action', 
       fixed: 'right' as const,
-      width: 180,
+      width: 140,
       render: (_: any, r: any) => (
-        <Space>
-          <Button icon={<FileSearchOutlined />} size="small" onClick={() => navigate(`/hakedisler/${r.id}`)}>Görüntüle</Button>
-          <Button icon={<EditOutlined />} size="small" onClick={() => navigate(`/hakedisler/${r.id}?edit=true`)}>Düzenle</Button>
+        <Space size="middle">
+          <Tooltip title="Görüntüle">
+            <Button icon={<FileSearchOutlined />} type="text" size="small" onClick={() => navigate(`/hakedisler/${r.id}`)} />
+          </Tooltip>
+          {r.durum === 'taslak' && (
+            <Tooltip title="Düzenle">
+              <Button icon={<EditOutlined />} type="text" size="small" onClick={() => navigate(`/hakedisler/${r.id}?edit=true`)} />
+            </Tooltip>
+          )}
+          {r.durum === 'onaylandi' && (
+            <Popconfirm
+              title="Hakediş onayı iptal edilecek ve cari hareketi silinecek. Emin misiniz?"
+              onConfirm={() => unapproveMutation.mutate(r.id)}
+              okText="Evet"
+              cancelText="Hayır"
+            >
+              <Tooltip title="Onay İptal (Revizyona Aç)">
+                <Button 
+                  icon={<RollbackOutlined />} 
+                  type="text" 
+                  danger 
+                  size="small"
+                  loading={unapproveMutation.isPending && unapproveMutation.variables === r.id}
+                />
+              </Tooltip>
+            </Popconfirm>
+          )}
         </Space>
       ) 
     },
@@ -161,86 +234,98 @@ export const FirmaDetailPage: React.FC = () => {
     { title: 'Tutar', dataIndex: 'toplam_tutar', key: 'tutar', align: 'right' as const, render: (v: number) => <MoneyDisplay amount={v} /> },
     { title: 'Tip', dataIndex: 'fatura_tipi', key: 'tip', render: (t: string) => <Tag color={t === 'gelen' ? 'red' : 'green'}>{t.toUpperCase()}</Tag> },
     { title: 'Durum', dataIndex: 'durum', key: 'durum', render: (d: string) => <Tag>{d.toUpperCase()}</Tag> },
+    {
+      title: 'İşlem',
+      key: 'action',
+      width: 80,
+      render: (_: unknown, r: any) => (
+        <Tooltip title="Faturayı Görüntüle">
+          <Button icon={<FileTextOutlined />} type="text" onClick={() => navigate(`/faturalar/${r.id}`)} />
+        </Tooltip>
+      ),
+    },
   ]
 
   const cariColumns = [
-    {
-      title: 'Tarih',
-      dataIndex: 'tarih',
-      key: 'tarih',
-      width: 110,
-      render: (d: string) => dayjs(d).format('DD.MM.YYYY'),
-    },
+    { title: 'Tarih', dataIndex: 'tarih', key: 'tarih', width: 110, render: (d: string) => dayjs(d).format('DD.MM.YYYY') },
     {
       title: 'İşlem Türü',
-      dataIndex: 'islem_turu',
       key: 'islem_turu',
-      width: 120,
-      render: (t: string) => <Tag>{t.toUpperCase()}</Tag>,
+      width: 150,
+      render: (_: any, r: any) => {
+        // Hakediş satırı mı ve bu hakedişe bağlı ödeme var mı kontrol et
+        const isHakedis = r.islem_turu === 'hakedis';
+        // kaynak_id hakedis satırında hakedis.id'yi tutuyor. 
+        // Ödemelerde de kaynak_id hakedis.id'yi tutuyor.
+        const hasMatchedPayments = isHakedis && r.kaynak_id && cumulativeCariData?.some(m => m.kaynak_id === r.kaynak_id && m.islem_turu !== 'hakedis');
+
+        return (
+          <Space orientation="vertical" size={2}>
+            <Space>
+              <Tag>{r.islem_turu?.toUpperCase()}</Tag>
+              {hasMatchedPayments && (
+                <Popconfirm
+                  title="Eşleşmeyi Kaldır"
+                  description="Bu hakedişe bağlı tüm ödemeler serbest bırakılacaktır. Emin misiniz?"
+                  onConfirm={() => undoMatchMutation.mutate(r.kaynak_id!)}
+                  okText="Evet, Kaldır"
+                  cancelText="Vazgeç"
+                >
+                  <Tooltip title="Eşleşmeyi Geri Al">
+                    <Button 
+                      type="text" 
+                      size="small" 
+                      danger 
+                      icon={<RollbackOutlined />} 
+                      loading={undoMatchMutation.isPending && undoMatchMutation.variables === r.kaynak_id}
+                    />
+                  </Tooltip>
+                </Popconfirm>
+              )}
+            </Space>
+          </Space>
+        )
+      },
     },
     { title: 'Açıklama', dataIndex: 'aciklama', key: 'aciklama' },
-    {
-      title: 'Borç',
-      key: 'borc',
-      width: 130,
-      align: 'right' as const,
-      render: (_: any, r: any) => r.hareket_tipi === 'borc' ? <MoneyDisplay amount={r.tutar} /> : '-',
-    },
-    {
-      title: 'Alacak',
-      key: 'alacak',
-      width: 130,
-      align: 'right' as const,
-      render: (_: any, r: any) => r.hareket_tipi === 'alacak' ? <MoneyDisplay amount={r.tutar} /> : '-',
-    },
-    {
-      title: 'Bakiye',
-      dataIndex: 'bakiye',
-      key: 'bakiye',
-      width: 130,
-      align: 'right' as const,
-      render: (v: number) => <MoneyDisplay amount={v} colored />,
-    },
+    { title: 'Borç', dataIndex: 'borc', key: 'borc', width: 130, align: 'right' as const, render: (v: number) => (v && v > 0) ? <span style={{ color: '#cf1322' }}><MoneyDisplay amount={v} /></span> : '-' },
+    { title: 'Alacak', dataIndex: 'alacak', key: 'alacak', width: 130, align: 'right' as const, render: (v: number) => (v && v > 0) ? <span style={{ color: '#3f8600' }}><MoneyDisplay amount={v} /></span> : '-' },
+    { title: 'Bakiye', dataIndex: 'bakiye', key: 'bakiye', width: 130, align: 'right' as const, render: (v: number) => <MoneyDisplay amount={v} colored /> },
   ]
 
-  // Finansal Özet Hesaplamaları
+  // --- Calculations ---
+
   const stats = useMemo(() => {
-    const list = hakedisler?.filter(h => h.durum === 'onaylandi' || h.durum === 'odendi') || []
-    const hakedisMatrah = list.reduce((s, h) => s + Number(h.ara_toplam || h.brut_tutar || 0), 0)
-    const hakedisKdvli = list.reduce((s, h) => s + Number(h.hakedis_toplam || 0), 0)
-    const teminatKesintisi = list.reduce((s, h) => s + Number(h.teminat_kesintisi || 0), 0)
-    
-    const fList = faturalar?.filter(f => f.fatura_tipi === 'gelen') || []
-    const faturaToplam = fList.reduce((s, f) => s + Number(f.toplam_tutar || 0), 0)
-    
-    // Cari hareketler üzerinden ödemeleri ve teminat iadelerini bul
-    const movements = cariData?.hareketler || []
-    let toplamOdeme = 0
-    let odenenTeminat = 0
-    
-    movements.forEach((m: any) => {
-      if (m.islem_turu === 'giden_odeme' || m.islem_turu === 'odeme') {
-        toplamOdeme += Number(m.alacak || m.tutar || 0)
-        if (m.kaynak_tipi === 'teminat') {
-          odenenTeminat += Number(m.alacak || m.tutar || 0)
-        }
+    if (statsData) {
+      return {
+        toplamMatrah: statsData.toplam_hakedis,
+        toplamKdvli: statsData.toplam_kdvli,
+        toplamTeminat: statsData.birikmis_teminat,
+        toplamOdeme: statsData.toplam_odeme,
+        toplamFatura: statsData.toplam_fatura,
+        faturaAcigi: statsData.fatura_acigi,
+        cariBakiye: statsData.bakiye
       }
-    })
-
-    const birikmisTeminat = teminatKesintisi - odenenTeminat
-    // Cari Bakiye = Toplam Ödeme - KDVli Tutar - Birikmiş Teminat
-    const bakiye = toplamOdeme - hakedisKdvli - birikmisTeminat
-
-    return {
-      toplamMatrah: hakedisMatrah,
-      toplamKdvli: hakedisKdvli,
-      toplamTeminat: birikmisTeminat,
-      toplamOdeme: toplamOdeme,
-      toplamFatura: faturaToplam,
-      faturaAcigi: hakedisKdvli - faturaToplam,
-      cariBakiye: bakiye
     }
-  }, [hakedisler, faturalar, cariData])
+    return { toplamMatrah: 0, toplamKdvli: 0, toplamTeminat: 0, toplamOdeme: 0, toplamFatura: 0, faturaAcigi: 0, cariBakiye: 0 }
+  }, [statsData])
+
+  const cumulativeCariData = useMemo(() => {
+    if (!cariData?.hareketler) return []
+    let bakiye = 0
+    return cariData.hareketler
+      .filter((h: any) => h.islem_turu === 'hakedis' || h.islem_turu === 'giden_odeme' || h.islem_turu === 'odeme')
+      .map((h: any) => {
+        const borc = Number(h.borc || 0)
+        const alacak = Number(h.alacak || 0)
+        bakiye += (alacak - borc)
+        return { ...h, bakiye }
+      })
+  }, [cariData])
+
+  // --- Render ---
+
+  if (firmaLoading) return <Card loading variant="borderless" />
 
   return (
     <div>
@@ -279,8 +364,8 @@ export const FirmaDetailPage: React.FC = () => {
               />
               <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 4, paddingTop: 4 }}>
                 <Text type="secondary" style={{ fontSize: '11px' }}>Fatura Açığı: </Text>
-                <Text strong style={{ fontSize: '12px', color: stats.toplamFatura - stats.toplamKdvli < 0 ? '#faad14' : 'inherit' }}>
-                  {trMoneyFormatter(stats.toplamFatura - stats.toplamKdvli)} TL
+                <Text strong style={{ fontSize: '12px', color: stats.faturaAcigi < 0 ? '#b91c1c' : '#faad14' }}>
+                  {trMoneyFormatter(stats.faturaAcigi)} TL
                 </Text>
               </div>
             </Space>
@@ -327,7 +412,7 @@ export const FirmaDetailPage: React.FC = () => {
               suffix={<span style={{ fontSize: '12px', fontWeight: 'normal', marginLeft: 4 }}>TL</span>}
             />
             <div style={{ borderTop: '1px solid #ddecff', marginTop: 4, paddingTop: 4 }}>
-              <Text type="secondary" style={{ fontSize: '11px' }}>Ödeme - KDVli Tutar - Teminat</Text>
+              <Text type="secondary" style={{ fontSize: '11px' }}>Ödeme - KDVli Tutar</Text>
             </div>
           </Card>
         </Col>
@@ -344,10 +429,7 @@ export const FirmaDetailPage: React.FC = () => {
               children: (
                 <div style={{ paddingTop: 16 }}>
                   {firma && (
-                    <Descriptions 
-                      bordered 
-                      column={{ xxl: 3, xl: 3, lg: 3, md: 2, sm: 1, xs: 1 }}
-                    >
+                    <Descriptions bordered column={{ xxl: 3, xl: 3, lg: 3, md: 2, sm: 1, xs: 1 }}>
                       <Descriptions.Item label="Tip">
                         <Tag color={firma.firma_tipi === 'yuklenici' ? 'blue' : 'purple'}>
                           {firma.firma_tipi === 'yuklenici' ? 'Yüklenici' : 'Tedarikçi'}
@@ -368,8 +450,8 @@ export const FirmaDetailPage: React.FC = () => {
                           </Typography.Text>
                         ) : '-'}
                       </Descriptions.Item>
-                      <Descriptions.Item label="Adres" span={3}>{firma.adres || '-'}</Descriptions.Item>
-                      {firma.notlar && <Descriptions.Item label="Notlar" span={3}>{firma.notlar}</Descriptions.Item>}
+                      <Descriptions.Item label="Adres" span={2}>{firma.adres || '-'}</Descriptions.Item>
+                      {firma.notlar && <Descriptions.Item label="Notlar" span={2}>{firma.notlar}</Descriptions.Item>}
                     </Descriptions>
                   )}
                 </div>
@@ -381,22 +463,11 @@ export const FirmaDetailPage: React.FC = () => {
               children: (
                 <div style={{ paddingTop: 16 }}>
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-                    <Button
-                      type="primary"
-                      icon={<PlusOutlined />}
-                      onClick={() => navigate(`/sozlesmeler/yeni?firma_id=${id}`)}
-                    >
+                    <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate(`/sozlesmeler/yeni?firma_id=${id}`)}>
                       Yeni Sözleşme
                     </Button>
                   </div>
-                  <Table
-                    columns={sozlesmeColumns}
-                    dataSource={sozlesmeler}
-                    rowKey="id"
-                    loading={sozlesmeLoading}
-                    pagination={false}
-                    size="small"
-                  />
+                  <Table columns={sozlesmeColumns} dataSource={sozlesmeler} rowKey="id" loading={sozlesmeLoading} pagination={false} size="small" />
                 </div>
               ),
             },
@@ -405,13 +476,7 @@ export const FirmaDetailPage: React.FC = () => {
               label: <Space><FileSearchOutlined />Hakedişler ({hakedisler?.length || 0})</Space>,
               children: (
                 <div style={{ paddingTop: 16 }}>
-                  <Table
-                    columns={hakedisColumns}
-                    dataSource={hakedisler}
-                    rowKey="id"
-                    loading={hakedisLoading}
-                    size="small"
-                  />
+                  <Table columns={hakedisColumns} dataSource={hakedisler} rowKey="id" loading={hakedisLoading} size="small" />
                 </div>
               ),
             },
@@ -420,29 +485,16 @@ export const FirmaDetailPage: React.FC = () => {
               label: <Space><FileTextOutlined />Faturalar ({faturalar?.length || 0})</Space>,
               children: (
                 <div style={{ paddingTop: 16 }}>
-                  <Table
-                    columns={faturaColumns}
-                    dataSource={faturalar}
-                    rowKey="id"
-                    loading={faturaLoading}
-                    size="small"
-                  />
+                  <Table columns={faturaColumns} dataSource={faturalar} rowKey="id" loading={faturaLoading} size="small" />
                 </div>
               ),
             },
             {
               key: 'cari',
-              label: <Space><DollarOutlined />Cari Ekstre {cariData ? ` (Bakiye: ${cariData.guncel_bakiye?.toLocaleString('tr-TR')} TL)` : ''}</Space>,
+              label: <Space><DollarOutlined />Cari Ekstre</Space>,
               children: (
                 <div style={{ paddingTop: 16 }}>
-                  <Table
-                    columns={cariColumns}
-                    dataSource={cariData?.hareketler}
-                    rowKey="id"
-                    loading={cariLoading}
-                    pagination={false}
-                    size="small"
-                  />
+                  <Table columns={cariColumns} dataSource={cumulativeCariData} rowKey="id" loading={cariLoading} pagination={false} size="small" />
                 </div>
               ),
             },

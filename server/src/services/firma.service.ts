@@ -26,42 +26,77 @@ export const firmaService = {
     if (error) throw error
 
     // Bakiyeleri ve teminatları (seçili proje varsa o projeye göre) ekle
+    const pId = (query.proje_id && query.proje_id !== 'null' && query.proje_id !== 'undefined') ? query.proje_id : null;
+
     const updatedData = await Promise.all((data || []).map(async (firma) => {
       let bakiye = 0
-      let toplamTeminat = 0
+      let birikmisTeminat = 0
+      let toplamOdeme = 0
+      let toplamKdvli = 0
 
       try {
-        // Cari hesabı bul (borc/alacak/bakiye bu tabloda tutuluyor)
-        let bakiyeQuery = supabaseAdmin
-          .from('cari_hesaplar')
-          .select('bakiye')
-          .eq('firma_id', firma.id)
+        // 1. Ödemeler (Project Perspective: ALACAK is payment/outflow for project)
+        let hareketQuery = supabaseAdmin
+          .from('cari_hareketler')
+          .select('alacak, borc, islem_turu')
+          .eq('cari_hesaplar.firma_id', firma.id)
+          .innerJoin('cari_hesaplar', 'cari_hareketler.cari_hesap_id', 'cari_hesaplar.id')
 
-        if (query.proje_id && query.proje_id !== 'null' && query.proje_id !== 'undefined') {
-          bakiyeQuery = bakiyeQuery.eq('proje_id', query.proje_id)
+        if (pId) {
+          hareketQuery = hareketQuery.eq('proje_id', pId)
         }
 
-        const { data: cariler } = await bakiyeQuery
-        bakiye = cariler?.reduce((sum, c) => sum + Number(c.bakiye || 0), 0) || 0
+        const { data: hareketler } = await hareketQuery
 
-        // Teminat (Proje bazlı)
+        hareketler?.forEach(h => {
+          if (h.islem_turu === 'giden_odeme' || h.islem_turu === 'odeme') {
+            toplamOdeme += Number(h.alacak || 0)
+          }
+        })
+
+        // 2. Hakedişler (KDVli tutarlar)
+        // Firma ID'sine göre hakedişleri çekmek için sozlesmeler tablosunu inner join ile kullanıyoruz
         let hakedisQuery = supabaseAdmin
           .from('hakedisler')
-          .select('teminat_kesintisi')
-          .eq('sozlesmeler!inner(firma_id)', firma.id) // Fallback join if firma_id missing on hakedis
+          .select('hakedis_toplam, ara_toplam, kdv_tutar, sozlesmeler!inner(firma_id)')
+          .eq('sozlesmeler.firma_id', firma.id)
           .in('durum', ['onaylandi', 'odendi'])
 
-        if (query.proje_id && query.proje_id !== 'null' && query.proje_id !== 'undefined') {
-          hakedisQuery = hakedisQuery.eq('proje_id', query.proje_id)
+        if (pId) {
+          hakedisQuery = hakedisQuery.eq('proje_id', pId)
         }
 
         const { data: hakedisler } = await hakedisQuery
-        toplamTeminat = hakedisler?.reduce((sum, h) => sum + Number(h.teminat_kesintisi || 0), 0) || 0
+        toplamKdvli = hakedisler?.reduce((sum, h) => sum + Number(h.hakedis_toplam || (Number(h.ara_toplam || 0) + Number(h.kdv_tutar || 0))), 0) || 0
+        
+        // 3. Birikmiş Teminat (Yeni Tablodan)
+        // Hakedişlerden yapılan toplam kesintiler bu tabloda trigger ile güncelleniyor.
+        // Buradan iadeler düşülmüş HALİNİ alıyoruz: Kesinti (birikmis_teminatlar tablosu) - İade (cari_hareketler alacak)
+        let odenenTeminatlar = 0
+        hareketler?.forEach(h => {
+          if (h.kaynak_tipi === 'teminat' && (h.islem_turu === 'giden_odeme' || h.islem_turu === 'odeme')) {
+            odenenTeminatlar += Number(h.alacak || 0)
+          }
+        })
+
+        const { data: teminatRecord } = await supabaseAdmin
+          .from('birikmis_teminatlar')
+          .select('birikmis_teminat')
+          .eq('firma_id', firma.id)
+          .eq('proje_id', pId || '') // Proje seçili değilse boş döner, bu beklenen bir durumdur
+          .maybeSingle()
+
+        birikmisTeminat = Number(teminatRecord?.birikmis_teminat || 0) - odenenTeminatlar
+        
+        // Cari Bakiye = Toplam Ödeme - Hakediş (KDVli)
+        // Project Perspective: (+) Fazla ödedik, (-) Borçluyuz
+        bakiye = toplamOdeme - toplamKdvli
+
       } catch (err) {
         logger.error(`Bakiye hesaplama hatası (Firma: ${firma.id}):`, err)
       }
 
-      return { ...firma, guncel_bakiye: bakiye, toplam_teminat: toplamTeminat }
+      return { ...firma, guncel_bakiye: bakiye, toplam_teminat: birikmisTeminat }
     }))
 
 
@@ -129,38 +164,41 @@ export const firmaService = {
     // Cari Hareketler üzerinden ödemeleri ve teminat iadelerini hesapla
     const { data: hareketler, error: hErr } = await supabaseAdmin
       .from('cari_hareketler')
-      .select('borc, alacak, islem_turu, kaynak_tipi')
+      .select('borc, alacak, islem_turu, kaynak_tipi, cari_hesaplar!inner(cari_turu)')
       .eq('proje_id', projeId)
+      .eq('cari_hesaplar.cari_turu', 'firma')
 
     if (hErr) throw hErr
 
     let toplamOdemeler = 0
-    let odenenTeminatlar = 0
 
     hareketler?.forEach(h => {
-      const alacak = Number(h.alacak || 0)
-      if (h.islem_turu === 'giden_odeme') {
-        toplamOdemeler += alacak
-        if (h.kaynak_tipi === 'teminat') {
-          odenenTeminatlar += alacak
-        }
+      const netAlacak = Number(h.alacak || 0) - Number(h.borc || 0)
+      if (h.islem_turu === 'giden_odeme' || h.islem_turu === 'odeme') {
+        toplamOdemeler += netAlacak
       }
     })
 
-    // Hakedişler üzerinden Matrah, KDV, Teminat Kesintisi
+    // Hakedişler üzerinden Matrah, KDV
     const { data: hakedisler, error: hakErr } = await supabaseAdmin
       .from('hakedisler')
-      .select('ara_toplam, hakedis_toplam, teminat_kesintisi')
+      .select('ara_toplam, kdv_tutar, hakedis_toplam')
       .eq('proje_id', projeId)
       .in('durum', ['onaylandi', 'odendi'])
 
     if (hakErr) throw hakErr
     
     const toplamMatrah = hakedisler?.reduce((s, h) => s + Number(h.ara_toplam || 0), 0) || 0
-    const toplamKdvli = hakedisler?.reduce((s, h) => s + Number(h.hakedis_toplam || 0), 0) || 0
-    const toplamTeminatKesintisi = hakedisler?.reduce((s, h) => s + Number(h.teminat_kesintisi || 0), 0) || 0
+    const toplamKdvli = hakedisler?.reduce((s, h) => s + Number(h.hakedis_toplam || (Number(h.ara_toplam || 0) + Number(h.kdv_tutar || 0))), 0) || 0
 
-    const birikmisTeminat = toplamTeminatKesintisi - odenenTeminatlar
+    // 2. Birikmiş Teminat (Yeni Tablodan)
+    let teminatQuery = supabaseAdmin
+      .from('birikmis_teminatlar')
+      .select('birikmis_teminat')
+      .eq('proje_id', projeId)
+
+    const { data: teminatlar } = await teminatQuery
+    const birikmisTeminat = teminatlar?.reduce((sum, t) => sum + Number(t.birikmis_teminat || 0), 0) || 0
 
     // Faturalar
     const { data: faturalar, error: fErr } = await supabaseAdmin
@@ -172,17 +210,13 @@ export const firmaService = {
     if (fErr) throw fErr
     const toplamFatura = faturalar?.reduce((s, f) => s + Number(f.toplam_tutar), 0) || 0
 
-    // Kullanıcının talep ettiği Cari Bakiye formülü: 
-    // Cari Bakiye = Toplam Ödeme - KDVli tutar - Birikmiş teminat
-    const cariBakiye = toplamOdemeler - toplamKdvli - birikmisTeminat
-
     return {
       toplam_hakedis: toplamMatrah,
       toplam_kdvli: toplamKdvli,
       toplam_odeme: toplamOdemeler,
-      bakiye: cariBakiye,
+      bakiye: toplamOdemeler - toplamKdvli,
       toplam_fatura: toplamFatura,
-      fatura_acigi: toplamKdvli - toplamFatura,
+      fatura_acigi: toplamFatura - toplamKdvli,
       birikmis_teminat: birikmisTeminat
     }
   },
@@ -198,33 +232,35 @@ export const firmaService = {
     if (hErr) throw hErr
 
     let toplamOdemeler = 0
-    let odenenTeminatlar = 0
 
     hareketler?.forEach(h => {
-      const alacak = Number(h.alacak || 0)
+      const netAlacak = Number(h.alacak || 0) - Number(h.borc || 0)
       if (h.islem_turu === 'giden_odeme' || h.islem_turu === 'odeme') {
-        toplamOdemeler += alacak
-        if (h.kaynak_tipi === 'teminat') {
-          odenenTeminatlar += alacak
-        }
+        toplamOdemeler += netAlacak
       }
     })
 
     // 2. Firma özelinde hakedişler
     const { data: hakedisler, error: hakErr } = await supabaseAdmin
       .from('hakedisler')
-      .select('ara_toplam, hakedis_toplam, teminat_kesintisi')
+      .select('ara_toplam, kdv_tutar, hakedis_toplam, sozlesmeler!inner(firma_id)')
       .eq('proje_id', projeId)
-      .eq('firma_id', firmaId)
+      .eq('sozlesmeler.firma_id', firmaId)
       .in('durum', ['onaylandi', 'odendi'])
 
     if (hakErr) throw hakErr
 
     const toplamMatrah = hakedisler?.reduce((s, h) => s + Number(h.ara_toplam || 0), 0) || 0
-    const toplamKdvli = hakedisler?.reduce((s, h) => s + Number(h.hakedis_toplam || 0), 0) || 0
-    const toplamTeminatKesintisi = hakedisler?.reduce((s, h) => s + Number(h.teminat_kesintisi || 0), 0) || 0
+    const toplamKdvli = hakedisler?.reduce((s, h) => s + Number(h.hakedis_toplam || (Number(h.ara_toplam || 0) + Number(h.kdv_tutar || 0))), 0) || 0
 
-    const birikmisTeminat = toplamTeminatKesintisi - odenenTeminatlar
+    // 3. Birikmiş Teminat (Yeni Tablodan)
+    const { data: teminatlar } = await supabaseAdmin
+      .from('birikmis_teminatlar')
+      .select('birikmis_teminat')
+      .eq('proje_id', projeId)
+      .eq('firma_id', firmaId)
+
+    const birikmisTeminat = teminatlar?.reduce((sum, t) => sum + Number(t.birikmis_teminat || 0), 0) || 0
 
     // 3. Firma özelinde faturalar
     const { data: faturalar, error: fErr } = await supabaseAdmin
@@ -237,16 +273,13 @@ export const firmaService = {
     if (fErr) throw fErr
     const toplamFatura = faturalar?.reduce((s, f) => s + Number(f.toplam_tutar), 0) || 0
 
-    // Cari Bakiye Formülü
-    const cariBakiye = toplamOdemeler - toplamKdvli - birikmisTeminat
-
     return {
       toplam_hakedis: toplamMatrah,
       toplam_kdvli: toplamKdvli,
       toplam_odeme: toplamOdemeler,
-      bakiye: cariBakiye,
+      bakiye: toplamOdemeler - toplamKdvli,
       toplam_fatura: toplamFatura,
-      fatura_acigi: toplamKdvli - toplamFatura,
+      fatura_acigi: toplamFatura - toplamKdvli,
       birikmis_teminat: birikmisTeminat
     }
   }

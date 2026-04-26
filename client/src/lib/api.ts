@@ -14,17 +14,23 @@ api.interceptors.request.use(async (config) => {
   }
 
   // Aktif proje ID'sini ekle
-  const activeProjectId = localStorage.getItem('activeProjectId')
+  let activeProjectId = localStorage.getItem('activeProjectId')
+  
+  // "undefined" veya "null" string'lerini temizle
+  if (activeProjectId === 'undefined' || activeProjectId === 'null') {
+    activeProjectId = null
+  }
+
   const isProjeEndpoint = config.url?.includes('/projeler')
-  const isGlobalEndpoint = config.url?.includes('/firmalar') || config.url?.includes('/banka') || config.url?.includes('/settings')
+  const isGlobalEndpoint = config.url?.includes('/firmalar') || config.url?.includes('/settings')
   const isSubResourceWithoutProject = config.url?.includes('/is-kalemleri') || config.url?.includes('/odeme-plani')
 
-  if (activeProjectId && !isProjeEndpoint) {
+  if (activeProjectId && !isProjeEndpoint && !isGlobalEndpoint && !isSubResourceWithoutProject) {
     if (config.method === 'get' || config.method === 'delete') {
       if (!config.params?.proje_id) {
         config.params = { ...config.params, proje_id: activeProjectId }
       }
-    } else if (!isGlobalEndpoint && !isSubResourceWithoutProject) {
+    } else if (config.method === 'post' || config.method === 'put' || config.method === 'patch') {
       if (typeof config.data === 'object' && !config.data?.proje_id) {
         config.data = { ...config.data, proje_id: activeProjectId }
       }

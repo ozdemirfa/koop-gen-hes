@@ -42,6 +42,7 @@ import { UyeBorcRaporPage } from './pages/raporlar/UyeBorcRaporPage'
 import { MizanPage } from './pages/raporlar/MizanPage'
 import { BirimListPage } from './pages/settings/BirimListPage'
 import { PozListPage } from './pages/settings/PozListPage'
+import { ParametersPage } from './pages/settings/ParametersPage'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 
 const queryClient = new QueryClient({
@@ -155,6 +156,7 @@ const App: React.FC = () => {
                         <Route path="raporlar/mizan" element={<MizanPage />} />
                         <Route path="ayarlar/birimler" element={<BirimListPage />} />
                         <Route path="ayarlar/pozlar" element={<PozListPage />} />
+                        <Route path="ayarlar/parametreler" element={<ParametersPage />} />
                       </Route>
                     </Routes>
                   </Router>

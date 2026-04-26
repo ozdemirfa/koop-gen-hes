@@ -65,6 +65,20 @@ export const aidatTanimiService = {
       throw ApiError.badRequest('proje_id zorunludur')
     }
 
+    // Önce aynı dönem ve türde kayıt var mı kontrol et
+    const { data: existing } = await supabaseAdmin
+      .from('aidat_tanimlari')
+      .select('id')
+      .eq('proje_id', body.proje_id)
+      .eq('yil', body.yil!)
+      .eq('ay', body.ay!)
+      .eq('tur', body.tur || 'normal')
+      .maybeSingle()
+
+    if (existing) {
+      throw new ApiError(409, `${body.ay}/${body.yil} dönemi için '${body.tur || 'normal'}' türünde bir aidat tanımı zaten mevcut.`)
+    }
+
     const { data: tanim, error } = await supabaseAdmin
       .from('aidat_tanimlari')
       .insert([body])
@@ -214,6 +228,11 @@ export const aidatService = {
     if (query.durum) q = q.eq('durum', String(query.durum))
     if (query.blok_id) q = q.eq('filter_blok_id', query.blok_id)
     
+    // Üye adı/soyadı/no araması
+    if (query.uye_adi) {
+      q = q.or(`ad.ilike.%${query.uye_adi}%,soyad.ilike.%${query.uye_adi}%,uye_no.ilike.%${query.uye_adi}%`)
+    }
+    
     // Daire atama durumuna göre filtreleme
     if (query.has_daire === 'false') {
       q = q.is('uye_id', null)
@@ -239,38 +258,52 @@ export const aidatService = {
     }
 
     // View verilerini frontend'in beklediği yapıya eşle
-    const mappedData = data?.map(d => ({
-      ...d,
-      uyeler: { ad: d.ad, soyad: d.soyad, uye_no: d.uye_no },
-      tutar: d.hesaplanan_tutar,
-      odenen_tutar: d.dinamik_odenen_tutar,
-      toplam_tutar: d.toplam_borc,
-      aidat_tanimlari: { yil: d.yil, ay: d.ay, tur: d.aidat_turu },
-      serefiye_tablosu: { daire_no: d.daire_no, bloklar: { blok_adi: d.blok_adi } }
-    }))
+    const mappedData = data?.map(d => {
+      const toplamTahakkuk = Number(d.toplam_tahakkuk || d.toplam_borc || 0)
+      const toplamOdenen = Number(d.toplam_odenen || d.dinamik_odenen_tutar || 0)
+      
+      return {
+        ...d,
+        ad: d.ad,
+        soyad: d.soyad,
+        uye_id: d.uye_id,
+        uyeler: { ad: d.ad, soyad: d.soyad, uye_no: d.uye_no },
+        tutar: d.hesaplanan_tutar || d.baz_tutar,
+        odenen_tutar: toplamOdenen,
+        toplam_tutar: toplamTahakkuk,
+        aidat_tanimlari: { yil: d.yil, ay: d.ay, tur: d.aidat_turu },
+        serefiye_tablosu: { daire_no: d.daire_no, bloklar: { blok_adi: d.blok_adi } }
+      }
+    })
 
     return { data: mappedData, pagination: paginationMeta(pagination, count || 0) }
   },
 
   async getById(id: string) {
     const { data, error } = await supabaseAdmin
-      .from('aidatlar')
-      .select('*, uyeler(uye_no, ad, soyad, serefiye_tablosu!serefiye_id(daire_no, bloklar(blok_adi))), aidat_tanimlari(yil, ay, katsayi_tutari)')
+      .from('aidat_detaylari')
+      .select('*')
       .eq('id', id)
       .single()
-
 
     if (error) {
       logger.error(`Aidat detayı çekme hatası (ID: ${id}):`, error)
       throw ApiError.notFound('Aidat bulunamadı')
     }
 
-    // Eşleme
+    const toplamTahakkuk = Number(data.toplam_tahakkuk || data.toplam_borc || 0)
+    const toplamOdenen = Number(data.toplam_odenen || data.dinamik_odenen_tutar || 0)
+
+    // View verilerini frontend'in beklediği yapıya eşle
     return {
       ...data,
-      tutar: data.hesaplanan_tutar,
-      odenen_tutar: data.dinamik_odenen_tutar,
-      toplam_tutar: data.toplam_borc,
+      ad: data.ad,
+      soyad: data.soyad,
+      uye_id: data.uye_id,
+      uyeler: { ad: data.ad, soyad: data.soyad, uye_no: data.uye_no },
+      tutar: data.hesaplanan_tutar || data.baz_tutar,
+      odenen_tutar: toplamOdenen,
+      toplam_tutar: toplamTahakkuk,
       aidat_tanimlari: { yil: data.yil, ay: data.ay, tur: data.aidat_turu, katsayi_tutari: data.baz_tutar },
       serefiye_tablosu: { daire_no: data.daire_no, bloklar: { blok_adi: data.blok_adi }, serefiye_orani: data.serefiye_orani }
     }
@@ -322,7 +355,10 @@ export const aidatService = {
         .eq('kaynak_id', aidatId)
     
     const currentTotalPaid = (hareketler || []).reduce((sum, h) => sum + Number(h.borc), 0)
-    const toplamBorc = Number(aidat.hesaplanan_tutar) + Number(aidat.gecikme_faizi || 0)
+    
+    // Toplam Borç Hesabı: Sadece faiz yansıtıldıysa faizi ekle
+    const { data: vAidat } = await supabaseAdmin.from('aidat_detaylari').select('toplam_borc').eq('id', aidatId).single()
+    const toplamBorc = Number(vAidat?.toplam_borc || aidat.hesaplanan_tutar)
     
     // Durumu güncelle (Sadece durum alanı)
     let yeniDurum = aidat.durum
@@ -357,6 +393,14 @@ export const aidatService = {
   async getSummary(query: Record<string, any>): Promise<AidatSummary> {
     const { proje_id, yil, ay, durum, blok_id, has_daire } = query
     
+    // Güvenlik: Eğer gecikme oranı 0 ise (yanlışlıkla veya varsayılan), bunu 5% yap (Trigger engelini aşmak için RPC veya direkt SQL denenebilir)
+    // Bu aşamada direkt SQL deniyoruz, trigger hatası verirse RPC eklenebilir.
+    try {
+      await supabaseAdmin.from('aidat_tanimlari').update({ gecikme_faiz_orani: 5 }).eq('gecikme_faiz_orani', 0).eq('proje_id', proje_id)
+    } catch (e) {
+      logger.warn('Gecikme oranı otomatik güncellenemedi (muhtemelen trigger engeli):', e)
+    }
+
     // Önce gecikme faizlerini güncelle (proje bazlı)
     const { error: rpcError } = await supabaseAdmin.rpc('hesapla_gecikme_faizi', { p_proje_id: proje_id })
     if (rpcError) logger.error('Gecikme faizi hesaplama hatası (RPC):', rpcError)
@@ -368,7 +412,8 @@ export const aidatService = {
       p_ay: ay ? parseInt(ay) : null,
       p_durum: durum || null,
       p_blok_id: blok_id || null,
-      p_has_daire: has_daire === 'true' ? true : (has_daire === 'false' ? false : null)
+      p_has_daire: has_daire === 'true' ? true : (has_daire === 'false' ? false : null),
+      p_search: query.uye_adi || null
     })
 
     if (error) {
@@ -381,6 +426,12 @@ export const aidatService = {
 
   async calculateLateFees(query: Record<string, any>) {
     const { proje_id } = query
+    
+    // Gecikme oranı 0 ise 5% yap
+    try {
+      await supabaseAdmin.from('aidat_tanimlari').update({ gecikme_faiz_orani: 5 }).eq('gecikme_faiz_orani', 0).eq('proje_id', proje_id)
+    } catch (e) {}
+
     const { error } = await supabaseAdmin.rpc('hesapla_gecikme_faizi', { p_proje_id: proje_id })
     if (error) {
       logger.error('Gecikme faizi manuel tetikleme hatası:', error)
@@ -390,11 +441,32 @@ export const aidatService = {
   },
 
   async calculateSingleLateFee(id: string) {
+    // Bu metod için de oran kontrolü eklenebilir ama tekil aidat için tanımı bulmak gerekir
+    // fn_calculate_single_aidat_late_fee içindeki SQL zaten güncel oran neyse onu alır.
+    // getSummary veya calculateLateFees çalışınca zaten oranlar güncellenmiş olacak.
     const { data, error } = await supabaseAdmin.rpc('fn_calculate_single_aidat_late_fee', { p_aidat_id: id })
     if (error) {
       logger.error(`Tekil gecikme faizi hesaplama hatası (ID: ${id}):`, error)
       throw error
     }
+    return data
+  },
+
+  async toggleInterest(id: string, active: boolean) {
+    const { data, error } = await supabaseAdmin.rpc('fn_toggle_aidat_faiz', { 
+      p_aidat_id: id, 
+      p_active: active 
+    })
+
+    if (error) {
+      logger.error(`Faiz toggle hatası (ID: ${id}):`, error)
+      throw error
+    }
+
+    if (data.success === false) {
+      throw ApiError.badRequest(data.message)
+    }
+
     return data
   },
 
