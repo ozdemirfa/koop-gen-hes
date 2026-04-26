@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Layout, Menu, Button, theme, Space, Typography, Tooltip, Dropdown } from 'antd'
+import { Layout, Menu, Button, theme, Space, Typography, Tooltip, Dropdown, Drawer } from 'antd'
 import {
   UserOutlined,
   LogoutOutlined,
@@ -12,6 +12,7 @@ import {
   PieChartOutlined,
   WalletOutlined,
   SettingOutlined,
+  MenuOutlined,
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
@@ -75,7 +76,7 @@ export const AdminLayout: React.FC = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const navigate = useNavigate()
   const location = useLocation()
-  const { title, headerActions } = useLayout()
+  const { title, headerActions, headerRightActions } = useLayout()
   const { activeProject } = useProject()
   const { signOut } = useAuth()
 
@@ -88,70 +89,84 @@ export const AdminLayout: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  // Find the matching menu key and its parent group
+  // Find the matching menu key and its parent group safely
   const { selectedKey, parentKey } = React.useMemo(() => {
-    const pathname = location.pathname
+    const pathname = location.pathname;
     
+    let currentSelectedKey = '';
+    let currentParentKey: string | null = null;
+
     // 1. Exact match
     for (const item of menuItems) {
       if (item.children) {
-        const child = item.children.find(c => c.key === pathname)
-        if (child) return { selectedKey: child.key, parentKey: item.key }
-      } else if (item.key === pathname) {
-        return { selectedKey: item.key, parentKey: null }
-      }
-    }
-
-    // 2. Prefix match
-    let bestMatch = { selectedKey: '', parentKey: null as string | null }
-    for (const item of menuItems) {
-      if (item.children) {
-        for (const child of item.children) {
-          if (pathname.startsWith(child.key) && child.key !== '/' && child.key.length > bestMatch.selectedKey.length) {
-            bestMatch = { selectedKey: child.key, parentKey: item.key }
-          }
+        const child = item.children.find(c => c.key === pathname);
+        if (child) {
+          currentSelectedKey = child.key;
+          currentParentKey = item.key;
+          break;
         }
-      } else if (item.key !== '/' && pathname.startsWith(item.key) && item.key.length > bestMatch.selectedKey.length) {
-        bestMatch = { selectedKey: item.key, parentKey: null }
+      } else if (item.key === pathname) {
+        currentSelectedKey = item.key;
+        break;
       }
     }
 
-    if (pathname === '/' && !bestMatch.selectedKey) return { selectedKey: '/', parentKey: null }
-    return bestMatch
-  }, [location.pathname])
-
-  // Sync openKeys when selection changes
-  React.useEffect(() => {
-    if (parentKey && !openKeys.includes(parentKey)) {
-      setOpenKeys(prev => [...prev, parentKey])
+    // 2. Prefix match (e.g. /uyeler/123 -> /uyeler)
+    if (!currentSelectedKey) {
+      for (const item of menuItems) {
+        if (item.children) {
+          for (const child of item.children) {
+            if (child.key !== '/' && pathname.startsWith(child.key) && child.key.length > currentSelectedKey.length) {
+              currentSelectedKey = child.key;
+              currentParentKey = item.key;
+            }
+          }
+        } else if (item.key !== '/' && pathname.startsWith(item.key) && item.key.length > currentSelectedKey.length) {
+          currentSelectedKey = item.key;
+          currentParentKey = null;
+        }
+      }
     }
-  }, [parentKey])
+
+    // Default to '/' if completely unknown
+    if (!currentSelectedKey) {
+       currentSelectedKey = '/';
+       currentParentKey = null;
+    }
+
+    return { selectedKey: currentSelectedKey, parentKey: currentParentKey };
+  }, [location.pathname]);
+
+  // Sync openKeys when selection changes using functional state to prevent stale closure bugs
+  React.useEffect(() => {
+    if (parentKey) {
+      setOpenKeys(prev => (prev.includes(parentKey) && prev.length === 1 ? prev : [parentKey]));
+    } else {
+      setOpenKeys(prev => (prev.length === 0 ? prev : []));
+    }
+  }, [parentKey]);
 
   const handleLogout = async () => {
-    await signOut()
-  }
+    await signOut();
+  };
 
-  const handleNavigation = (key: string) => {
-    console.log('Navigating to:', key);
-    if (key.includes('-group')) {
-        console.log('Group clicked, ignoring navigation');
-        return;
-    }
-    
-    // Rota yapısına uygun olarak '/' ile başlayan mutlak yolları olduğu gibi kullanıyoruz
+  const handleNavigation = React.useCallback((key: string) => {
+    // If it's a submenu group, don't navigate
+    const isGroup = menuItems.some(item => item.children && item.key === key);
+    if (isGroup) return;
+
     navigate(key);
-    
-    // On mobile, ensure sidebar closes
-    if (isMobile) {
-      setCollapsed(true)
-    }
-  }
 
-  const handleOpenChange = (keys: string[]) => {
-    // Keep only the latest open key (accordion behavior)
-    const latestOpenKey = keys.find(key => openKeys.indexOf(key) === -1)
-    setOpenKeys(latestOpenKey ? [latestOpenKey] : [])
-  }
+    if (isMobile) {
+      setCollapsed(true);
+    }
+  }, [navigate, isMobile]);
+
+  const handleOpenChange = React.useCallback((keys: string[]) => {
+    // Accordion behavior: only one open submenu at a time
+    const latestOpenKey = keys.find(key => openKeys.indexOf(key) === -1);
+    setOpenKeys(latestOpenKey ? [latestOpenKey] : []);
+  }, [openKeys]);
 
   const settingsMenu = {
     items: [
@@ -162,76 +177,95 @@ export const AdminLayout: React.FC = () => {
     onClick: ({ key }: { key: string }) => handleNavigation(key),
   }
 
+  const renderSiderContent = () => (
+    <>
+      <div style={{ padding: '24px 8px', borderBottom: '1px solid #e2e8f0', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+          <img 
+            src={logo} 
+            alt="KoopGenHes Logo" 
+            style={{ 
+              height: collapsed && !isMobile ? '32px' : '64px',
+              width: '100%',
+              maxWidth: collapsed && !isMobile ? '40px' : '180px',
+              objectFit: 'contain',
+              transition: 'all 0.2s ease-in-out'
+            }} 
+          />
+        </div>
+        {activeProject && (
+          <Tooltip title={collapsed && !isMobile ? `Aktif Proje: ${activeProject.proje_adi}` : ''} placement="right">
+            <div style={{ padding: collapsed && !isMobile ? '0' : '0 12px', textAlign: 'center' }}>
+              {!collapsed || isMobile ? (
+                <>
+                  <Typography.Text type="secondary" style={{ fontSize: '10px', display: 'block' }}>
+                    AKTİF PROJE
+                  </Typography.Text>
+                  <Typography.Text strong style={{ 
+                    fontSize: '12px', 
+                    color: '#4f46e5', 
+                    display: 'block', 
+                    overflow: 'hidden', 
+                    textOverflow: 'ellipsis', 
+                    whiteSpace: 'nowrap' 
+                  }}>
+                    {activeProject.proje_adi}
+                  </Typography.Text>
+                </>
+              ) : (
+                <ProjectOutlined style={{ color: '#4f46e5', fontSize: '16px', marginTop: '4px' }} />
+              )}
+            </div>
+          </Tooltip>
+        )}
+      </div>
+      <Menu
+        theme="light"
+        selectedKeys={selectedKey ? [selectedKey] : []}
+        openKeys={openKeys}
+        onOpenChange={handleOpenChange}
+        mode="inline"
+        items={menuItems}
+        onClick={({ key }) => handleNavigation(key)}
+        style={{ borderRight: 0, marginTop: 8, paddingBottom: 48 }}
+      />
+    </>
+  )
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider
-        collapsible
-        collapsed={collapsed}
-        onCollapse={(value) => setCollapsed(value)}
-        breakpoint="lg"
-        collapsedWidth={isMobile ? 0 : 80}
-        theme="light"
-        style={{
-          borderRight: '1px solid #e2e8f0',
-          position: 'sticky',
-          top: 0,
-          left: 0,
-          height: '100vh',
-          zIndex: 1000,
-          overflowY: 'auto'
-        }}
-      >
-        <div style={{ padding: '24px 8px', borderBottom: '1px solid #e2e8f0', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-            <img 
-              src={logo} 
-              alt="KoopGenHes Logo" 
-              style={{ 
-                height: collapsed ? '32px' : '64px',
-                width: '100%',
-                maxWidth: collapsed ? '40px' : '180px',
-                objectFit: 'contain',
-                transition: 'all 0.2s ease-in-out'
-              }} 
-            />
-          </div>
-          {activeProject && (
-            <Tooltip title={collapsed ? `Aktif Proje: ${activeProject.proje_adi}` : ''} placement="right">
-              <div style={{ padding: collapsed ? '0' : '0 12px', textAlign: 'center' }}>
-                {!collapsed ? (
-                  <>
-                    <Typography.Text type="secondary" style={{ fontSize: '10px', display: 'block' }}>
-                      AKTİF PROJE
-                    </Typography.Text>
-                    <Typography.Text strong style={{ 
-                      fontSize: '12px', 
-                      color: '#4f46e5', 
-                      display: 'block', 
-                      overflow: 'hidden', 
-                      textOverflow: 'ellipsis', 
-                      whiteSpace: 'nowrap' 
-                    }}>
-                      {activeProject.proje_adi}
-                    </Typography.Text>
-                  </>
-                ) : (
-                  <ProjectOutlined style={{ color: '#4f46e5', fontSize: '16px', marginTop: '4px' }} />
-                )}
-              </div>
-            </Tooltip>
-          )}
-        </div>
-        <Menu
+      {isMobile ? (
+        <Drawer
+          placement="left"
+          closable={false}
+          onClose={() => setCollapsed(true)}
+          open={!collapsed}
+          width={260}
+          styles={{ body: { padding: 0 } }}
+        >
+          {renderSiderContent()}
+        </Drawer>
+      ) : (
+        <Sider
+          collapsible
+          collapsed={collapsed}
+          onCollapse={(value) => setCollapsed(value)}
+          breakpoint="lg"
+          collapsedWidth={80}
           theme="light"
-          selectedKeys={selectedKey ? [selectedKey] : []}
-          openKeys={openKeys}
-          onOpenChange={handleOpenChange}
-          mode="inline"
-          items={menuItems}
-          onClick={({ key }) => handleNavigation(key)}
-          style={{ borderRight: 0, marginTop: 8, paddingBottom: 48 }}
-        />
-      </Sider>
+          style={{
+            borderRight: '1px solid #e2e8f0',
+            position: 'sticky',
+            top: 0,
+            left: 0,
+            height: '100vh',
+            zIndex: 1000,
+            overflowY: 'auto'
+          }}
+        >
+          {renderSiderContent()}
+        </Sider>
+      )}
       <Layout>
         <Header style={{ 
           padding: '0 24px', 
@@ -246,6 +280,21 @@ export const AdminLayout: React.FC = () => {
           height: 64
         }}>
           <div id="header-left" style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1, minWidth: 0 }}>
+            {isMobile && (
+              <Button
+                type="text"
+                icon={<MenuOutlined />}
+                onClick={() => setCollapsed(!collapsed)}
+                style={{
+                  fontSize: '16px',
+                  width: 40,
+                  height: 40,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              />
+            )}
             {title && (
               <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
                 <Typography.Text style={{ margin: 0, color: '#1e293b', whiteSpace: 'nowrap', fontWeight: 600, fontSize: '16px' }}>
@@ -268,6 +317,11 @@ export const AdminLayout: React.FC = () => {
             )}
           </div>
           <div id="header-right" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {headerRightActions && (
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                {headerRightActions}
+              </div>
+            )}
             <Dropdown menu={settingsMenu} placement="bottomRight" arrow>
               <Button 
                 type="text" 

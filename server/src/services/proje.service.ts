@@ -1,7 +1,61 @@
 import { supabaseAdmin } from '../config/supabase'
 import { ApiError } from '../utils/ApiError'
+import { parse } from 'csv-parse/sync'
 
 export const projeService = {
+  async exportSerefiye(projeId: string) {
+    const { data, error } = await supabaseAdmin
+      .from('serefiye_tablosu')
+      .select('daire_no, kat, yon, m2, oda_sayisi, serefiye_orani')
+      .eq('proje_id', projeId)
+      .order('daire_sira_no', { ascending: true })
+
+    if (error) throw error
+
+    const header = ['daire_no', 'kat', 'yon', 'm2', 'oda_sayisi', 'serefiye_orani']
+    const rows = (data || []).map(r => [
+      r.daire_no,
+      r.kat || '',
+      r.yon || '',
+      r.m2 || '',
+      r.oda_sayisi || '',
+      r.serefiye_orani
+    ])
+
+    return [header.join(','), ...rows.map(row => row.join(','))].join('\n')
+  },
+
+  async importSerefiye(projeId: string, buffer: Buffer) {
+    const records = parse(buffer, {
+      columns: true,
+      skip_empty_lines: true,
+      trim: true
+    })
+
+    const updates = records.map((r: any) => ({
+      daire_no: r.daire_no,
+      kat: r.kat ? parseInt(r.kat) : null,
+      yon: r.yon || null,
+      m2: r.m2 ? parseFloat(r.m2) : null,
+      oda_sayisi: r.oda_sayisi || null,
+      serefiye_orani: r.serefiye_orani ? parseFloat(r.serefiye_orani) : 1.0
+    }))
+
+    for (const update of updates) {
+      const { error } = await supabaseAdmin
+        .from('serefiye_tablosu')
+        .update(update)
+        .eq('proje_id', projeId)
+        .eq('daire_no', update.daire_no)
+      
+      if (error) {
+        console.error(`Import error for ${update.daire_no}:`, error)
+      }
+    }
+
+    return { updated: updates.length }
+  },
+
   async list() {
     const { data, error } = await supabaseAdmin
       .from('projeler')

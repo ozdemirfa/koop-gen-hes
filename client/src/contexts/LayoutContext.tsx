@@ -5,6 +5,8 @@ interface LayoutContextType {
   setTitle: (title: string) => void
   headerActions: React.ReactNode | null
   setHeaderActions: (actions: React.ReactNode | null) => void
+  headerRightActions: React.ReactNode | null
+  setHeaderRightActions: (actions: React.ReactNode | null) => void
 }
 
 const LayoutContext = createContext<LayoutContextType | undefined>(undefined)
@@ -12,13 +14,16 @@ const LayoutContext = createContext<LayoutContextType | undefined>(undefined)
 export const LayoutProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [title, setTitle] = useState('')
   const [headerActions, setHeaderActions] = useState<React.ReactNode | null>(null)
+  const [headerRightActions, setHeaderRightActions] = useState<React.ReactNode | null>(null)
 
   const value = React.useMemo(() => ({
     title,
     setTitle,
     headerActions,
-    setHeaderActions
-  }), [title, headerActions])
+    setHeaderActions,
+    headerRightActions,
+    setHeaderRightActions
+  }), [title, headerActions, headerRightActions])
 
   return (
     <LayoutContext.Provider value={value}>
@@ -35,8 +40,15 @@ export const useLayout = () => {
   return context
 }
 
-export const usePageSettings = (title: string, actions: React.ReactNode = null) => {
-  const { title: currentTitle, setTitle, headerActions: currentActions, setHeaderActions } = useLayout()
+export const usePageSettings = (title: string, actions: React.ReactNode = null, rightActions: React.ReactNode = null) => {
+  const { 
+    title: currentTitle, 
+    setTitle, 
+    headerActions: currentActions, 
+    setHeaderActions,
+    headerRightActions: currentRightActions,
+    setHeaderRightActions
+  } = useLayout()
 
   // Update title only if it changed
   React.useLayoutEffect(() => {
@@ -45,24 +57,31 @@ export const usePageSettings = (title: string, actions: React.ReactNode = null) 
     }
   }, [title, currentTitle, setTitle])
 
-  // Update actions only if they are different
-  // Note: We use a simple reference check for actions since they are usually memoized
+  // Update actions
   React.useEffect(() => {
     if (actions !== currentActions) {
       const timer = setTimeout(() => {
         setHeaderActions(actions)
       }, 0)
-      
-      return () => {
-        clearTimeout(timer)
-      }
+      return () => clearTimeout(timer)
     }
   }, [actions, currentActions, setHeaderActions])
+
+  // Update right actions
+  React.useEffect(() => {
+    if (rightActions !== currentRightActions) {
+      const timer = setTimeout(() => {
+        setHeaderRightActions(rightActions)
+      }, 0)
+      return () => clearTimeout(timer)
+    }
+  }, [rightActions, currentRightActions, setHeaderRightActions])
 
   // Clear actions on unmount
   React.useEffect(() => {
     return () => {
       setHeaderActions(null)
+      setHeaderRightActions(null)
     }
-  }, [setHeaderActions])
+  }, [setHeaderActions, setHeaderRightActions])
 }

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { Button, Table, Modal, Form, Input, InputNumber, Tag, Space, Card, Row, Col, Select, Typography, App } from 'antd'
-import { EditOutlined, ArrowLeftOutlined, UserAddOutlined, UserDeleteOutlined } from '@ant-design/icons'
+import { EditOutlined, ArrowLeftOutlined, UserAddOutlined, UserDeleteOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../../lib/api'
@@ -128,6 +128,34 @@ export const SerefiyePage: React.FC = () => {
       }    })
   }
 
+  const handleCsvDownload = async () => {
+    try {
+      const { data } = await api.get(`/projeler/${projeId}/serefiye/export`, { responseType: 'blob' })
+      const url = window.URL.createObjectURL(new Blob([data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `serefiye_tablosu_${projeId}.csv`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+    } catch (err: any) {
+      messageApi.error('CSV indirilirken hata oluştu')
+    }
+  }
+
+  const handleCsvUpload = async (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    try {
+      await api.post(`/projeler/${projeId}/serefiye/import`, formData)
+      messageApi.success('CSV başarıyla yüklendi')
+      queryClient.invalidateQueries({ queryKey: ['serefiye-list', projeId] })
+    } catch (err: any) {
+      messageApi.error('CSV yüklenirken hata oluştu')
+    }
+    return false
+  }
+
   const actions = useMemo(() => (
     <Space orientation="horizontal">
       <Button
@@ -160,7 +188,39 @@ export const SerefiyePage: React.FC = () => {
     </Space>
   ), [navigate, projeId, serefiyeList])
 
-  usePageSettings('Şerefiye Tablosu', actions)
+  const rightActions = useMemo(() => (
+    <Space>
+      <Button 
+        icon={<DownloadOutlined />} 
+        onClick={handleCsvDownload}
+        title="CSV İndir"
+      >
+        CSV İndir
+      </Button>
+      <label htmlFor="csv-upload" style={{ cursor: 'pointer' }}>
+        <Button 
+          icon={<UploadOutlined />} 
+          onClick={() => document.getElementById('csv-upload')?.click()}
+          title="CSV Yükle"
+        >
+          CSV Yükle
+        </Button>
+        <input
+          id="csv-upload"
+          type="file"
+          accept=".csv"
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            if (file) handleCsvUpload(file)
+            e.target.value = ''
+          }}
+        />
+      </label>
+    </Space>
+  ), [projeId])
+
+  usePageSettings('Şerefiye Tablosu', actions, rightActions)
 
   const columns = [
     {

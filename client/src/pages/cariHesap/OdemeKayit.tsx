@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Card, Form, Select, InputNumber, DatePicker, Input, Button, Space, message, Row, Col, Divider, Typography, Alert, Badge, Checkbox } from 'antd'
+import React, { useState, useMemo } from 'react'
+import { Card, Form, Select, InputNumber, DatePicker, Input, Button, Space, message, Row, Col, Divider, Typography, Alert, Badge, Checkbox, Radio } from 'antd'
 import { SaveOutlined, ClearOutlined, BankOutlined, MoneyCollectOutlined, AuditOutlined } from '@ant-design/icons'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import dayjs from 'dayjs'
@@ -15,6 +15,7 @@ export const OdemeKayit: React.FC = () => {
   const [form] = Form.useForm()
   const { activeProject } = useProject()
   const [odemeTuru, setOdemeTuru] = useState<string | null>('banka')
+  const [filterCariTuru, setFilterCariTuru] = useState<'uye' | 'firma'>('uye')
   
   // Form değerlerini izle
   const islemTuru = Form.useWatch('islem_turu', form)
@@ -26,12 +27,17 @@ export const OdemeKayit: React.FC = () => {
     queryKey: ['cari-accounts', activeProject?.id],
     queryFn: async () => {
       if (!activeProject?.id) return []
-      // Proje ID interceptor tarafından otomatik ekleniyor
       const { data } = await api.get('/cari-hareketler/accounts')
       return data.data as { id: string; cari_adi: string; cari_turu: 'uye' | 'firma' }[]
     },
     enabled: !!activeProject?.id
   })
+
+  // Filtrelenmiş hesaplar
+  const filteredAccounts = useMemo(() => {
+    if (!accounts) return []
+    return accounts.filter(acc => acc.cari_turu === filterCariTuru)
+  }, [accounts, filterCariTuru])
 
   // Banka Hesapları Fetch
   const { data: bankaHesaplari, isLoading: bankalarLoading } = useQuery({
@@ -58,6 +64,7 @@ export const OdemeKayit: React.FC = () => {
       message.success('Cari işlem başarıyla kaydedildi')
       form.resetFields()
       setOdemeTuru('banka')
+      setFilterCariTuru('uye')
     },
     onError: (err: any) => {
       message.error(err.response?.data?.error || err.message || 'İşlem kaydedilirken bir hata oluştu')
@@ -114,9 +121,24 @@ export const OdemeKayit: React.FC = () => {
         >
           <Row gutter={24}>
             <Col xs={24} md={12}>
+              <div style={{ marginBottom: 8 }}>
+                <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Cari Türü Filtrele:</Typography.Text>
+                <Radio.Group 
+                  value={filterCariTuru} 
+                  onChange={(e) => {
+                    setFilterCariTuru(e.target.value)
+                    form.setFieldValue('cari_hesap_id', undefined)
+                  }}
+                  buttonStyle="solid"
+                  size="small"
+                >
+                  <Radio.Button value="uye">Üyeler</Radio.Button>
+                  <Radio.Button value="firma">Firmalar</Radio.Button>
+                </Radio.Group>
+              </div>
               <Form.Item
                 name="cari_hesap_id"
-                label="Cari Hesap (Üye / Firma)"
+                label="Cari Hesap"
                 rules={[{ required: true, message: 'Lütfen bir cari hesap seçin' }]}
               >
                 <Select
@@ -127,7 +149,7 @@ export const OdemeKayit: React.FC = () => {
                   allowClear
                   className="w-full"
                   suffixIcon={<AuditOutlined />}
-                  options={accounts?.map(acc => ({
+                  options={filteredAccounts?.map(acc => ({
                     value: acc.id,
                     label: `${acc.cari_adi} (${acc.cari_turu === 'uye' ? 'Üye' : 'Firma'})`,
                     render: (
@@ -142,6 +164,7 @@ export const OdemeKayit: React.FC = () => {
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
+              <div style={{ height: 41, display: 'block' }} className="hidden md:block"></div>
               <Form.Item
                 name="islem_turu"
                 label="İşlem Türü"
@@ -290,6 +313,7 @@ export const OdemeKayit: React.FC = () => {
                     onClick={() => {
                       form.resetFields()
                       setOdemeTuru('banka')
+                      setFilterCariTuru('uye')
                     }}
                   >
                     Temizle

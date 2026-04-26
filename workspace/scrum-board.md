@@ -9,6 +9,20 @@ Kullanıcının aidatlara gecikme faizi ekleyip silme (toggle) işlemlerinin pla
 
 ## Aktif Sprint (Görevler)
 
+### session-nav-bug-fix
+**Sprint Hedefi:** Kronik Navigasyon (İlk Açılış ve Gezinme) Hatalarının Kalıcı Olarak Çözülmesi
+
+| Ticket ID | Başlık / Görev | Sorumlu | Statü (Durum) | Not / Bağlantı |
+| --- | --- | --- | --- | --- |
+| US-NAV-01 | Kök Neden Analizi (AdminLayout) | Master Agent | Done | `AdminLayout.tsx` analizi yapıldı. `openKeys` dependency hataları, stale closure'lar ve Antd Menu state yönetimi problemleri tespit edildi. |
+| US-NAV-02 | React Hook Refactoring | Frontend Agent | Done | `useMemo` ile `parentKey` stabil hale getirildi. `useEffect` fonksiyonel state güncellemesi ile stale closure'dan kurtarıldı. |
+| US-NAV-03 | Navigasyon ve Accordion Mantığı | Frontend Agent | Done | `handleNavigation` ve `handleOpenChange` `useCallback` ile sarılarak gereksiz re-renderlar ve bellek sızıntıları önlendi. |
+| US-NAV-04 | Navigasyon E2E Doğrulaması | QA-Test Agent | To Do | F5 sonrası ve çoklu sayfa gezintisi sonrası menünün çökmediği doğrulanacak. |
+
+---
+
+### session-aidat-faiz-yonetimi
+
 | Ticket ID | Başlık / Görev | Sorumlu | Statü (Durum) | Not / Bağlantı |
 | --- | --- | --- | --- | --- |
 | US-FAIZ-01 | DB RPC Revizyonu (Kısmi Ödeme Kontrolü) | Database Agent | Done | `fn_toggle_aidat_faiz` analizi |

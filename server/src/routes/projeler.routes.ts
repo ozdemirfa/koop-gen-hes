@@ -1,9 +1,11 @@
 import { Router } from 'express'
+import multer from 'multer'
 import { validate } from '../middleware/validate'
 import { projeSchema, updateProjeSchema, projeIsKalemiSchema, yillikPlanSchema, yillikPlanKalemiSchema } from '../schemas/proje.schema'
 import * as projelerController from '../controllers/projeler.controller'
 
 const router = Router()
+const upload = multer({ storage: multer.memoryStorage() })
 
 console.log('[DEBUG] Loading Projeler Routes...')
 
@@ -23,6 +25,8 @@ router.put('/is-kalemleri/:id', validate({ body: projeIsKalemiSchema.partial() }
 router.delete('/is-kalemleri/:id', projelerController.deleteIsKalemi)
 
 // 4. Şerefiye / Daire Rotaları
+router.get('/:id/serefiye/export', projelerController.exportSerefiye)
+router.post('/:id/serefiye/import', upload.single('file'), projelerController.importSerefiye)
 router.put('/serefiye/:serefiyeId', projelerController.updateSerefiye)
 
 // 5. Yıllık Plan Kalemi Rotaları

@@ -109,6 +109,19 @@ export const updateSerefiye = catchAsync(async (req: AuthRequest<any, any, any, 
   res.json({ success: true, data })
 })
 
+export const exportSerefiye = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const csvData = await projeService.exportSerefiye(req.params.id)
+  res.setHeader('Content-Type', 'text/csv')
+  res.setHeader('Content-Disposition', `attachment; filename=serefiye_${req.params.id}.csv`)
+  res.status(200).send(csvData)
+})
+
+export const importSerefiye = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  if (!req.file) throw new Error('Dosya yüklenmedi')
+  const data = await projeService.importSerefiye(req.params.id, req.file.buffer)
+  res.json({ success: true, data })
+})
+
 export const createYillikPlanKalemleriBulk = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   const { kalemler } = req.body
   const { data, error } = await supabaseAdmin.from('yillik_plan_kalemleri').upsert(kalemler, { onConflict: 'plan_id,proje_is_kalemi_id,ay' }).select()
