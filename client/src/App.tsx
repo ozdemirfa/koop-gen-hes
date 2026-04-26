@@ -15,8 +15,6 @@ import { UyeFormPage } from './pages/uyeler/UyeFormPage'
 import { UyeDetailPage } from './pages/uyeler/UyeDetailPage'
 import { Aidatlar } from './pages/Aidatlar'
 import { AidatYillikPlanPage } from './pages/AidatYillikPlanPage'
-import { GelirGider } from './pages/GelirGider'
-import { GelirGiderKategoriPage } from './pages/GelirGiderKategoriPage'
 import { FirmaListPage } from './pages/firmalar/FirmaListPage'
 import { FirmaDetailPage } from './pages/firmalar/FirmaDetailPage'
 import { SozlesmeFormPage } from './pages/sozlesmeler/SozlesmeFormPage'
@@ -128,8 +126,6 @@ const App: React.FC = () => {
                         <Route path="aidatlar" element={<Aidatlar />} />
                         <Route path="aidatlar/tanimlar" element={<Aidatlar />} />
                         <Route path="aidatlar/yillik-plan" element={<AidatYillikPlanPage />} />
-                        <Route path="gelir-gider" element={<GelirGider />} />
-                        <Route path="gelir-gider/kategoriler" element={<GelirGiderKategoriPage />} />
                         <Route path="firmalar" element={<FirmaListPage />} />
                         <Route path="firmalar/:id" element={<FirmaDetailPage />} />
                         <Route path="cari-hesaplar" element={<CariEkstrePage />} />
