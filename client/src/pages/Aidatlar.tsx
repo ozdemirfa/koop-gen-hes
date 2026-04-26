@@ -418,7 +418,7 @@ export const Aidatlar: React.FC = () => {
       render: (_: any, r: Aidat) => {
         const hasInterest = Number(r.gecikme_faizi || 0) >= 0.01;
         const isOverdue = r.son_odeme_tarihi && dayjs(r.son_odeme_tarihi).isBefore(dayjs(), 'day');
-        const showButton = (r.durum === 'gecikti' || (r.durum === 'bekliyor' && isOverdue)) && hasInterest && r.durum !== 'odendi';
+        const showButton = (r.durum === 'gecikti' || (r.durum === 'bekliyor' && isOverdue)) && hasInterest;
 
         return (
           <Space orientation="vertical" size={2} style={{ width: '100%', alignItems: 'flex-end' }}>

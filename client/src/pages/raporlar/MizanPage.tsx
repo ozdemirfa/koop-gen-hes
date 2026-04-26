@@ -210,7 +210,7 @@ export const MizanPage: React.FC = () => {
             pageSize: 50,
             showSizeChanger: true,
             pageSizeOptions: ['20', '50', '100', '500'],
-            placement: ['bottomRight']
+            position: ['bottomRight']
           }}
           scroll={{ x: 800 }}
           summary={(pageData) => {

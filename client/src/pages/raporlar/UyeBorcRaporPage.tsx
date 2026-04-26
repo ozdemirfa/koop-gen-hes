@@ -44,7 +44,7 @@ export const UyeBorcRaporPage: React.FC = () => {
 
   usePageSettings('Üye Borç Listesi', actions)
 
-  const columns = [
+  const columns: any[] = [
     // ... rest of columns
   ]
 

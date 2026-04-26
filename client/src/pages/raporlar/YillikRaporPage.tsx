@@ -32,7 +32,7 @@ export const YillikRaporPage: React.FC = () => {
     enabled: !!activeProjectId
   })
 
-  const columns = [
+  const columns: any[] = [
     // ... rest of columns
   ]
 

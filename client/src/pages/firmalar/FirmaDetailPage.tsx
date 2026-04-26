@@ -257,7 +257,7 @@ export const FirmaDetailPage: React.FC = () => {
         const isHakedis = r.islem_turu === 'hakedis';
         // kaynak_id hakedis satırında hakedis.id'yi tutuyor. 
         // Ödemelerde de kaynak_id hakedis.id'yi tutuyor.
-        const hasMatchedPayments = isHakedis && r.kaynak_id && cumulativeCariData?.some(m => m.kaynak_id === r.kaynak_id && m.islem_turu !== 'hakedis');
+        const hasMatchedPayments = isHakedis && r.kaynak_id && cumulativeCariData?.some((m: any) => m.kaynak_id === r.kaynak_id && m.islem_turu !== 'hakedis');
 
         return (
           <Space orientation="vertical" size={2}>
