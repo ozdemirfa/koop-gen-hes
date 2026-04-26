@@ -112,3 +112,32 @@ export const getIBANRaw = (iban: string | null | undefined): string => {
   // Sadece rakamları al
   return iban.replace(/[^0-9]/g, '')
 }
+
+/**
+ * Telefon formatlama (xxx xxx xx xx)
+ */
+export const formatPhone = (phone: string | null | undefined): string => {
+  if (!phone) return ''
+  const clean = phone.replace(/\D/g, '').substring(0, 10)
+  if (clean.length === 0) return ''
+  
+  let formatted = clean.substring(0, 3)
+  if (clean.length > 3) {
+    formatted += ' ' + clean.substring(3, 6)
+    if (clean.length > 6) {
+      formatted += ' ' + clean.substring(6, 8)
+      if (clean.length > 8) {
+        formatted += ' ' + clean.substring(8, 10)
+      }
+    }
+  }
+  return formatted
+}
+
+/**
+ * Telefonu saf rakam olarak döner
+ */
+export const getPhoneRaw = (phone: string | null | undefined): string => {
+  if (!phone) return ''
+  return phone.replace(/\D/g, '').substring(0, 10)
+}

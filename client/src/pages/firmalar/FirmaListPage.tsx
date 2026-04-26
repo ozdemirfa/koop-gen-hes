@@ -6,7 +6,7 @@ import { PlusOutlined, EditOutlined, EyeOutlined, SearchOutlined } from '@ant-de
 import api from '../../lib/api'
 import { useDebounce } from '../../hooks/useDebounce'
 import { usePageSettings } from '../../contexts/LayoutContext'
-import { formatIBAN, formatIBANInput, getIBANRaw, trMoneyFormatter } from '../../lib/format'
+import { formatIBAN, formatIBANInput, getIBANRaw, trMoneyFormatter, formatPhone, getPhoneRaw } from '../../lib/format'
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
 
@@ -186,7 +186,13 @@ export const FirmaListPage: React.FC = () => {
         </div>
       )
     },
-    { title: 'Telefon', dataIndex: 'telefon', key: 'telefon', width: 130 },
+    { 
+      title: 'Telefon', 
+      dataIndex: 'telefon', 
+      key: 'telefon', 
+      width: 130,
+      render: (v: string) => formatPhone(v)
+    },
     {
       title: 'IBAN',
       dataIndex: 'iban',
@@ -375,10 +381,20 @@ export const FirmaListPage: React.FC = () => {
                label="Telefon" 
                style={{ flex: 1 }}
                rules={[
-                 { pattern: /^[0-9]{10}$/, message: 'Lütfen 10 haneli telefon numarasını giriniz (örn: 5xxxxxxxx)' }
+                 { 
+                   validator: (_, value) => {
+                     if (!value) return Promise.resolve()
+                     const clean = getPhoneRaw(value)
+                     if (clean.length !== 10) {
+                       return Promise.reject('Lütfen 10 haneli telefon numarasını giriniz (örn: 5xx xxx xx xx)')
+                     }
+                     return Promise.resolve()
+                   }
+                 }
                ]}
+               getValueFromEvent={(e) => formatPhone(e.target.value)}
              >
-              <Input maxLength={10} placeholder="5xxxxxxxxx" />
+              <Input placeholder="5xx xxx xx xx" maxLength={13} />
             </Form.Item>            
             <Form.Item name="email" label="E-posta" rules={[{ type: 'email', message: 'Geçerli e-posta girin' }]} style={{ flex: 1 }}>
               <Input />

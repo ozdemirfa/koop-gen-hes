@@ -7,7 +7,7 @@ import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
-import { formatIBAN, getIBANRaw, trMoneyFormatter } from '../../lib/format'
+import { formatIBAN, getIBANRaw, trMoneyFormatter, formatPhone } from '../../lib/format'
 
 interface Sozlesme {
   id: string
@@ -440,7 +440,7 @@ export const FirmaDetailPage: React.FC = () => {
                       </Descriptions.Item>
                       <Descriptions.Item label="Vergi No">{firma.vergi_no || '-'}</Descriptions.Item>
                       <Descriptions.Item label="Vergi Dairesi">{firma.vergi_dairesi || '-'}</Descriptions.Item>
-                      <Descriptions.Item label="Telefon">{firma.telefon || '-'}</Descriptions.Item>
+                      <Descriptions.Item label="Telefon">{formatPhone(firma.telefon) || '-'}</Descriptions.Item>
                       <Descriptions.Item label="E-posta">{firma.email || '-'}</Descriptions.Item>
                       <Descriptions.Item label="Yetkili Kişi">{firma.yetkili_kisi || '-'}</Descriptions.Item>
                       <Descriptions.Item label="IBAN" span={2}>
