@@ -22,6 +22,14 @@ export interface AuthRequest<
     id: string
     email?: string
   }
+  file?: {
+    buffer: Buffer
+    originalname: string
+    mimetype: string
+    size: number
+    fieldname: string
+  }
+  files?: any[] | { [fieldname: string]: any[] }
 }
 
 const authClient = createClient(supabaseUrl, supabaseAnonKey, {
