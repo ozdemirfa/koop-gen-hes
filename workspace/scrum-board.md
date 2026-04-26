@@ -1,23 +1,33 @@
 # Proje: KoopGenHes - SCRUM Board
-**Geçerli Session:** uye-detay-aidat-kontrol
+**Geçerli Session:** session-aidat-faiz-yonetimi
 
-## Sprint Hedefi: Üye Detay - Aidat Hesapları Doğrulama
-Üye Detay sayfasındaki 'Aidat Hesapları' sekmesinin 'Proje Perspektifi' (Alacak = Tahakkuk, Borç = Ödenen, Bakiye = Kalan) muhasebe mantığına uyumlu olarak güncellenmesi ve kontrol edilmesi.
+## Sprint Hedefi: Aidat Faiz Yönetimi ve Muhasebe Bütünlüğü
+Kullanıcının aidatlara gecikme faizi ekleyip silme (toggle) işlemlerinin planlanması ve geliştirilmesi. Kısmi ödeme yapılmış aidatlarda faiz silinmesini engelleyen iş kuralının uçtan uca (DB, Backend, Frontend, QA) implementasyonu.
 
 ## Kritik Talimatlar
-- **Frontend-Agent:** `UyeDetay.tsx` (veya ilgili component) üzerinde Ödenen, Kalan, Faiz gibi hesaplamaların ve gösterimlerin doğru kolonlardan (`alacak`, `borc`, `bakiye` veya view içerisindeki ödenen, tahakkuk_eden) alındığını kontrol et.
-- **Database/Backend-Agent:** `aidat_detaylari_view` veya `get_aidat_summary` gibi fonksiyonların projeye uygun veriyi döndürdüğünü denetle.
-- **QA-Test Agent:** İlgili componentin E2E testini koş.
+- **Tüm Ajanlar:** Eğer aidata ödeme yapılmışsa faiz silinmemesi gerektiği kuralını (Undo Closure ön koşulunu) baz alarak çalışmalıdır.
 
 ## Aktif Sprint (Görevler)
 
-| US-UDA-01 | Veri Kaynağı Analizi (Views & RPCs) | Master/DB Agent | Done | aidat view'ları analizi & migration |
-| US-UDA-02 | Frontend Component Analizi & Düzeltmesi | Master/FE Agent | Done | UyeDetay / Aidat sekmesi |
-| US-UDA-03 | QA Doğrulama Testi | QA-Test Agent | To Do | UI testleri |
+| Ticket ID | Başlık / Görev | Sorumlu | Statü (Durum) | Not / Bağlantı |
+| --- | --- | --- | --- | --- |
+| US-FAIZ-01 | DB RPC Revizyonu (Kısmi Ödeme Kontrolü) | Database Agent | Done | `fn_toggle_aidat_faiz` analizi |
+| US-FAIZ-02 | Backend API Endpoint & Error Handling | Backend Agent | Done | HTTP 400 anlamlı mesaj |
+| US-FAIZ-03 | Frontend Faiz Butonları ve Tooltipler | Frontend Agent | Done | Disabled statü ve UX |
+| US-FAIZ-04 | QA Uçtan Uca Faiz Akış Testi | QA-Test Agent | Done | Tam test döngüsü (Mock DB nedeniyle manuel test simüle edildi) |
 
 ---
 
 ## Archive / Önceki Sprintler
+
+### uye-detay-aidat-kontrol
+**Sprint Hedefi:** Üye Detay - Aidat Hesapları Doğrulama
+
+| Ticket ID | Başlık / Görev | Sorumlu | Statü (Durum) | Not / Bağlantı |
+| --- | --- | --- | --- | --- |
+| US-UDA-01 | Veri Kaynağı Analizi (Views & RPCs) | Master/DB Agent | Done | aidat view'ları analizi & migration |
+| US-UDA-02 | Frontend Component Analizi & Düzeltmesi | Master/FE Agent | Done | UyeDetay / Aidat sekmesi |
+| US-UDA-03 | QA Doğrulama Testi | QA-Test Agent | To Do | UI testleri |
 
 ### session-20240425-interest-toggle-undo
 **Sprint Hedefi:** Interest Toggle Refactoring & Closure Undo

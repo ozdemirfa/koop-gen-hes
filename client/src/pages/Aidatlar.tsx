@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Table, Button, Modal, Form, InputNumber, Select, message, Card, Typography, Tag, Space, DatePicker, Input, Row, Col, Statistic, App, Popconfirm } from 'antd'
+import { Table, Button, Modal, Form, InputNumber, Select, message, Card, Typography, Tag, Space, DatePicker, Input, Row, Col, Statistic, App, Popconfirm, Tooltip } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, CheckCircleOutlined, CalculatorOutlined, HistoryOutlined, WalletOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
@@ -427,24 +427,30 @@ export const Aidatlar: React.FC = () => {
             </Text>
             {showButton && (
               r.faiz_yansitildi ? (
-                <Popconfirm
-                  title="Faiz Silinsin mi?"
-                  description="Bu işlem ilgili muhasebe kaydını (tahakkuk) silecek ve faizi borçtan düşecektir."
-                  onConfirm={() => toggleInterestMutation.mutate({ id: r.id, active: false })}
-                  okText="Evet, Sil"
-                  cancelText="Vazgeç"
-                  okButtonProps={{ danger: true }}
-                >
-                  <Button 
-                    size="small" 
-                    type="primary"
-                    danger
-                    loading={toggleInterestMutation.isPending && toggleInterestMutation.variables?.id === r.id}
-                    style={{ fontSize: '11px', height: '24px' }}
-                  >
-                    Faiz Sil
-                  </Button>
-                </Popconfirm>
+                <Tooltip title={Number(r.dinamik_odenen_tutar || 0) > 0 ? "Bu aidata ödeme yapılmış. Faizi silmek için önce ödeme eşleştirmesini kaldırınız." : ""}>
+                  <div style={{ display: 'inline-block' }}>
+                    <Popconfirm
+                      title="Faiz Silinsin mi?"
+                      description="Bu işlem ilgili muhasebe kaydını (tahakkuk) silecek ve faizi borçtan düşecektir."
+                      onConfirm={() => toggleInterestMutation.mutate({ id: r.id, active: false })}
+                      okText="Evet, Sil"
+                      cancelText="Vazgeç"
+                      okButtonProps={{ danger: true }}
+                      disabled={Number(r.dinamik_odenen_tutar || 0) > 0}
+                    >
+                      <Button 
+                        size="small" 
+                        type="primary"
+                        danger
+                        loading={toggleInterestMutation.isPending && toggleInterestMutation.variables?.id === r.id}
+                        disabled={Number(r.dinamik_odenen_tutar || 0) > 0}
+                        style={{ fontSize: '11px', height: '24px' }}
+                      >
+                        Faiz Sil
+                      </Button>
+                    </Popconfirm>
+                  </div>
+                </Tooltip>
               ) : (
                 <Button 
                   size="small" 

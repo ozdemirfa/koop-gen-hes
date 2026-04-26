@@ -140,9 +140,8 @@ export const AdminLayout: React.FC = () => {
         return;
     }
     
-    // Rota yapısına uygun olarak '/' ile başlayan mutlak yolları düzeltiyoruz
-    const path = key.startsWith('/') ? key.substring(1) : key;
-    navigate(path === '' ? '/' : path);
+    // Rota yapısına uygun olarak '/' ile başlayan mutlak yolları olduğu gibi kullanıyoruz
+    navigate(key);
     
     // On mobile, ensure sidebar closes
     if (isMobile) {

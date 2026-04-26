@@ -41,6 +41,7 @@ body {
 
 .ant-btn-primary {
   background-color: var(--primary-color) !important;
+  color: #ffffff !important;
   box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important;
   border-radius: 8px !important;
   height: auto;
