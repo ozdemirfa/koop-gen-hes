@@ -1,7 +1,7 @@
 import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { ConfigProvider, App as AntdApp } from 'antd'
+import { ConfigProvider, App as AntdApp, Spin } from 'antd'
 import trTR from 'antd/locale/tr_TR'
 
 import { AuthProvider, useAuth } from './contexts/AuthContext'
@@ -22,12 +22,10 @@ import { SozlesmeDetailPage } from './pages/sozlesmeler/SozlesmeDetailPage'
 import { HakedisListPage } from './pages/hakedisler/HakedisListPage'
 import { HakedisDetailPage } from './pages/hakedisler/HakedisDetailPage'
 import { FaturaListPage } from './pages/faturalar/FaturaListPage'
-import { OdemePlaniPage } from './pages/faturalar/OdemePlaniPage'
 import { CariEkstrePage } from './pages/cariHesap/CariEkstrePage'
 import { OdemeKayit } from './pages/cariHesap/OdemeKayit'
 import { BankaHesapListPage } from './pages/bankaHesap/BankaHesapListPage'
 import { BankaHareketleriPage } from './pages/bankaHesap/BankaHareketleriPage'
-import { BankaUzlastirmaPage } from './pages/bankaHesap/BankaUzlastirmaPage'
 import { MalzemeTeslimListPage } from './pages/malzemeTeslim/MalzemeTeslimListPage'
 import { ProjeListPage } from './pages/projeler/ProjeListPage'
 import { ProjeDetailPage } from './pages/projeler/ProjeDetailPage'
@@ -55,7 +53,13 @@ const queryClient = new QueryClient({
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, loading } = useAuth()
-  if (loading) return null
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <Spin size="large" />
+      </div>
+    )
+  }
   if (!session) return <Navigate to="/login" replace />
   return <>{children}</>
 }
@@ -136,11 +140,9 @@ const App: React.FC = () => {
                         <Route path="hakedisler" element={<HakedisListPage />} />
                         <Route path="hakedisler/:id" element={<HakedisDetailPage />} />
                         <Route path="faturalar" element={<FaturaListPage />} />
-                        <Route path="faturalar/:id/odeme-plani" element={<OdemePlaniPage />} />
                         <Route path="cek-takibi" element={<CekTakibiPage />} />
                         <Route path="banka-hesaplari" element={<BankaHesapListPage />} />
                         <Route path="banka-hesaplari/:id/hareketler" element={<BankaHareketleriPage />} />
-                        <Route path="banka-uzlastirma" element={<BankaUzlastirmaPage />} />
                         <Route path="fatura-irsaliye" element={<MalzemeTeslimListPage />} />
                         <Route path="projeler" element={<ProjeListPage />} />
                         <Route path="projeler/:id" element={<ProjeDetailPage />} />

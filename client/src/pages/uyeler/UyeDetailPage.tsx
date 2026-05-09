@@ -1,16 +1,18 @@
 import React, { useState } from 'react'
-import { Card, Descriptions, Tabs, Tag, Row, Col, Statistic, Button, Modal, Form, Input, InputNumber, DatePicker, message, Space, Typography, Select, App, Popconfirm } from 'antd'
+import { Card, Descriptions, Tabs, Tag, Row, Col, Statistic, Button, message, Space, Typography, Select, App, Popconfirm } from 'antd'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { DollarOutlined, HistoryOutlined, UserOutlined, PlusOutlined, AuditOutlined, RollbackOutlined } from '@ant-design/icons'
+import { DollarOutlined, HistoryOutlined, UserOutlined, AuditOutlined, RollbackOutlined, PercentageOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
+import { getErrorMessage } from '../../lib/apiError'
 
 import { PageHeader } from '../../components/common/PageHeader'
 import { DataTable } from '../../components/common/DataTable'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
+import { FaizBorclandirModal } from './components/FaizBorclandirModal'
 
-import { trNumberFormatter, trNumberParser, trMoneyFormatter } from '../../lib/format'
+import { trNumberParser, trMoneyFormatter } from '../../lib/format'
 
 const { Text } = Typography
 
@@ -36,8 +38,7 @@ export const UyeDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [odemeModalOpen, setOdemeModalOpen] = useState(false)
-  const [form] = Form.useForm()
+  const [faizModalOpen, setFaizModalOpen] = useState(false)
   const { message: messageApi } = App.useApp()
 
   // Undo Match Mutation
@@ -52,7 +53,7 @@ export const UyeDetailPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['uye-aidatlar', id] })
       queryClient.invalidateQueries({ queryKey: ['uye-odemeler', id] })
     },
-    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu')
+    onError: (err) => messageApi.error(getErrorMessage(err))
   })
 
   // Üye detaylarını getir
@@ -78,7 +79,7 @@ export const UyeDetailPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['uye-aidatlar', id] })
       queryClient.invalidateQueries({ queryKey: ['uye-odemeler', id] })
     },
-    onError: (err: any) => messageApi.error(err.error || err.message || 'Eşleştirme hatası')
+    onError: (err) => messageApi.error(getErrorMessage(err, 'Eşleştirme hatası'))
   })
 
   // Aidatları getir
@@ -108,25 +109,6 @@ export const UyeDetailPage: React.FC = () => {
         odeme_yontemi: o.odeme_yontemi || o.odeme_turu || 'nakit',
       }))
     },
-  })
-
-  const bulkOdemeMutation = useMutation({
-    mutationFn: async (values: any) => {
-      const payload = {
-        ...values,
-        odeme_tarihi: values.odeme_tarihi.format('YYYY-MM-DD')
-      }
-      return await api.post(`/uyeler/${id}/toplu-odeme`, payload)
-    },
-    onSuccess: (res) => {
-      messageApi.success(`Ödeme alındı. ${res.data.kapatilan_kalemler.length} adet aidat kalemi işlendi.`)
-      queryClient.invalidateQueries({ queryKey: ['uye', id] })
-      queryClient.invalidateQueries({ queryKey: ['uye-aidatlar', id] })
-      queryClient.invalidateQueries({ queryKey: ['uye-odemeler', id] })
-      setOdemeModalOpen(false)
-      form.resetFields()
-    },
-    onError: (err: any) => messageApi.error(err.error || err.message || 'Hata oluştu')
   })
 
   const durumRenk: Record<string, string> = {
@@ -256,8 +238,14 @@ export const UyeDetailPage: React.FC = () => {
             >
               Hesap Kapatma (FIFO)
             </Button>
-            <Button type="primary" size="large" icon={<PlusOutlined />} onClick={() => setOdemeModalOpen(true)}>
-              Yeni Ödeme Al
+            <Button 
+              type="primary" 
+              size="large" 
+              danger
+              icon={<PercentageOutlined />} 
+              onClick={() => setFaizModalOpen(true)}
+            >
+              Üye Faiz Borç İşle
             </Button>
           </Space>
         }
@@ -392,47 +380,14 @@ export const UyeDetailPage: React.FC = () => {
         />
       </Card>
 
-      <Modal
-        title="Toplu Ödeme Al"
-        open={odemeModalOpen}
-        onCancel={() => setOdemeModalOpen(false)}
-        onOk={() => form.submit()}
-        confirmLoading={bulkOdemeMutation.isPending}
-      >
-        <div style={{ marginBottom: 16 }}>
-          <Text type="secondary">Gireceğiniz tutar, üyenin en eski borcundan başlanarak sırasıyla kapatılacaktır.</Text>
-        </div>
-        <Form form={form} layout="vertical" onFinish={(v) => bulkOdemeMutation.mutate(v)} initialValues={{ odeme_tarihi: dayjs(), odeme_yontemi: 'nakit' }}>
-          <Form.Item name="tutar" label="Ödeme Tutarı (TL)" rules={[{ required: true, message: 'Tutar zorunlu' }]}>
-            <InputNumber 
-              min={0.01} 
-              style={{ width: '100%' }} 
-              placeholder="Örn: 5000" 
-              formatter={trMoneyFormatter}
-              parser={trNumberParser}
-            />
-          </Form.Item>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item name="odeme_tarihi" label="Ödeme Tarihi" rules={[{ required: true }]} style={{ flex: 1 }}>
-              <DatePicker size="small" style={{ width: '100%' }} format="DD.MM.YYYY" />
-            </Form.Item>
-            <Form.Item name="odeme_yontemi" label="Yöntem" rules={[{ required: true }]} style={{ flex: 1 }}>
-              <Select>
-                <Select.Option value="nakit">Nakit</Select.Option>
-                <Select.Option value="havale">Havale</Select.Option>
-                <Select.Option value="eft">EFT</Select.Option>
-                <Select.Option value="kredi_karti">Kredi Kartı</Select.Option>
-              </Select>
-            </Form.Item>
-          </div>
-          <Form.Item name="makbuz_no" label="Makbuz No">
-            <Input placeholder="İsteğe bağlı" />
-          </Form.Item>
-          <Form.Item name="aciklama" label="Açıklama">
-            <Input.TextArea rows={2} placeholder="İsteğe bağlı" />
-          </Form.Item>
-        </Form>
-      </Modal>
+      {id && (
+        <FaizBorclandirModal
+          open={faizModalOpen}
+          onCancel={() => setFaizModalOpen(false)}
+          uyeId={id}
+          aidatlar={aidatlar || []}
+        />
+      )}
     </div>
   )
 }

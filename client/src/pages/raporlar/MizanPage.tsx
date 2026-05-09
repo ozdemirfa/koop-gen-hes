@@ -1,5 +1,7 @@
 import React, { useMemo } from 'react'
 import { Card, Table, Typography, Statistic, Row, Col, Tag, Button, Space } from 'antd'
+import { DataTable } from '../../components/common/DataTable'
+import { EmptyState } from '../../components/common/EmptyState'
 import { 
   ArrowUpOutlined, 
   ArrowDownOutlined, 
@@ -17,7 +19,7 @@ import { LoadingState } from '../../components/common/LoadingState'
 import { ErrorState } from '../../components/common/ErrorState'
 import { trNumberFormatter, trMoneyFormatter } from '../../lib/format'
 
-const { Text, Title } = Typography
+const { Text } = Typography
 
 interface MizanData {
   id: string
@@ -148,13 +150,7 @@ export const MizanPage: React.FC = () => {
   ]
 
   if (!activeProject) {
-    return (
-      <Card style={{ textAlign: 'center', marginTop: 50, borderRadius: '12px' }}>
-        <FileSearchOutlined style={{ fontSize: '48px', color: '#bfbfbf', marginBottom: '16px' }} />
-        <Title level={4}>Lütfen bir proje seçin</Title>
-        <Text type="secondary">Genel Mizan raporunu görüntülemek için yukarıdan bir proje seçmelisiniz.</Text>
-      </Card>
-    )
+    return <EmptyState description="Lütfen önce yukarıdan bir proje seçin" />
   }
 
   if (isLoading) return <LoadingState fullHeight />
@@ -201,17 +197,19 @@ export const MizanPage: React.FC = () => {
         className="shadow-sm"
         style={{ borderRadius: '12px' }}
       >
-        <Table
+        <DataTable
+          hideCard
           dataSource={list || []}
           columns={columns}
           rowKey="id"
           size="middle"
-          pagination={{ 
+          pagination={{
             pageSize: 50,
             showSizeChanger: true,
             pageSizeOptions: ['20', '50', '100', '500'],
             position: ['bottomRight']
           }}
+          emptyDescription="Bu projede mizan kaydı yok"
           scroll={{ x: 800 }}
           summary={(pageData) => {
             let totalB = 0;

@@ -15,12 +15,6 @@ test.describe('P3 — Aidat akisi', () => {
     await expect(page.getByText(/toplam tahakkuk/i)).toBeVisible()
   })
 
-  test('cari islemler listesi yuklenir', async ({ page }) => {
-    await page.goto('/gelir-gider')
-    await checkHeader(page, 'Cari İşlemler')
-    await expect(page.locator('table')).toBeVisible({ timeout: 10_000 })
-  })
-
   test('aidat odemesi (odeme kayit) flow', async ({ page }) => {
     await page.goto('/cari-hesaplar/odeme-kayit')
     await checkHeader(page, 'Cari Ödeme/Tahsilat Kaydı')
@@ -50,13 +44,9 @@ test.describe('P3 — Aidat akisi', () => {
         await bankaOption.click()
         
         await page.getByRole('button', { name: /İşlemi Kaydet/i }).click()
-        
+
         // Success message
         await expect(page.getByText(/başarıyla kaydedildi/i)).toBeVisible({ timeout: 15_000 })
-
-        // Verify in Cari İşlemler list
-        await page.goto('/gelir-gider')
-        await expect(page.locator('table')).toContainText('1.000,00', { timeout: 15_000 })
       } else {
         console.log('Banka hesabı seçeneği bulunamadı, ödeme testi atlanıyor.')
       }
@@ -100,10 +90,6 @@ test.describe('P3 — Aidat akisi', () => {
       await confirmBtn.click()
       
       await expect(page.getByText(/başarıyla tamamlandı/i)).toBeVisible({ timeout: 15_000 })
-      
-      // 3. Verify in Cari İşlemler
-      await page.goto('/gelir-gider')
-      await expect(page.locator('table')).toContainText(/tahakkuk/i, { timeout: 15_000 })
     } else {
       console.log('Borçlandır butonu bulunamadı (belki zaten borçlandırıldı).')
     }

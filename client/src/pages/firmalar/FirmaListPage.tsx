@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, EditOutlined, EyeOutlined, SearchOutlined } from '@ant-design/icons'
 import api from '../../lib/api'
+import { getErrorMessage } from '../../lib/apiError'
 import { useDebounce } from '../../hooks/useDebounce'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { formatIBAN, formatIBANInput, getIBANRaw, trMoneyFormatter, formatPhone, getPhoneRaw } from '../../lib/format'
@@ -122,7 +123,7 @@ export const FirmaListPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['firmalar'] })
       setIsModalOpen(false)
     },
-    onError: (err: any) => message.error(err.message || 'Hata oluştu'),
+    onError: (err) => message.error(getErrorMessage(err)),
   })
 
   const openEdit = (firma: Firma) => {

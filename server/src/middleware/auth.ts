@@ -1,15 +1,15 @@
 import { Request, Response, NextFunction } from 'express'
 import { createClient } from '@supabase/supabase-js'
 import { ApiError } from '../utils/ApiError'
+import logger from '../utils/logger'
+import { getUserRole } from './roleCache'
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || ''
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('[AUTH] SUPABASE_URL veya SUPABASE_ANON_KEY eksik! (VITE_ prefixed versiyonlarını da kontrol edin)')
+  logger.error('[AUTH] SUPABASE_URL veya SUPABASE_ANON_KEY eksik (VITE_ prefixed versiyonları da kontrol edin)')
 }
-
-console.log(`[AUTH] Middleware init - URL: ${supabaseUrl?.substring(0, 30)}...`)
 
 export interface AuthRequest<
   P = any,
@@ -22,14 +22,6 @@ export interface AuthRequest<
     id: string
     email?: string
   }
-  file?: {
-    buffer: Buffer
-    originalname: string
-    mimetype: string
-    size: number
-    fieldname: string
-  }
-  files?: any[] | { [fieldname: string]: any[] }
 }
 
 const authClient = createClient(supabaseUrl, supabaseAnonKey, {
@@ -40,7 +32,6 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
   const authHeader = req.headers.authorization
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    console.log(`[AUTH] Token yok - ${req.method} ${req.path}`)
     next(ApiError.unauthorized('Bearer token gerekli'))
     return
   }
@@ -51,16 +42,20 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
     const { data: { user }, error } = await authClient.auth.getUser(token)
 
     if (error || !user) {
-      console.log(`[AUTH] getUser HATA - ${req.method} ${req.path}:`, error?.message || 'user null')
       next(ApiError.unauthorized('Geçersiz veya süresi dolmuş token'))
       return
     }
 
-    console.log(`[AUTH] OK - ${user.email} - ${req.method} ${req.path}`)
     req.user = { id: user.id, email: user.email }
+    try {
+      req.userRole = await getUserRole(user.id)
+    } catch (e) {
+      logger.error('[AUTH] role lookup failed', { err: e, userId: user.id })
+      req.userRole = null
+    }
     next()
   } catch (err) {
-    console.log(`[AUTH] CATCH hatası - ${req.method} ${req.path}:`, err)
+    logger.error('[AUTH] Token doğrulama exception', { err, method: req.method, path: req.path })
     next(ApiError.unauthorized('Token doğrulama hatası'))
   }
 }

@@ -1,13 +1,51 @@
 # Proje: KoopGenHes - SCRUM Board
-**Geçerli Session:** session-aidat-faiz-yonetimi
+**Geçerli Session:** session-20260511-stability-fix
 
-## Sprint Hedefi: Aidat Faiz Yönetimi ve Muhasebe Bütünlüğü
-Kullanıcının aidatlara gecikme faizi ekleyip silme (toggle) işlemlerinin planlanması ve geliştirilmesi. Kısmi ödeme yapılmış aidatlarda faiz silinmesini engelleyen iş kuralının uçtan uca (DB, Backend, Frontend, QA) implementasyonu.
+## Sprint Hedefi: Kimlik Doğrulama ve Dashboard Hatalarının Giderilmesi
+E2E testlerinde ve uygulama genelinde karşılaşılan 400 Auth ve 500 Dashboard hatalarının kök neden analizi ve çözümü.
+
+### session-20260511-stability-fix (Aktif)
+**Sprint Hedefi:** Sistem Kararlılığı ve Kritik API Onarımları
+
+| Ticket ID | Başlık / Görev | Sorumlu | Statü (Durum) | Not / Bağlantı |
+| --- | --- | --- | --- | --- |
+| BUG-AUTH-01 | Auth Token 400 & Login Fail Çözümü | Bug-Fixer | In Progress | E2E kullanıcısı oluşturuldu ve test edildi. |
+| BUG-DASH-01 | Dashboard 500 Internal Server Error Fix | Backend Agent | Done | `fn_dashboard_ozet` içindeki 'geler' yazım hatası düzeltildi. |
+| BUG-ENV-01 | Browser/Extension Log Temizliği (Noise) | QA-Test Agent | Done | SES/MetaMask hatalarının tarayıcı eklentilerinden kaynaklandığı doğrulandı (App kodunda MetaMask yok). |
+
+---
 
 ## Kritik Talimatlar
 - **Tüm Ajanlar:** Eğer aidata ödeme yapılmışsa faiz silinmemesi gerektiği kuralını (Undo Closure ön koşulunu) baz alarak çalışmalıdır.
 
 ## Aktif Sprint (Görevler)
+
+### session-20260509-qc-bugfix
+**Sprint Hedefi:** Kalite Kontrol, E2E Test Modernizasyonu ve Kritik Hata Düzeltmeleri
+
+| Ticket ID | Başlık / Görev | Sorumlu | Statü (Durum) | Not / Bağlantı |
+| --- | --- | --- | --- | --- |
+| US-QC-01 | Dashboard E2E Test Güncelleme | QA-Test | To Do | Stat sayısı (15), "Pano" etiketi ve yeni UI bileşenleri için revizyon |
+| US-QC-02 | Navigasyon E2E Test Güncelleme | QA-Test | To Do | "Gelir/Gider" temizliği sonrası "Firma Ekstre" (/cari-hesaplar) yönlendirmesi |
+| US-QC-03 | Muhasebe Tutarlılık Denetimi | Bug-Fixer | Done | `fn_dashboard_ozet` içinde `cari_bakiye`'nin sadece firmaları kapsadığı doğrulandı. |
+| US-QC-04 | Güvenlik (RLS) Revizyonu | Database | To Do | `birikmis_teminatlar` tablosundaki wide-open `USING (true)` policy'nin role-based (is_admin/is_staff) yapılması. |
+| US-QC-05 | Performans (Aggregation) Opt. | Database | To Do | `rapor.service.ts` içindeki `aylikRapor` JS-level aggregatelerinin `fn_aylik_rapor_detay` RPC'sine taşınması (OOM önlemi). |
+| US-QC-06 | Faiz Silme & Kısmi Ödeme Kontrolü | Backend | Done | `fn_toggle_aidat_faiz` ve `fn_undo_payment_match` fonksiyonlarının güvenli çalıştığı doğrulandı. |
+| US-QC-07 | Undo Closure Mekanizması | Backend | Done | RPC'ler ve UI entegrasyonu (CariEkstrePage, UyeDetailPage) mevcut. |
+
+---
+
+### session-cleanup-alignment
+**Sprint Hedefi:** Legacy Modüllerin Temizlenmesi ve Menü Senkronizasyonu
+
+| Ticket ID | Başlık / Görev | Sorumlu | Statü (Durum) | Not / Bağlantı |
+| --- | --- | --- | --- | --- |
+| US-CLN-01 | Legacy Gelir/Gider Temizliği (Backend) | Master Agent | Done | `gelirGider` servis, controller, route ve schema dosyaları silindi. |
+| US-CLN-02 | Redundant Data Entry Kaldırma | Master Agent | Done | `aidat.service.ts` içindeki redundant `gelir_giderler` kayıtları iptal edildi. |
+| US-CLN-03 | Menü Senkronizasyonu (Temizlik) | Master Agent | Done | `AdminLayout.tsx` menüsünden Banka Uzlaştırma kaldırıldı, ilgili route ve sayfa silindi. |
+| US-CLN-04 | Obsolete E2E Test Temizliği | Master Agent | Done | `gelir-gider.spec.ts` silindi. |
+
+---
 
 ### session-nav-bug-fix
 **Sprint Hedefi:** Kronik Navigasyon (İlk Açılış ve Gezinme) Hatalarının Kalıcı Olarak Çözülmesi
@@ -69,4 +107,4 @@ Kullanıcının aidatlara gecikme faizi ekleyip silme (toggle) işlemlerinin pla
 | QA-03 | Yıllık Plan (RPC) E2E Testleri | QA-Test Agent | To Do | yearly-plan-advanced.spec.ts |
 | QA-04 | Şerefiye (Birim/m2) E2E Testleri | QA-Test Agent | To Do | serefiye-refresh.spec.ts |
 | QA-05 | Final Kapsamlı Audit & Security | QA-Test Agent | To Do | comprehensive-audit.spec.ts |
-| BUG-FIX | Modül Bazlı Hata Giderimi | Bug-Fixer Agent | To Do | QA raporuna göre tetiklenecek |
+| BUG-FIX | Modül Bazlı Hata Giderimi | Bug-Fixer Agent | Done | FIFO, Faiz Toggle ve Aidat View düzeltildi (20260429000001) |

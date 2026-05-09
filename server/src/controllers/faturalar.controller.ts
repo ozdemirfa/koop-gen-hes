@@ -27,8 +27,3 @@ export const deleteFatura = catchAsync(async (req: AuthRequest<any, any, any, an
   await faturaService.delete(req.params.id)
   res.json({ success: true, message: 'Fatura silindi' })
 })
-
-export const createOdemePlani = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await faturaService.createOdemePlani(req.params.id, req.body.taksitler)
-  res.status(201).json({ success: true, data })
-})

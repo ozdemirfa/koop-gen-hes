@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from 'react'
-import { Button, Table, Modal, Form, Input, InputNumber, Tag, Space, Card, Row, Col, Select, Typography, App } from 'antd'
+import { Button, Modal, Form, Input, InputNumber, Tag, Space, Card, Row, Col, Select, Typography, App } from 'antd'
 import { EditOutlined, ArrowLeftOutlined, UserAddOutlined, UserDeleteOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../../lib/api'
+import { getErrorMessage } from '../../lib/apiError'
 import { usePageSettings } from '../../contexts/LayoutContext'
+import { DataTable } from '../../components/common/DataTable'
 import { trNumberFormatter, trNumberParser, trMoneyFormatter } from '../../lib/format'
 
 const { Text } = Typography
@@ -73,7 +75,7 @@ export const SerefiyePage: React.FC = () => {
       setModalOpen(false)
       setEditingSerefiye(null)
     },
-    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu')
+    onError: (err) => messageApi.error(getErrorMessage(err))
   })
 
   const assignUyeMutation = useMutation({
@@ -88,7 +90,7 @@ export const SerefiyePage: React.FC = () => {
       setUyeModalOpen(false)
       setEditingSerefiye(null)
     },
-    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu')
+    onError: (err) => messageApi.error(getErrorMessage(err))
   })
 
   const handleRefresh = () => {
@@ -103,8 +105,8 @@ export const SerefiyePage: React.FC = () => {
           await api.post(`/projeler/serefiye-actions/yenile`, { projeId })
           messageApi.success('Şerefiye tablosu yenilendi')
           queryClient.invalidateQueries({ queryKey: ['serefiye-list', projeId] })
-        } catch (err: any) {
-          messageApi.error(err.message || 'Hata oluştu')
+        } catch (err) {
+          messageApi.error(getErrorMessage(err))
         }
       }
     })
@@ -122,8 +124,8 @@ export const SerefiyePage: React.FC = () => {
         await api.post(`/projeler/serefiye-actions/temizle`, { projeId })
         messageApi.success('Şerefiye tablosu silindi')
         queryClient.invalidateQueries({ queryKey: ['serefiye-list', projeId] })
-      } catch (err: any) {
-        messageApi.error(err.error || err.message || 'Hata oluştu')
+      } catch (err) {
+        messageApi.error(getErrorMessage(err))
       }
       }    })
   }
@@ -138,7 +140,7 @@ export const SerefiyePage: React.FC = () => {
       document.body.appendChild(link)
       link.click()
       link.remove()
-    } catch (err: any) {
+    } catch {
       messageApi.error('CSV indirilirken hata oluştu')
     }
   }
@@ -150,7 +152,7 @@ export const SerefiyePage: React.FC = () => {
       await api.post(`/projeler/${projeId}/serefiye/import`, formData)
       messageApi.success('CSV başarıyla yüklendi')
       queryClient.invalidateQueries({ queryKey: ['serefiye-list', projeId] })
-    } catch (err: any) {
+    } catch {
       messageApi.error('CSV yüklenirken hata oluştu')
     }
     return false
@@ -170,8 +172,8 @@ export const SerefiyePage: React.FC = () => {
             await api.post(`/projeler/serefiye-actions/olustur`, { projeId })
             messageApi.success('Şerefiye tablosu oluşturuldu')
             queryClient.invalidateQueries({ queryKey: ['serefiye-list', projeId] })
-          } catch (err: any) {
-            messageApi.error(err.message || 'Hata oluştu')
+          } catch (err) {
+            messageApi.error(getErrorMessage(err))
           }
         }} 
         disabled={serefiyeList && serefiyeList.length > 0}
@@ -323,17 +325,16 @@ export const SerefiyePage: React.FC = () => {
 
   return (
     <div className="animate-in fade-in duration-500">
-      <Card styles={{ body: { padding: 0 } }}>
-        <Table
-          columns={columns}
-          dataSource={serefiyeList}
-          rowKey="id"
-          loading={serefiyeLoading}
-          pagination={{ pageSize: 50, showSizeChanger: true }}
-          size="small"
-          scroll={{ x: 1000 }}
-        />
-      </Card>
+      <DataTable
+        columns={columns}
+        dataSource={serefiyeList}
+        rowKey="id"
+        loading={serefiyeLoading}
+        pagination={{ pageSize: 50, showSizeChanger: true }}
+        size="small"
+        scroll={{ x: 1000 }}
+        emptyDescription="Şerefiye tablosu boş"
+      />
 
       {/* Daire Bilgi Düzenleme Modalı */}
       <Modal

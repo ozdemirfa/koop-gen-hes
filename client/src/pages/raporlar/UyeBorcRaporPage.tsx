@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { Card, Table, Button, Space, Typography, Statistic, Row, Col } from 'antd'
+import { Card, Button, Space, Typography, Statistic, Row, Col } from 'antd'
 import { FilePdfOutlined, UserOutlined, TeamOutlined, DollarOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
@@ -8,6 +8,8 @@ import { usePageSettings } from '../../contexts/LayoutContext'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { LoadingState } from '../../components/common/LoadingState'
 import { ErrorState } from '../../components/common/ErrorState'
+import { DataTable } from '../../components/common/DataTable'
+import { EmptyState } from '../../components/common/EmptyState'
 
 import { trMoneyFormatter } from '../../lib/format'
 
@@ -49,11 +51,7 @@ export const UyeBorcRaporPage: React.FC = () => {
   ]
 
   if (!activeProjectId) {
-    return (
-      <Card>
-        <Typography.Text type="secondary">Lütfen rapor görüntülemek için bir proje seçin.</Typography.Text>
-      </Card>
-    )
+    return <EmptyState description="Lütfen önce yukarıdan bir proje seçin" />
   }
 
   if (isLoading) return <LoadingState fullHeight />
@@ -88,15 +86,14 @@ export const UyeBorcRaporPage: React.FC = () => {
         </Col>
       </Row>
 
-      <Card size="small">
-        <Table
-          dataSource={list || []}
-          columns={columns}
-          rowKey="uye_no"
-          size="small"
-          pagination={{ pageSize: 20 }}
-        />
-      </Card>
+      <DataTable
+        dataSource={list || []}
+        columns={columns}
+        rowKey="uye_no"
+        size="small"
+        pagination={{ pageSize: 20 }}
+        emptyDescription="Borçlu üye bulunamadı"
+      />
     </div>
   )
 }

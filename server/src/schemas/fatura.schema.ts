@@ -27,11 +27,3 @@ export const createFaturaSchema = z.object({
 })
 
 export const updateFaturaSchema = createFaturaSchema.partial()
-
-export const odemePlaniSchema = z.object({
-  taksitler: z.array(z.object({
-    taksit_no: z.number().int().positive(),
-    tutar: z.number().positive(),
-    vade_tarihi: z.string()
-  })).min(1, 'En az bir taksit gerekli')
-})

@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
+import { getErrorMessage } from '../../lib/apiError'
 import { ProjectSelector } from '../../components/common/ProjectSelector'
 import { LoadingState } from '../../components/common/LoadingState'
 import { EmptyState } from '../../components/common/EmptyState'
@@ -86,13 +87,13 @@ export const ProjeListPage: React.FC = () => {
       setEditingProje(null)
     },
     onError: (err: any) => {
-      if (err.details && Array.isArray(err.details)) {
-        form.setFields(err.details.map((detail: any) => ({
+      if (err?.details && Array.isArray(err.details)) {
+        form.setFields(err.details.map((detail: { field: string; message: string }) => ({
           name: detail.field.includes('.') ? detail.field.split('.') : detail.field,
           errors: [detail.message]
         })))
       } else {
-        messageApi.error(err.error || err.message || 'Hata oluştu')
+        messageApi.error(getErrorMessage(err))
       }
     },
   })
@@ -101,11 +102,18 @@ export const ProjeListPage: React.FC = () => {
     <Button
       type="primary"
       icon={<PlusOutlined />}
+      data-testid="add-new-project"
       onClick={() => {
-        setEditingProje(null)
-        form.resetFields()
-        form.setFieldsValue({ bloklar: [{ blok_adi: '', toplam_daire: 0, daire_baslangic_no: 1 }] })
         setModalOpen(true)
+        setEditingProje(null)
+        // Küçük bir delay ile formun mount olduğundan emin oluyoruz (forceRender olsa bile garantiye almak iyidir)
+        setTimeout(() => {
+          form.resetFields()
+          form.setFieldsValue({ 
+            durum: 'planli',
+            bloklar: [{ blok_adi: '', toplam_daire: 0, daire_baslangic_no: 1 }] 
+          })
+        }, 0)
       }}
       size="middle"
     >
@@ -120,21 +128,26 @@ export const ProjeListPage: React.FC = () => {
       const { data } = await api.get(`/projeler/${proje.id}`)
       const fullProje = data.data as Proje
       setEditingProje(fullProje)
-      form.resetFields() 
-      form.setFieldsValue({
-        ...fullProje,
-        baslangic_tarihi: fullProje.baslangic_tarihi ? dayjs(fullProje.baslangic_tarihi) : null,
-        bitis_tarihi: fullProje.bitis_tarihi ? dayjs(fullProje.bitis_tarihi) : null,
-      })
       setModalOpen(true)
+      
+      setTimeout(() => {
+        form.resetFields() 
+        form.setFieldsValue({
+          ...fullProje,
+          baslangic_tarihi: fullProje.baslangic_tarihi ? dayjs(fullProje.baslangic_tarihi) : null,
+          bitis_tarihi: fullProje.bitis_tarihi ? dayjs(fullProje.bitis_tarihi) : null,
+        })
+      }, 0)
     } catch (err) {
       messageApi.error('Proje detayları yüklenemedi')
     }
   }
 
   return (
-    <div className="animate-in fade-in duration-500" style={{ zoom: '0.9', fontSize: '13px' }}>
-      <ProjectSelector inline />
+    <div className="animate-in fade-in duration-500" style={{ fontSize: '13px' }}>
+      <div style={{ marginBottom: '16px' }}>
+        <ProjectSelector inline />
+      </div>
       
       <Row gutter={[12, 12]}>
         {isLoading ? (
@@ -219,11 +232,12 @@ export const ProjeListPage: React.FC = () => {
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
         width={700}
-        destroyOnHidden
+        forceRender
         okText="Kaydet"
         cancelText="İptal"
         styles={{ body: { paddingTop: 8 } }}
         centered
+        getContainer={() => document.body}
       >
         <Form
           form={form}

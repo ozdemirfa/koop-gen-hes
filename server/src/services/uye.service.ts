@@ -71,21 +71,13 @@ export const uyeService = {
 
   async create(body: Record<string, any>) {
     // Proje ID'sini gövdeden al ve doğrula
-    const createData = { ...body }
-    if (!createData.proje_id) {
+    if (!body.proje_id) {
       throw ApiError.badRequest('proje_id zorunludur')
     }
 
-    // Gereksiz alanları temizle (veritabanından silinecek alanlar)
-    delete createData.blok_id
-    delete createData.daire_no
-    delete createData.serefiye_orani
-
-    const { data, error } = await supabaseAdmin
-      .from('uyeler')
-      .insert([createData])
-      .select('*, serefiye_tablosu!serefiye_id(*, bloklar(blok_adi))')
-      .single()
+    const { data, error } = await supabaseAdmin.rpc('fn_create_member_atomic', {
+      p_member_data: body
+    })
 
     if (error) {
       logger.error('Üye oluşturma hatası:', error)
@@ -93,42 +85,15 @@ export const uyeService = {
       throw error
     }
 
-    // Eğer bir daire atandıysa şerefiye tablosunu güncelle
-    if (data.serefiye_id && data.durum === 'aktif') {
-      const { error: sError } = await supabaseAdmin
-        .from('serefiye_tablosu')
-        .update({ durum: 'dolu' })
-        .eq('id', data.serefiye_id)
-      
-      if (sError) logger.error('Şerefiye güncelleme hatası:', sError)
-    }
-
     logger.info(`Yeni üye oluşturuldu: ${data.ad} ${data.soyad} (${data.id})`)
     return data
   },
 
   async update(id: string, body: Record<string, any>) {
-    // Gereksiz alanları temizle
-    const updateData = { ...body }
-    delete updateData.blok_id
-    delete updateData.daire_no
-    delete updateData.serefiye_orani
-    delete updateData.proje_id // Proje ID değiştirilemez
-
-    // Mevcut üyeyi al (önceki serefiye_id'yi kontrol etmek için)
-    const { data: oldUye } = await supabaseAdmin
-      .from('uyeler')
-      .select('serefiye_id, durum')
-      .eq('id', id)
-      .single()
-
-    const { data, error } = await supabaseAdmin
-      .from('uyeler')
-      .update(updateData)
-      .eq('id', id)
-      .select('*, serefiye_tablosu!serefiye_id(*, bloklar(blok_adi))')
-      .single()
-
+    const { data, error } = await supabaseAdmin.rpc('fn_update_member_atomic', {
+      p_member_id: id,
+      p_update_data: body
+    })
 
     if (error) {
       logger.error(`Üye güncelleme hatası (ID: ${id}):`, error)
@@ -136,30 +101,6 @@ export const uyeService = {
       throw error
     }
     if (!data) throw ApiError.notFound('Üye bulunamadı')
-
-    // Şerefiye durumu güncelleme mantığı
-    if (oldUye && oldUye.serefiye_id !== data.serefiye_id) {
-      // Eski daireyi boşalt
-      if (oldUye.serefiye_id) {
-        await supabaseAdmin
-          .from('serefiye_tablosu')
-          .update({ durum: 'bos' })
-          .eq('id', oldUye.serefiye_id)
-      }
-      // Yeni daireyi doldur
-      if (data.serefiye_id && data.durum === 'aktif') {
-        await supabaseAdmin
-          .from('serefiye_tablosu')
-          .update({ durum: 'dolu' })
-          .eq('id', data.serefiye_id)
-      }
-    } else if (oldUye && oldUye.serefiye_id && oldUye.durum !== data.durum) {
-      if (data.durum === 'aktif') {
-        await supabaseAdmin.from('serefiye_tablosu').update({ durum: 'dolu' }).eq('id', data.serefiye_id)
-      } else {
-        await supabaseAdmin.from('serefiye_tablosu').update({ durum: 'bos' }).eq('id', data.serefiye_id)
-      }
-    }
 
     logger.info(`Üye güncellendi: ${id}`)
     return data

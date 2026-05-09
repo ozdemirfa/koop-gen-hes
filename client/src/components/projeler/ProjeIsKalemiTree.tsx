@@ -3,6 +3,7 @@ import { Table, Button, Modal, Form, Input, InputNumber, Select, Space, App, Pop
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import api from '../../lib/api'
+import { getErrorMessage } from '../../lib/apiError'
 import { trNumberFormatter, trNumberParser, trMoneyFormatter } from '../../lib/format'
 
 const { Text } = Typography
@@ -96,7 +97,7 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
       setEditingKalem(null)
       setIsBudgetManual(false)
     },
-    onError: (err: any) => messageApi.error(err.error || err.message || 'Hata oluştu')
+    onError: (err) => messageApi.error(getErrorMessage(err))
   })
 
   const deleteMutation = useMutation({
@@ -107,7 +108,7 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
       messageApi.success('İş kalemi silindi')
       queryClient.invalidateQueries({ queryKey: ['proje', projeId] })
     },
-    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu')
+    onError: (err) => messageApi.error(getErrorMessage(err))
   })
 
   const columns = [

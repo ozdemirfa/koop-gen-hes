@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams, useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
+import { getErrorMessage } from '../../lib/apiError'
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
@@ -74,7 +75,7 @@ export const BankaHareketleriPage: React.FC = () => {
       setModalOpen(false)
       form.resetFields()
     },
-    onError: (err: any) => message.error(err.message || 'Hata oluştu'),
+    onError: (err) => message.error(getErrorMessage(err)),
   })
 
   const actions = useMemo(() => (

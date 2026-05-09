@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '../config/supabase'
 import { ApiError } from '../utils/ApiError'
 import { parse } from 'csv-parse/sync'
+import logger from '../utils/logger'
 
 export const projeService = {
   async exportSerefiye(projeId: string) {
@@ -32,16 +33,25 @@ export const projeService = {
       trim: true
     })
 
-    const updates = records.map((r: any) => ({
-      daire_no: r.daire_no,
-      kat: r.kat ? parseInt(r.kat) : null,
-      yon: r.yon || null,
-      m2: r.m2 ? parseFloat(r.m2) : null,
-      oda_sayisi: r.oda_sayisi || null,
-      serefiye_orani: r.serefiye_orani ? parseFloat(r.serefiye_orani) : 1.0
-    }))
+    const updates = records.map((r: any) => {
+      // Temel validasyon ve tip dönüşümü
+      const daire_no = String(r.daire_no || '').trim()
+      if (!daire_no) return null
 
+      return {
+        daire_no,
+        kat: r.kat ? parseInt(r.kat) : null,
+        yon: r.yon ? String(r.yon).substring(0, 50) : null,
+        m2: !isNaN(parseFloat(r.m2)) ? parseFloat(r.m2) : null,
+        oda_sayisi: r.oda_sayisi ? String(r.oda_sayisi).substring(0, 20) : null,
+        serefiye_orani: !isNaN(parseFloat(r.serefiye_orani)) ? parseFloat(r.serefiye_orani) : 1.0
+      }
+    }).filter(Boolean)
+
+    let updatedCount = 0
     for (const update of updates) {
+      if (!update) continue
+      
       const { error } = await supabaseAdmin
         .from('serefiye_tablosu')
         .update(update)
@@ -49,11 +59,13 @@ export const projeService = {
         .eq('daire_no', update.daire_no)
       
       if (error) {
-        console.error(`Import error for ${update.daire_no}:`, error)
+        logger.error(`CSV Import hatası (Daire: ${update.daire_no}):`, error.message)
+      } else {
+        updatedCount++
       }
     }
 
-    return { updated: updates.length }
+    return { updated: updatedCount, total: updates.length }
   },
 
   async list() {
@@ -204,50 +216,44 @@ export const projeService = {
 
   // İş kalemleri
   async createIsKalemi(projeId: string, body: Record<string, any>) {
-    try {
-      console.log('Incoming createIsKalemi request:', { projeId, body })
-      const { data, error } = await supabaseAdmin
-        .from('proje_is_kalemleri')
-        .insert([{ ...body, proje_id: projeId }])
-        .select()
-        .single()
+    const { data, error } = await supabaseAdmin
+      .from('proje_is_kalemleri')
+      .insert([{ ...body, proje_id: projeId }])
+      .select()
+      .single()
 
-      if (error) {
-        console.error('createIsKalemi error:', error)
-        throw error
-      }
-
-      // Eğer yeni bir ANA kalem eklendiyse ve bu proje için yıllık plan(lar) varsa, 12 aylık boş kayıtlarını oluştur
-      const { data: plans } = await supabaseAdmin
-        .from('yillik_harcama_planlari')
-        .select('id')
-        .eq('proje_id', projeId)
-
-      if (plans && plans.length > 0) {
-        const planKalemleri: any[] = []
-        plans.forEach(plan => {
-          for (let ay = 1; ay <= 12; ay++) {
-            planKalemleri.push({
-              plan_id: plan.id,
-              proje_is_kalemi_id: data.id,
-              ay,
-              planlanan_tutar: 0,
-              gerceklesen_tutar: 0
-            })
-          }
-        })
-        const { error: planError } = await supabaseAdmin.from('yillik_plan_kalemleri').insert(planKalemleri)
-        if (planError) {
-          console.error('yillik_plan_kalemleri insert error:', planError)
-          throw planError
-        }
-      }
-
-      return data
-    } catch (err) {
-      console.error('createIsKalemi service error:', err)
-      throw err
+    if (error) {
+      logger.error('createIsKalemi insert error', { error, projeId })
+      throw error
     }
+
+    // Yeni ANA kalem eklendiğinde, projedeki tüm yıllık planlara 12 aylık boş kayıtlar
+    const { data: plans } = await supabaseAdmin
+      .from('yillik_harcama_planlari')
+      .select('id')
+      .eq('proje_id', projeId)
+
+    if (plans && plans.length > 0) {
+      const planKalemleri: any[] = []
+      plans.forEach(plan => {
+        for (let ay = 1; ay <= 12; ay++) {
+          planKalemleri.push({
+            plan_id: plan.id,
+            proje_is_kalemi_id: data.id,
+            ay,
+            planlanan_tutar: 0,
+            gerceklesen_tutar: 0
+          })
+        }
+      })
+      const { error: planError } = await supabaseAdmin.from('yillik_plan_kalemleri').insert(planKalemleri)
+      if (planError) {
+        logger.error('yillik_plan_kalemleri insert error', { planError, projeId, isKalemiId: data.id })
+        throw planError
+      }
+    }
+
+    return data
   },
 
   async updateIsKalemi(id: string, body: Record<string, any>) {

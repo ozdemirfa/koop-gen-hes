@@ -2,13 +2,14 @@ import { Response } from 'express'
 import { AuthRequest } from '../middleware/auth'
 import { aidatTanimiService, aidatService } from '../services/aidat.service'
 import { catchAsync } from '../utils/catchAsync'
+import logger from '../utils/logger'
 
 // === AİDAT TANIMLARI ===
 
 export const getAidatTanimlari = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   // Verileri listelemeden önce varsa bekleyen borçlandırmaları çalıştır
-  await aidatTanimiService.executeCharging().catch(err => console.error('Charging error:', err))
-  
+  await aidatTanimiService.executeCharging().catch((err) => logger.error('Charging error', { err }))
+
   const data = await aidatTanimiService.list(req.query as Record<string, any>)
   res.json({ success: true, data })
 })
@@ -34,13 +35,18 @@ export const deleteAidatTanimi = catchAsync(async (req: AuthRequest<any, any, an
 })
 
 export const chargeTanim = catchAsync(async (req: AuthRequest<{ id: string }, any, any, any>, res: Response) => {
-  console.log(`[CHARGE] Tanim ID: ${req.params.id}`)
   const data = await aidatTanimiService.chargeTanim(req.params.id)
   res.json({ success: true, data })
 })
 
 export const executeCharging = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   const data = await aidatTanimiService.executeCharging(req.body.date)
+  res.json({ success: true, data })
+})
+
+export const bulkChargeInterest = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const { aidat_ids } = req.body
+  const data = await aidatTanimiService.bulkChargeInterest(aidat_ids)
   res.json({ success: true, data })
 })
 

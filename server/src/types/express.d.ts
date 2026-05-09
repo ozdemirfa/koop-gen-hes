@@ -5,3 +5,16 @@ declare module 'express' {
     params: Record<string, string>
   }
 }
+
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace Express {
+    interface Request {
+      user?: {
+        id: string
+        email?: string
+      }
+      userRole?: 'admin' | 'staff' | null
+    }
+  }
+}

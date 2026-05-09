@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { CheckOutlined, SaveOutlined, FilePdfOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined, RollbackOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
+import { getErrorMessage } from '../../lib/apiError'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { trNumberFormatter, trNumberParser, trMoneyFormatter } from '../../lib/format'
@@ -122,7 +123,7 @@ export const HakedisDetailPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['hakedis', id] })
       setHasChanges(false)
     },
-    onError: (err: any) => message.error(err.message || 'Hata oluştu'),
+    onError: (err) => message.error(getErrorMessage(err)),
   })
 
   const approveMutation = useMutation({
@@ -139,7 +140,7 @@ export const HakedisDetailPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['hakedis', id] })
       queryClient.invalidateQueries({ queryKey: ['hakedisler'] })
     },
-    onError: (err: any) => message.error(err.message || 'Hata oluştu'),
+    onError: (err) => message.error(getErrorMessage(err)),
   })
 
   const unapproveMutation = useMutation({
@@ -151,7 +152,7 @@ export const HakedisDetailPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['hakedis', id] })
       queryClient.invalidateQueries({ queryKey: ['hakedisler'] })
     },
-    onError: (err: any) => message.error(err.message || 'İşlem başarısız'),
+    onError: (err) => message.error(getErrorMessage(err, 'İşlem başarısız')),
   })
 
   const handleMiktarChange = (index: number, value: number | null) => {
@@ -234,8 +235,7 @@ export const HakedisDetailPage: React.FC = () => {
       link.click()
       link.remove()
       window.URL.revokeObjectURL(url)
-    } catch (err: any) {
-      console.error('PDF Download Error:', err)
+    } catch {
       message.error('PDF indirilirken hata oluştu')
     }
   }, [id, hakedis?.hakedis_no])

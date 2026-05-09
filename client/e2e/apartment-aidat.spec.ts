@@ -86,16 +86,5 @@ test.describe('Daire Bazlı Aidat Takibi', () => {
     
     await page.getByRole('button', { name: /Kaydet/i }).click()
     await expect(page.getByText(/başarıyla/i).or(page.getByText(/güncellendi/i))).toBeVisible()
-    
-    // 3. Check Cari İşlemler (instead of Cari Hesaplar menu)
-    await page.goto('/gelir-gider')
-    // Search for member name
-    await page.getByPlaceholder(/ara/i).fill(ad)
-    
-    // There should be a "Tahakkuk" (Dues Accrual) movement if aidat plan exists
-    // Since we created one in the previous test (or it exists in DB)
-    // We check if at least one row exists for this member
-    await expect(page.locator('table')).toContainText(ad)
-    await expect(page.locator('table')).toContainText(/tahakkuk/i)
   })
 })

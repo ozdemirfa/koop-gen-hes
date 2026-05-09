@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react'
-import { Card, Space, Select, DatePicker, Statistic, Row, Col, Tag, Button, message, Typography, Badge, Popconfirm } from 'antd'
+import { Card, Space, Select, DatePicker, Statistic, Row, Col, Tag, Button, message, Typography, Badge, Popconfirm, Grid } from 'antd'
 import { DownloadOutlined, AuditOutlined, RollbackOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
+import { getErrorMessage } from '../../lib/apiError'
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
@@ -12,6 +13,7 @@ import { usePageSettings } from '../../contexts/LayoutContext'
 import { useProject } from '../../contexts/ProjectContext'
 
 const { RangePicker } = DatePicker
+const { useBreakpoint } = Grid
 
 interface CariHesap {
   id: string
@@ -54,6 +56,8 @@ const ODEME_TURU_LABELS: Record<string, string> = {
 }
 
 export const CariEkstrePage: React.FC = () => {
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
   const { activeProject } = useProject()
   const queryClient = useQueryClient()
   const [dates, setDates] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null]>([
@@ -74,7 +78,7 @@ export const CariEkstrePage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['firma-summary-stats'] })
       queryClient.invalidateQueries({ queryKey: ['aidatlar'] })
     },
-    onError: (err: any) => message.error(err.message || 'Hata oluştu')
+    onError: (err) => message.error(getErrorMessage(err))
   })
 
   // Cari Hesaplar (Sadece Firmalar) Fetch
@@ -82,7 +86,6 @@ export const CariEkstrePage: React.FC = () => {
     queryKey: ['cari-accounts', activeProject?.id, 'firma'],
     queryFn: async () => {
       if (!activeProject?.id) return []
-      // Proje ID interceptor tarafından otomatik ekleniyor
       const { data } = await api.get('/cari-hareketler/accounts', { 
         params: { cari_turu: 'firma' } 
       })
@@ -164,15 +167,16 @@ export const CariEkstrePage: React.FC = () => {
   }
 
   const actions = useMemo(() => (
-    <Space size="small">
-      <Button icon={<DownloadOutlined />} onClick={exportToCSV}>CSV İndir</Button>
+    <Space size="small" wrap>
+      <Button size="small" icon={<DownloadOutlined />} onClick={exportToCSV}>{!isMobile && "CSV İndir"}</Button>
       <Select
         showSearch
         placeholder="Firma Seçin"
         value={cariHesapId}
         onChange={setCariHesapId}
         allowClear
-        style={{ width: 280 }}
+        style={{ width: isMobile ? 140 : 220 }}
+        size="small"
         loading={accountsLoading}
         optionFilterProp="label"
         suffixIcon={<AuditOutlined />}
@@ -182,37 +186,31 @@ export const CariEkstrePage: React.FC = () => {
         }))}
       />
       <RangePicker
+        size="small"
         value={dates}
         onChange={(vals) => setDates(vals as any)}
         format="DD.MM.YYYY"
-        style={{ width: 240 }}
+        style={{ width: isMobile ? 200 : 240 }}
       />
     </Space>
-  ), [cariHesapId, dates, accounts, accountsLoading])
+  ), [cariHesapId, dates, accounts, accountsLoading, isMobile])
 
   usePageSettings('Firma Ekstre', actions)
 
-  // Hesaplamalar (summaryStats'tan gelir, bakiye Ödeme - KDVli Tutar olarak standartlaştırıldı)
+  // Hesaplamalar
   const stats = useMemo(() => {
     if (summaryStats) {
       return {
-        borc: summaryStats.toplam_kdvli, // Hak edilen
-        alacak: summaryStats.toplam_odeme, // Ödenen
-        bakiye: summaryStats.bakiye, // Cari Bakiye (Ödeme - KDVli)
+        borc: summaryStats.toplam_kdvli,
+        alacak: summaryStats.toplam_odeme,
+        bakiye: summaryStats.bakiye,
         teminat: summaryStats.birikmis_teminat,
         matrah: summaryStats.toplam_hakedis,
         fatura: summaryStats.toplam_fatura
       }
     }
 
-    return {
-      borc: 0,
-      alacak: 0,
-      bakiye: 0,
-      teminat: 0,
-      matrah: 0,
-      fatura: 0
-    }
+    return { borc: 0, alacak: 0, bakiye: 0, teminat: 0, matrah: 0, fatura: 0 }
   }, [summaryStats])
 
   const columns = [
@@ -220,61 +218,44 @@ export const CariEkstrePage: React.FC = () => {
       title: 'Tarih',
       dataIndex: 'tarih',
       key: 'tarih',
-      width: 110,
+      width: 100,
       render: (d: string) => <span className="text-slate-600 font-medium">{dayjs(d).format('DD.MM.YYYY')}</span>,
     },
     {
       title: 'Firma Adı',
       key: 'cari_hesap',
-      width: 200,
+      width: 150,
+      responsive: ['md'] as ('md')[],
       render: (_: any, r: CariHareket) => (
         <Typography.Text strong className="text-slate-800">{r.cari_hesaplar?.cari_adi || '-'}</Typography.Text>
       ),
     },
     {
-      title: 'İşlem / Tür',
+      title: 'İşlem',
       key: 'islem_odeme',
-      width: 180,
+      width: 140,
       render: (_: any, r: CariHareket) => {
         const typeInfo = ISLEM_TURU_LABELS[r.islem_turu] || { label: r.islem_turu, color: 'default' }
-        
-        // Hakediş satırı mı ve bu hakedişe bağlı ödeme var mı kontrol et
         const isHakedis = r.islem_turu === 'hakedis';
-        // kaynak_id hakedis satırında hakedis.id'yi tutuyor. 
-        // Ödemelerde de kaynak_id hakedis.id'yi tutuyor.
         const hasMatchedPayments = isHakedis && r.kaynak_id && hareketler?.some(m => m.kaynak_id === r.kaynak_id && m.islem_turu !== 'hakedis');
 
         return (
           <Space orientation="vertical" size={2}>
             <Space>
-              <Tag color={typeInfo.color} style={{ fontSize: '11px', margin: 0, borderRadius: '4px' }}>
+              <Tag color={typeInfo.color} style={{ fontSize: '10px', margin: 0, borderRadius: '4px' }}>
                 {typeInfo.label}
               </Tag>
               {hasMatchedPayments && (
                 <Popconfirm
                   title="Eşleşmeyi Kaldır"
-                  description="Bu hakedişe bağlı tüm ödemeler serbest bırakılacaktır. Emin misiniz?"
                   onConfirm={() => undoMatchMutation.mutate(r.kaynak_id!)}
-                  okText="Evet, Kaldır"
-                  cancelText="Vazgeç"
+                  okText="Evet"
+                  cancelText="Hayır"
                 >
-                  <Button 
-                    type="text" 
-                    size="small" 
-                    danger 
-                    icon={<RollbackOutlined style={{ fontSize: '12px' }} />}
-                    loading={undoMatchMutation.isPending && undoMatchMutation.variables === r.kaynak_id}
-                    title="Eşleşmeleri Geri Al"
-                  />
+                  <Button type="text" size="small" danger icon={<RollbackOutlined style={{ fontSize: '11px' }} />} />
                 </Popconfirm>
               )}
             </Space>
-            {r.odeme_turu && (
-              <Typography.Text type="secondary" italic style={{ fontSize: '11px', marginLeft: 4 }}>
-                {ODEME_TURU_LABELS[r.odeme_turu] || r.odeme_turu}
-                {r.kaynak_id && r.islem_turu !== 'hakedis' && ` (Eşleşmiş)`}
-              </Typography.Text>
-            )}
           </Space>
         )
       }
@@ -282,36 +263,33 @@ export const CariEkstrePage: React.FC = () => {
     { 
       title: 'Açıklama', 
       key: 'aciklama',
+      responsive: ['sm'] as ('sm')[],
       render: (_: any, r: CariHareket) => (
         <Space orientation="vertical" size={0}>
-          <Typography.Text className="text-slate-600">{r.aciklama || '-'}</Typography.Text>
-          {r.belge_no && <Typography.Text type="secondary" style={{ fontSize: '11px' }}>Belge No: {r.belge_no}</Typography.Text>}
+          <Typography.Text className="text-slate-600" style={{ fontSize: '12px' }}>{r.aciklama || '-'}</Typography.Text>
+          {r.belge_no && <Typography.Text type="secondary" style={{ fontSize: '11px' }}>No: {r.belge_no}</Typography.Text>}
         </Space>
       )
     },
     {
-      title: 'Borç (TL)',
+      title: 'Borç',
       dataIndex: 'borc',
       key: 'borc',
-      width: 130,
+      width: 110,
       align: 'right' as const,
       render: (v: number) => v > 0 ? (
-        <span style={{ color: '#cf1322', fontWeight: 500 }}>
-          <MoneyDisplay amount={v} />
-        </span>
-      ) : <Typography.Text type="secondary">-</Typography.Text>,
+        <span style={{ color: '#cf1322', fontWeight: 500 }}><MoneyDisplay amount={v} /></span>
+      ) : '-',
     },
     {
-      title: 'Alacak (TL)',
+      title: 'Alacak',
       dataIndex: 'alacak',
       key: 'alacak',
-      width: 130,
+      width: 110,
       align: 'right' as const,
       render: (v: number) => v > 0 ? (
-        <span style={{ color: '#3f8600', fontWeight: 500 }}>
-          <MoneyDisplay amount={v} />
-        </span>
-      ) : <Typography.Text type="secondary">-</Typography.Text>,
+        <span style={{ color: '#3f8600', fontWeight: 500 }}><MoneyDisplay amount={v} /></span>
+      ) : '-',
     },
   ]
 
@@ -325,88 +303,35 @@ export const CariEkstrePage: React.FC = () => {
 
   return (
     <div className="animate-in fade-in duration-500">
-      {/* 5 Bilgi Kartı Düzeni */}
-      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={12} lg={4}>
-          <Card variant="borderless" className="stat-card shadow-sm" size="small">
-            <Space orientation="vertical" size={0} style={{ width: '100%' }}>
+      <Row gutter={[8, 8]} style={{ marginBottom: 16 }}>
+        {[
+          { title: 'Hakediş', val: stats.borc, color: '#1677ff', sub: `Matrah: ${trMoneyFormatter(stats.matrah)}` },
+          { title: 'Faturalar', val: stats.fatura, color: '#faad14', sub: `Açık: ${trMoneyFormatter(stats.fatura - stats.borc)}` },
+          { title: 'Teminat', val: stats.teminat, color: '#722ed1', sub: 'Net Birikmiş' },
+          { title: 'Ödeme', val: stats.alacak, color: '#3f8600', sub: 'Toplam Giden' },
+        ].map((item, idx) => (
+          <Col xs={12} sm={12} lg={4} key={idx}>
+            <Card variant="borderless" className="stat-card shadow-sm" size="small">
               <Statistic 
-                title={<span style={{ fontSize: '12px' }}>Hakediş (Matrah)</span>} 
-                value={stats.matrah} 
+                title={<span style={{ fontSize: '11px' }}>{item.title}</span>} 
+                value={item.val} 
                 formatter={(v) => trMoneyFormatter(v as number)}
-                styles={{ content: { color: '#1677ff', fontSize: '15px', fontWeight: 'bold' } }}
+                styles={{ content: { color: item.color, fontSize: isMobile ? '14px' : '16px', fontWeight: 'bold' } }}
               />
               <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 4, paddingTop: 4 }}>
-                <Typography.Text type="secondary" style={{ fontSize: '11px' }}>KDVli: </Typography.Text>
-                <Typography.Text strong style={{ fontSize: '15px', color: '#1677ff' }}>
-                  {trMoneyFormatter(stats.borc)} TL
-                </Typography.Text>
+                <Typography.Text type="secondary" style={{ fontSize: '10px' }}>{item.sub}</Typography.Text>
               </div>
-            </Space>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} lg={4}>
-          <Card variant="borderless" className="stat-card shadow-sm" size="small">
-            <Space orientation="vertical" size={0} style={{ width: '100%' }}>
-              <Statistic 
-                title={<span style={{ fontSize: '12px' }}>Gelen Faturalar</span>} 
-                value={stats.fatura} 
-                formatter={(v) => trMoneyFormatter(v as number)}
-                styles={{ content: { color: '#faad14', fontSize: '15px', fontWeight: 'bold' } }}
-              />
-              <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 4, paddingTop: 4 }}>
-                <Typography.Text type="secondary" style={{ fontSize: '11px' }}>Fatura Açığı: </Typography.Text>
-                <Typography.Text strong style={{ fontSize: '12px', color: (stats.fatura - stats.borc < 0) ? '#b91c1c' : '#faad14' }}>
-                  {trMoneyFormatter(stats.fatura - stats.borc)} TL
-                </Typography.Text>
-              </div>
-            </Space>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} lg={4}>
-          <Card variant="borderless" className="stat-card shadow-sm" size="small">
-            <Statistic 
-              title={<span style={{ fontSize: '12px' }}>Birikmiş Teminat</span>} 
-              value={stats.teminat} 
-              formatter={(v) => trMoneyFormatter(v as number)}
-              styles={{ content: { color: '#722ed1', fontSize: '15px', fontWeight: 'bold' } }}
-              suffix={<span style={{ fontSize: '11px', fontWeight: 'normal', marginLeft: 4 }}>TL</span>}
-            />
-            <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 4, paddingTop: 4 }}>
-              <Typography.Text type="secondary" style={{ fontSize: '11px' }}>Net Kalan Teminat</Typography.Text>
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} lg={4}>
-          <Card variant="borderless" className="stat-card shadow-sm" size="small">
-            <Statistic 
-              title={<span style={{ fontSize: '12px' }}>Toplam Ödeme</span>} 
-              value={stats.alacak} 
-              formatter={(v) => trMoneyFormatter(v as number)}
-              styles={{ content: { color: '#3f8600', fontSize: '15px', fontWeight: 'bold' } }}
-              suffix={<span style={{ fontSize: '11px', fontWeight: 'normal', marginLeft: 4 }}>TL</span>}
-            />
-            <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 4, paddingTop: 4 }}>
-              <Typography.Text type="secondary" style={{ fontSize: '11px' }}>Yapılan Toplam Ödeme</Typography.Text>
-            </div>
-          </Card>
-        </Col>
-
+            </Card>
+          </Col>
+        ))}
         <Col xs={24} sm={24} lg={8}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small" style={{ background: '#f0f5ff' }}>
             <Statistic 
-              title={<span style={{ fontSize: '12px', fontWeight: 'bold' }}>Cari Bakiye</span>} 
+              title={<span style={{ fontSize: '11px', fontWeight: 'bold' }}>Cari Bakiye (Ödeme - Hakediş)</span>} 
               value={stats.bakiye} 
               formatter={(v) => trMoneyFormatter(v as number)}
-              styles={{ content: { color: stats.bakiye < 0 ? '#cf1322' : '#1677ff', fontSize: '20px', fontWeight: 'bold' } }}
-              suffix={<span style={{ fontSize: '12px', fontWeight: 'normal', marginLeft: 4 }}>TL</span>}
+              styles={{ content: { color: stats.bakiye < 0 ? '#cf1322' : '#1677ff', fontSize: isMobile ? '18px' : '20px', fontWeight: 'bold' } }}
             />
-            <div style={{ borderTop: '1px solid #ddecff', marginTop: 4, paddingTop: 4 }}>
-              <Typography.Text type="secondary" style={{ fontSize: '11px' }}>Ödeme - KDVli Tutar</Typography.Text>
-            </div>
           </Card>
         </Col>
       </Row>
@@ -414,21 +339,14 @@ export const CariEkstrePage: React.FC = () => {
       {isError ? (
         <ErrorState error={error} onRetry={() => refetch()} />
       ) : (
-        <Card variant="borderless" styles={{ body: { padding: 0 } }} className="shadow-sm overflow-hidden rounded-xl">
-          <DataTable
-            columns={columns}
-            dataSource={hareketler}
-            rowKey="id"
-            loading={isLoading}
-            pagination={{ 
-              total: hareketler?.length || 0,
-              pageSize: 50, 
-              showSizeChanger: true 
-            }}
-            size="small"
-            emptyDescription="Seçilen kriterlere uygun cari hareket bulunamadı"
-          />
-        </Card>
+        <DataTable
+          columns={columns}
+          dataSource={hareketler}
+          rowKey="id"
+          loading={isLoading}
+          pagination={{ total: hareketler?.length || 0, pageSize: 50, showSizeChanger: true }}
+          size="small"
+        />
       )}
     </div>
   )

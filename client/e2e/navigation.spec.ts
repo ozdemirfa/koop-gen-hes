@@ -41,14 +41,14 @@ test.describe('Navigation Flow', () => {
 
     // Open Ödeme Yönetimi (should close Aidat Yönetimi - accordion behavior)
     await page.click('text=Ödeme Yönetimi')
-    await expect(page.locator('.ant-menu-submenu-open >> text=Cari Hareketler')).toBeVisible()
-    
+    await expect(page.locator('.ant-menu-submenu-open >> text=Banka Hesapları')).toBeVisible()
+
     // Check if Aidat Listesi is now hidden (sub-menu closed)
     await expect(page.locator('text=Aidat Listesi')).not.toBeVisible()
 
-    // Navigate to Cari Hareketler
-    await page.click('text=Cari Hareketler')
-    await expect(page).toHaveURL(/\/gelir-gider$/)
+    // Navigate to Banka Hesapları
+    await page.click('text=Banka Hesapları')
+    await expect(page).toHaveURL(/\/banka-hesaplari$/)
   })
 
   test('should close sidebar on mobile after navigation', async ({ page }) => {

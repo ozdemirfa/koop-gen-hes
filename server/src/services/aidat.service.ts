@@ -4,7 +4,6 @@ import { parsePagination, toSupabaseRange, paginationMeta } from '../utils/pagin
 import { makeAidatSonOdemeTarihi } from '../utils/formatters'
 import logger from '../utils/logger'
 import { cariHesapService } from './cariHesap.service'
-import { gelirGiderService } from './gelirGider.service'
 
 export interface AidatTanimi {
   id: string
@@ -209,6 +208,19 @@ export const aidatTanimiService = {
     return data
   },
 
+  async bulkChargeInterest(aidatIds: string[]) {
+    const { data, error } = await supabaseAdmin.rpc('fn_bulk_charge_interest', {
+      p_aidat_ids: aidatIds
+    })
+
+    if (error) {
+      logger.error('Toplu faiz borçlandırma hatası (RPC):', error)
+      throw error
+    }
+
+    return data
+  },
+
   // Geriye dönük uyumluluk için takma adlar
   async create(body: any) { return this.createTanim(body) },
   async update(id: string, body: any) { return this.updateTanim(id, body) }
@@ -375,17 +387,6 @@ export const aidatService = {
 
     if (updateError) throw updateError
 
-    // Gelir kaydı (Paralel takip)
-    await createGelirKaydi({
-      tutar: body.tutar,
-      tarih: body.odeme_tarihi || new Date().toISOString().split('T')[0],
-      proje_id: aidat.proje_id,
-      uye_id: aidat.uye_id,
-      kaynak_tipi: 'aidat',
-      kaynak_id: hareket.id,
-      aciklama: body.aciklama || `${aidat.ay}/${aidat.yil} Aidat Tahsilatı`
-    })
-
     logger.info(`Aidat ödemesi alındı ve cari harekete işlendi: ${aidatId}, Tutar: ${body.tutar}`)
     return updated
   },
@@ -546,26 +547,6 @@ export const aidatService = {
           kaynak_id: aidat.id
         })
 
-        // Gelir kaydı
-        await createGelirKaydi({
-          tutar: odenecekTutar,
-          tarih: odemeMeta.odeme_tarihi,
-          proje_id: finalProjeId,
-          uye_id: uyeId,
-          kaynak_tipi: 'aidat',
-          kaynak_id: hareket.id,
-          aciklama: `${aidat.ay}/${aidat.yil} Aidat Tahsilatı`
-        })
-
-        // Durumu güncelle
-        const yeniOdenenToplam = aidatOdenen + odenecekTutar
-        const yeniDurum = yeniOdenenToplam >= aidatToplamBorc ? 'odendi' : aidat.durum
-
-        await supabaseAdmin
-          .from('aidatlar')
-          .update({ durum: yeniDurum })
-          .eq('id', aidat.id)
-
         kalanTutar = Math.round((kalanTutar - odenecekTutar) * 100) / 100
         sonuclar.push({ aidat_id: aidat.id, donem: `${aidat.ay}/${aidat.yil}`, odenen: odenecekTutar })
       }
@@ -577,33 +558,5 @@ export const aidatService = {
       kalan_avans: kalanTutar,
       kapatilan_kalemler: sonuclar 
     }
-  }
-}
-
-async function createGelirKaydi(params: { tutar: number, tarih: string, proje_id: string, uye_id: string, kaynak_tipi: string, kaynak_id: string, aciklama: string }) {
-  try {
-    const { data: kategori } = await supabaseAdmin
-      .from('gelir_gider_kategorileri')
-      .select('id')
-      .eq('proje_id', params.proje_id)
-      .eq('ad', 'Aidat Gelirleri')
-      .eq('tip', 'gelir')
-      .single()
-
-    const kategori_id = kategori?.id
-
-    await gelirGiderService.create({
-      tip: 'gelir',
-      proje_id: params.proje_id,
-      kategori_id,
-      tutar: params.tutar,
-      tarih: params.tarih,
-      uye_id: params.uye_id,
-      kaynak_tipi: params.kaynak_tipi,
-      kaynak_id: params.kaynak_id,
-      aciklama: params.aciklama
-    })
-  } catch (err) {
-    logger.error('Otomatik gelir kaydı oluşturulamadı:', err)
   }
 }

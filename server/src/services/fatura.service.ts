@@ -27,106 +27,51 @@ export const faturaService = {
   },
 
   async getById(id: string) {
+    if (!id) throw ApiError.badRequest('Fatura ID belirtilmedi')
+
     const { data, error } = await supabaseAdmin
       .from('faturalar')
-      .select('*, firmalar(unvan), fatura_kalemleri(*), odeme_planlari(*)')
+      .select('*, firmalar(unvan), fatura_kalemleri(*)')
       .eq('id', id)
-      .single()
+      .maybeSingle()
 
-    if (error) throw ApiError.notFound('Fatura bulunamadı')
+    if (error) throw error
+    if (!data) throw ApiError.notFound('Fatura bulunamadı')
+
     return data
   },
 
   async create(body: Record<string, any>) {
     const { kalemler, ...masterData } = body
 
-    const { data: fatura, error: faturaError } = await supabaseAdmin
-      .from('faturalar')
-      .insert([masterData])
-      .select()
-      .single()
+    const { data, error } = await supabaseAdmin.rpc('fn_create_fatura_atomic', {
+      p_master: masterData,
+      p_kalemler: kalemler ?? null
+    })
 
-    if (faturaError) throw faturaError
-
-    if (kalemler && kalemler.length > 0) {
-      const kalemlerWithId = kalemler.map((k: any) => ({ ...k, fatura_id: fatura.id }))
-      const { error: kalemError } = await supabaseAdmin
-        .from('fatura_kalemleri')
-        .insert(kalemlerWithId)
-      
-      if (kalemError) throw kalemError
-    }
-
-    // Cari harekete yansıtma: Gelen fatura borç (Projenin borcu artıyor)
-    if (masterData.fatura_tipi === 'gelen') {
-      const { data: cari } = await supabaseAdmin
-        .from('cari_hesaplar')
-        .select('id')
-        .eq('proje_id', masterData.proje_id)
-        .eq('firma_id', masterData.firma_id)
-        .single()
-
-      if (cari) {
-        await supabaseAdmin.from('cari_hareketler').insert([{
-          proje_id: masterData.proje_id,
-          cari_hesap_id: cari.id,
-          islem_turu: 'fatura',
-          borc: masterData.toplam_tutar,
-          alacak: 0,
-          tarih: masterData.fatura_tarihi,
-          aciklama: `Fatura: ${masterData.fatura_no}`,
-          belge_no: masterData.fatura_no,
-          kaynak_tipi: 'fatura',
-          kaynak_id: fatura.id
-        }])
-      }
-    }
-
-    return this.getById(fatura.id)
+    if (error) throw error
+    return data
   },
 
   async update(id: string, body: Record<string, any>) {
     const { kalemler, ...masterData } = body
 
-    const { data: fatura, error: faturaError } = await supabaseAdmin
-      .from('faturalar')
-      .update(masterData)
-      .eq('id', id)
-      .select()
-      .single()
+    const { data, error } = await supabaseAdmin.rpc('fn_update_fatura_atomic', {
+      p_id: id,
+      p_master: masterData,
+      p_kalemler: kalemler ?? null
+    })
 
-    if (faturaError) throw faturaError
-    if (!fatura) throw ApiError.notFound('Fatura bulunamadı')
-
-    if (kalemler) {
-      await supabaseAdmin.from('fatura_kalemleri').delete().eq('fatura_id', id)
-      const kalemlerWithId = kalemler.map((k: any) => ({ 
-        kalem_adi: k.kalem_adi,
-        birim: k.birim,
-        miktar: k.miktar,
-        birim_fiyat: k.birim_fiyat,
-        kdv_orani: k.kdv_orani,
-        fatura_id: id 
-      }))
-      await supabaseAdmin.from('fatura_kalemleri').insert(kalemlerWithId)
+    if (error) {
+      if ((error as any).code === 'P0002') throw ApiError.notFound('Fatura bulunamadı')
+      throw error
     }
-
-    return this.getById(id)
+    return data
   },
 
   async delete(id: string) {
+    await supabaseAdmin.from('cari_hareketler').delete().eq('kaynak_tipi', 'fatura').eq('kaynak_id', id)
     const { error } = await supabaseAdmin.from('faturalar').delete().eq('id', id)
     if (error) throw error
-  },
-
-  async createOdemePlani(faturaId: string, taksitler: Array<Record<string, any>>) {
-    await supabaseAdmin.from('odeme_planlari').delete().eq('fatura_id', faturaId)
-    const rows = taksitler.map(t => ({ fatura_id: faturaId, ...t }))
-    const { data, error } = await supabaseAdmin
-      .from('odeme_planlari')
-      .insert(rows)
-      .select()
-    if (error) throw error
-    return data
   }
 }

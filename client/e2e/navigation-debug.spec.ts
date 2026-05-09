@@ -24,7 +24,7 @@ test.describe('Navigation Debug Flow', () => {
   const pagesToTest = [
     { label: 'Üye Yönetimi', url: '/uyeler', expectedHeader: 'Üye Yönetimi' },
     { label: 'Aidat Yönetimi', subLabel: 'Aidat Listesi', url: '/aidatlar', expectedHeader: 'Aidat Listesi' },
-    { label: 'Ödeme Yönetimi', subLabel: 'Cari Hareketler', url: '/gelir-gider', expectedHeader: 'Cari Hareketler' },
+    { label: 'Ödeme Yönetimi', subLabel: 'Banka Hesapları', url: '/banka-hesaplari', expectedHeader: 'Banka Hesapları' },
     { label: 'Firmalar', subLabel: 'Firma Listesi', url: '/firmalar', expectedHeader: 'Firma Listesi' },
     { label: 'İnşaat Projeleri', url: '/projeler', expectedHeader: 'İnşaat Projeleri' },
   ]

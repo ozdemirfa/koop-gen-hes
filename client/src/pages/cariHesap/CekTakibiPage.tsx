@@ -4,6 +4,7 @@ import { PlusOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined } 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api, { payCheck } from '../../lib/api'
+import { getErrorMessage } from '../../lib/apiError'
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
@@ -110,7 +111,7 @@ export const CekTakibiPage: React.FC = () => {
       form.resetFields()
       setEditingCek(null)
     },
-    onError: (err: any) => message.error(err.message || 'Hata oluştu')
+    onError: (err) => message.error(getErrorMessage(err))
   })
 
   const updateDurumMutation = useMutation({
@@ -134,7 +135,7 @@ export const CekTakibiPage: React.FC = () => {
       payForm.resetFields()
       setPayingCek(null)
     },
-    onError: (err: any) => message.error(err.message || 'Ödeme kaydedilirken hata oluştu')
+    onError: (err) => message.error(getErrorMessage(err, 'Ödeme kaydedilirken hata oluştu'))
   })
 
   const columns = [

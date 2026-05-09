@@ -3,6 +3,7 @@ import { Form, Input, Select, Button, Card, Space, Typography, App, Alert } from
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
+import { getErrorMessage } from '../../lib/apiError'
 import { PageHeader } from '../../components/common/PageHeader'
 import { useProject } from '../../contexts/ProjectContext'
 
@@ -54,14 +55,14 @@ export const UyeFormPage: React.FC = () => {
   }
 
   const setServerErrors = (err: any) => {
-    if (err.details && Array.isArray(err.details)) {
+    if (err?.details && Array.isArray(err.details)) {
       const fields = err.details.map((d: { field: string; message: string }) => ({
         name: d.field,
         errors: [d.message],
       }))
       form.setFields(fields)
     } else {
-      messageApi.error(err.error || err.message || 'Hata oluştu')
+      messageApi.error(getErrorMessage(err))
     }
   }
 

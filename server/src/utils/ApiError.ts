@@ -21,6 +21,10 @@ export class ApiError extends Error {
     return new ApiError(401, message)
   }
 
+  static forbidden(message = 'Bu işlem için yetkiniz yok') {
+    return new ApiError(403, message)
+  }
+
   static conflict(message: string) {
     return new ApiError(409, message)
   }

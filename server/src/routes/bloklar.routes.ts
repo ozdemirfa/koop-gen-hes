@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { validate } from '../middleware/validate'
+import { requireRole } from '../middleware/requireRole'
 import { blokSchema } from '../schemas/uye.schema'
 import * as blokController from '../controllers/blok.controller'
 
@@ -7,10 +8,10 @@ const router = Router()
 
 router.get('/', blokController.getBloklar)
 
-router.post('/', validate({ body: blokSchema }), blokController.createBlok)
+router.post('/', requireRole('admin'), validate({ body: blokSchema }), blokController.createBlok)
 
-router.put('/:id', validate({ body: blokSchema.partial() }), blokController.updateBlok)
+router.put('/:id', requireRole('admin'), validate({ body: blokSchema.partial() }), blokController.updateBlok)
 
-router.delete('/:id', blokController.deleteBlok)
+router.delete('/:id', requireRole('admin'), blokController.deleteBlok)
 
 export default router

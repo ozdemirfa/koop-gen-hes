@@ -1,10 +1,12 @@
-import React, { useEffect } from 'react'
-import { Table, Button, Form, Input, App, Card, Typography } from 'antd'
+import React from 'react'
+import { Button, Form, Input, App, Card, Typography } from 'antd'
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { useLayout } from '../../contexts/LayoutContext'
+import { getErrorMessage } from '../../lib/apiError'
+import { usePageSettings } from '../../contexts/LayoutContext'
 import { ConfirmDelete } from '../../components/common/ConfirmDelete'
+import { DataTable } from '../../components/common/DataTable'
 
 interface Birim {
   id: string
@@ -15,13 +17,8 @@ export const BirimListPage: React.FC = () => {
   const [form] = Form.useForm()
   const queryClient = useQueryClient()
   const { message: messageApi } = App.useApp()
-  const { setTitle, setHeaderActions } = useLayout()
 
-  useEffect(() => {
-    setTitle('Birimler')
-    setHeaderActions(null)
-    return () => setHeaderActions(null)
-  }, [setTitle, setHeaderActions])
+  usePageSettings('Birimler')
 
   const { data: birimler, isLoading } = useQuery({
     queryKey: ['settings-birimler'],
@@ -40,7 +37,7 @@ export const BirimListPage: React.FC = () => {
       form.resetFields()
       queryClient.invalidateQueries({ queryKey: ['settings-birimler'] })
     },
-    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu')
+    onError: (err) => messageApi.error(getErrorMessage(err))
   })
 
   const deleteMutation = useMutation({
@@ -51,7 +48,7 @@ export const BirimListPage: React.FC = () => {
       messageApi.success('Birim silindi')
       queryClient.invalidateQueries({ queryKey: ['settings-birimler'] })
     },
-    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu')
+    onError: (err) => messageApi.error(getErrorMessage(err))
   })
 
   const columns = [
@@ -88,12 +85,11 @@ export const BirimListPage: React.FC = () => {
             <Input placeholder="Örn: Adet, m2, Paket" />
           </Form.Item>
           <Form.Item style={{ marginBottom: 0 }}>
-            <Button 
-              type="primary" 
-              htmlType="submit" 
-              icon={<PlusOutlined />} 
+            <Button
+              type="primary"
+              htmlType="submit"
+              icon={<PlusOutlined />}
               loading={createMutation.isPending}
-              style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
             >
               Ekle
             </Button>
@@ -101,13 +97,15 @@ export const BirimListPage: React.FC = () => {
         </Form>
       </div>
 
-      <Table
+      <DataTable
+        hideCard
         columns={columns}
         dataSource={birimler}
         rowKey="id"
         loading={isLoading}
         pagination={false}
         size="small"
+        emptyDescription="Henüz birim eklenmemiş"
       />
     </Card>
   )

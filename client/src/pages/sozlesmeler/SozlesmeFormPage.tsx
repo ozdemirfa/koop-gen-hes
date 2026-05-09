@@ -4,6 +4,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
+import { getErrorMessage } from '../../lib/apiError'
 import { PageHeader } from '../../components/common/PageHeader'
 
 import { trNumberFormatter, trNumberParser, trMoneyFormatter } from '../../lib/format'
@@ -76,7 +77,7 @@ export const SozlesmeFormPage: React.FC = () => {
       const targetId = isEditing ? id : data.data?.id
       navigate(targetId ? `/sozlesmeler/${targetId}` : '/firmalar')
     },
-    onError: (err: any) => message.error(err.message || 'Hata oluştu'),
+    onError: (err) => message.error(getErrorMessage(err)),
   })
 
   return (

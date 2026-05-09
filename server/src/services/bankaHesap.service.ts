@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../config/supabase'
 import { ApiError } from '../utils/ApiError'
+import logger from '../utils/logger'
 
 export const bankaHesapService = {
   async listHesaplar(query: Record<string, any> = {}) {
@@ -33,7 +34,7 @@ export const bankaHesapService = {
           }
         })
       } catch (err) {
-        console.error(`Bakiye hesaplama hatası (Banka: ${hesap.id}):`, err)
+        logger.error('Bakiye hesaplama hatası', { err, hesapId: hesap.id })
       }
       return { ...hesap, bakiye }
     }))
@@ -126,9 +127,8 @@ export const bankaHesapService = {
           .insert([cariBody])
 
         if (cariError) {
-          console.error('Cari hareket oluşturulurken hata:', cariError)
-          // Banka hareketi silinmesin ama hata loglansın. 
-          // İstenirse rollback mekanizması eklenebilir.
+          logger.error('Cari hareket oluşturulurken hata', { cariError, bankaHareketId: hareket.id })
+          // Banka hareketi silinmesin ama hata loglansın. İstenirse rollback eklenebilir.
         } else {
           // Cari hareket oluşturulduysa banka hareketini 'eslesti' olarak işaretle
           await supabaseAdmin

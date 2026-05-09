@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Card, Table, Row, Col, Statistic, DatePicker, Button, Space, Typography } from 'antd'
+import { Card, Row, Col, Statistic, DatePicker, Button, Space, Typography } from 'antd'
 import { FilePdfOutlined, RiseOutlined, FallOutlined, DollarOutlined, BarChartOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
@@ -8,6 +8,7 @@ import { PageHeader } from '../../components/common/PageHeader'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { LoadingState } from '../../components/common/LoadingState'
 import { ErrorState } from '../../components/common/ErrorState'
+import { DataTable } from '../../components/common/DataTable'
 
 import { trMoneyFormatter } from '../../lib/format'
 
@@ -120,12 +121,14 @@ export const YillikRaporPage: React.FC = () => {
         </Col>
       </Row>
 
-      <Card title={`${targetYear.year()} Yılı Aylık Döküm`}>
-        <Table
+      <Card title={`${targetYear.year()} Yılı Aylık Döküm`} styles={{ body: { padding: 0 } }}>
+        <DataTable
+          hideCard
           dataSource={rapor?.aylik || []}
           columns={columns}
           rowKey="ay"
           pagination={false}
+          emptyDescription="Yıllık rapor verisi bulunamadı"
         />
       </Card>
     </div>

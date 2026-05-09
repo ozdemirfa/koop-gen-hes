@@ -1,12 +1,14 @@
 import React, { useState, useMemo } from 'react'
-import { Card, Form, Select, InputNumber, DatePicker, Input, Button, Space, message, Row, Col, Divider, Typography, Alert, Badge, Checkbox, Radio } from 'antd'
+import { Card, Form, Select, InputNumber, DatePicker, Input, Button, Space, message, Row, Col, Divider, Typography, Badge, Checkbox, Radio } from 'antd'
 import { SaveOutlined, ClearOutlined, BankOutlined, MoneyCollectOutlined, AuditOutlined } from '@ant-design/icons'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
+import { getErrorMessage } from '../../lib/apiError'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { useProject } from '../../contexts/ProjectContext'
 import { trMoneyFormatter, trNumberParser, formatMoney } from '../../lib/format'
+import { EmptyState } from '../../components/common/EmptyState'
 
 const { Option } = Select
 const { TextArea } = Input
@@ -66,8 +68,8 @@ export const OdemeKayit: React.FC = () => {
       setOdemeTuru('banka')
       setFilterCariTuru('uye')
     },
-    onError: (err: any) => {
-      message.error(err.response?.data?.error || err.message || 'İşlem kaydedilirken bir hata oluştu')
+    onError: (err) => {
+      message.error(getErrorMessage(err, 'İşlem kaydedilirken bir hata oluştu'))
     }
   })
 
@@ -84,24 +86,14 @@ export const OdemeKayit: React.FC = () => {
   }
 
   if (!activeProject) {
-    return (
-      <div style={{ padding: '24px' }}>
-        <Alert
-          message="Proje Seçimi Gerekli"
-          description="Cari işlem kaydı yapabilmek için lütfen üst menüden bir proje seçiniz."
-          type="warning"
-          showIcon
-        />
-      </div>
-    )
+    return <EmptyState description="Lütfen önce yukarıdan bir proje seçin" />
   }
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 16px' }}>
-      <Card 
+      <Card
         variant="borderless"
         className="shadow-md rounded-xl"
-        title={<Typography.Title level={4} className="m-0">Cari Ödeme/Tahsilat Kaydı</Typography.Title>}
       >
         <Form
           form={form}

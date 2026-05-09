@@ -4,6 +4,7 @@ import { PlusOutlined, EditOutlined, TransactionOutlined } from '@ant-design/ico
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import api from '../../lib/api'
+import { getErrorMessage } from '../../lib/apiError'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { useProject } from '../../contexts/ProjectContext'
 import { DataTable } from '../../components/common/DataTable'
@@ -57,13 +58,13 @@ export const BankaHesapListPage: React.FC = () => {
       setEditingHesap(null)
     },
     onError: (err: any) => {
-      if (err.details && Array.isArray(err.details)) {
-        form.setFields(err.details.map((detail: any) => ({
+      if (err?.details && Array.isArray(err.details)) {
+        form.setFields(err.details.map((detail: { field: string; message: string }) => ({
           name: detail.field,
           errors: [detail.message]
         })))
       } else {
-        message.error(err.error || err.message || 'Hata oluştu')
+        message.error(getErrorMessage(err))
       }
     },
   })

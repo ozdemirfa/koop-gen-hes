@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react'
-import { Table, Button, Modal, Form, Input, Space, Select, App } from 'antd'
+import React, { useState } from 'react'
+import { Button, Modal, Form, Input, Space, Select, App } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { useLayout } from '../../contexts/LayoutContext'
+import { getErrorMessage } from '../../lib/apiError'
+import { usePageSettings } from '../../contexts/LayoutContext'
 import { ConfirmDelete } from '../../components/common/ConfirmDelete'
+import { DataTable } from '../../components/common/DataTable'
 
 interface Poz {
   id: string
@@ -20,13 +22,8 @@ export const PozListPage: React.FC = () => {
   const [form] = Form.useForm()
   const queryClient = useQueryClient()
   const { message: messageApi } = App.useApp()
-  const { setTitle, setHeaderActions } = useLayout()
 
-  useEffect(() => {
-    setTitle('Pozlar')
-    setHeaderActions(null)
-    return () => setHeaderActions(null)
-  }, [setTitle, setHeaderActions])
+  usePageSettings('Pozlar')
 
   const { data: pozlar, isLoading } = useQuery({
     queryKey: ['settings-pozlar'],
@@ -56,7 +53,7 @@ export const PozListPage: React.FC = () => {
       closeModal()
       queryClient.invalidateQueries({ queryKey: ['settings-pozlar'] })
     },
-    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu')
+    onError: (err) => messageApi.error(getErrorMessage(err))
   })
 
   const deleteMutation = useMutation({
@@ -67,7 +64,7 @@ export const PozListPage: React.FC = () => {
       messageApi.success('Poz silindi')
       queryClient.invalidateQueries({ queryKey: ['settings-pozlar'] })
     },
-    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu')
+    onError: (err) => messageApi.error(getErrorMessage(err))
   })
 
   const closeModal = () => {
@@ -122,22 +119,22 @@ export const PozListPage: React.FC = () => {
   return (
     <div>
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-start' }}>
-        <Button 
-          type="primary" 
-          icon={<PlusOutlined />} 
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
           onClick={() => setModalVisible(true)}
-          style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
         >
           Yeni Poz Ekle
         </Button>
       </div>
 
-      <Table
+      <DataTable
         columns={columns}
         dataSource={pozlar}
         rowKey="id"
         loading={isLoading}
         size="small"
+        emptyDescription="Henüz poz tanımlanmamış"
       />
 
       <Modal

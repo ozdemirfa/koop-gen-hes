@@ -23,15 +23,16 @@ api.interceptors.request.use(async (config) => {
 
   const isProjeEndpoint = config.url?.includes('/projeler')
   const isGlobalEndpoint = config.url?.includes('/firmalar') || config.url?.includes('/settings')
-  const isSubResourceWithoutProject = config.url?.includes('/is-kalemleri') || config.url?.includes('/odeme-plani')
+  const isSubResourceWithoutProject = config.url?.includes('/is-kalemleri')
 
-  if (activeProjectId && !isProjeEndpoint && !isGlobalEndpoint && !isSubResourceWithoutProject) {
+  if (activeProjectId && activeProjectId.length === 36 && !isProjeEndpoint && !isGlobalEndpoint && !isSubResourceWithoutProject) {
     if (config.method === 'get' || config.method === 'delete') {
-      if (!config.params?.proje_id) {
+      // Zaten projeId veya proje_id gönderilmişse müdahale etme
+      if (!config.params?.proje_id && !config.params?.projeId) {
         config.params = { ...config.params, proje_id: activeProjectId }
       }
     } else if (config.method === 'post' || config.method === 'put' || config.method === 'patch') {
-      if (typeof config.data === 'object' && !config.data?.proje_id) {
+      if (typeof config.data === 'object' && !config.data?.proje_id && !config.data?.projeId) {
         config.data = { ...config.data, proje_id: activeProjectId }
       }
     }
@@ -40,13 +41,11 @@ api.interceptors.request.use(async (config) => {
   return config
 })
 
-// Hata interceptor - hataları logla (401'de agresif signOut yapma)
+// Hata interceptor: server response body'yi (varsa) reject eder; aksi halde AxiosError.
+// 401'de agresif signOut tetiklemiyoruz — AuthContext yönetiyor.
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    console.error('[API]', error.response?.status, error.response?.data || error.message)
-    return Promise.reject(error.response?.data || error)
-  }
+  (error) => Promise.reject(error.response?.data || error)
 )
 
 export const postPayment = (data: any) => api.post('/cari-hareketler/payment', data)

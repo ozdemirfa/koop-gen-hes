@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Card, Table, Button, Modal, Form, InputNumber, App, Typography, Tag, Space } from 'antd'
 import { EditOutlined, SaveOutlined } from '@ant-design/icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { getErrorMessage } from '../../lib/apiError'
 import { usePageSettings } from '../../contexts/LayoutContext'
 
 const { Text, Paragraph } = Typography
@@ -71,7 +72,7 @@ export const ParametersPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['system-parameters-list'] })
       setEditModalOpen(false)
     },
-    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu')
+    onError: (err) => messageApi.error(getErrorMessage(err))
   })
 
   const handleEdit = (record: SystemParameter) => {

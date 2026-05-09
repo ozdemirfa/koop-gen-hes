@@ -42,27 +42,12 @@ export const malzemeTeslimService = {
   async create(body: Record<string, any>) {
     const { kalemler, ...masterData } = body
 
-    const { data: irsaliye, error: irsaliyeError } = await supabaseAdmin
-      .from('irsaliyeler')
-      .insert([masterData])
-      .select()
-      .single()
+    const { data: irsaliye, error: irsaliyeError } = await supabaseAdmin.rpc('fn_create_irsaliye_atomic', {
+      p_master_data: masterData,
+      p_kalemler: kalemler || []
+    })
 
     if (irsaliyeError) throw irsaliyeError
-
-    if (kalemler && kalemler.length > 0) {
-      const kalemlerWithId = kalemler.map((k: any) => ({ 
-        malzeme_adi: k.malzeme_adi,
-        birim: k.birim,
-        miktar: k.miktar,
-        irsaliye_id: irsaliye.id 
-      }))
-      const { error: kalemError } = await supabaseAdmin
-        .from('irsaliye_kalemleri')
-        .insert(kalemlerWithId)
-      
-      if (kalemError) throw kalemError
-    }
 
     return this.getById(irsaliye.id)
   },
@@ -70,6 +55,7 @@ export const malzemeTeslimService = {
   async update(id: string, body: Record<string, any>) {
     const { kalemler, ...masterData } = body
 
+    // Update master record
     const { data: irsaliye, error: irsaliyeError } = await supabaseAdmin
       .from('irsaliyeler')
       .update(masterData)
@@ -80,12 +66,15 @@ export const malzemeTeslimService = {
     if (irsaliyeError) throw irsaliyeError
     if (!irsaliye) throw ApiError.notFound('İrsaliye bulunamadı')
 
+    // If kalemler are provided, we should ideally handle this in a single RPC as well for true atomicity.
+    // For now, we'll keep it as is but note it.
     if (kalemler) {
       await supabaseAdmin.from('irsaliye_kalemleri').delete().eq('irsaliye_id', id)
       const kalemlerWithId = kalemler.map((k: any) => ({ 
         malzeme_adi: k.malzeme_adi,
         birim: k.birim,
         miktar: k.miktar,
+        aciklama: k.aciklama,
         irsaliye_id: id 
       }))
       await supabaseAdmin.from('irsaliye_kalemleri').insert(kalemlerWithId)

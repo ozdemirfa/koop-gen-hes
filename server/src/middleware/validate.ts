@@ -21,7 +21,6 @@ export function validate(schemas: ValidateSchemas) {
       }
       next()
     } catch (err) {
-      console.error('Validation Error:', err)
       next(err)
     }
   }

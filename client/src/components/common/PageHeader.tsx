@@ -31,16 +31,23 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   }
 
   return (
-    <div className="page-header">
-      <Space orientation="vertical" size={2}>
-        <Space align="center" size="middle">
+    <div className="page-header" style={{ 
+      display: 'flex', 
+      justifyContent: 'space-between', 
+      alignItems: 'flex-start', 
+      flexWrap: 'wrap', 
+      gap: '12px',
+      marginBottom: '20px'
+    }}>
+      <Space orientation="vertical" size={0}>
+        <Space align="center" size="small">
           {(showBack || onBack || backPath) && (
             <Button 
               type="text" 
               icon={<ArrowLeftOutlined />} 
               onClick={handleBack}
               style={{ 
-                marginRight: 8,
+                marginRight: 4,
                 borderRadius: '50%',
                 width: 32,
                 height: 32,
@@ -50,15 +57,19 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
               }}
             />
           )}
-          <Title level={3} style={{ margin: 0, fontWeight: 700 }}>{title}</Title>
+          <Title level={3} style={{ margin: 0, fontWeight: 700, fontSize: '20px' }}>{title}</Title>
         </Space>
         {subtitle && (
-          <Typography.Text type="secondary" style={{ marginLeft: (showBack || onBack || backPath) ? 40 : 0 }}>
+          <Typography.Text type="secondary" style={{ marginLeft: (showBack || onBack || backPath) ? 36 : 0, fontSize: '13px' }}>
             {subtitle}
           </Typography.Text>
         )}
       </Space>
-      {extra && <Space wrap>{extra}</Space>}
+      {extra && (
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+          {extra}
+        </div>
+      )}
     </div>
   )
 }

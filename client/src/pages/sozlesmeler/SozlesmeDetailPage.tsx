@@ -5,9 +5,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
+import { getErrorMessage } from '../../lib/apiError'
 import { PageHeader } from '../../components/common/PageHeader'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { ConfirmDelete } from '../../components/common/ConfirmDelete'
+import { DataTable } from '../../components/common/DataTable'
 import { trNumberFormatter, trNumberParser, trMoneyFormatter } from '../../lib/format'
 
 interface IsKalemi {
@@ -97,7 +99,7 @@ export const SozlesmeDetailPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['is-kalemleri', id] })
       closeKalemModal()
     },
-    onError: (err: any) => message.error(err.error || err.message || 'Hata oluştu'),
+    onError: (err) => message.error(getErrorMessage(err)),
   })
 
   const deleteKalemMutation = useMutation({
@@ -108,7 +110,7 @@ export const SozlesmeDetailPage: React.FC = () => {
       message.success('İş kalemi silindi')
       queryClient.invalidateQueries({ queryKey: ['is-kalemleri', id] })
     },
-    onError: (err: any) => message.error(err.message || 'Hata oluştu'),
+    onError: (err) => message.error(getErrorMessage(err)),
   })
 
   const deleteSozlesmeMutation = useMutation({
@@ -121,7 +123,7 @@ export const SozlesmeDetailPage: React.FC = () => {
       if (sozlesme) navigate(`/firmalar/${sozlesme.firma_id}`)
       else navigate('/firmalar')
     },
-    onError: (err: any) => message.error(err.error || err.message || 'Hata oluştu'),
+    onError: (err) => message.error(getErrorMessage(err)),
   })
 
   const closeKalemModal = () => {
@@ -242,13 +244,20 @@ export const SozlesmeDetailPage: React.FC = () => {
         }
         styles={{ body: { padding: 0 } }}
       >
-        <Table
+        <DataTable
+          hideCard
           columns={isKalemiColumns}
           dataSource={isKalemleri}
           rowKey="id"
           loading={kalemLoading}
           pagination={false}
           size="small"
+          emptyDescription="Sözleşmede iş kalemi yok"
+          emptyAction={
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleAddKalem}>
+              İş Kalemi Ekle
+            </Button>
+          }
           summary={() => (
             <Table.Summary fixed>
               <Table.Summary.Row>

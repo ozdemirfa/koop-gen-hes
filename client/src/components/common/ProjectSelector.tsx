@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Select, Space, Typography, Card, Button, Divider, message } from 'antd'
 import { ProjectOutlined, CheckCircleOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import { useProject } from '../../contexts/ProjectContext'
+import { useQueryClient } from '@tanstack/react-query'
 
 const { Text } = Typography
 
@@ -12,6 +13,7 @@ interface ProjectSelectorProps {
 export const ProjectSelector: React.FC<ProjectSelectorProps> = ({ inline = false }) => {
   const { projects, activeProject, setActiveProject, loading } = useProject()
   const [selectedId, setSelectedId] = useState<string | undefined>(activeProject?.id)
+  const queryClient = useQueryClient()
 
   if (loading) return null
 
@@ -31,8 +33,9 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({ inline = false
       setActiveProject(project || null)
       message.success(`${project?.proje_adi} aktif proje olarak ayarlandı`)
       
-      // Sayfayı yenile ki tüm veriler yeni proje ile çekilsin
-      setTimeout(() => window.location.reload(), 500)
+      // Sayfayı yenilemek yerine tüm query'leri invalidate et
+      // Bu sayede sayfa durumunu kaybetmeden tüm veriler yeni projeye göre güncellenir
+      queryClient.invalidateQueries()
     }
 
     return (

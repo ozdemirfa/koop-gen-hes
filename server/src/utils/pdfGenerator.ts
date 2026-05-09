@@ -131,8 +131,8 @@ export const pdfGenerator = {
               [{ text: 'Tarih', style: 'tableHeader' }, { text: 'Açıklama / Kategori', style: 'tableHeader' }, { text: 'Tutar (TL)', style: 'tableHeader', alignment: 'right' }],
               ...gelirler.map((g: any) => [
                 new Date(g.tarih).toLocaleDateString('tr-TR'),
-                `${g.gelir_gider_kategorileri?.ad || '-'} - ${g.aciklama || ''}`,
-                { text: g.tutar.toLocaleString('tr-TR', { minimumFractionDigits: 2 }), alignment: 'right' }
+                `${g.islem_turu || '-'} - ${g.aciklama || ''}`,
+                { text: Number(g.alacak ?? g.tutar ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 }), alignment: 'right' }
               ]),
               [{ text: 'Aidat Tahsilatları Toplamı', colSpan: 2, bold: true }, {}, { text: toplam_aidat_tahsilat.toLocaleString('tr-TR', { minimumFractionDigits: 2 }), bold: true, alignment: 'right' }],
               [{ text: 'GELİRLER TOPLAMI', colSpan: 2, bold: true, fillColor: '#e6ffed' }, {}, { text: (toplam_gelir + toplam_aidat_tahsilat).toLocaleString('tr-TR', { minimumFractionDigits: 2 }), bold: true, alignment: 'right', fillColor: '#e6ffed' }]
@@ -148,8 +148,8 @@ export const pdfGenerator = {
               [{ text: 'Tarih', style: 'tableHeader' }, { text: 'Açıklama / Kategori', style: 'tableHeader' }, { text: 'Tutar (TL)', style: 'tableHeader', alignment: 'right' }],
               ...giderler.map((g: any) => [
                 new Date(g.tarih).toLocaleDateString('tr-TR'),
-                `${g.gelir_gider_kategorileri?.ad || '-'} - ${g.aciklama || ''}`,
-                { text: g.tutar.toLocaleString('tr-TR', { minimumFractionDigits: 2 }), alignment: 'right' }
+                `${g.islem_turu || '-'} - ${g.aciklama || ''}`,
+                { text: Number(g.borc ?? g.tutar ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 }), alignment: 'right' }
               ]),
               [{ text: 'GİDERLER TOPLAMI', colSpan: 2, bold: true, fillColor: '#fff1f0' }, {}, { text: toplam_gider.toLocaleString('tr-TR', { minimumFractionDigits: 2 }), bold: true, alignment: 'right', fillColor: '#fff1f0' }]
             ]

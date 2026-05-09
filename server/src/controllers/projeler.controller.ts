@@ -3,10 +3,8 @@ import { AuthRequest } from '../middleware/auth'
 import { projeService } from '../services/proje.service'
 import { catchAsync } from '../utils/catchAsync'
 import { supabaseAdmin } from '../config/supabase'
-import logger from '../utils/logger'
 
 export const getProjeler = catchAsync(async (_req: AuthRequest<any, any, any, any>, res: Response) => {
-  logger.info('Proje listeleme isteği')
   const data = await projeService.list()
   res.json({ success: true, data })
 })
@@ -47,7 +45,6 @@ export const getYillikPlan = catchAsync(async (req: AuthRequest<any, any, any, a
 })
 
 export const createYillikPlan = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  console.log(`[DEBUG] Controller createYillikPlan hit. ProjeId: ${req.params.id}, Body:`, req.body)
   const data = await projeService.createYillikPlan(req.params.id, req.body)
   res.status(201).json({ success: true, data })
 })
@@ -80,7 +77,6 @@ export const getSerefiye = catchAsync(async (req: AuthRequest<any, any, any, any
 
 export const generateSerefiye = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   const id = req.params.id || req.body.projeId
-  console.log(`[DEBUG] generateSerefiye called for ID: ${id}`)
   const data = await projeService.generateSerefiye(id)
   res.json({ success: true, data })
 })
@@ -92,14 +88,12 @@ export const syncSerefiye = catchAsync(async (req: AuthRequest<any, any, any, an
 
 export const resetSerefiye = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   const id = req.params.id || req.body.projeId
-  console.log(`[DEBUG] resetSerefiye called for ID: ${id}`)
   const data = await projeService.resetSerefiye(id)
   res.json({ success: true, data })
 })
 
 export const clearSerefiye = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   const id = req.params.id || req.body.projeId
-  console.log(`[DEBUG] clearSerefiye called for ID: ${id}`)
   const data = await projeService.clearSerefiye(id)
   res.json({ success: true, data })
 })

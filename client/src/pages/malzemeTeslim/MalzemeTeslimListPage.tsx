@@ -4,6 +4,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
+import { getErrorMessage } from '../../lib/apiError'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
@@ -105,7 +106,7 @@ export const MalzemeTeslimListPage: React.FC = () => {
       setEditingIrsaliye(null)
       setSelectedFirmaId(null)
     },
-    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu'),
+    onError: (err) => messageApi.error(getErrorMessage(err)),
   })
 
   const deleteMutation = useMutation({
@@ -114,7 +115,7 @@ export const MalzemeTeslimListPage: React.FC = () => {
       message.success('İrsaliye silindi')
       queryClient.invalidateQueries({ queryKey: ['irsaliyeler'] })
     },
-    onError: (err: any) => message.error(err.message || 'Hata oluştu'),
+    onError: (err) => message.error(getErrorMessage(err)),
   })
 
   const actions = useMemo(() => (

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Table, InputNumber, Button, Space, Card, Typography, Empty, Row, Col, Statistic, Popconfirm, Modal, Select, App } from 'antd'
 import { SaveOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons'
 import api from '../../lib/api'
+import { getErrorMessage } from '../../lib/apiError'
 import { trNumberFormatter, trNumberParser, trMoneyFormatter } from '../../lib/format'
 import { PageHeader } from '../../components/common/PageHeader'
 import { LoadingState } from '../../components/common/LoadingState'
@@ -28,8 +29,8 @@ export const YillikPlanPage: React.FC = () => {
         const { data } = await api.get(`/projeler/${projeId}/yillik-plan/${yil}`)
         return data.data
       } catch (err: any) {
-        // Eğer backend 404 dönerse bunu hata değil, plan yok olarak kabul et
-        if (err.status === 404 || err.response?.status === 404) return null
+        // Backend 404 → plan yok (hata değil)
+        if (err?.status === 404 || err?.response?.status === 404) return null
         throw err
       }
     }
@@ -77,21 +78,16 @@ export const YillikPlanPage: React.FC = () => {
 
   const createPlanMutation = useMutation({
     mutationFn: async (targetYil?: number) => {
-      console.log(`[DEBUG] createPlanMutation called for project: ${projeId}, targetYear: ${targetYil}`)
       const { data } = await api.post(`/projeler/${projeId}/yillik-plan`, { yil: targetYil })
       return data
     },
     onSuccess: (data) => {
-      console.log('[DEBUG] createPlanMutation success:', data)
       const msg = data.message || 'Yıllık plan(lar) oluşturuldu'
       messageApi.success(msg)
       // Tüm proje planlarını geçersiz kıl
       queryClient.invalidateQueries({ queryKey: ['proje-plan', projeId] })
     },
-    onError: (err: any) => {
-      console.error('[DEBUG] createPlanMutation error:', err)
-      messageApi.error(err.message || 'Hata oluştu')
-    }
+    onError: (err) => messageApi.error(getErrorMessage(err))
   })
 
   const updateKalemMutation = useMutation({
@@ -103,7 +99,7 @@ export const YillikPlanPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['proje-plan', projeId, yil] })
       setEditingValues({})
     },
-    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu')
+    onError: (err) => messageApi.error(getErrorMessage(err))
   })
 
   const deleteRowMutation = useMutation({
@@ -114,7 +110,7 @@ export const YillikPlanPage: React.FC = () => {
       messageApi.success('Harcama kalemi bu plandan kaldırıldı')
       queryClient.invalidateQueries({ queryKey: ['proje-plan', projeId, yil] })
     },
-    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu')
+    onError: (err) => messageApi.error(getErrorMessage(err))
   })
 
   const { data: projeIsKalemleri } = useQuery({
@@ -147,7 +143,7 @@ export const YillikPlanPage: React.FC = () => {
       setAddRowModalOpen(false)
       setSelectedKalemId(null)
     },
-    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu')
+    onError: (err) => messageApi.error(getErrorMessage(err))
   })
 
   const pivotedData: Record<string, any> = useMemo(() => {
@@ -186,7 +182,7 @@ export const YillikPlanPage: React.FC = () => {
       messageApi.success('Değişiklikler kaydedildi')
       queryClient.invalidateQueries({ queryKey: ['proje-plan', projeId, yil] })
       setEditingValues({})
-    } catch (err: any) {
+    } catch {
       messageApi.error('Bazı kalemler kaydedilemedi')
     }
   }

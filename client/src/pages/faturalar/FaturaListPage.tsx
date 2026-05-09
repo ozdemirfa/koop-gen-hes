@@ -1,15 +1,17 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { Button, Select, Space, Tag, Modal, Form, Input, InputNumber, DatePicker, App, Row, Col, Divider, Typography } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, DeleteOutlined, ScheduleOutlined, EditOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
+import { getErrorMessage } from '../../lib/apiError'
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { ConfirmDelete } from '../../components/common/ConfirmDelete'
 import { usePageSettings } from '../../contexts/LayoutContext'
+import { useProject } from '../../contexts/ProjectContext'
 import { trMoneyFormatter, trNumberParser } from '../../lib/format'
 
 const { Text } = Typography
@@ -43,17 +45,32 @@ interface Fatura {
 const tipLabel: Record<string, string> = { gelen: 'Gelen', giden: 'Giden' }
 const durumLabel: Record<string, string> = { bekliyor: 'Bekliyor', odendi: 'Ödendi', kismi_odendi: 'Kısmi Ödendi', iptal: 'İptal' }
 const durumRenk: Record<string, string> = { bekliyor: 'blue', odendi: 'green', kismi_odendi: 'orange', iptal: 'red' }
-const BIRIMLER = ['Adet', 'Metre', 'Kg', 'm2', 'm3', 'Ton', 'Litre', 'Set', 'Hizmet']
 
 export const FaturaListPage: React.FC = () => {
   const { message } = App.useApp()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { activeProject } = useProject()
   const [filterTip, setFilterTip] = useState<string | undefined>(undefined)
   const [filterDurum, setFilterDurum] = useState<string | undefined>(undefined)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingFatura, setEditingFatura] = useState<Fatura | null>(null)
   const [form] = Form.useForm()
+
+  // Project değiştiğinde verileri tazele
+  useEffect(() => {
+    if (activeProject?.id) {
+      queryClient.invalidateQueries({ queryKey: ['faturalar'] })
+    }
+  }, [activeProject?.id, queryClient])
+
+  const { data: birimler } = useQuery({
+    queryKey: ['birimler-select'],
+    queryFn: async () => {
+      const { data } = await api.get('/settings/birimler')
+      return data.data as { id: string; ad: string }[]
+    },
+  })
 
   const actions = useMemo(() => (
     <Space>
@@ -85,6 +102,7 @@ export const FaturaListPage: React.FC = () => {
         size="small" 
         type="primary" 
         icon={<PlusOutlined />} 
+        disabled={!activeProject}
         onClick={() => { 
           setEditingFatura(null); 
           form.resetFields(); 
@@ -97,7 +115,7 @@ export const FaturaListPage: React.FC = () => {
         Yeni Fatura
       </Button>
     </Space>
-  ), [filterTip, filterDurum, form])
+  ), [filterTip, filterDurum, form, activeProject])
 
   usePageSettings('Fatura Yönetimi', actions)
 
@@ -110,20 +128,23 @@ export const FaturaListPage: React.FC = () => {
   })
 
   const { data: faturaData, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['faturalar', filterTip, filterDurum],
+    queryKey: ['faturalar', activeProject?.id, filterTip, filterDurum],
     queryFn: async () => {
       const params: Record<string, string> = {}
+      if (activeProject) params.proje_id = activeProject.id
       if (filterTip) params.fatura_tipi = filterTip
       if (filterDurum) params.durum = filterDurum
       const { data } = await api.get('/faturalar', { params })
       return data
     },
+    enabled: !!activeProject
   })
 
   const saveMutation = useMutation({
     mutationFn: async (values: any) => {
       const payload = {
         ...values,
+        proje_id: activeProject?.id,
         fatura_tarihi: values.fatura_tarihi.format('YYYY-MM-DD'),
         vade_tarihi: values.vade_tarihi ? values.vade_tarihi.format('YYYY-MM-DD') : null,
       }
@@ -141,11 +162,11 @@ export const FaturaListPage: React.FC = () => {
     },
     onError: (err: any) => {
       if (err?.details && Array.isArray(err.details)) {
-        form.setFields(err.details.map((d: any) => ({ name: d.field, errors: [d.message] })))
+        form.setFields(err.details.map((d: { field: string; message: string }) => ({ name: d.field, errors: [d.message] })))
       } else if (err?.error?.includes?.('unique') || err?.message?.includes?.('unique')) {
         form.setFields([{ name: 'fatura_no', errors: ['Bu fatura no zaten kullanılmış'] }])
       } else {
-        message.error(err?.error || err?.message || 'Hata oluştu')
+        message.error(getErrorMessage(err))
       }
     },
   })
@@ -156,7 +177,7 @@ export const FaturaListPage: React.FC = () => {
       message.success('Fatura silindi')
       queryClient.invalidateQueries({ queryKey: ['faturalar'] })
     },
-    onError: (err: any) => message.error(err?.error || err?.message || 'Hata oluştu'),
+    onError: (err) => message.error(getErrorMessage(err)),
   })
 
   // Toplamları kalemlerden hesapla
@@ -235,12 +256,6 @@ export const FaturaListPage: React.FC = () => {
               setModalOpen(true)
             }}
           />
-          <Button 
-            size="small" 
-            icon={<ScheduleOutlined />} 
-            onClick={() => navigate(`/faturalar/${r.id}/odeme-plani`)}
-            title="Ödeme Planı"
-          />
           <ConfirmDelete size="small" onConfirm={() => deleteMutation.mutate(r.id)} />
         </Space>
       ),
@@ -269,7 +284,7 @@ export const FaturaListPage: React.FC = () => {
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
         width={900}
-        destroyOnHidden
+        forceRender={true}
         okText="Kaydet"
         cancelText="İptal"
       >
@@ -311,8 +326,8 @@ export const FaturaListPage: React.FC = () => {
           <Divider titlePlacement="left" style={{ margin: '8px 0 16px 0' }}>Fatura Kalemleri</Divider>
           
           <Row gutter={8} style={{ marginBottom: 4, paddingLeft: 4 }}>
-            <Col span={9}><Text type="secondary" style={{ fontSize: '11px' }}>Ürün/Hizmet Tanımı</Text></Col>
-            <Col span={3}><Text type="secondary" style={{ fontSize: '11px' }}>Birim</Text></Col>
+            <Col span={8}><Text type="secondary" style={{ fontSize: '11px' }}>Ürün/Hizmet Tanımı</Text></Col>
+            <Col span={4}><Text type="secondary" style={{ fontSize: '11px' }}>Birim</Text></Col>
             <Col span={3}><Text type="secondary" style={{ fontSize: '11px' }}>Adet</Text></Col>
             <Col span={4}><Text type="secondary" style={{ fontSize: '11px' }}>Birim Fiyat</Text></Col>
             <Col span={3}><Text type="secondary" style={{ fontSize: '11px' }}>KDV%</Text></Col>
@@ -324,15 +339,15 @@ export const FaturaListPage: React.FC = () => {
               <>
                 {fields.map(({ key, name, ...restField }) => (
                   <Row key={key} gutter={8} align="middle" style={{ marginBottom: 4 }}>
-                    <Col span={9}>
+                    <Col span={8}>
                       <Form.Item {...restField} name={[name, 'kalem_adi']} rules={[{ required: true }]} noStyle>
                         <Input size="small" placeholder="Ürün/Hizmet Adı" />
                       </Form.Item>
                     </Col>
-                    <Col span={3}>
+                    <Col span={4}>
                       <Form.Item {...restField} name={[name, 'birim']} rules={[{ required: true }]} noStyle>
                         <Select size="small" placeholder="Birim">
-                          {BIRIMLER.map(b => <Select.Option key={b} value={b}>{b}</Select.Option>)}
+                          {birimler?.map(b => <Select.Option key={b.id} value={b.ad}>{b.ad}</Select.Option>)}
                         </Select>
                       </Form.Item>
                     </Col>

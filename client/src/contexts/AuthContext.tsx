@@ -28,6 +28,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)
+    }).catch(() => {
+      setLoading(false)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -40,12 +42,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [])
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    if (!error && data.session) {
-      setSession(data.session)
-      setUser(data.session.user)
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) throw error
+      
+      if (data.session) {
+        setSession(data.session)
+        setUser(data.session.user)
+      }
+      setLoading(false)
+      return { error: null }
+    } catch (error) {
+      return { error: error as Error }
     }
-    return { error }
   }, [])
 
   const signOut = useCallback(async () => {

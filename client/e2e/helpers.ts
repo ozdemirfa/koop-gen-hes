@@ -12,10 +12,39 @@ export async function login(page: Page) {
   
   await page.getByPlaceholder('ornek@kooperatif.com').fill(E2E_USER!)
   await page.getByPlaceholder('Şifre').fill(E2E_PASSWORD!)
-  await page.getByRole('button', { name: /giriş yap/i }).click()
+  
+  const loginBtn = page.getByRole('button', { name: /giriş yap/i })
+  await loginBtn.waitFor({ state: 'visible' })
+  await loginBtn.click()
 
-  // Wait for login to complete
-  await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 20_000 })
+  // Wait for login to complete - redirect away from login
+  console.log('E2E: Waiting for redirect from /login...')
+  
+  // Debug: Check localStorage for session every 5 seconds
+  const checkSession = async () => {
+    const storage = await page.evaluate(() => JSON.stringify(localStorage))
+    console.log(`E2E: localStorage state: ${storage.substring(0, 200)}...`)
+    const sessionExists = await page.evaluate(() => {
+      return Object.keys(localStorage).some(key => key.includes('auth-token'))
+    })
+    console.log(`E2E: Supabase session exists in storage: ${sessionExists}`)
+  }
+
+  try {
+    // Check session every 5s while waiting
+    const interval = setInterval(checkSession, 5000)
+    
+    await page.waitForURL((url) => {
+      console.log(`E2E: Current URL: ${url.href}`)
+      return !url.pathname.startsWith('/login')
+    }, { timeout: 60_000 })
+    
+    clearInterval(interval)
+  } catch (err) {
+    await checkSession()
+    console.error(`E2E: Login redirect failed. Final URL: ${page.url()}`)
+    throw err
+  }
   await page.waitForLoadState('networkidle')
   
   // Ensure a project is selected
@@ -58,6 +87,7 @@ export async function ensureProject(page: Page) {
 
   // Go to projeler
   await page.goto('/projeler')
+  await page.waitForURL('/projeler')
   await page.waitForLoadState('networkidle')
   
   // Try to find selector
@@ -78,8 +108,12 @@ export async function ensureProject(page: Page) {
 
   // Create new project
   console.log('E2E: Creating fallback project...')
-  await page.click('button:has-text("Yeni Proje")')
-  await page.waitForSelector('.ant-modal-content', { state: 'visible' })
+  // Wait for the button to be stable - prefer testid if available
+  const newProjectBtn = page.getByTestId('add-new-project').or(page.getByRole('button', { name: 'Yeni Proje' }))
+  await newProjectBtn.waitFor({ state: 'visible' })
+  await newProjectBtn.click()
+  
+  await page.waitForSelector('.ant-modal-content', { state: 'visible', timeout: 10000 })
   
   const projectName = `E2E ${uniqueSuffix()}`
   await page.fill('input#proje_adi', projectName)

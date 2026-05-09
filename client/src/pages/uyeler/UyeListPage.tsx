@@ -1,16 +1,20 @@
 import React, { useState } from 'react'
-import { Button, Input, Select, Space, Tag, App, Typography, Badge } from 'antd'
+import { Button, Input, Select, Space, Tag, App, Grid } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, EditOutlined, SearchOutlined, EyeOutlined } from '@ant-design/icons'
 import api from '../../lib/api'
+import { getErrorMessage } from '../../lib/apiError'
 import { useDebounce } from '../../hooks/useDebounce'
 
 import { DataTable } from '../../components/common/DataTable'
 import { StrictConfirmDelete } from '../../components/common/StrictConfirmDelete'
 import { ErrorState } from '../../components/common/ErrorState'
+import { EmptyState } from '../../components/common/EmptyState'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { useProject } from '../../contexts/ProjectContext'
+
+const { useBreakpoint } = Grid
 
 interface Uye {
   id: string
@@ -27,6 +31,8 @@ interface Uye {
 }
 
 export const UyeListPage: React.FC = () => {
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { activeProject } = useProject()
@@ -72,25 +78,27 @@ export const UyeListPage: React.FC = () => {
       messageApi.success('Üye pasif yapıldı')
       queryClient.invalidateQueries({ queryKey: ['uyeler'] })
     },
-    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu'),
+    onError: (err) => messageApi.error(getErrorMessage(err)),
   })
 
   const actions = React.useMemo(() => (
-    <Space orientation="horizontal">
+    <Space orientation="horizontal" size="small" wrap>
       <Input
-        placeholder="Ad, soyad veya üye no ile ara..."
+        placeholder="Ara..."
         prefix={<SearchOutlined />}
         allowClear
         onChange={(e) => setSearch(e.target.value)}
-        style={{ width: 250 }}
+        style={{ width: isMobile ? 120 : 200 }}
         autoComplete="off"
+        size="small"
       />
       <Select
         placeholder="Durum"
         value={filterDurum}
         onChange={setFilterDurum}
         allowClear
-        style={{ width: 120 }}
+        style={{ width: 90 }}
+        size="small"
       >
         <Select.Option value="aktif">Aktif</Select.Option>
         <Select.Option value="pasif">Pasif</Select.Option>
@@ -102,27 +110,29 @@ export const UyeListPage: React.FC = () => {
         value={filterBlok}
         onChange={setFilterBlok}
         allowClear
-        style={{ width: 120 }}
+        style={{ width: 85 }}
+        size="small"
       >
         {bloklar?.map((b) => (
           <Select.Option key={b.id} value={b.id}>{b.blok_adi}</Select.Option>
         ))}
       </Select>
       <Select
-        placeholder="Daire Ataması"
+        placeholder="Daire"
         value={filterDaire}
         onChange={setFilterDaire}
         allowClear
-        style={{ width: 150 }}
+        style={{ width: 100 }}
+        size="small"
       >
-        <Select.Option value="atanmis">Daire Atanmış</Select.Option>
-        <Select.Option value="atanmamis">Daire Atanmamış</Select.Option>
+        <Select.Option value="atanmis">Atanmış</Select.Option>
+        <Select.Option value="atanmamis">Atanmamış</Select.Option>
       </Select>
-      <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/uyeler/yeni')}>
-        Yeni Üye
+      <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/uyeler/yeni')} size="small">
+        {!isMobile && "Yeni Üye"}
       </Button>
     </Space>
-  ), [filterDurum, filterBlok, filterDaire, bloklar, navigate])
+  ), [filterDurum, filterBlok, filterDaire, bloklar, navigate, isMobile])
 
   usePageSettings('Üye Yönetimi', actions)
 
@@ -134,7 +144,7 @@ export const UyeListPage: React.FC = () => {
   }
 
   const columns = [
-    { title: 'Üye No', dataIndex: 'uye_no', key: 'uye_no', width: 100 },
+    { title: 'No', dataIndex: 'uye_no', key: 'uye_no', width: 70 },
     {
       title: 'Ad Soyad',
       key: 'ad_soyad',
@@ -142,28 +152,31 @@ export const UyeListPage: React.FC = () => {
       render: (_: unknown, r: Uye) => `${r.ad} ${r.soyad}`,
     },
     {
-      title: 'Daire Kod',
+      title: 'Daire',
       key: 'daire_kod',
+      width: 80,
       render: (_: unknown, r: Uye) => {
         return r.serefiye_tablosu?.daire_no || '-'
       },
     },
-    { title: 'Telefon', dataIndex: 'telefon', key: 'telefon' },
+    { title: 'Telefon', dataIndex: 'telefon', key: 'telefon', responsive: ['md'] as ('md')[] },
     {
       title: 'Durum',
       dataIndex: 'durum',
       key: 'durum',
+      responsive: ['sm'] as ('sm')[],
       render: (d: string) => <Tag color={durumRenk[d] || 'default'}>{d.toUpperCase()}</Tag>,
     },
     {
       title: 'İşlem',
       key: 'action',
-      width: 150,
+      width: 120,
       render: (_: unknown, record: Uye) => (
-        <Space onClick={(e) => e.stopPropagation()} orientation="horizontal">
+        <Space onClick={(e) => e.stopPropagation()} orientation="horizontal" size="small">
           <Button 
             icon={<EyeOutlined />} 
             type="text" 
+            size="small"
             onClick={(e) => { 
               e.stopPropagation(); 
               navigate(`/uyeler/${record.id}`); 
@@ -172,6 +185,7 @@ export const UyeListPage: React.FC = () => {
           <Button 
             icon={<EditOutlined />} 
             type="text" 
+            size="small"
             onClick={(e) => { 
               e.stopPropagation(); 
               navigate(`/uyeler/${record.id}/duzenle`); 
@@ -193,10 +207,7 @@ export const UyeListPage: React.FC = () => {
   return (
     <div className="animate-in fade-in duration-500">
       {!activeProject ? (
-        <div style={{ padding: '24px', textAlign: 'center' }}>
-          <Typography.Title level={4}>Lütfen bir proje seçin</Typography.Title>
-          <Typography.Text type="secondary">Üye listesini görüntülemek için üst menüden bir proje seçmelisiniz.</Typography.Text>
-        </div>
+        <EmptyState description="Lütfen önce yukarıdan bir proje seçin" />
       ) : (
         isError ? (
           <ErrorState error={error} onRetry={() => refetch()} />

@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, FileTextOutlined, DollarOutlined, SolutionOutlined, FileSearchOutlined, EditOutlined, InfoCircleOutlined, RollbackOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
+import { getErrorMessage } from '../../lib/apiError'
 import { PageHeader } from '../../components/common/PageHeader'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { formatIBAN, getIBANRaw, trMoneyFormatter, formatPhone } from '../../lib/format'
@@ -50,7 +51,7 @@ export const FirmaDetailPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['cari-ekstre'] })
       queryClient.invalidateQueries({ queryKey: ['firma-stats'] })
     },
-    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu')
+    onError: (err) => messageApi.error(getErrorMessage(err))
   })
 
   const unapproveMutation = useMutation({
@@ -63,7 +64,7 @@ export const FirmaDetailPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['firma-stats'] })
       queryClient.invalidateQueries({ queryKey: ['cari-ekstre'] })
     },
-    onError: (err: any) => messageApi.error(err.message || 'İşlem başarısız'),
+    onError: (err) => messageApi.error(getErrorMessage(err, 'İşlem başarısız')),
   })
 
   // --- Queries ---

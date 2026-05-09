@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { SaveOutlined, PlusOutlined } from '@ant-design/icons'
 import api from '../lib/api'
+import { getErrorMessage } from '../lib/apiError'
 import dayjs from 'dayjs'
 import { PageHeader } from '../components/common/PageHeader'
 import { useProject } from '../contexts/ProjectContext'
@@ -59,7 +60,7 @@ export const AidatYillikPlanPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['aidat-tanimlari'] })
       navigate('/aidatlar/tanimlar')
     },
-    onError: (err: any) => messageApi.error(err.message || 'Hata oluştu'),
+    onError: (err) => messageApi.error(getErrorMessage(err)),
   })
 
   const handleKatsayiChange = (value: number | null, index: number) => {
@@ -143,11 +144,10 @@ export const AidatYillikPlanPage: React.FC = () => {
               {(fields, { add, remove }) => (
                 <>
                   <div style={{ marginBottom: 16, display: 'flex' }}>
-                    <Button 
-                      type="primary" 
-                      onClick={() => add()} 
+                    <Button
+                      type="primary"
+                      onClick={() => add()}
                       icon={<PlusOutlined />}
-                      style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
                     >
                       Yeni Ay Ekle
                     </Button>
