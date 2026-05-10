@@ -13,7 +13,28 @@ const app = express()
 const port = process.env.PORT || 3001
 
 app.use(helmet())
-app.use(cors())
+
+const allowedOrigins = (process.env.CORS_ORIGINS ?? '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean)
+
+app.use(cors({
+  origin: (origin, cb) => {
+    // origin undefined (curl/server-to-server) ise izin ver
+    if (!origin) return cb(null, true)
+    // Geliştirme: allowedOrigins boşsa wildcard (sadece NODE_ENV=development)
+    if (allowedOrigins.length === 0 && process.env.NODE_ENV !== 'production') {
+      return cb(null, true)
+    }
+    if (allowedOrigins.includes(origin)) return cb(null, true)
+    return cb(new Error('Origin not allowed by CORS'))
+  },
+  credentials: false,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}))
+
 app.use(express.json())
 
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev', {

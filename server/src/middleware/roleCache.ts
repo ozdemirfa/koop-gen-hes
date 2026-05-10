@@ -1,6 +1,23 @@
 import { supabaseAdmin } from '../config/supabase'
 import logger from '../utils/logger'
 
+/**
+ * In-memory cache for per-user role lookups.
+ *
+ * TTL: 60s — kabul edilebilir demote penceresi. Bir kullanıcı admin'den
+ * çıkarıldıktan sonra eski role bilgisi en fazla bu süre boyunca cache'te
+ * kalabilir.
+ *
+ * NOT: user_roles tablosu şu an admin UI üzerinden değil, doğrudan SQL
+ * migration'ları ile güncelleniyor (örn. supabase/migrations/*_seed_*_user_role.sql).
+ * Rol değişikliği yapan ileride bir admin endpoint'i `clearRoleCache(userId)`
+ * çağırmalı; aksi takdirde demote sonrası 60s admin penceresi açık kalır.
+ *
+ * Eğer çoklu node deploy'a geçilirse (Render birden fazla instance) bu in-memory
+ * cache instance başına ayrı çalışır — `clearRoleCache` tek bir instance'ı
+ * temizler. Multi-instance senaryosu için Redis pub/sub veya kısa TTL kalmalı.
+ */
+
 export type AppRole = 'admin' | 'staff'
 
 interface CacheEntry {
@@ -9,7 +26,7 @@ interface CacheEntry {
 }
 
 const cache = new Map<string, CacheEntry>()
-const TTL_MS = 60 * 1000
+const TTL_MS = 60 * 1000 // 1 minute — kabul edilebilir demote penceresi
 
 export async function getUserRole(userId: string): Promise<AppRole | null> {
   const now = Date.now()

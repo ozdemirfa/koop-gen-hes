@@ -84,20 +84,24 @@ export const UyeDetailPage: React.FC = () => {
 
   // Aidatları getir
   const { data: aidatlar, isLoading: aidatLoading } = useQuery({
-    queryKey: ['uye-aidatlar', id],
+    queryKey: ['uye-aidatlar', id, uye?.proje_id],
     queryFn: async () => {
-      const { data } = await api.get(`/aidatlar`, { params: { uye_id: id } })
+      const { data } = await api.get(`/aidatlar`, {
+        params: { uye_id: id, proje_id: uye?.proje_id }
+      })
       return data.data as AidatOdeme[]
     },
+    enabled: !!uye?.proje_id,
   })
 
   // Üyeye ait ödeme + iade + başlangıç bedeli kalemlerini getir
   const { data: odemeler, isLoading: odemeLoading } = useQuery({
-    queryKey: ['uye-odemeler', id],
+    queryKey: ['uye-odemeler', id, uye?.proje_id],
     queryFn: async () => {
       const { data } = await api.get(`/cari-hareketler`, {
         params: {
           uye_id: id,
+          proje_id: uye?.proje_id,
           islem_turu_in: 'gelen_odeme,iade_odeme,uyelik_baslangic',
           limit: 1000
         }
@@ -110,6 +114,7 @@ export const UyeDetailPage: React.FC = () => {
         odeme_yontemi: o.odeme_yontemi || o.odeme_turu || '-',
       }))
     },
+    enabled: !!uye?.proje_id,
   })
 
   const durumRenk: Record<string, string> = {

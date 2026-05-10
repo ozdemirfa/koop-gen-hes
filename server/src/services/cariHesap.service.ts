@@ -1,16 +1,17 @@
 import { supabaseAdmin } from '../config/supabase'
 import { ApiError } from '../utils/ApiError'
+import { requireProjeId } from '../utils/projectGuard'
 import logger from '../utils/logger'
 
 export const cariHesapService = {
   async list(query: Record<string, any>) {
-    const projeId = Array.isArray(query.proje_id) ? query.proje_id[0] : query.proje_id
+    const projeIdRaw = Array.isArray(query.proje_id) ? query.proje_id[0] : query.proje_id
 
     // Eşleşmemiş filtresi anti-join gerektirdiğinden RPC'ye delege ediyoruz.
     // PostgREST URL'sine UUID listesi gömme yaklaşımı hem güvenlik hem URL limit
     // açısından sakıncalıydı.
     if (query.eslesmemis === 'true' || query.eslesmemis === true) {
-      if (!projeId) throw ApiError.badRequest('proje_id zorunludur')
+      const projeId = requireProjeId(projeIdRaw)
 
       const { data, error } = await supabaseAdmin.rpc('fn_list_unmatched_cari_hareketler', {
         p_filters: {
@@ -27,6 +28,10 @@ export const cariHesapService = {
       return data ?? []
     }
 
+    // proje_id zorunludur — service-role RLS bypass ettiğinden filtre uygulanmazsa
+    // tüm projelerin cari hareketleri sızar.
+    const projeId = requireProjeId(projeIdRaw)
+
     const needsInner = !!(query.uye_id || query.firma_id || query.cari_turu);
     const selectStr = needsInner
       ? '*, cari_hesaplar!inner(cari_adi, cari_turu, uye_id, firma_id, proje_id)'
@@ -35,8 +40,7 @@ export const cariHesapService = {
     let q = supabaseAdmin
       .from('cari_hareketler')
       .select(selectStr)
-
-    if (projeId) q = q.eq('proje_id', projeId)
+      .eq('proje_id', projeId)
 
     if (query.uye_id) q = q.eq('cari_hesaplar.uye_id', query.uye_id)
     if (query.firma_id) q = q.eq('cari_hesaplar.firma_id', query.firma_id)
@@ -59,14 +63,18 @@ export const cariHesapService = {
   },
 
   async listAccounts(query: Record<string, any>) {
+    const proje_id_raw = Array.isArray(query.proje_id) ? query.proje_id[0] : query.proje_id
+    const cari_turu = Array.isArray(query.cari_turu) ? query.cari_turu[0] : query.cari_turu
+
+    // proje_id zorunludur — service-role RLS bypass ettiğinden filtre uygulanmazsa
+    // tüm projelerin cari hesapları sızar.
+    const proje_id = requireProjeId(proje_id_raw)
+
     let q = supabaseAdmin
       .from('cari_hesaplar')
       .select('*')
+      .eq('proje_id', proje_id)
 
-    const proje_id = Array.isArray(query.proje_id) ? query.proje_id[0] : query.proje_id
-    const cari_turu = Array.isArray(query.cari_turu) ? query.cari_turu[0] : query.cari_turu
-
-    if (proje_id) q = q.eq('proje_id', proje_id)
     if (cari_turu) q = q.eq('cari_turu', cari_turu)
 
     const { data, error } = await q.order('cari_adi', { ascending: true })

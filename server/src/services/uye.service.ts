@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '../config/supabase'
 import { ApiError } from '../utils/ApiError'
 import { parsePagination, toSupabaseRange, paginationMeta } from '../utils/pagination'
+import { requireProjeId } from '../utils/projectGuard'
 import logger from '../utils/logger'
 
 export const uyeService = {
@@ -8,19 +9,20 @@ export const uyeService = {
     const pagination = parsePagination(query)
     const { from, to } = toSupabaseRange(pagination)
 
-    logger.info(`Üye listeleme isteği - ProjeID: ${query.proje_id}, Query: ${JSON.stringify(query)}`)
+    // proje_id zorunludur — service-role RLS bypass ettiğinden filtre uygulanmazsa
+    // tüm projelerin verisi sızar. Cross-project leak'i önlemek için her zaman
+    // bir proje kapsamı şart (admin bypass'ı gerekirse caller layer'da çözülmeli).
+    const activeProjeId = requireProjeId(query.proje_id || query.activeProjectId)
+
+    logger.info(`Üye listeleme isteği - ProjeID: ${activeProjeId}, Query: ${JSON.stringify(query)}`)
 
     // !serefiye_id explicitly tells PostgREST to use the serefiye_id FK on the uyeler table
     let selectQuery = '*, serefiye_tablosu!serefiye_id(*, bloklar(blok_adi))'
-    
+
     let q = supabaseAdmin
       .from('uyeler')
       .select(selectQuery, { count: 'exact' })
-
-    const activeProjeId = query.proje_id || query.activeProjectId
-    if (activeProjeId && activeProjeId !== 'null' && activeProjeId !== 'undefined') {
-      q = q.eq('proje_id', activeProjeId)
-    }
+      .eq('proje_id', activeProjeId)
     
     if (query.durum) q = q.eq('durum', query.durum)
     

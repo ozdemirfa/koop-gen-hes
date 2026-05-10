@@ -29,7 +29,9 @@ export const OdemeKayit: React.FC = () => {
     queryKey: ['cari-accounts', activeProject?.id],
     queryFn: async () => {
       if (!activeProject?.id) return []
-      const { data } = await api.get('/cari-hareketler/accounts')
+      const { data } = await api.get('/cari-hareketler/accounts', {
+        params: { proje_id: activeProject.id }
+      })
       return data.data as { id: string; cari_adi: string; cari_turu: 'uye' | 'firma' }[]
     },
     enabled: !!activeProject?.id
@@ -273,7 +275,7 @@ export const OdemeKayit: React.FC = () => {
               </Col>
               <Col xs={24} md={12}>
                 <Form.Item
-                  name="banka_adi"
+                  name="banka"
                   label="Çekin Bankası"
                   rules={[{ required: true, message: 'Banka adı zorunludur' }]}
                 >

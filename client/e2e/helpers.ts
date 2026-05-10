@@ -67,9 +67,25 @@ export async function navigateTo(page: Page, menuText: string, subMenuText?: str
 }
 
 export async function checkHeader(page: Page, title: string) {
-  // Use a targeted locator for the header title
-  const header = page.locator('#header-left')
-  await expect(header).toContainText(title, { timeout: 15000 })
+  // Two rendering patterns exist:
+  // 1. usePageSettings() → sets LayoutContext via useEffect → rendered in #header-left as Typography.Text span
+  // 2. PageHeader component → renders <Title level={3}> inside <main> as h3 (UyeDetailPage, etc.)
+  // Strategy: retry-poll until one of the two patterns has text including the title.
+  await expect(async () => {
+    // Pattern 1: #header-left contains the title text (any descendant)
+    const headerLeftText = await page.locator('#header-left').textContent().catch(() => '')
+    if (headerLeftText && headerLeftText.includes(title)) return
+
+    // Pattern 2: PageHeader h3 in main content area
+    const h3Elements = page.locator('.page-header h3, main h3')
+    const h3Count = await h3Elements.count()
+    for (let i = 0; i < h3Count; i++) {
+      const text = await h3Elements.nth(i).textContent().catch(() => '')
+      if (text && text.includes(title)) return
+    }
+
+    throw new Error(`Header "${title}" not found in #header-left or h3`)
+  }).toPass({ timeout: 15_000, intervals: [300, 500, 500, 1000, 1000, 1000, 2000] })
 }
 
 export function uniqueSuffix() {
@@ -77,62 +93,74 @@ export function uniqueSuffix() {
 }
 
 export async function ensureProject(page: Page) {
-  // Check for active project in sidebar
+  // Strategy: Check if localStorage already has activeProjectId set.
+  // If so, the React ProjectContext will auto-select on load — just wait for it.
+  // If not, inject the first available project ID from /api/projeler.
+  //
+  // v3 fix (R1): Use waitFor({ state: 'visible' }) instead of point-in-time .count() > 0
+  // to avoid race condition where context hydrate hasn't resolved yet.
+
+  // Wait for sidebar to be rendered first
   const sidebar = page.locator('.ant-layout-sider')
+  await sidebar.waitFor({ state: 'visible', timeout: 15_000 })
+
   const activeLabel = sidebar.locator('text=AKTİF PROJE')
-  
-  if (await activeLabel.count() > 0) {
-    return
+
+  // R1 fix: waitFor with timeout instead of instant .count() snapshot
+  try {
+    await activeLabel.waitFor({ state: 'visible', timeout: 10_000 })
+    return // Project context hydrated and active label visible
+  } catch {
+    // Not yet visible after 10s — fall through to selection logic
   }
 
-  // Go to projeler
-  await page.goto('/projeler')
-  await page.waitForURL('/projeler')
-  await page.waitForLoadState('networkidle')
-  
-  // Try to find selector
-  const selector = page.locator('.ant-select-selector').first()
-  const selectorExists = await selector.count() > 0
-  
-  if (selectorExists) {
-    await selector.click()
-    const options = page.locator('.ant-select-item-option-content')
-    if (await options.count() > 0) {
-      await options.first().click()
-      await page.click('button:has-text("Aktif Proje Yap")')
-      await expect(activeLabel).toBeVisible({ timeout: 15000 })
-      await page.goto('/')
+  // Check if localStorage has a projectId already (context may still be loading)
+  const savedId = await page.evaluate(() => localStorage.getItem('activeProjectId'))
+  if (savedId) {
+    // Context is loading — give it more time
+    try {
+      await activeLabel.waitFor({ state: 'visible', timeout: 15_000 })
       return
+    } catch {
+      // Still not showing — continue with selection
     }
   }
 
-  // Create new project
-  console.log('E2E: Creating fallback project...')
-  // Wait for the button to be stable - prefer testid if available
-  const newProjectBtn = page.getByTestId('add-new-project').or(page.getByRole('button', { name: 'Yeni Proje' }))
-  await newProjectBtn.waitFor({ state: 'visible' })
-  await newProjectBtn.click()
-  
-  await page.waitForSelector('.ant-modal-content', { state: 'visible', timeout: 10000 })
-  
-  const projectName = `E2E ${uniqueSuffix()}`
-  await page.fill('input#proje_adi', projectName)
-  await page.fill('input[placeholder="Örn: A"]', 'A')
-  await page.fill('.ant-input-number-input', '10')
-  
-  await page.click('.ant-modal-footer button:has-text("Kaydet")')
-  await page.waitForSelector('.ant-modal-content', { state: 'hidden', timeout: 15000 })
-  
-  // App usually reloads or auto-selects. Let's force check.
-  await page.waitForTimeout(3000)
-  await page.goto('/')
-  
-  if (await activeLabel.count() === 0) {
-    await page.goto('/projeler')
-    await page.click('.ant-select-selector')
-    await page.click('.ant-select-item-option-content:first-child')
-    await page.click('button:has-text("Aktif Proje Yap")')
-    await expect(activeLabel).toBeVisible({ timeout: 15000 })
-    await page.goto('/')
+  // Go to projeler and select first available project
+  await page.goto('/projeler')
+  await page.waitForLoadState('networkidle')
+
+  // Wait for table rows (projects list)
+  const rows = page.locator('.ant-table-row')
+  try {
+    await rows.first().waitFor({ state: 'visible', timeout: 10_000 })
+    // Click "Aktif Yap" button on first row
+    const aktifBtn = rows.first().getByRole('button', { name: /Aktif|Seç/i }).first()
+    if (await aktifBtn.count() > 0) {
+      await aktifBtn.click()
+      await page.waitForLoadState('networkidle')
+    }
+  } catch {
+    // No projects exist — create one
+    console.log('E2E: No projects found, creating fallback project...')
+    const newProjectBtn = page.getByTestId('add-new-project').or(page.getByRole('button', { name: 'Yeni Proje' }))
+    await newProjectBtn.waitFor({ state: 'visible' })
+    await newProjectBtn.click()
+
+    // R2 fix: [role="dialog"] AntD 6 modal selector (.ant-modal-content artık match etmiyor)
+    await page.locator('[role="dialog"]').first().waitFor({ state: 'visible', timeout: 10_000 })
+
+    const projectName = `E2E ${uniqueSuffix()}`
+    await page.fill('input#proje_adi', projectName)
+    await page.fill('input[placeholder="Örn: A"]', 'A')
+    await page.fill('.ant-input-number-input', '10')
+
+    await page.click('.ant-modal-footer button:has-text("Kaydet")')
+    // R2 fix: [role="dialog"] hidden bekleme
+    await page.locator('[role="dialog"]').waitFor({ state: 'hidden', timeout: 15_000 })
+    await page.waitForLoadState('networkidle')
   }
+
+  await page.goto('/')
+  await expect(activeLabel).toBeVisible({ timeout: 20_000 })
 }

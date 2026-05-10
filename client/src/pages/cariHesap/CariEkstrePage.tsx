@@ -86,8 +86,8 @@ export const CariEkstrePage: React.FC = () => {
     queryKey: ['cari-accounts', activeProject?.id, 'firma'],
     queryFn: async () => {
       if (!activeProject?.id) return []
-      const { data } = await api.get('/cari-hareketler/accounts', { 
-        params: { cari_turu: 'firma' } 
+      const { data } = await api.get('/cari-hareketler/accounts', {
+        params: { cari_turu: 'firma', proje_id: activeProject.id }
       })
       return data.data as CariHesap[]
     },
@@ -99,13 +99,14 @@ export const CariEkstrePage: React.FC = () => {
     queryKey: ['cari-ekstre', activeProject?.id, dates, cariHesapId],
     queryFn: async () => {
       if (!activeProject?.id) return []
-      const params: any = { 
-        cari_turu: 'firma'
+      const params: any = {
+        cari_turu: 'firma',
+        proje_id: activeProject.id
       }
       if (dates?.[0]) params.baslangic_tarihi = dates[0].format('YYYY-MM-DD')
       if (dates?.[1]) params.bitis_tarihi = dates[1].format('YYYY-MM-DD')
       if (cariHesapId) params.cari_hesap_id = cariHesapId
-      
+
       const { data } = await api.get('/cari-hareketler', { params })
       return data.data as CariHareket[]
     },
