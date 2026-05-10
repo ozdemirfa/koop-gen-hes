@@ -61,10 +61,70 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
         }
         break
       }
+      case '23514':
+        // CHECK constraint violation — alan değeri kural dışı
+        statusCode = 400
+        {
+          const c = typeof supaErr.message === 'string' ? supaErr.message.match(/constraint "([^"]+)"/)?.[1] : undefined
+          userMessage = c ? `Kural ihlali: ${c}` : 'Geçersiz değer (CHECK constraint)'
+        }
+        break
+      case '22P02':
+        // invalid_text_representation — örn. boş string'i UUID'ye cast
+        statusCode = 400
+        userMessage = 'Geçersiz değer formatı'
+        break
+      case '42804':
+        // Atama tip uyumsuzluğu (örn. text → enum cast eksik) — DB tarafında bug demektir
+        userMessage = 'Veritabanı tip uyumsuzluğu (sistem hatası)'
+        logger.error('PG 42804 — assignment type mismatch (DB function bug)', { message: supaErr.message, hint: supaErr.hint })
+        break
+      case '42883':
+      case 'PGRST202':
+        // Function does not exist / function signature not found
+        userMessage = 'API fonksiyonu bulunamadı (deploy uyumsuzluğu)'
+        logger.error('PG function not found', { code: supaErr.code, message: supaErr.message })
+        break
+      case 'PGRST116':
+        // No rows or multiple rows when single expected
+        statusCode = 404
+        userMessage = 'Beklenen kayıt bulunamadı veya birden fazla kayıt mevcut'
+        break
+      case 'PGRST301':
+        // JWT expired
+        statusCode = 401
+        userMessage = 'Oturum süresi doldu, lütfen tekrar giriş yapın'
+        break
       case '42P01':
         // Tablo yok hatası gibi sistem detaylarını asla sızdırma
         userMessage = 'Sistem hatası (Veri yapısı uyuşmazlığı)'
         break
+      case 'P0001':
+        // RAISE EXCEPTION from plpgsql — function's own message is user-facing
+        statusCode = 400
+        userMessage = typeof supaErr.message === 'string' && supaErr.message.length < 200
+          ? supaErr.message
+          : 'İş kuralı hatası'
+        break
+    }
+
+    // Production-dışı ortamda gerçek PG kodunu ve mesajını details içine ekle (debug için)
+    if (process.env.NODE_ENV !== 'production') {
+      details = [
+        ...(details ?? []),
+        { field: '__debug', message: `${supaErr.code}: ${supaErr.message}` }
+      ]
+    }
+
+    // Statuscode hâlâ 500 ise sebebi her ortamda loglanmalı (next time we won't be blind)
+    if (statusCode === 500) {
+      logger.error('Unmapped PG/PostgREST error', {
+        code: supaErr.code,
+        message: supaErr.message,
+        hint: supaErr.hint,
+        detail: supaErr.detail,
+        stack: err.stack
+      })
     }
 
     res.status(statusCode).json({
