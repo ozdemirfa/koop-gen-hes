@@ -200,7 +200,15 @@ export const BankaHesapListPage: React.FC = () => {
             <Input />
           </Form.Item>
           <Form.Item name="hesap_no" label="Hesap No">
-            <Input />
+            <Input
+              inputMode="numeric"
+              onChange={(e) => {
+                const digits = e.target.value.replace(/\D/g, '')
+                if (digits !== e.target.value) {
+                  form.setFieldsValue({ hesap_no: digits })
+                }
+              }}
+            />
           </Form.Item>
           <Form.Item 
             name="iban" 

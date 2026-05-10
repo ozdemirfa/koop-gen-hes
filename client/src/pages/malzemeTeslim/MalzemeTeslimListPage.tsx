@@ -8,10 +8,8 @@ import { getErrorMessage } from '../../lib/apiError'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
-import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { ConfirmDelete } from '../../components/common/ConfirmDelete'
 import { useDebounce } from '../../hooks/useDebounce'
-import { trMoneyFormatter, trNumberParser } from '../../lib/format'
 
 const { Text } = Typography
 
@@ -49,7 +47,6 @@ export const MalzemeTeslimListPage: React.FC = () => {
   const [editingIrsaliye, setEditingIrsaliye] = useState<Irsaliye | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterHakedis, setFilterHakedis] = useState<string | undefined>(undefined)
-  const [selectedFirmaId, setSelectedFirmaId] = useState<string | null>(null)
   const debouncedSearch = useDebounce(searchTerm, 500)
   const [form] = Form.useForm()
 
@@ -61,17 +58,6 @@ export const MalzemeTeslimListPage: React.FC = () => {
       const { data } = await api.get('/firmalar', { params: { aktif: 'true', limit: 500 } })
       return data.data as { id: string; unvan: string }[]
     },
-  })
-
-  // Firma hakedişlerini getir
-  const { data: hakedisler } = useQuery({
-    queryKey: ['firma-hakedisler', selectedFirmaId],
-    queryFn: async () => {
-      if (!selectedFirmaId) return []
-      const { data } = await api.get('/hakedisler', { params: { firma_id: selectedFirmaId, limit: 100 } })
-      return data.data as { id: string, hakedis_no: number }[]
-    },
-    enabled: !!selectedFirmaId
   })
 
   const { data: irsaliyeData, isLoading, isError, error, refetch } = useQuery({
@@ -93,7 +79,6 @@ export const MalzemeTeslimListPage: React.FC = () => {
         ...values,
         proje_id: activeProjectId,
         teslim_tarihi: values.teslim_tarihi.format('YYYY-MM-DD'),
-        hakedis_id: values.hakedis_id || null,
         sozlesme_id: values.sozlesme_id || null,
         irsaliye_no: values.irsaliye_no || null,
       }
@@ -108,7 +93,6 @@ export const MalzemeTeslimListPage: React.FC = () => {
       setModalOpen(false)
       form.resetFields()
       setEditingIrsaliye(null)
-      setSelectedFirmaId(null)
     },
     onError: (err) => messageApi.error(getErrorMessage(err)),
   })
@@ -150,7 +134,10 @@ export const MalzemeTeslimListPage: React.FC = () => {
         onClick={() => {
           setEditingIrsaliye(null)
           form.resetFields()
-          form.setFieldsValue({ kalemler: [{ malzeme_adi: '', birim: 'Adet', miktar: 1 }] })
+          form.setFieldsValue({
+            teslim_tarihi: dayjs(),
+            kalemler: [{ malzeme_adi: '', birim: 'Adet', miktar: 1 }],
+          })
           setModalOpen(true)
         }}
       >
@@ -200,11 +187,10 @@ export const MalzemeTeslimListPage: React.FC = () => {
             className="action-btn-edit"
             onClick={() => {
               setEditingIrsaliye(r)
-              setSelectedFirmaId(r.firma_id)
-              form.setFieldsValue({ 
-                ...r, 
+              form.setFieldsValue({
+                ...r,
                 teslim_tarihi: dayjs(r.teslim_tarihi),
-                kalemler: r.irsaliye_kalemleri 
+                kalemler: r.irsaliye_kalemleri,
               })
               setModalOpen(true)
             }}
@@ -237,7 +223,7 @@ export const MalzemeTeslimListPage: React.FC = () => {
         onCancel={() => {
           setModalOpen(false)
           setEditingIrsaliye(null)
-          setSelectedFirmaId(null)
+          form.resetFields()
         }}
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
@@ -256,14 +242,10 @@ export const MalzemeTeslimListPage: React.FC = () => {
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item name="firma_id" label="Firma" rules={[{ required: true }]}>
-                <Select 
-                  showSearch 
-                  placeholder="Firma seçin" 
+                <Select
+                  showSearch
+                  placeholder="Firma seçin"
                   optionFilterProp="children"
-                  onChange={(val) => {
-                    setSelectedFirmaId(val)
-                    form.setFieldsValue({ hakedis_id: undefined })
-                  }}
                 >
                   {firmalar?.map(f => <Select.Option key={f.id} value={f.id}>{f.unvan}</Select.Option>)}
                 </Select>
@@ -280,22 +262,9 @@ export const MalzemeTeslimListPage: React.FC = () => {
               </Form.Item>
             </Col>
           </Row>
-          
+
           <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="hakedis_id" label="Hakediş (Opsiyonel)">
-                <Select 
-                  showSearch 
-                  placeholder={selectedFirmaId ? "Hakediş bağla" : "Önce firma seçin"}
-                  optionFilterProp="children"
-                  allowClear
-                  disabled={!selectedFirmaId}
-                >
-                  {hakedisler?.map(h => <Select.Option key={h.id} value={h.id}>Hakediş #{h.hakedis_no}</Select.Option>)}
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
+            <Col span={24}>
               <Form.Item name="teslim_alan" label="Teslim Alan">
                 <Input />
               </Form.Item>
@@ -342,7 +311,15 @@ export const MalzemeTeslimListPage: React.FC = () => {
                         rules={[{ required: true }]}
                         noStyle
                       >
-                        <InputNumber placeholder="Miktar" style={{ width: '100%' }} min={0.001} />
+                        <InputNumber
+                          placeholder="Miktar"
+                          style={{ width: '100%' }}
+                          min={0.001}
+                          stringMode={false}
+                          onKeyDown={(e) => {
+                            if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault()
+                          }}
+                        />
                       </Form.Item>
                     </Col>
                     <Col span={2}>

@@ -85,21 +85,26 @@ export const formatIBAN = (iban: string | null | undefined): string => {
  * IBAN girişini formatlar (Otomatik TR ekler ve boşluk koyar: 4 4 4 4 4 4 2)
  */
 export const formatIBANInput = (value: string): string => {
-  // Sadece harf ve rakamları tut
-  let val = value.replace(/[^A-Z0-9]/gi, '').toUpperCase()
-  
-  // Eğer TR ile başlamıyorsa ve bir şeyler girilmişse TR ekle
-  if (val.length > 0 && !val.startsWith('TR')) {
-    val = 'TR' + val
+  // Boşlukları temizle, büyük harfe çevir
+  const raw = value.replace(/\s+/g, '').toUpperCase()
+  if (raw === '') return ''
+
+  // TR ön ekini ayır; sonrasını sadece rakam yap (Türkiye IBAN: TR + 24 rakam)
+  let digits: string
+  if (raw.startsWith('TR')) {
+    digits = raw.slice(2).replace(/\D/g, '')
+  } else {
+    // TR yok: tüm harfleri at, sadece rakam tut
+    digits = raw.replace(/\D/g, '')
   }
-  
-  // Eğer sadece T veya TR girilmişse veya boşsa
-  if (val === 'T') val = 'TR'
-  
-  // Maksimum 26 karakter (TR + 24 hane)
-  val = val.substring(0, 26)
-  
-  // 4'erli grupla (Son grup 2 hane kalacak şekilde)
+
+  // Sadece "T" girildiyse veya rakam yoksa "TR" göster
+  if (digits.length === 0) return 'TR'
+
+  // Maks 24 rakam → toplam 26 karakter (TR + 24)
+  const val = 'TR' + digits.substring(0, 24)
+
+  // 4'erli grupla
   const parts = val.match(/.{1,4}/g) || []
   return parts.join(' ').trim()
 }
