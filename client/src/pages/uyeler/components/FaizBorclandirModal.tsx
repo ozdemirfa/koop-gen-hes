@@ -101,7 +101,7 @@ export const FaizBorclandirModal: React.FC<Props> = ({ open, onCancel, uyeId, ai
       title="Üye Faiz Borç İşle"
       open={open}
       onCancel={onCancel}
-      width={800}
+      width="min(800px, 95vw)"
       footer={[
         <div key="footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>

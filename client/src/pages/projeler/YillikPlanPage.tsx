@@ -530,6 +530,7 @@ export const YillikPlanPage: React.FC = () => {
         confirmLoading={addKalemMutation.isPending}
         okText="Ekle"
         cancelText="İptal"
+        width="min(520px, 95vw)"
         destroyOnHidden
       >
         <div style={{ marginBottom: 16, marginTop: 16 }}>

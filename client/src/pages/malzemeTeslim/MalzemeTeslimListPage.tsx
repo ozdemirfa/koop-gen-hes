@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Button, Modal, Form, Input, InputNumber, DatePicker, Select, Space, message, Row, Col, Divider, Typography, Tag, App, Grid } from 'antd'
+import { Button, Modal, Form, Input, InputNumber, DatePicker, Select, Space, message, Row, Col, Divider, Typography, Tag, App } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
@@ -36,11 +36,7 @@ interface Irsaliye {
 
 const BIRIMLER = ['Adet', 'Metre', 'Kg', 'm2', 'm3', 'Ton', 'Litre', 'Set']
 
-const { useBreakpoint } = Grid
-
 export const MalzemeTeslimListPage: React.FC = () => {
-  const screens = useBreakpoint()
-  const isMobile = !screens.md
   const queryClient = useQueryClient()
   const { message: messageApi } = App.useApp()
   const [modalOpen, setModalOpen] = useState(false)
@@ -141,10 +137,10 @@ export const MalzemeTeslimListPage: React.FC = () => {
           setModalOpen(true)
         }}
       >
-        {!isMobile && "Yeni İrsaliye"}
+        Yeni İrsaliye
       </Button>
     </Space>
-  ), [searchTerm, filterHakedis, form, activeProjectId, isMobile])
+  ), [searchTerm, filterHakedis, form, activeProjectId])
 
   usePageSettings('Malzeme Teslimatı ve İrsaliye', actions)
 
@@ -227,7 +223,7 @@ export const MalzemeTeslimListPage: React.FC = () => {
         }}
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
-        width={800}
+        width="min(800px, 95vw)"
         destroyOnHidden
         okText="Kaydet"
         cancelText="İptal"

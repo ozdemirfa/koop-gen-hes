@@ -243,7 +243,7 @@ export const CekTakibiPage: React.FC = () => {
         }}
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
-        width={600}
+        width="min(600px, 95vw)"
       >
         <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)} initialValues={{ durum: 'beklemede', keside_tarihi: dayjs() }}>
           <Form.Item name="firma_id" label="Firma" rules={[{ required: true }]}>
@@ -312,6 +312,7 @@ export const CekTakibiPage: React.FC = () => {
         }}
         onOk={() => payForm.submit()}
         confirmLoading={payMutation.isPending}
+        width="min(520px, 95vw)"
       >
         <div style={{ marginBottom: 16 }}>
           <p><strong>Çek No:</strong> {payingCek?.cek_no}</p>

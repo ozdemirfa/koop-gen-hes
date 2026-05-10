@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Card, Row, Col, Statistic, DatePicker, Space, Grid, Typography } from 'antd'
+import { Card, Row, Col, Statistic, DatePicker, Space, Typography } from 'antd'
 import {
   CalendarOutlined,
   TeamOutlined,
@@ -33,7 +33,6 @@ import { trNumberFormatter, trMoneyFormatter } from '../lib/format'
 import { Button, message, Popconfirm } from 'antd'
 
 const { RangePicker } = DatePicker
-const { useBreakpoint } = Grid
 
 const IconBadge: React.FC<{ icon: React.ReactNode; color: string }> = ({ icon, color }) => (
   <span className="stat-icon-badge" style={{ background: `${color}1F`, color }}>
@@ -48,8 +47,6 @@ const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 const TLSuffix = <span className="stat-suffix">TL</span>
 
 export const Dashboard: React.FC = () => {
-  const screens = useBreakpoint()
-  const isMobile = !screens.md
   const { activeProject } = useProject()
   const queryClient = useQueryClient()
   const [dates, setDates] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null)
@@ -108,7 +105,7 @@ export const Dashboard: React.FC = () => {
           loading={fifoClosureMutation.isPending}
           disabled={!activeProject}
         >
-          {isMobile ? "FIFO Kapama" : "Hesap Kapamalarını Yap"}
+          Hesap Kapamalarını Yap
         </Button>
       </Popconfirm>
       <RangePicker
@@ -116,10 +113,10 @@ export const Dashboard: React.FC = () => {
         value={dates}
         onChange={(vals) => setDates(vals as any)}
         placeholder={['Başlangıç', 'Bitiş']}
-        style={{ width: isMobile ? 200 : 240 }}
+        style={{ width: 240 }}
       />
     </Space>
-  ), [dates, activeProject, fifoClosureMutation, isMobile])
+  ), [dates, activeProject, fifoClosureMutation])
   usePageSettings('Pano', actions)
 
   if (!activeProject) {
@@ -129,8 +126,8 @@ export const Dashboard: React.FC = () => {
   if (isLoading) return <LoadingState fullHeight />
   if (isError) return <ErrorState error={error} onRetry={() => refetch()} />
 
-  const cardTitleStyle = { fontSize: isMobile ? '13px' : '14px' }
-  const cardValueStyle = { fontWeight: 700, fontSize: isMobile ? '16px' : '18px' }
+  const cardTitleStyle = { fontSize: 'clamp(13px, 3vw, 14px)' }
+  const cardValueStyle = { fontWeight: 700, fontSize: 'clamp(16px, 4vw, 18px)' }
 
   const cariBakiyePositive = (ozet?.cari_bakiye || 0) >= 0
   const nakitPositive = (ozet?.odeme_sonrasi_nakit || 0) >= 0
@@ -349,7 +346,7 @@ export const Dashboard: React.FC = () => {
               styles={{ content: {
                 color: nakitPositive ? '#fa8c16' : '#cf1322',
                 ...cardValueStyle,
-                fontSize: isMobile ? '18px' : '20px'
+                fontSize: 'clamp(18px, 4vw, 20px)'
               } }}
             />
           </Card>

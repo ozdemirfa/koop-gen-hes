@@ -344,6 +344,7 @@ export const SerefiyePage: React.FC = () => {
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
         destroyOnHidden
+        width="min(520px, 95vw)"
       >
         <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)} autoComplete="off">
           <Row gutter={16}>
@@ -399,6 +400,7 @@ export const SerefiyePage: React.FC = () => {
         confirmLoading={assignUyeMutation.isPending}
         okText="Ata"
         destroyOnHidden
+        width="min(520px, 95vw)"
       >
         <Form
           form={uyeForm}

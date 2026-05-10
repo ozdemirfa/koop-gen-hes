@@ -144,6 +144,7 @@ export const PozListPage: React.FC = () => {
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
         destroyOnHidden
+        width="min(520px, 95vw)"
       >
         <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)}>
           <Form.Item 

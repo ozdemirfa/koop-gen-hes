@@ -151,6 +151,7 @@ export const ParametersPage: React.FC = () => {
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
         destroyOnHidden
+        width="min(520px, 95vw)"
       >
         {editingParam && (
           <Form

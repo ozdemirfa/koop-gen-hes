@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { Button, Select, Space, Tag, Modal, Form, Input, InputNumber, DatePicker, App, Row, Col, Divider, Typography, Grid } from 'antd'
+import { Button, Select, Space, Tag, Modal, Form, Input, InputNumber, DatePicker, App, Row, Col, Divider, Typography } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, DeleteOutlined, ScheduleOutlined, EditOutlined } from '@ant-design/icons'
@@ -46,11 +46,7 @@ const tipLabel: Record<string, string> = { gelen: 'Gelen', giden: 'Giden' }
 const durumLabel: Record<string, string> = { bekliyor: 'Bekliyor', odendi: 'Ödendi', kismi_odendi: 'Kısmi Ödendi', iptal: 'İptal' }
 const durumRenk: Record<string, string> = { bekliyor: 'blue', odendi: 'green', kismi_odendi: 'orange', iptal: 'red' }
 
-const { useBreakpoint } = Grid
-
 export const FaturaListPage: React.FC = () => {
-  const screens = useBreakpoint()
-  const isMobile = !screens.md
   const { message } = App.useApp()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -116,10 +112,10 @@ export const FaturaListPage: React.FC = () => {
           setModalOpen(true)
         }}
       >
-        {!isMobile && "Yeni Fatura"}
+        Yeni Fatura
       </Button>
     </Space>
-  ), [filterTip, filterDurum, form, activeProject, isMobile])
+  ), [filterTip, filterDurum, form, activeProject])
 
   usePageSettings('Fatura Yönetimi', actions)
 
@@ -287,7 +283,7 @@ export const FaturaListPage: React.FC = () => {
         onCancel={() => { setModalOpen(false); setEditingFatura(null); form.resetFields() }}
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
-        width={900}
+        width="min(900px, 95vw)"
         forceRender={true}
         okText="Kaydet"
         cancelText="İptal"

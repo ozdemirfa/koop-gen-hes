@@ -169,6 +169,34 @@ body {
   }
 }
 
+/*
+ * Admin header — SSR-safe responsive sizing.
+ * Sprint 20260511-ui-responsive-sprint:
+ * Replaced JS-based isMobile branching (Grid.useBreakpoint returns {} on
+ * initial render, causing layout shift / clipped titles on Vercel cold start).
+ * CSS media queries are SSR-safe and remove the initial render race.
+ */
+.admin-header-title {
+  max-width: 240px;
+}
+.admin-header-title .ant-typography {
+  font-size: 16px;
+}
+@media (max-width: 767px) {
+  .admin-header-title {
+    max-width: min(180px, 40vw);
+  }
+  .admin-header-title .ant-typography {
+    font-size: 14px;
+  }
+  .admin-header-separator {
+    display: none;
+  }
+  .admin-header-logout {
+    padding: 4px 8px !important;
+  }
+}
+
 .small-datepicker-popup .ant-picker-panel-container {
   transform: scale(0.9);
   transform-origin: top left;

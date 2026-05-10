@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Button, Modal, Form, InputNumber, Select, message, Card, Typography, Tag, Space, DatePicker, Input, Row, Col, Statistic, App, Popconfirm, Tooltip, Grid } from 'antd'
+import { Button, Modal, Form, InputNumber, Select, message, Card, Typography, Tag, Space, DatePicker, Input, Row, Col, Statistic, App, Popconfirm, Tooltip } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, CheckCircleOutlined, CalculatorOutlined, HistoryOutlined, WalletOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
@@ -16,7 +16,6 @@ import { ErrorState } from '../components/common/ErrorState'
 import { useDebounce } from '../hooks/useDebounce'
 
 const { Text, Title } = Typography
-const { useBreakpoint } = Grid
 
 interface Aidat {
   id: string
@@ -60,8 +59,6 @@ interface AidatTanimi {
 }
 
 export const Aidatlar: React.FC = () => {
-  const screens = useBreakpoint()
-  const isMobile = !screens.md
   const navigate = useNavigate()
   const location = useLocation()
   const isTanimlarPage = location.pathname.includes('/tanimlar')
@@ -260,7 +257,7 @@ export const Aidatlar: React.FC = () => {
         value={filterUyeAdi}
         onChange={(e) => setFilterUyeAdi(e.target.value)}
         allowClear
-        style={{ width: isMobile ? 120 : 140 }}
+        style={{ width: 140 }}
         size="small"
       />
       <Select
@@ -321,7 +318,7 @@ export const Aidatlar: React.FC = () => {
         <Select.Option value="atanmamis">Atanmamış</Select.Option>
       </Select>
     </Space>
-  ), [filterYil, filterAy, filterDurum, filterBlokId, filterHasDaire, filterUyeAdi, yearOptions, bloklar, isMobile])
+  ), [filterYil, filterAy, filterDurum, filterBlokId, filterHasDaire, filterUyeAdi, yearOptions, bloklar])
 
   const tanimActions = useMemo(() => (
     <Space orientation="horizontal" size="small">
@@ -342,7 +339,7 @@ export const Aidatlar: React.FC = () => {
         disabled={!activeProject}
         size="small"
       >
-        {!isMobile && "Yeni"}
+        Yeni
       </Button>
       <Button
         type="default"
@@ -361,7 +358,7 @@ export const Aidatlar: React.FC = () => {
     {
       title: 'Daire',
       key: 'daire',
-      width: isMobile ? 70 : 100,
+      width: 100,
       render: (_: unknown, r: Aidat) =>
         r.serefiye_tablosu ? r.serefiye_tablosu.daire_no : '-',
     },
@@ -521,7 +518,7 @@ export const Aidatlar: React.FC = () => {
                 title="Toplam Tahakkuk" 
                 value={ozet?.toplam_aidat || 0} 
                 formatter={(v) => trMoneyFormatter(v as number)} 
-                styles={{ content: { fontWeight: 700, fontSize: isMobile ? '16px' : '20px' } }} 
+                styles={{ content: { fontWeight: 700, fontSize: 'clamp(16px, 4vw, 20px)' } }} 
               />
             </Card>
           </Col>
@@ -531,7 +528,7 @@ export const Aidatlar: React.FC = () => {
                 title="Toplam Tahsilat" 
                 value={ozet?.toplam_tahsilat || 0} 
                 formatter={(v) => trMoneyFormatter(v as number)} 
-                styles={{ content: { color: '#3f8600', fontWeight: 700, fontSize: isMobile ? '16px' : '20px' } }} 
+                styles={{ content: { color: '#3f8600', fontWeight: 700, fontSize: 'clamp(16px, 4vw, 20px)' } }} 
               />
             </Card>
           </Col>
@@ -541,7 +538,7 @@ export const Aidatlar: React.FC = () => {
                 title="Geciken Aidat" 
                 value={ozet?.geciken || 0} 
                 formatter={(v) => trMoneyFormatter(v as number)} 
-                styles={{ content: { color: '#cf1322', fontWeight: 700, fontSize: isMobile ? '16px' : '20px' } }} 
+                styles={{ content: { color: '#cf1322', fontWeight: 700, fontSize: 'clamp(16px, 4vw, 20px)' } }} 
               />
             </Card>
           </Col>
@@ -551,7 +548,7 @@ export const Aidatlar: React.FC = () => {
                 title="Bekleyen Aidat" 
                 value={ozet?.bekleyen || 0} 
                 formatter={(v) => trMoneyFormatter(v as number)} 
-                styles={{ content: { color: '#d46b08', fontWeight: 700, fontSize: isMobile ? '16px' : '20px' } }} 
+                styles={{ content: { color: '#d46b08', fontWeight: 700, fontSize: 'clamp(16px, 4vw, 20px)' } }} 
               />
             </Card>
           </Col>
@@ -581,6 +578,7 @@ export const Aidatlar: React.FC = () => {
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
         destroyOnHidden
+        width="min(520px, 95vw)"
         okText="Kaydet"
         cancelText="İptal"
       >

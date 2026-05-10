@@ -174,14 +174,16 @@ const MainHeader: React.FC<{
           />
         )}
         {title && (
-          <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', minWidth: 0, maxWidth: isMobile ? '100px' : '240px' }}>
+          <div
+            className="admin-header-title"
+            style={{ flexShrink: 0, display: 'flex', alignItems: 'center', minWidth: 0 }}
+          >
             <Typography.Text
               style={{
                 margin: 0,
                 color: '#1e293b',
                 whiteSpace: 'nowrap',
                 fontWeight: 600,
-                fontSize: isMobile ? '14px' : '16px',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 width: '100%'
@@ -234,22 +236,25 @@ const MainHeader: React.FC<{
           />
         </Dropdown>
         
-        {!isMobile && <div style={{ width: '1px', height: '24px', background: '#e2e8f0', margin: '0 4px' }} />}
+        <div
+          className="admin-header-separator"
+          style={{ width: '1px', height: '24px', background: '#e2e8f0', margin: '0 4px' }}
+        />
 
-        <Button 
-          type="text" 
-          icon={<LogoutOutlined />} 
+        <Button
+          type="text"
+          icon={<LogoutOutlined />}
           onClick={onLogout}
-          style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+          className="admin-header-logout"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
             color: '#64748b',
             height: 40,
             borderRadius: 8,
-            padding: isMobile ? '4px 8px' : undefined
           }}
         >
-          {!isMobile && "Çıkış Yap"}
+          Çıkış Yap
         </Button>
       </div>
     </Header>

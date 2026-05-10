@@ -280,7 +280,7 @@ export const SozlesmeDetailPage: React.FC = () => {
         onCancel={closeKalemModal}
         onOk={() => kalemForm.submit()}
         confirmLoading={saveKalemMutation.isPending}
-        width={650}
+        width="min(650px, 95vw)"
       >
         <Form form={kalemForm} layout="vertical" onFinish={(v) => saveKalemMutation.mutate(v)}>
           {!editingKalem && (

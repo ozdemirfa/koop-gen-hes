@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Card, Space, Select, DatePicker, Statistic, Row, Col, Tag, Button, message, Typography, Badge, Popconfirm, Grid } from 'antd'
+import { Card, Space, Select, DatePicker, Statistic, Row, Col, Tag, Button, message, Typography, Badge, Popconfirm } from 'antd'
 import { DownloadOutlined, AuditOutlined, RollbackOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
@@ -13,7 +13,6 @@ import { usePageSettings } from '../../contexts/LayoutContext'
 import { useProject } from '../../contexts/ProjectContext'
 
 const { RangePicker } = DatePicker
-const { useBreakpoint } = Grid
 
 interface CariHesap {
   id: string
@@ -56,8 +55,6 @@ const ODEME_TURU_LABELS: Record<string, string> = {
 }
 
 export const CariEkstrePage: React.FC = () => {
-  const screens = useBreakpoint()
-  const isMobile = !screens.md
   const { activeProject } = useProject()
   const queryClient = useQueryClient()
   const [dates, setDates] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null]>([
@@ -169,14 +166,14 @@ export const CariEkstrePage: React.FC = () => {
 
   const actions = useMemo(() => (
     <Space size="small" wrap>
-      <Button size="small" icon={<DownloadOutlined />} onClick={exportToCSV}>{!isMobile && "CSV İndir"}</Button>
+      <Button size="small" icon={<DownloadOutlined />} onClick={exportToCSV}>CSV İndir</Button>
       <Select
         showSearch
         placeholder="Firma Seçin"
         value={cariHesapId}
         onChange={setCariHesapId}
         allowClear
-        style={{ width: isMobile ? 140 : 220 }}
+        style={{ width: 220 }}
         size="small"
         loading={accountsLoading}
         optionFilterProp="label"
@@ -191,10 +188,10 @@ export const CariEkstrePage: React.FC = () => {
         value={dates}
         onChange={(vals) => setDates(vals as any)}
         format="DD.MM.YYYY"
-        style={{ width: isMobile ? 200 : 240 }}
+        style={{ width: 240 }}
       />
     </Space>
-  ), [cariHesapId, dates, accounts, accountsLoading, isMobile])
+  ), [cariHesapId, dates, accounts, accountsLoading])
 
   usePageSettings('Firma Ekstre', actions)
 
@@ -317,7 +314,7 @@ export const CariEkstrePage: React.FC = () => {
                 title={<span style={{ fontSize: '11px' }}>{item.title}</span>} 
                 value={item.val} 
                 formatter={(v) => trMoneyFormatter(v as number)}
-                styles={{ content: { color: item.color, fontSize: isMobile ? '14px' : '16px', fontWeight: 'bold' } }}
+                styles={{ content: { color: item.color, fontSize: 'clamp(14px, 3.5vw, 16px)', fontWeight: 'bold' } }}
               />
               <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 4, paddingTop: 4 }}>
                 <Typography.Text type="secondary" style={{ fontSize: '10px' }}>{item.sub}</Typography.Text>
@@ -331,7 +328,7 @@ export const CariEkstrePage: React.FC = () => {
               title={<span style={{ fontSize: '11px', fontWeight: 'bold' }}>Cari Bakiye (Ödeme - Hakediş)</span>} 
               value={stats.bakiye} 
               formatter={(v) => trMoneyFormatter(v as number)}
-              styles={{ content: { color: stats.bakiye < 0 ? '#cf1322' : '#1677ff', fontSize: isMobile ? '18px' : '20px', fontWeight: 'bold' } }}
+              styles={{ content: { color: stats.bakiye < 0 ? '#cf1322' : '#1677ff', fontSize: 'clamp(18px, 4vw, 20px)', fontWeight: 'bold' } }}
             />
           </Card>
         </Col>

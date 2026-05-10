@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Button, Modal, Form, Input, Space, message, Tag, Switch, Tooltip, Typography, Grid } from 'antd'
+import { Button, Modal, Form, Input, Space, message, Tag, Switch, Tooltip, Typography } from 'antd'
 import { PlusOutlined, EditOutlined, TransactionOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
@@ -21,11 +21,7 @@ interface BankaHesap {
   bakiye?: number
 }
 
-const { useBreakpoint } = Grid
-
 export const BankaHesapListPage: React.FC = () => {
-  const screens = useBreakpoint()
-  const isMobile = !screens.md
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [modalOpen, setModalOpen] = useState(false)
@@ -85,9 +81,9 @@ export const BankaHesapListPage: React.FC = () => {
         setModalOpen(true)
       }}
     >
-      {!isMobile && "Yeni Hesap"}
+      Yeni Hesap
     </Button>
-  ), [form, activeProject, isMobile])
+  ), [form, activeProject])
 
   usePageSettings('Banka Hesapları', actions)
 
@@ -183,6 +179,7 @@ export const BankaHesapListPage: React.FC = () => {
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
         destroyOnHidden
+        width="min(520px, 95vw)"
         okText="Kaydet"
         cancelText="İptal"
       >

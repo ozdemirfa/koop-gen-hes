@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Button, Input, Select, Space, Tag, App, Grid } from 'antd'
+import { Button, Input, Select, Space, Tag, App } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, EditOutlined, SearchOutlined, EyeOutlined } from '@ant-design/icons'
@@ -13,8 +13,6 @@ import { ErrorState } from '../../components/common/ErrorState'
 import { EmptyState } from '../../components/common/EmptyState'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { useProject } from '../../contexts/ProjectContext'
-
-const { useBreakpoint } = Grid
 
 interface Uye {
   id: string
@@ -31,8 +29,6 @@ interface Uye {
 }
 
 export const UyeListPage: React.FC = () => {
-  const screens = useBreakpoint()
-  const isMobile = !screens.md
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { activeProject } = useProject()
@@ -88,7 +84,7 @@ export const UyeListPage: React.FC = () => {
         prefix={<SearchOutlined />}
         allowClear
         onChange={(e) => setSearch(e.target.value)}
-        style={{ width: isMobile ? 120 : 200 }}
+        style={{ width: 200 }}
         autoComplete="off"
         size="small"
       />
@@ -129,10 +125,10 @@ export const UyeListPage: React.FC = () => {
         <Select.Option value="atanmamis">Atanmamış</Select.Option>
       </Select>
       <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/uyeler/yeni')} size="small">
-        {!isMobile && "Yeni Üye"}
+        Yeni Üye
       </Button>
     </Space>
-  ), [filterDurum, filterBlok, filterDaire, bloklar, navigate, isMobile])
+  ), [filterDurum, filterBlok, filterDaire, bloklar, navigate])
 
   usePageSettings('Üye Yönetimi', actions)
 

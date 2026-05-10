@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Button, Select, Space, Tag, Modal, Form, DatePicker, Input, Popconfirm, Tooltip, App, Grid } from 'antd'
+import { Button, Select, Space, Tag, Modal, Form, DatePicker, Input, Popconfirm, Tooltip, App } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, EyeOutlined, RollbackOutlined } from '@ant-design/icons'
@@ -42,11 +42,7 @@ const durumLabel: Record<string, string> = {
   iptal: 'İptal',
 }
 
-const { useBreakpoint } = Grid
-
 export const HakedisListPage: React.FC = () => {
-  const screens = useBreakpoint()
-  const isMobile = !screens.md
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { message } = App.useApp()
@@ -71,10 +67,10 @@ export const HakedisListPage: React.FC = () => {
         <Select.Option value="iptal">İptal</Select.Option>
       </Select>
       <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
-        {!isMobile && "Yeni Hakediş"}
+        Yeni Hakediş
       </Button>
     </Space>
-  ), [filterDurum, isMobile])
+  ), [filterDurum])
 
   usePageSettings('Hakedişler', headerActions)
 
@@ -263,6 +259,7 @@ export const HakedisListPage: React.FC = () => {
         onOk={() => createForm.submit()}
         confirmLoading={createMutation.isPending}
         destroyOnHidden
+        width="min(520px, 95vw)"
         okText="Oluştur"
         cancelText="İptal"
       >

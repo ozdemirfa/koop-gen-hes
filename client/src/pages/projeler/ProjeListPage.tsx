@@ -231,7 +231,7 @@ export const ProjeListPage: React.FC = () => {
         }}
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
-        width={700}
+        width="min(700px, 95vw)"
         forceRender
         okText="Kaydet"
         cancelText="İptal"

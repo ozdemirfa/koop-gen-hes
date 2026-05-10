@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { Button, Form, Input, Select, Space, Switch, Tag, Modal, message, Row, Col, Statistic, Card, Typography, Grid } from 'antd'
+import { Button, Form, Input, Select, Space, Switch, Tag, Modal, message, Row, Col, Statistic, Card, Typography } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, EditOutlined, EyeOutlined, SearchOutlined } from '@ant-design/icons'
@@ -28,11 +28,7 @@ interface Firma {
   toplam_teminat?: number
 }
 
-const { useBreakpoint } = Grid
-
 export const FirmaListPage: React.FC = () => {
-  const screens = useBreakpoint()
-  const isMobile = !screens.md
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
@@ -84,10 +80,10 @@ export const FirmaListPage: React.FC = () => {
         <Select.Option value="false">Pasif</Select.Option>
       </Select>
       <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
-        {!isMobile && "Yeni Firma"}
+        Yeni Firma
       </Button>
     </Space>
-  ), [filterTip, filterAktif, isMobile])
+  ), [filterTip, filterAktif])
 
   usePageSettings('Firma Listesi', headerActions)
 
@@ -352,7 +348,7 @@ export const FirmaListPage: React.FC = () => {
         onCancel={() => setIsModalOpen(false)}
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
-        width={640}
+        width="min(640px, 95vw)"
         destroyOnHidden
         okText="Kaydet"
         cancelText="İptal"

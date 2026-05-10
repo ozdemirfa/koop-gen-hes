@@ -239,7 +239,7 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data, yil }) => {
         }}
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
-        width={600}
+        width="min(600px, 95vw)"
       >
         <Form 
           form={form} 

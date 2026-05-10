@@ -561,6 +561,7 @@ export const HakedisDetailPage: React.FC = () => {
         okText="Ekle"
         cancelText="İptal"
         destroyOnHidden
+        width="min(520px, 95vw)"
       >
         <div style={{ marginTop: 16 }}>
           <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>

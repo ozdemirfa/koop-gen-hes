@@ -65,7 +65,7 @@ export const StrictConfirmDelete: React.FC<StrictConfirmDeleteProps> = ({
         okText="Kalıcı Olarak Sil"
         cancelText="Vazgeç"
         okButtonProps={{ danger: true, disabled: inputValue !== confirmText, loading }}
-        width={450}
+        width="min(450px, 95vw)"
         centered
         style={{ top: -100 }} // Biraz daha yukarıda göster
       >
