@@ -91,22 +91,23 @@ export const UyeDetailPage: React.FC = () => {
     },
   })
 
-  // Tüm ödemeleri getir
+  // Üyeye ait ödeme + iade + başlangıç bedeli kalemlerini getir
   const { data: odemeler, isLoading: odemeLoading } = useQuery({
     queryKey: ['uye-odemeler', id],
     queryFn: async () => {
-      const { data } = await api.get(`/cari-hareketler`, { 
-        params: { 
-          uye_id: id, 
-          islem_turu: 'gelen_odeme',
-          limit: 1000 
-        } 
+      const { data } = await api.get(`/cari-hareketler`, {
+        params: {
+          uye_id: id,
+          islem_turu_in: 'gelen_odeme,iade_odeme,uyelik_baslangic',
+          limit: 1000
+        }
       })
       return (data.data as any[]).map(o => ({
         ...o,
         odeme_tarihi: o.tarih,
-        tutar: o.borc, // Proje perspektifi: Gelen ödeme BORC kolonundadır
-        odeme_yontemi: o.odeme_yontemi || o.odeme_turu || 'nakit',
+        // Tutar her zaman pozitif gösterilir; yön bilgisi İşlem Türü Tag'inden okunur
+        tutar: Math.max(Number(o.borc) || 0, Number(o.alacak) || 0),
+        odeme_yontemi: o.odeme_yontemi || o.odeme_turu || '-',
       }))
     },
   })
@@ -175,11 +176,27 @@ export const UyeDetailPage: React.FC = () => {
     },
   ]
 
+  const islemTuruMeta: Record<string, { color: string; label: string }> = {
+    gelen_odeme:      { color: 'green',  label: 'Tahsilat' },
+    iade_odeme:       { color: 'blue',   label: 'İade' },
+    uyelik_baslangic: { color: 'orange', label: 'Başlangıç Bedeli' },
+  }
+
   const odemeColumns = [
     { title: 'Tarih', dataIndex: 'odeme_tarihi', key: 'tarih', render: (d: string) => dayjs(d).format('DD.MM.YYYY') },
+    {
+      title: 'İşlem Türü',
+      dataIndex: 'islem_turu',
+      key: 'islem_turu',
+      width: 140,
+      render: (v: string) => {
+        const m = islemTuruMeta[v] ?? { color: 'default', label: v }
+        return <Tag color={m.color}>{m.label}</Tag>
+      },
+    },
     { title: 'Açıklama', dataIndex: 'aciklama', key: 'aciklama' },
-    { title: 'Tutar', dataIndex: 'tutar', key: 'tutar', render: (v: number) => <MoneyDisplay amount={v} colored /> },
-    { title: 'Yöntem', dataIndex: 'odeme_yontemi', key: 'yontem', render: (v: string) => <Tag>{v.toUpperCase()}</Tag> },
+    { title: 'Tutar', dataIndex: 'tutar', key: 'tutar', render: (v: number) => <MoneyDisplay amount={v} /> },
+    { title: 'Yöntem', dataIndex: 'odeme_yontemi', key: 'yontem', render: (v: string) => <Tag>{(v || '-').toUpperCase()}</Tag> },
     { title: 'Makbuz No', dataIndex: 'makbuz_no', key: 'makbuz' },
     {
       title: 'İşlem',

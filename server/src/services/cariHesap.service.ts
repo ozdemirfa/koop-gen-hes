@@ -43,6 +43,13 @@ export const cariHesapService = {
     if (query.cari_turu) q = q.eq('cari_hesaplar.cari_turu', query.cari_turu)
 
     if (query.islem_turu) q = q.eq('islem_turu', query.islem_turu)
+    if (query.islem_turu_in) {
+      const types = String(query.islem_turu_in)
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean)
+      if (types.length > 0) q = q.in('islem_turu', types)
+    }
     if (query.baslangic_tarihi) q = q.gte('tarih', query.baslangic_tarihi)
     if (query.bitis_tarihi) q = q.lte('tarih', query.bitis_tarihi)
 
@@ -81,8 +88,8 @@ export const cariHesapService = {
   async createPayment(paymentData: {
     proje_id: string,
     cari_hesap_id: string,
-    islem_turu: 'gelen_odeme' | 'giden_odeme',
-    odeme_turu: 'nakit' | 'banka' | 'cek' | 'kredi_karti',
+    islem_turu: 'gelen_odeme' | 'giden_odeme' | 'iade_odeme' | 'uyelik_baslangic',
+    odeme_turu: 'nakit' | 'banka' | 'cek' | 'kredi_karti' | 'cari',
     tutar: number,
     tarih: string,
     aciklama?: string,

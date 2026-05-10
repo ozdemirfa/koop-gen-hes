@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { Card, Form, Select, InputNumber, DatePicker, Input, Button, Space, message, Row, Col, Divider, Typography, Badge, Checkbox, Radio } from 'antd'
-import { SaveOutlined, ClearOutlined, BankOutlined, MoneyCollectOutlined, AuditOutlined } from '@ant-design/icons'
+import { SaveOutlined, ClearOutlined, BankOutlined, MoneyCollectOutlined, AuditOutlined, RollbackOutlined, UserAddOutlined } from '@ant-design/icons'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
@@ -109,20 +109,30 @@ export const OdemeKayit: React.FC = () => {
             if (changedValues.odeme_turu) {
               setOdemeTuru(changedValues.odeme_turu)
             }
+            if (changedValues.islem_turu === 'iade_odeme' || changedValues.islem_turu === 'uyelik_baslangic') {
+              setFilterCariTuru('uye')
+              form.setFieldValue('cari_hesap_id', undefined)
+            }
+            // uyelik_baslangic seçilince odeme_turu'yu otomatik 'cari' yap
+            if (changedValues.islem_turu === 'uyelik_baslangic') {
+              form.setFieldValue('odeme_turu', 'cari')
+              setOdemeTuru('cari')
+            }
           }}
         >
           <Row gutter={24}>
             <Col xs={24} md={12}>
               <div style={{ marginBottom: 8 }}>
                 <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Cari Türü Filtrele:</Typography.Text>
-                <Radio.Group 
-                  value={filterCariTuru} 
+                <Radio.Group
+                  value={filterCariTuru}
                   onChange={(e) => {
                     setFilterCariTuru(e.target.value)
                     form.setFieldValue('cari_hesap_id', undefined)
                   }}
                   buttonStyle="solid"
                   size="small"
+                  disabled={islemTuru === 'iade_odeme' || islemTuru === 'uyelik_baslangic'}
                 >
                   <Radio.Button value="uye">Üyeler</Radio.Button>
                   <Radio.Button value="firma">Firmalar</Radio.Button>
@@ -169,26 +179,34 @@ export const OdemeKayit: React.FC = () => {
                   <Option value="gelen_odeme">
                     <Space orientation="horizontal"><MoneyCollectOutlined className="text-green-500" /> Gelen Ödeme (Tahsilat Yapıldı)</Space>
                   </Option>
+                  <Option value="iade_odeme">
+                    <Space orientation="horizontal"><RollbackOutlined className="text-blue-500" /> Üyelik Bedeli İadesi</Space>
+                  </Option>
+                  <Option value="uyelik_baslangic">
+                    <Space orientation="horizontal"><UserAddOutlined className="text-orange-500" /> Üyelik Başlangıç Bedeli</Space>
+                  </Option>
                 </Select>
               </Form.Item>
             </Col>
           </Row>
 
           <Row gutter={24}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="odeme_turu"
-                label="Ödeme Aracı"
-                rules={[{ required: true }]}
-              >
-                <Select onChange={handleOdemeTuruChange} className="w-full">
-                  <Option value="nakit">Nakit</Option>
-                  <Option value="banka">Banka (EFT/Havale)</Option>
-                  <Option value="kredi_karti">Kredi Kartı</Option>
-                  <Option value="cek">Çek</Option>
-                </Select>
-              </Form.Item>
-            </Col>
+            {islemTuru !== 'uyelik_baslangic' && (
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="odeme_turu"
+                  label="Ödeme Aracı"
+                  rules={[{ required: true }]}
+                >
+                  <Select onChange={handleOdemeTuruChange} className="w-full">
+                    <Option value="nakit">Nakit</Option>
+                    <Option value="banka">Banka (EFT/Havale)</Option>
+                    <Option value="kredi_karti">Kredi Kartı</Option>
+                    <Option value="cek">Çek</Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+            )}
             <Col xs={24} md={12}>
               <Form.Item
                 name="tarih"
@@ -216,7 +234,7 @@ export const OdemeKayit: React.FC = () => {
           )}
 
           {/* Dinamik Alanlar: Banka */}
-          {odemeTuru === 'banka' && (
+          {odemeTuru === 'banka' && islemTuru !== 'uyelik_baslangic' && (
             <Row gutter={24}>
               <Col span={24}>
                 <Form.Item
