@@ -42,5 +42,7 @@ export const yillikPlanSchema = z.object({
 
 export const yillikPlanKalemiSchema = z.object({
   planlanan_tutar: z.number().min(0).optional(),
-  gerceklesen_tutar: z.number().min(0).optional()
+  gerceklesen_tutar: z.number().min(0).optional(),
+  planlanan_adet: z.number().min(0).nullable().optional(),
+  planlanan_birim_fiyat: z.number().min(0).nullable().optional(),
 })

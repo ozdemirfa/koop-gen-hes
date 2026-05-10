@@ -10,7 +10,10 @@ export const getProjeler = catchAsync(async (_req: AuthRequest<any, any, any, an
 })
 
 export const getProjeById = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await projeService.getById(req.params.id)
+  const yilRaw = (req.query as any)?.yil
+  const yilNum = yilRaw != null && yilRaw !== '' ? Number(yilRaw) : undefined
+  const yil = Number.isFinite(yilNum) ? yilNum : undefined
+  const data = await projeService.getById(req.params.id, { yil })
   res.json({ success: true, data })
 })
 

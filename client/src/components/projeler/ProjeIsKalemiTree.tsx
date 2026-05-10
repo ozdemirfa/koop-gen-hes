@@ -20,16 +20,18 @@ interface ProjeIsKalemi {
   butce_tutari: number
   durum: 'planli' | 'devam_ediyor' | 'tamamlandi' | 'iptal'
   notlar?: string
+  yillik_plan_toplami?: number
 }
 
 interface Props {
   projeId: string
   data: ProjeIsKalemi[]
+  yil?: number
 }
 
 const BIRIMLER = ['m2', 'm3', 'mt', 'adet', 'ton', 'kg', 'litre', 'set', 'gun', 'saat', 'ls']
 
-export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
+export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data, yil }) => {
   const queryClient = useQueryClient()
   const [modalOpen, setModalOpen] = useState(false)
   const [editingKalem, setEditingKalem] = useState<ProjeIsKalemi | null>(null)
@@ -125,13 +127,21 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
     },
     { title: 'Birim', dataIndex: 'birim', key: 'birim', width: 80 },
     { title: 'Miktar', dataIndex: 'miktar', key: 'miktar', width: 100, align: 'right' as const, render: (v: number) => trNumberFormatter(v) },
-    { 
-      title: 'Bütçe Tutarı', 
-      dataIndex: 'butce_tutari', 
-      key: 'butce', 
-      width: 130, 
-      align: 'right' as const, 
-      render: (v: number) => trMoneyFormatter(v) 
+    {
+      title: 'Bütçe Tutarı',
+      dataIndex: 'butce_tutari',
+      key: 'butce',
+      width: 130,
+      align: 'right' as const,
+      render: (v: number) => trMoneyFormatter(v)
+    },
+    {
+      title: yil ? `${yil} Yıllık Plan (₺)` : 'Yıllık Plan (₺)',
+      dataIndex: 'yillik_plan_toplami',
+      key: 'yillik_plan_toplami',
+      width: 140,
+      align: 'right' as const,
+      render: (v: number | undefined) => (v != null ? trMoneyFormatter(v) : '-'),
     },
     {
       title: 'İşlem',
@@ -207,7 +217,7 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
           setIsBudgetManual(false)
           setModalOpen(true)
         }}>
-          Harcama Kalemi Ekle
+          İş Kalemi Ekle
         </Button>
       }
     >
@@ -221,7 +231,7 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data }) => {
       />
 
       <Modal
-        title={editingKalem ? 'İş Kalemi Düzenle' : 'Yeni Harcama Kalemi'}
+        title={editingKalem ? 'İş Kalemi Düzenle' : 'Yeni İş Kalemi'}
         open={modalOpen}
         onCancel={() => {
           setModalOpen(false)

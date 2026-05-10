@@ -78,7 +78,7 @@ export const projeService = {
     return data
   },
 
-  async getById(id: string) {
+  async getById(id: string, opts: { yil?: number } = {}) {
     const { data, error } = await supabaseAdmin
       .from('projeler')
       .select('*, proje_is_kalemleri(*), bloklar(*)')
@@ -87,6 +87,31 @@ export const projeService = {
       .single()
 
     if (error) throw ApiError.notFound('Proje bulunamadı')
+
+    // Aktif yılın yıllık plan toplamlarını her iş kalemine virtual alan olarak ekle
+    if (opts.yil && data && Array.isArray(data.proje_is_kalemleri) && data.proje_is_kalemleri.length > 0) {
+      const kalemIds = data.proje_is_kalemleri.map((k: any) => k.id)
+      const { data: planRows, error: planErr } = await supabaseAdmin
+        .from('yillik_plan_kalemleri')
+        .select('proje_is_kalemi_id, planlanan_tutar, yillik_harcama_planlari!inner(yil, proje_id)')
+        .in('proje_is_kalemi_id', kalemIds)
+        .eq('yillik_harcama_planlari.yil', opts.yil)
+        .eq('yillik_harcama_planlari.proje_id', id)
+
+      if (planErr) throw planErr
+
+      const totals = new Map<string, number>()
+      for (const row of planRows ?? []) {
+        const kid = (row as any).proje_is_kalemi_id as string
+        const tutar = Number((row as any).planlanan_tutar) || 0
+        totals.set(kid, (totals.get(kid) || 0) + tutar)
+      }
+
+      data.proje_is_kalemleri = data.proje_is_kalemleri.map((k: any) => ({
+        ...k,
+        yillik_plan_toplami: totals.get(k.id) ?? 0,
+      }))
+    }
 
     return data
   },
@@ -383,6 +408,34 @@ export const projeService = {
   async updatePlanKalemi(id: string, body: Record<string, any>) {
     // Güvenli güncelleme için metadata alanlarını temizle
     const { id: _, created_at, updated_at, plan_id, proje_is_kalemi_id, ay, ...updateData } = body
+
+    // Adet veya birim_fiyat geldiyse server-side hesapla — tek truth source
+    const adetTouched = Object.prototype.hasOwnProperty.call(updateData, 'planlanan_adet')
+    const fiyatTouched = Object.prototype.hasOwnProperty.call(updateData, 'planlanan_birim_fiyat')
+
+    if (adetTouched || fiyatTouched) {
+      let adet = updateData.planlanan_adet
+      let fiyat = updateData.planlanan_birim_fiyat
+
+      // Eksik tarafı DB'den oku — kullanıcı sadece adeti veya sadece fiyatı değiştirmiş olabilir
+      if (!adetTouched || !fiyatTouched) {
+        const { data: existing, error: readErr } = await supabaseAdmin
+          .from('yillik_plan_kalemleri')
+          .select('planlanan_adet, planlanan_birim_fiyat')
+          .eq('id', id)
+          .single()
+        if (readErr) throw readErr
+        if (!existing) throw ApiError.notFound('Plan kalemi bulunamadı')
+        if (!adetTouched) adet = existing.planlanan_adet
+        if (!fiyatTouched) fiyat = existing.planlanan_birim_fiyat
+      }
+
+      if (adet != null && fiyat != null) {
+        updateData.planlanan_tutar = Math.round(Number(adet) * Number(fiyat) * 100) / 100
+      } else {
+        updateData.planlanan_tutar = 0
+      }
+    }
 
     const { data, error } = await supabaseAdmin
       .from('yillik_plan_kalemleri')

@@ -1,7 +1,7 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Row, Col, Card, Statistic, Tag, Button, Space, Divider, Typography } from 'antd'
+import { Row, Col, Card, Statistic, Tag, Button, Space, Divider, Typography, Select } from 'antd'
 import { CalendarOutlined, ProjectOutlined, ArrowLeftOutlined, EditOutlined, BarChartOutlined, HomeOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
@@ -32,33 +32,55 @@ const durumEtiketleri: Record<string, string> = {
 export const ProjeDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const [selectedYear, setSelectedYear] = useState<number>(dayjs().year())
 
   const { data: proje, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['proje', id],
+    queryKey: ['proje', id, selectedYear],
     queryFn: async () => {
-      const { data } = await api.get(`/projeler/${id}`)
+      const { data } = await api.get(`/projeler/${id}`, { params: { yil: selectedYear } })
       return data.data
     },
     enabled: !!id
   })
 
+  const yearOptions = useMemo(() => {
+    const current = dayjs().year()
+    let start = current - 1
+    let end = current + 1
+    if (proje?.baslangic_tarihi) start = dayjs(proje.baslangic_tarihi).year()
+    if (proje?.bitis_tarihi) end = dayjs(proje.bitis_tarihi).year()
+    else if (proje?.baslangic_tarihi) end = start + 5
+    if (start > end) end = start
+    const opts: { label: string; value: number }[] = []
+    for (let y = start; y <= end; y++) opts.push({ label: `${y}`, value: y })
+    return opts
+  }, [proje])
+
   const actions = useMemo(() => (
     <Space>
-      <Button 
-        icon={<HomeOutlined />} 
+      <Select
+        size="small"
+        value={selectedYear}
+        onChange={setSelectedYear}
+        options={yearOptions}
+        style={{ width: 90 }}
+        title="Yıllık plan görüntüleme yılı"
+      />
+      <Button
+        icon={<HomeOutlined />}
         onClick={() => navigate(`/projeler/${id}/serefiye`)}
         style={{ background: 'white' }}
       >
         Şerefiye Tablosu
       </Button>
-      <Button 
-        icon={<BarChartOutlined />} 
-        onClick={() => navigate(`/projeler/${id}/yillik-plan/${dayjs().year()}`)}
+      <Button
+        icon={<BarChartOutlined />}
+        onClick={() => navigate(`/projeler/${id}/yillik-plan/${selectedYear}`)}
         style={{ background: 'white' }}
       >
         Yıllık Plan
       </Button>
-      <Button 
+      <Button
         icon={<EditOutlined />}
         onClick={() => navigate('/projeler')}
         style={{ background: 'white' }}
@@ -66,7 +88,7 @@ export const ProjeDetailPage: React.FC = () => {
         Projeler Listesinde Düzenle
       </Button>
     </Space>
-  ), [id, navigate])
+  ), [id, navigate, selectedYear, yearOptions])
 
   usePageSettings(proje?.proje_adi || 'Proje Detayı', actions)
 
@@ -118,7 +140,7 @@ export const ProjeDetailPage: React.FC = () => {
         </Col>
 
         <Col xs={24} lg={16}>
-          <ProjeIsKalemiTree projeId={id!} data={proje.proje_is_kalemleri || []} />
+          <ProjeIsKalemiTree projeId={id!} data={proje.proje_is_kalemleri || []} yil={selectedYear} />
         </Col>
       </Row>
     </div>
