@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Button, Modal, Form, Input, InputNumber, DatePicker, Select, Space, message, Row, Col, Divider, Typography, Tag, App } from 'antd'
+import { Button, Modal, Form, Input, InputNumber, DatePicker, Select, Space, message, Row, Col, Divider, Typography, Tag, App, Grid } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
@@ -38,7 +38,11 @@ interface Irsaliye {
 
 const BIRIMLER = ['Adet', 'Metre', 'Kg', 'm2', 'm3', 'Ton', 'Litre', 'Set']
 
+const { useBreakpoint } = Grid
+
 export const MalzemeTeslimListPage: React.FC = () => {
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
   const queryClient = useQueryClient()
   const { message: messageApi } = App.useApp()
   const [modalOpen, setModalOpen] = useState(false)
@@ -142,6 +146,7 @@ export const MalzemeTeslimListPage: React.FC = () => {
       <Button
         type="primary"
         icon={<PlusOutlined />}
+        disabled={!activeProjectId}
         onClick={() => {
           setEditingIrsaliye(null)
           form.resetFields()
@@ -149,10 +154,10 @@ export const MalzemeTeslimListPage: React.FC = () => {
           setModalOpen(true)
         }}
       >
-        Yeni İrsaliye
+        {!isMobile && "Yeni İrsaliye"}
       </Button>
     </Space>
-  ), [searchTerm, filterHakedis, form])
+  ), [searchTerm, filterHakedis, form, activeProjectId, isMobile])
 
   usePageSettings('Malzeme Teslimatı ve İrsaliye', actions)
 

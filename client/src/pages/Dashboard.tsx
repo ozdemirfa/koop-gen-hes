@@ -1,6 +1,25 @@
 import React, { useState } from 'react'
-import { Card, Row, Col, Statistic, DatePicker, Space, Grid } from 'antd'
-import { UserOutlined, DollarOutlined, RiseOutlined, FallOutlined, BankOutlined, WarningOutlined, SyncOutlined, WalletOutlined } from '@ant-design/icons'
+import { Card, Row, Col, Statistic, DatePicker, Space, Grid, Typography } from 'antd'
+import {
+  CalendarOutlined,
+  TeamOutlined,
+  HomeOutlined,
+  DollarCircleOutlined,
+  WarningOutlined,
+  PercentageOutlined,
+  ContainerOutlined,
+  FileTextOutlined,
+  DiffOutlined,
+  SendOutlined,
+  SafetyOutlined,
+  FundOutlined,
+  BankOutlined,
+  FileProtectOutlined,
+  ArrowUpOutlined,
+  ArrowDownOutlined,
+  WalletOutlined,
+  SyncOutlined,
+} from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../lib/api'
 import { getErrorMessage } from '../lib/apiError'
@@ -15,6 +34,18 @@ import { Button, message, Popconfirm } from 'antd'
 
 const { RangePicker } = DatePicker
 const { useBreakpoint } = Grid
+
+const IconBadge: React.FC<{ icon: React.ReactNode; color: string }> = ({ icon, color }) => (
+  <span className="stat-icon-badge" style={{ background: `${color}1F`, color }}>
+    {icon}
+  </span>
+)
+
+const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <Typography.Text className="stat-section-title">{children}</Typography.Text>
+)
+
+const TLSuffix = <span className="stat-suffix">TL</span>
 
 export const Dashboard: React.FC = () => {
   const screens = useBreakpoint()
@@ -53,7 +84,6 @@ export const Dashboard: React.FC = () => {
     },
     onSuccess: () => {
       message.success('Hesap kapamaları başarıyla tamamlandı.')
-      // FIFO closure aidat, cari ekstre, dashboard ozet ve banka kayıtlarını etkiler
       queryClient.invalidateQueries({ queryKey: ['aidatlar'] })
       queryClient.invalidateQueries({ queryKey: ['aidat-ozet'] })
       queryClient.invalidateQueries({ queryKey: ['cari-ekstre'] })
@@ -72,18 +102,18 @@ export const Dashboard: React.FC = () => {
         okText="Evet"
         cancelText="Hayır"
       >
-        <Button 
-          size="small" 
-          icon={<SyncOutlined />} 
+        <Button
+          size="small"
+          icon={<SyncOutlined />}
           loading={fifoClosureMutation.isPending}
           disabled={!activeProject}
         >
           {isMobile ? "FIFO Kapama" : "Hesap Kapamalarını Yap"}
         </Button>
       </Popconfirm>
-      <RangePicker 
-        size="small" 
-        value={dates} 
+      <RangePicker
+        size="small"
+        value={dates}
         onChange={(vals) => setDates(vals as any)}
         placeholder={['Başlangıç', 'Bitiş']}
         style={{ width: isMobile ? 200 : 240 }}
@@ -102,16 +132,21 @@ export const Dashboard: React.FC = () => {
   const cardTitleStyle = { fontSize: isMobile ? '13px' : '14px' }
   const cardValueStyle = { fontWeight: 700, fontSize: isMobile ? '16px' : '18px' }
 
+  const cariBakiyePositive = (ozet?.cari_bakiye || 0) >= 0
+  const nakitPositive = (ozet?.odeme_sonrasi_nakit || 0) >= 0
+  const faturaFarkiPositive = (ozet?.fatura_farki || 0) > 0
+
   return (
     <div className="animate-in fade-in duration-500">
-      {/* 1. Satır: Proje Süresi, Aktif Üye Sayısı, Toplam Daire Sayısı */}
-      <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
+      {/* PROJE BİLGİLERİ */}
+      <SectionTitle>Proje Bilgileri</SectionTitle>
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={8}>
-          <Card variant="borderless" className="stat-card shadow-sm" size="small" style={{ background: '#f0f5ff' }}>
+          <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
               title={<span style={cardTitleStyle}>Proje Süresi</span>}
               value={`${ozet?.proje_suresi?.ay || 0} Ay, ${ozet?.proje_suresi?.gun || 0} Gün`}
-              prefix={<BankOutlined style={{ color: '#2f54eb', marginRight: 8 }} />}
+              prefix={<IconBadge icon={<CalendarOutlined />} color="#2f54eb" />}
               styles={{ content: { color: '#2f54eb', ...cardValueStyle } }}
             />
           </Card>
@@ -121,7 +156,7 @@ export const Dashboard: React.FC = () => {
             <Statistic
               title={<span style={cardTitleStyle}>Aktif Üye Sayısı</span>}
               value={ozet?.aktif_uye_sayisi || 0}
-              prefix={<UserOutlined style={{ color: '#1677ff', marginRight: 8 }} />}
+              prefix={<IconBadge icon={<TeamOutlined />} color="#1677ff" />}
               formatter={(v) => trNumberFormatter(v as number)}
               styles={{ content: cardValueStyle }}
             />
@@ -132,7 +167,7 @@ export const Dashboard: React.FC = () => {
             <Statistic
               title={<span style={cardTitleStyle}>Toplam Daire</span>}
               value={ozet?.toplam_daire_sayisi || 0}
-              prefix={<BankOutlined style={{ color: '#8c8c8c', marginRight: 8 }} />}
+              prefix={<IconBadge icon={<HomeOutlined />} color="#8c8c8c" />}
               formatter={(v) => trNumberFormatter(v as number)}
               styles={{ content: cardValueStyle }}
             />
@@ -140,15 +175,16 @@ export const Dashboard: React.FC = () => {
         </Col>
       </Row>
 
-      {/* 2. Satır: Toplam Tahsilat, Geciken Aidatlar, Gecikme Faiz Tahsilatı */}
-      <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
+      {/* TAHSİLAT */}
+      <SectionTitle>Tahsilat</SectionTitle>
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={8}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
               title={<span style={cardTitleStyle}>Toplam Tahsilat</span>}
               value={ozet?.toplam_tahsilat || 0}
-              prefix={<DollarOutlined style={{ color: '#52c41a', marginRight: 8 }} />}
-              suffix={<span style={{ fontSize: '12px', marginLeft: 4 }}>TL</span>}
+              prefix={<IconBadge icon={<DollarCircleOutlined />} color="#52c41a" />}
+              suffix={TLSuffix}
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#52c41a', ...cardValueStyle } }}
             />
@@ -159,8 +195,8 @@ export const Dashboard: React.FC = () => {
             <Statistic
               title={<span style={cardTitleStyle}>Geciken Aidatlar</span>}
               value={ozet?.bekleyen_alacak || 0}
-              prefix={<WarningOutlined style={{ color: '#cf1322', marginRight: 8 }} />}
-              suffix={<span style={{ fontSize: '10px', marginLeft: 4 }}>TL</span>}
+              prefix={<IconBadge icon={<WarningOutlined />} color="#cf1322" />}
+              suffix={TLSuffix}
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#cf1322', ...cardValueStyle } }}
             />
@@ -171,8 +207,8 @@ export const Dashboard: React.FC = () => {
             <Statistic
               title={<span style={cardTitleStyle}>Gecikme Faizi</span>}
               value={ozet?.gecikme_faiz_tahsilati || 0}
-              prefix={<RiseOutlined style={{ color: '#faad14', marginRight: 8 }} />}
-              suffix={<span style={{ fontSize: '10px', marginLeft: 4 }}>TL</span>}
+              prefix={<IconBadge icon={<PercentageOutlined />} color="#faad14" />}
+              suffix={TLSuffix}
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#faad14', ...cardValueStyle } }}
             />
@@ -180,15 +216,16 @@ export const Dashboard: React.FC = () => {
         </Col>
       </Row>
 
-      {/* 3. Satır: Tahakkuk eden gider, faturalar, fatura farkı */}
-      <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
+      {/* GİDER */}
+      <SectionTitle>Gider</SectionTitle>
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={8}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
               title={<span style={cardTitleStyle}>Tahakkuk Eden Gider</span>}
               value={ozet?.toplam_gider || 0}
-              prefix={<FallOutlined style={{ color: '#d4380d', marginRight: 8 }} />}
-              suffix={<span style={{ fontSize: '12px', marginLeft: 4 }}>TL</span>}
+              prefix={<IconBadge icon={<ContainerOutlined />} color="#d4380d" />}
+              suffix={TLSuffix}
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#d4380d', ...cardValueStyle } }}
             />
@@ -199,10 +236,10 @@ export const Dashboard: React.FC = () => {
             <Statistic
               title={<span style={cardTitleStyle}>Faturalar</span>}
               value={ozet?.toplam_fatura || 0}
-              prefix={<DollarOutlined style={{ color: '#faad14', marginRight: 8 }} />}
-              suffix={<span style={{ fontSize: '10px', marginLeft: 4 }}>TL</span>}
+              prefix={<IconBadge icon={<FileTextOutlined />} color="#fa8c16" />}
+              suffix={TLSuffix}
               formatter={(v) => trMoneyFormatter(v as number)}
-              styles={{ content: { color: '#faad14', ...cardValueStyle } }}
+              styles={{ content: { color: '#fa8c16', ...cardValueStyle } }}
             />
           </Card>
         </Col>
@@ -211,24 +248,25 @@ export const Dashboard: React.FC = () => {
             <Statistic
               title={<span style={cardTitleStyle}>Fatura Farkı</span>}
               value={ozet?.fatura_farki || 0}
-              prefix={<WarningOutlined style={{ color: (ozet?.fatura_farki || 0) > 0 ? '#faad14' : 'inherit', marginRight: 8 }} />}
-              suffix={<span style={{ fontSize: '10px', marginLeft: 4 }}>TL</span>}
+              prefix={<IconBadge icon={<DiffOutlined />} color={faturaFarkiPositive ? '#faad14' : '#8c8c8c'} />}
+              suffix={TLSuffix}
               formatter={(v) => trMoneyFormatter(v as number)}
-              styles={{ content: { color: (ozet?.fatura_farki || 0) > 0 ? '#faad14' : 'inherit', ...cardValueStyle } }}
+              styles={{ content: { color: faturaFarkiPositive ? '#faad14' : 'inherit', ...cardValueStyle } }}
             />
           </Card>
         </Col>
       </Row>
 
-      {/* 4. Satır: Toplam Cari Ödeme, Birikmiş Teminatlar, Cari Bakiye */}
-      <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
+      {/* CARİ HESAP */}
+      <SectionTitle>Cari Hesap</SectionTitle>
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={8}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
               title={<span style={cardTitleStyle}>Toplam Cari Ödeme</span>}
               value={ozet?.toplam_odeme || 0}
-              prefix={<FallOutlined style={{ color: '#cf1322', marginRight: 8 }} />}
-              suffix={<span style={{ fontSize: '12px', marginLeft: 4 }}>TL</span>}
+              prefix={<IconBadge icon={<SendOutlined />} color="#cf1322" />}
+              suffix={TLSuffix}
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#cf1322', ...cardValueStyle } }}
             />
@@ -237,25 +275,30 @@ export const Dashboard: React.FC = () => {
         <Col xs={12} sm={8}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
-              title={<span style={cardTitleStyle}>Birimmiş Teminatlar</span>}
+              title={<span style={cardTitleStyle}>Birikmiş Teminatlar</span>}
               value={ozet?.birikmis_teminat || 0}
-              prefix={<BankOutlined style={{ color: '#13c2c2', marginRight: 8 }} />}
-              suffix={<span style={{ fontSize: '10px', marginLeft: 4 }}>TL</span>}
+              prefix={<IconBadge icon={<SafetyOutlined />} color="#13c2c2" />}
+              suffix={TLSuffix}
               formatter={(v) => trMoneyFormatter(v as number)}
-              styles={{ content: cardValueStyle }}
+              styles={{ content: { color: '#13c2c2', ...cardValueStyle } }}
             />
           </Card>
         </Col>
         <Col xs={12} sm={8}>
-          <Card variant="borderless" className="stat-card shadow-sm" size="small">
+          <Card
+            variant="borderless"
+            className="stat-card stat-card-accent shadow-sm"
+            size="small"
+            style={{ '--accent-color': cariBakiyePositive ? '#1677ff' : '#cf1322' } as React.CSSProperties}
+          >
             <Statistic
               title={<span style={cardTitleStyle}>Cari Bakiye</span>}
               value={ozet?.cari_bakiye || 0}
-              prefix={<BankOutlined style={{ color: (ozet?.cari_bakiye || 0) >= 0 ? '#1677ff' : '#cf1322', marginRight: 8 }} />}
-              suffix={<span style={{ fontSize: '10px', marginLeft: 4 }}>TL</span>}
+              prefix={<IconBadge icon={<FundOutlined />} color={cariBakiyePositive ? '#1677ff' : '#cf1322'} />}
+              suffix={TLSuffix}
               formatter={(v) => trMoneyFormatter(v as number)}
-              styles={{ content: { 
-                color: (ozet?.cari_bakiye || 0) >= 0 ? '#1677ff' : '#cf1322',
+              styles={{ content: {
+                color: cariBakiyePositive ? '#1677ff' : '#cf1322',
                 ...cardValueStyle
               } }}
             />
@@ -263,15 +306,16 @@ export const Dashboard: React.FC = () => {
         </Col>
       </Row>
 
-      {/* 5. Satır: Bankalar Bakiye Toplamı, Çekler, Ödemeler Sonrası Nakit */}
-      <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
+      {/* LİKİDİTE */}
+      <SectionTitle>Likidite</SectionTitle>
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={8}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
               title={<span style={cardTitleStyle}>Bankalar Toplamı</span>}
               value={ozet?.banka_toplami || 0}
-              prefix={<BankOutlined style={{ color: '#722ed1', marginRight: 8 }} />}
-              suffix={<span style={{ fontSize: '12px', marginLeft: 4 }}>TL</span>}
+              prefix={<IconBadge icon={<BankOutlined />} color="#722ed1" />}
+              suffix={TLSuffix}
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#722ed1', ...cardValueStyle } }}
             />
@@ -282,23 +326,28 @@ export const Dashboard: React.FC = () => {
             <Statistic
               title={<span style={cardTitleStyle}>Çekler</span>}
               value={ozet?.cek_toplami || 0}
-              prefix={<DollarOutlined style={{ color: '#eb2f96', marginRight: 8 }} />}
-              suffix={<span style={{ fontSize: '10px', marginLeft: 4 }}>TL</span>}
+              prefix={<IconBadge icon={<FileProtectOutlined />} color="#eb2f96" />}
+              suffix={TLSuffix}
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#eb2f96', ...cardValueStyle } }}
             />
           </Card>
         </Col>
         <Col xs={12} sm={8}>
-          <Card variant="borderless" className="stat-card shadow-sm" size="small" style={{ background: '#f0f5ff' }}>
+          <Card
+            variant="borderless"
+            className="stat-card stat-card-accent shadow-sm"
+            size="small"
+            style={{ '--accent-color': nakitPositive ? '#fa8c16' : '#cf1322' } as React.CSSProperties}
+          >
             <Statistic
               title={<span style={cardTitleStyle}>Nakit Durumu</span>}
               value={ozet?.odeme_sonrasi_nakit || 0}
-              prefix={<RiseOutlined style={{ color: (ozet?.odeme_sonrasi_nakit || 0) >= 0 ? '#fa8c16' : '#cf1322', marginRight: 8 }} />}
-              suffix={<span style={{ fontSize: '10px', marginLeft: 4 }}>TL</span>}
+              prefix={<IconBadge icon={nakitPositive ? <ArrowUpOutlined /> : <ArrowDownOutlined />} color={nakitPositive ? '#fa8c16' : '#cf1322'} />}
+              suffix={TLSuffix}
               formatter={(v) => trMoneyFormatter(v as number)}
-              styles={{ content: { 
-                color: (ozet?.odeme_sonrasi_nakit || 0) >= 0 ? '#fa8c16' : '#cf1322', 
+              styles={{ content: {
+                color: nakitPositive ? '#fa8c16' : '#cf1322',
                 ...cardValueStyle,
                 fontSize: isMobile ? '18px' : '20px'
               } }}
@@ -307,15 +356,16 @@ export const Dashboard: React.FC = () => {
         </Col>
       </Row>
 
-      {/* 6. Satır: Kasa Nakit (1/3 boyut) */}
+      {/* KASA */}
+      <SectionTitle>Kasa</SectionTitle>
       <Row gutter={[12, 12]}>
         <Col xs={24} sm={8}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
               title={<span style={cardTitleStyle}>Kasa Nakit</span>}
               value={ozet?.kasa_nakit ?? 0}
-              prefix={<WalletOutlined style={{ color: '#fa8c16', marginRight: 8 }} />}
-              suffix={<span style={{ fontSize: '12px', marginLeft: 4 }}>TL</span>}
+              prefix={<IconBadge icon={<WalletOutlined />} color="#fa8c16" />}
+              suffix={TLSuffix}
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#fa8c16', ...cardValueStyle } }}
             />

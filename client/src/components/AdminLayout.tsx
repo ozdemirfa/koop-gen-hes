@@ -174,18 +174,19 @@ const MainHeader: React.FC<{
           />
         )}
         {title && (
-          <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-            <Typography.Text 
-              style={{ 
-                margin: 0, 
-                color: '#1e293b', 
-                whiteSpace: 'nowrap', 
-                fontWeight: 600, 
+          <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', minWidth: 0, maxWidth: isMobile ? '100px' : '240px' }}>
+            <Typography.Text
+              style={{
+                margin: 0,
+                color: '#1e293b',
+                whiteSpace: 'nowrap',
+                fontWeight: 600,
                 fontSize: isMobile ? '14px' : '16px',
-                maxWidth: isMobile ? '100px' : 'none',
                 overflow: 'hidden',
-                textOverflow: 'ellipsis'
+                textOverflow: 'ellipsis',
+                width: '100%'
               }}
+              title={typeof title === 'string' ? title : undefined}
             >
               {title}
             </Typography.Text>
@@ -193,15 +194,17 @@ const MainHeader: React.FC<{
         )}
         
         {headerActions && (
-          <div 
+          <div
             className={isMobile ? 'hide-scrollbar' : ''}
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
               marginLeft: isMobile ? '4px' : '8px',
               flex: 1,
               minWidth: 0,
-              overflowX: isMobile ? 'auto' : 'hidden'
+              overflowX: 'auto',
+              flexWrap: 'nowrap'
             }}
           >
             {headerActions}

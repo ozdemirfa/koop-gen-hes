@@ -385,3 +385,37 @@ Yaklaşım: **mock'lı integration** — gerçek Supabase test DB kurmak (lokal 
 
 ## Durum
 Tamamlandı. `npm test` lokalde 26/26 yeşil. CI/deploy hook ekleme ileri sprintte.
+
+---
+
+# SPRINT: Header Buton Görünürlük Düzeltmesi (#J)
+
+## Bağlam
+Kullanıcı 8 sayfada (Aidat Tanımları, Firma, Hakediş, Fatura, Banka Hesap, Malzeme Teslim, Şerefiye, Yıllık Plan) header'a yerleştirdiği "Yeni X Ekle" butonlarının kaldırıldığını bildirdi (lokal dev). Kod incelemesi: 7/8 sayfada butonlar kodda mevcut; ancak `MainHeader` (`AdminLayout.tsx:204`) `headerActions` container'ında desktop'ta `overflowX: 'hidden'` taşan içeriği kırpıyordu. Uzun başlık + filter Select'leri + button kombinasyonunda son element (genelde "Yeni X" butonu) container'ı aşınca görünmez oluyordu — kullanıcının "kaldırılmış" algısının kaynağı buydu. Ek olarak `YillikPlanPage` `usePageSettings` paterni kullanmıyordu (inline `<PageHeader extra>`), top bar'da hiç buton göstermiyordu.
+
+## Görevler
+- [x] **Root cause CSS fix**: `client/src/components/AdminLayout.tsx:195-209` `headerActions` div'i — `overflowX: 'auto'` (her ortamda), `gap: 8`, `flexWrap: 'nowrap'`. Desktop'ta uzun içerik artık scroll'a alınıyor, buton kaybolmuyor. Mobile'da zaten `auto` ile çalışıyordu, davranış korundu.
+- [x] **`YillikPlanPage` refactor**: inline `<PageHeader title extra>` (iki yerde — empty state + plan varken) kaldırıldı; `usePageSettings(`${yil} Yılı Harcama Planı`, headerActions)` paternine taşındı. `headerActions` = yıl Select + (plan varken) "Satır Ekle". `onBack` davranışı kaldırıldı (top bar tutarlı tek title; navigasyon menüden veya browser back ile).
+- [x] **Mobile responsive + disabled tutarlılığı** — UyeListPage paterniyle hizalama:
+  - `Aidatlar.tsx:344` "Yeni" → `{!isMobile && "Yeni"}` + `disabled={!activeProject}`.
+  - `FirmaListPage.tsx:82` "Yeni Firma" → `{!isMobile && "Yeni Firma"}` (firmalar global, disabled yok).
+  - `HakedisListPage.tsx:69` "Yeni Hakediş" → `{!isMobile && "Yeni Hakediş"}`.
+  - `BankaHesapListPage.tsx:73` "Yeni Hesap" → `{!isMobile && "Yeni Hesap"}` + `disabled={!activeProject}`.
+  - `FaturaListPage.tsx:101` "Yeni Fatura" → `{!isMobile && "Yeni Fatura"}` (`disabled={!activeProject}` zaten vardı).
+  - `MalzemeTeslimListPage.tsx:142` "Yeni İrsaliye" → `{!isMobile && "Yeni İrsaliye"}` + `disabled={!activeProjectId}`.
+- [x] **Build**: `npm --prefix client run build` sıfır TypeScript hata; `vite build` 2.69s.
+- [x] **Regression**: `npm --prefix server test` 26/26 yeşil — Sprint H/I etkilenmedi.
+
+## Kapsam Dışı (bilinçli)
+- **`SerefiyePage` manuel "Yeni Satır" butonu**: Şerefiye otomatik üretilen kayıt; manuel satır ekleme akışı (POST route + modal) backend tarafında yok, ayrı sprint gerekir. Mevcut "Tabloyu Oluştur"/"Tabloyu Sil" davranışı korundu.
+- **`Aidatlar` Liste sekmesi (`/aidatlar`)**: "Yeni Aidat" butonu yok — tasarım: aidat tanımdan otomatik üretiliyor, manuel ekleme yok.
+- **`PageHeader` (sayfa-içi) component'inin kaldırılması**: `YillikPlanPage` artık kullanmıyor; gelecekteki başka sayfalar için dosya korundu.
+- **Bundle size warning** (2.18MB JS): code-splitting / dynamic import — ayrı performance sprint'i.
+
+## Bilinmesi Gereken
+- **CSS fix etkisi**: `overflowX: 'auto'` desktop'ta uzun içerikte horizontal scroll bar görüntüleyebilir; mevcut `hide-scrollbar` class'ı sadece mobilede uygulanıyor → desktop'ta scrollbar görünür ama buton kaybolmaz (kabul edilebilir trade-off; daha temiz çözüm class'ı her ortamda uygulamak).
+- **`YillikPlanPage` `onBack` kaldırıldı**: Önce `<PageHeader onBack={() => navigate('/projeler/:id')}>` ile ok button vardı; refactor sonrası top bar tek title olduğu için kaldırıldı. Kullanıcı geri dönmek için sol menüyü veya browser back'i kullanır. Eğer back button istenirse `usePageSettings` `rightActions` parametresine icon-only button eklenebilir.
+- **Mobile pattern**: `{!isMobile && "Yeni X"}` mobilde sadece icon gösterir (UyeListPage paterniyle uyumlu); icon başına yeterince anlam taşıdığı için kabul.
+
+## Durum
+Tamamlandı. Kullanıcının lokal dev'de butonları yeniden görmesi bekleniyor — özellikle uzun başlıklı "Malzeme Teslimatı" sayfasında "Yeni İrsaliye" butonu artık taşmaya rağmen scroll ile görünür.

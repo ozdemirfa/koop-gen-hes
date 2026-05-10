@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { Button, Select, Space, Tag, Modal, Form, Input, InputNumber, DatePicker, App, Row, Col, Divider, Typography } from 'antd'
+import { Button, Select, Space, Tag, Modal, Form, Input, InputNumber, DatePicker, App, Row, Col, Divider, Typography, Grid } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, DeleteOutlined, ScheduleOutlined, EditOutlined } from '@ant-design/icons'
@@ -46,7 +46,11 @@ const tipLabel: Record<string, string> = { gelen: 'Gelen', giden: 'Giden' }
 const durumLabel: Record<string, string> = { bekliyor: 'Bekliyor', odendi: 'Ödendi', kismi_odendi: 'Kısmi Ödendi', iptal: 'İptal' }
 const durumRenk: Record<string, string> = { bekliyor: 'blue', odendi: 'green', kismi_odendi: 'orange', iptal: 'red' }
 
+const { useBreakpoint } = Grid
+
 export const FaturaListPage: React.FC = () => {
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
   const { message } = App.useApp()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -98,24 +102,24 @@ export const FaturaListPage: React.FC = () => {
         <Select.Option value="kismi_odendi">Kısmi Ödendi</Select.Option>
         <Select.Option value="iptal">İptal</Select.Option>
       </Select>
-      <Button 
-        size="small" 
-        type="primary" 
-        icon={<PlusOutlined />} 
+      <Button
+        size="small"
+        type="primary"
+        icon={<PlusOutlined />}
         disabled={!activeProject}
-        onClick={() => { 
-          setEditingFatura(null); 
-          form.resetFields(); 
-          form.setFieldsValue({ 
-            kalemler: [{ kalem_adi: '', birim: 'Adet', miktar: 1, birim_fiyat: 0, kdv_orani: 20 }] 
-          }); 
-          setModalOpen(true) 
+        onClick={() => {
+          setEditingFatura(null);
+          form.resetFields();
+          form.setFieldsValue({
+            kalemler: [{ kalem_adi: '', birim: 'Adet', miktar: 1, birim_fiyat: 0, kdv_orani: 20 }]
+          });
+          setModalOpen(true)
         }}
       >
-        Yeni Fatura
+        {!isMobile && "Yeni Fatura"}
       </Button>
     </Space>
-  ), [filterTip, filterDurum, form, activeProject])
+  ), [filterTip, filterDurum, form, activeProject, isMobile])
 
   usePageSettings('Fatura Yönetimi', actions)
 

@@ -9,7 +9,7 @@ interface CacheEntry {
 }
 
 const cache = new Map<string, CacheEntry>()
-const TTL_MS = 5 * 60 * 1000
+const TTL_MS = 60 * 1000
 
 export async function getUserRole(userId: string): Promise<AppRole | null> {
   const now = Date.now()
@@ -23,14 +23,24 @@ export async function getUserRole(userId: string): Promise<AppRole | null> {
       .from('user_roles')
       .select('role')
       .eq('user_id', userId)
-      .maybeSingle()
 
     if (error) {
-      logger.error('[RBAC] role lookup db error', { userId, err: error })
+      logger.error('[RBAC] role lookup db error', {
+        userId,
+        code: error.code,
+        message: error.message,
+        details: error.details,
+      })
       return null
     }
 
-    const role = (data?.role === 'admin' || data?.role === 'staff') ? data.role as AppRole : null
+    const roles = (data ?? []).map((r: { role: string }) => r.role)
+    const role: AppRole | null = roles.includes('admin')
+      ? 'admin'
+      : roles.includes('staff')
+      ? 'staff'
+      : null
+
     cache.set(userId, { role, expiresAt: now + TTL_MS })
     return role
   } catch (err) {

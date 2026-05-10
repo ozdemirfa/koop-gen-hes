@@ -339,9 +339,10 @@ export const Aidatlar: React.FC = () => {
         type="primary"
         icon={<PlusOutlined />}
         onClick={handleAdd}
+        disabled={!activeProject}
         size="small"
       >
-        Yeni
+        {!isMobile && "Yeni"}
       </Button>
       <Button
         type="default"

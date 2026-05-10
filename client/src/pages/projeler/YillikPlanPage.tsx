@@ -6,9 +6,9 @@ import { SaveOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons'
 import api from '../../lib/api'
 import { getErrorMessage } from '../../lib/apiError'
 import { trNumberFormatter, trNumberParser, trMoneyFormatter } from '../../lib/format'
-import { PageHeader } from '../../components/common/PageHeader'
 import { LoadingState } from '../../components/common/LoadingState'
 import { ErrorState } from '../../components/common/ErrorState'
+import { usePageSettings } from '../../contexts/LayoutContext'
 import dayjs from 'dayjs'
 
 const { Text } = Typography
@@ -165,6 +165,30 @@ export const YillikPlanPage: React.FC = () => {
 
   const dataSource = useMemo(() => Object.values(pivotedData), [pivotedData])
 
+  const headerActions = useMemo(() => (
+    <Space orientation="horizontal" size="small">
+      <Select
+        value={yil}
+        onChange={handleYearChange}
+        options={yearOptions}
+        style={{ width: 120 }}
+        size="small"
+      />
+      {plan && (
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => setAddRowModalOpen(true)}
+          size="small"
+        >
+          Satır Ekle
+        </Button>
+      )}
+    </Space>
+  ), [yil, yearOptions, plan])
+
+  usePageSettings(`${yil} Yılı Harcama Planı`, headerActions)
+
   const handleInputChange = (pkId: string, value: number | null) => {
     setEditingValues(prev => ({ ...prev, [pkId]: value || 0 }))
   }
@@ -266,18 +290,6 @@ export const YillikPlanPage: React.FC = () => {
     const hasKalemler = projeIsKalemleri && projeIsKalemleri.length > 0
     return (
       <div className="animate-in fade-in duration-500">
-        <PageHeader 
-          title={`${yil} Yılı Harcama Planı`} 
-          onBack={() => navigate(`/projeler/${projeId}`)}
-          extra={
-            <Select 
-              value={yil} 
-              onChange={handleYearChange} 
-              options={yearOptions} 
-              style={{ width: 120 }}
-            />
-          }
-        />
         <Card variant="borderless" className="shadow-sm" style={{ textAlign: 'center', padding: '50px' }}>
           <Empty 
             description={
@@ -316,28 +328,6 @@ export const YillikPlanPage: React.FC = () => {
 
   return (
     <div className="animate-in fade-in duration-500">
-      <PageHeader 
-        title={`${yil} Yılı Harcama Planı`} 
-        onBack={() => navigate(`/projeler/${projeId}`)}
-        extra={
-          <Space orientation="horizontal">
-            <Select 
-              value={yil} 
-              onChange={handleYearChange} 
-              options={yearOptions} 
-              style={{ width: 120 }}
-            />
-            <Button 
-              type="primary" 
-              icon={<PlusOutlined />} 
-              onClick={() => setAddRowModalOpen(true)}
-            >
-              Satır Ekle
-            </Button>
-          </Space>
-        }
-      />
-
       <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
         <Col xs={24} sm={8}>
           <Card variant="borderless" className="shadow-sm" size="small">
