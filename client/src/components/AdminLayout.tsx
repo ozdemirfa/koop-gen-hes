@@ -201,8 +201,9 @@ const MainHeader: React.FC<{
               alignItems: 'center',
               gap: 8,
               marginLeft: isMobile ? '4px' : '8px',
-              flex: 1,
-              minWidth: 0,
+              flexShrink: 0,
+              minWidth: 'fit-content',
+              maxWidth: '100%',
               overflowX: 'auto',
               flexWrap: 'nowrap'
             }}
