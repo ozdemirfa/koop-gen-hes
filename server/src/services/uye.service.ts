@@ -71,14 +71,15 @@ export const uyeService = {
     return data
   },
 
-  async create(body: Record<string, any>) {
+  async create(body: Record<string, any>, actorId?: string) {
     // Proje ID'sini gövdeden al ve doğrula
     if (!body.proje_id) {
       throw ApiError.badRequest('proje_id zorunludur')
     }
 
     const { data, error } = await supabaseAdmin.rpc('fn_create_member_atomic', {
-      p_member_data: body
+      p_member_data: body,
+      p_actor_id: actorId ?? null
     })
 
     if (error) {
@@ -91,10 +92,11 @@ export const uyeService = {
     return data
   },
 
-  async update(id: string, body: Record<string, any>) {
+  async update(id: string, body: Record<string, any>, actorId?: string) {
     const { data, error } = await supabaseAdmin.rpc('fn_update_member_atomic', {
       p_member_id: id,
-      p_update_data: body
+      p_update_data: body,
+      p_actor_id: actorId ?? null
     })
 
     if (error) {

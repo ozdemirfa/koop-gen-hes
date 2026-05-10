@@ -15,12 +15,12 @@ export const getUyeById = catchAsync(async (req: AuthRequest<{ id: string }, any
 })
 
 export const createUye = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await uyeService.create(req.body)
+  const data = await uyeService.create(req.body, req.user?.id)
   res.status(201).json({ success: true, data })
 })
 
 export const updateUye = catchAsync(async (req: AuthRequest<{ id: string }, any, any, any>, res: Response) => {
-  const data = await uyeService.update(req.params.id, req.body)
+  const data = await uyeService.update(req.params.id, req.body, req.user?.id)
   res.json({ success: true, data })
 })
 

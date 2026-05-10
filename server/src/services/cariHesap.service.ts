@@ -108,18 +108,20 @@ export const cariHesapService = {
     banka?: string,
     sube?: string,
     kaynak_tipi?: string,
-    kaynak_id?: string
+    kaynak_id?: string,
+    actorId?: string
   }) {
-    const { 
-      islem_turu, 
-      tutar, 
-      odeme_turu, 
-      banka_hesap_id, 
-      cek_id, 
+    const {
+      islem_turu,
+      tutar,
+      odeme_turu,
+      banka_hesap_id,
+      cek_id,
       vade_tarihi,
       banka,
       sube,
-      ...rest 
+      actorId,
+      ...rest
     } = paymentData;
 
     // 1. Çek Entegrasyonu Özel Durumu
@@ -176,7 +178,8 @@ export const cariHesapService = {
         odeme_turu,
         tutar,
         banka_hesap_id
-      }
+      },
+      p_actor_id: actorId ?? null
     });
 
     if (hareketError) throw hareketError;

@@ -19,7 +19,7 @@ export const createCariHareket = catchAsync(async (req: AuthRequest<any, any, an
 })
 
 export const createPayment = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await cariHesapService.createPayment(req.body)
+  const data = await cariHesapService.createPayment({ ...req.body, actorId: req.user?.id })
   res.status(201).json({ success: true, data })
 })
 
