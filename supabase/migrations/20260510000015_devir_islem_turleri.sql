@@ -1,4 +1,4 @@
--- Migration: 20260510000013_devir_islem_turleri.sql
+-- Migration: 20260510000015_devir_islem_turleri.sql
 -- Description: Add 'iade_odeme' and 'uyelik_baslangic' to cari_hareketler.islem_turu CHECK constraint.
 -- See spec: docs/superpowers/specs/2026-05-10-uyelik-devir-iade-baslangic-design.md
 
