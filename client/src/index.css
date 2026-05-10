@@ -59,6 +59,39 @@ body {
   box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1) !important;
 }
 
+.ant-form-item-required::before {
+  color: var(--error) !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  margin-right: 4px !important;
+}
+
+.ant-form-item-has-error .ant-input,
+.ant-form-item-has-error .ant-input-number,
+.ant-form-item-has-error .ant-input-affix-wrapper,
+.ant-form-item-has-error .ant-select:not(.ant-select-disabled):not(.ant-select-customize-input) .ant-select-selector,
+.ant-form-item-has-error .ant-picker {
+  border-color: var(--error) !important;
+  border-width: 1.5px !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.12) !important;
+}
+
+.ant-form-item-has-error .ant-input:focus,
+.ant-form-item-has-error .ant-input-number-focused,
+.ant-form-item-has-error .ant-input-affix-wrapper-focused,
+.ant-form-item-has-error .ant-select-focused .ant-select-selector,
+.ant-form-item-has-error .ant-picker-focused {
+  border-color: var(--error) !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18) !important;
+}
+
+.ant-form-item-explain-error {
+  color: var(--error) !important;
+  font-weight: 500 !important;
+  font-size: 12px !important;
+  margin-top: 2px !important;
+}
+
 .sidebar-logo {
   height: 32px;
   margin: 16px;

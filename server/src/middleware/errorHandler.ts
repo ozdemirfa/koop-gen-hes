@@ -30,20 +30,37 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
     const supaErr = err as any
     let statusCode = 500
     let userMessage = 'Veritabanı hatası oluştu'
+    let details: { field: string; message: string }[] | undefined
 
     switch (supaErr.code) {
       case '23505':
         statusCode = 409
         userMessage = 'Bu kayıt zaten mevcut (mükerrer kayıt)'
+        // Supabase'in döndüğü mesajdan kolon adını çek: "...Key (uye_no)=(...) already exists"
+        {
+          const m = typeof supaErr.message === 'string' ? supaErr.message.match(/Key \(([^)]+)\)/) : null
+          const col = m?.[1]?.split(',')[0]?.trim()
+          if (col) details = [{ field: col, message: 'Bu değer zaten kayıtlı' }]
+        }
         break
       case '23503':
         statusCode = 400
         userMessage = 'Bu kayıt başka verilerle ilişkili olduğu için işlem yapılamaz'
         break
-      case '23502':
+      case '23502': {
         statusCode = 400
-        userMessage = 'Eksik veri gönderildi'
+        // Eksik kolonu mesaja taşı; frontend ilgili alanı kırmızı işaretler
+        const col = typeof supaErr.column === 'string'
+          ? supaErr.column
+          : (typeof supaErr.message === 'string' ? supaErr.message.match(/column "([^"]+)"/)?.[1] : undefined)
+        if (col) {
+          userMessage = `Zorunlu alan eksik: ${col}`
+          details = [{ field: col, message: 'Bu alan zorunlu' }]
+        } else {
+          userMessage = 'Eksik veri gönderildi'
+        }
         break
+      }
       case '42P01':
         // Tablo yok hatası gibi sistem detaylarını asla sızdırma
         userMessage = 'Sistem hatası (Veri yapısı uyuşmazlığı)'
@@ -52,7 +69,8 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
 
     res.status(statusCode).json({
       success: false,
-      error: userMessage
+      error: userMessage,
+      ...(details && { details })
     })
     return
   }
