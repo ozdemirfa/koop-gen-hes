@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Button, Modal, Form, InputNumber, Select, message, Card, Typography, Tag, Space, DatePicker, Input, Row, Col, Statistic, App, Popconfirm, Tooltip } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, CheckCircleOutlined, CalculatorOutlined, HistoryOutlined, WalletOutlined } from '@ant-design/icons'
+import { Button, Modal, Form, InputNumber, Select, message, Card, Typography, Tag, Space, DatePicker, Input, Row, Col, Statistic, App, Popconfirm, Tooltip, Drawer, Badge, Grid } from 'antd'
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, CheckCircleOutlined, CalculatorOutlined, HistoryOutlined, WalletOutlined, FilterOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api from '../lib/api'
@@ -16,6 +16,7 @@ import { ErrorState } from '../components/common/ErrorState'
 import { useDebounce } from '../hooks/useDebounce'
 
 const { Text, Title } = Typography
+const { useBreakpoint } = Grid
 
 interface Aidat {
   id: string
@@ -86,6 +87,23 @@ export const Aidatlar: React.FC = () => {
   const queryClient = useQueryClient()
   const { activeProject } = useProject()
   const { message: messageApi } = App.useApp()
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
+
+  // Mobile filter Drawer
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
+
+  // Aktif filtre sayısı (badge için) — Aidat Listesi filtreleri
+  const activeListFilterCount = useMemo(() => {
+    let count = 0
+    if (filterUyeAdi) count++
+    if (filterYil) count++
+    if (filterAy) count++
+    if (filterDurum) count++
+    if (filterBlokId) count++
+    if (filterHasDaire) count++
+    return count
+  }, [filterUyeAdi, filterYil, filterAy, filterDurum, filterBlokId, filterHasDaire])
 
   // Proje tarihlerine göre yıl listesi oluştur
   const yearOptions = useMemo(() => {
@@ -249,7 +267,8 @@ export const Aidatlar: React.FC = () => {
     setModalOpen(true)
   }
 
-  const listActions = useMemo(() => (
+  // Desktop'ta inline filter satırı; mobile'da Drawer içinde tek button trigger.
+  const listFilterControls = (
     <Space orientation="horizontal" size="small" wrap>
       <Input
         placeholder="Üye Ara"
@@ -318,7 +337,105 @@ export const Aidatlar: React.FC = () => {
         <Select.Option value="atanmamis">Atanmamış</Select.Option>
       </Select>
     </Space>
-  ), [filterYil, filterAy, filterDurum, filterBlokId, filterHasDaire, filterUyeAdi, yearOptions, bloklar])
+  )
+
+  // Mobile filter Drawer içeriği — daha geniş kolonlar, vertical layout
+  const listFilterControlsVertical = (
+    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Input
+        placeholder="Üye Ara"
+        prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+        value={filterUyeAdi}
+        onChange={(e) => setFilterUyeAdi(e.target.value)}
+        allowClear
+      />
+      <Select
+        placeholder="Yıl"
+        value={filterYil}
+        onChange={setFilterYil}
+        allowClear
+        style={{ width: '100%' }}
+      >
+        {yearOptions.map(y => <Select.Option key={y} value={y}>{y}</Select.Option>)}
+      </Select>
+      <Select
+        placeholder="Ay"
+        value={filterAy}
+        onChange={setFilterAy}
+        allowClear
+        style={{ width: '100%' }}
+      >
+        {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+          <Select.Option key={m} value={m}>{m}. Ay</Select.Option>
+        ))}
+      </Select>
+      <Select
+        placeholder="Durum"
+        value={filterDurum}
+        onChange={setFilterDurum}
+        allowClear
+        style={{ width: '100%' }}
+      >
+        <Select.Option value="bekliyor">Bekliyor</Select.Option>
+        <Select.Option value="gecikti">Gecikti</Select.Option>
+        <Select.Option value="odendi">Ödendi</Select.Option>
+      </Select>
+      <Select
+        placeholder="Blok"
+        value={filterBlokId}
+        onChange={setFilterBlokId}
+        allowClear
+        style={{ width: '100%' }}
+      >
+        {bloklar?.map(b => (
+          <Select.Option key={b.id} value={b.id}>{b.blok_adi}</Select.Option>
+        ))}
+      </Select>
+      <Select
+        placeholder="Daire"
+        value={filterHasDaire}
+        onChange={setFilterHasDaire}
+        allowClear
+        style={{ width: '100%' }}
+      >
+        <Select.Option value="atanmis">Atanmış</Select.Option>
+        <Select.Option value="atanmamis">Atanmamış</Select.Option>
+      </Select>
+      {activeListFilterCount > 0 && (
+        <Button
+          block
+          onClick={() => {
+            setFilterUyeAdi(undefined)
+            setFilterYil(undefined)
+            setFilterAy(undefined)
+            setFilterDurum(undefined)
+            setFilterBlokId(undefined)
+            setFilterHasDaire(undefined)
+          }}
+        >
+          Filtreleri Temizle
+        </Button>
+      )}
+    </Space>
+  )
+
+  // Header action — mobile: tek "Filtrele" buton; desktop: inline satır
+  const listActions = useMemo(() => {
+    if (isMobile) {
+      return (
+        <Badge count={activeListFilterCount} size="small" offset={[-4, 4]}>
+          <Button
+            icon={<FilterOutlined />}
+            onClick={() => setFilterDrawerOpen(true)}
+            size="small"
+          >
+            Filtrele
+          </Button>
+        </Badge>
+      )
+    }
+    return listFilterControls
+  }, [isMobile, activeListFilterCount, filterYil, filterAy, filterDurum, filterBlokId, filterHasDaire, filterUyeAdi, yearOptions, bloklar])
 
   const tanimActions = useMemo(() => (
     <Space orientation="horizontal" size="small">
@@ -570,6 +687,17 @@ export const Aidatlar: React.FC = () => {
         onChange={(p) => setPagination({ current: p.current || 1, pageSize: p.pageSize || 50 })}
         size="small"
       />
+
+      <Drawer
+        title="Aidat Filtreleri"
+        placement="right"
+        onClose={() => setFilterDrawerOpen(false)}
+        open={filterDrawerOpen && !isTanimlarPage}
+        width="min(360px, 90vw)"
+        styles={{ body: { paddingTop: 12 } }}
+      >
+        {listFilterControlsVertical}
+      </Drawer>
 
       <Modal
         title={editingTanim ? 'Tanım Düzenle' : 'Yeni Tanım Ekle'}
