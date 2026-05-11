@@ -244,7 +244,7 @@ export const FirmaListPage: React.FC = () => {
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} lg={4}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small">
-            <Space direction="vertical" size={0} style={{ width: '100%' }}>
+            <Space orientation="vertical" size={0} style={{ width: '100%' }}>
               <Statistic 
                 title={<span style={{ fontSize: '12px' }}>Hakediş (Matrah)</span>} 
                 value={stats?.toplam_hakedis || 0} 
@@ -261,7 +261,7 @@ export const FirmaListPage: React.FC = () => {
 
         <Col xs={24} sm={12} lg={4}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small">
-            <Space direction="vertical" size={0} style={{ width: '100%' }}>
+            <Space orientation="vertical" size={0} style={{ width: '100%' }}>
               <Statistic 
                 title={<span style={{ fontSize: '12px' }}>Gelen Faturalar</span>} 
                 value={stats?.toplam_fatura || 0} 

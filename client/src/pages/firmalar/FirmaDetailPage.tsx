@@ -261,7 +261,7 @@ export const FirmaDetailPage: React.FC = () => {
         const hasMatchedPayments = isHakedis && r.kaynak_id && cumulativeCariData?.some((m: any) => m.kaynak_id === r.kaynak_id && m.islem_turu !== 'hakedis');
 
         return (
-          <Space direction="vertical" size={2}>
+          <Space orientation="vertical" size={2}>
             <Space>
               <Tag>{r.islem_turu?.toUpperCase()}</Tag>
               {hasMatchedPayments && (
@@ -339,7 +339,7 @@ export const FirmaDetailPage: React.FC = () => {
       <Row gutter={[8, 8]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} lg={4}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small">
-            <Space direction="vertical" size={0} style={{ width: '100%' }}>
+            <Space orientation="vertical" size={0} style={{ width: '100%' }}>
               <Statistic 
                 title={<span style={{ fontSize: '12px' }}>Hakediş (Matrah)</span>} 
                 value={stats.toplamMatrah} 
@@ -356,7 +356,7 @@ export const FirmaDetailPage: React.FC = () => {
 
         <Col xs={24} sm={12} lg={4}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small">
-            <Space direction="vertical" size={0} style={{ width: '100%' }}>
+            <Space orientation="vertical" size={0} style={{ width: '100%' }}>
               <Statistic 
                 title={<span style={{ fontSize: '12px' }}>Gelen Faturalar</span>} 
                 value={stats.toplamFatura} 

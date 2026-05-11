@@ -57,7 +57,7 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({ inline = false
                 gap: '8px'
               }}>
                 <CheckCircleOutlined style={{ color: '#10b981', fontSize: '16px' }} />
-                <Space direction="vertical" size={0}>
+                <Space orientation="vertical" size={0}>
                   <Text strong style={{ color: '#065f46', fontSize: '13px', lineHeight: 1.2 }}>
                     {activeProject.proje_adi}
                   </Text>
@@ -65,7 +65,7 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({ inline = false
                 </Space>
               </div>
             ) : (
-              <Space direction="vertical" size={0}>
+              <Space orientation="vertical" size={0}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <ProjectOutlined style={{ color: '#ef4444' }} />
                   <Text strong>Proje Seçilmedi</Text>
