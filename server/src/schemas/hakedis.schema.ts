@@ -19,7 +19,9 @@ export const updateHakedisSchema = z.object({
 export const hakedisKalemSchema = z.object({
   is_kalemi_id: z.string().uuid(),
   bu_ay_miktar: z.number().min(0, 'Miktar negatif olamaz'),
-  birim_fiyat: z.number().min(0)
+  birim_fiyat: z.number().min(0),
+  kdv_orani: z.number().min(0).max(100).optional(),
+  onceki_miktar: z.number().min(0).optional()
 })
 
 export const hakedisKalemlerBatchSchema = z.object({

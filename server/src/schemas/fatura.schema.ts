@@ -19,7 +19,7 @@ export const createFaturaSchema = z.object({
   vade_tarihi: z.string().optional().nullable(),
   ara_toplam: z.number().min(0),
   kdv_tutar: z.number().min(0).optional(),
-  toplam_tutar: z.number().positive(),
+  toplam_tutar: z.number().min(0, 'Toplam tutar negatif olamaz'),
   durum: z.enum(FATURA_DURUMLARI).optional(),
   aciklama: z.string().optional().nullable(),
   hakedis_id: z.string().uuid().optional().nullable(),

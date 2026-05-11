@@ -109,9 +109,12 @@ export const cariHesapService = {
     // tüm projelerin cari hesapları sızar.
     const proje_id = requireProjeId(proje_id_raw)
 
+    // REV-PAY-04: OdemeKayit dropdown'da "U-No - Ad Soyad" / "Firma Unvan" formatı için
+    // uye_no join eklendi. cari_adi (trigger ile set) üye için "Ad Soyad", firma için
+    // unvan döndüğünden firma tarafı için ek alan gerekmez.
     let q = supabaseAdmin
       .from('cari_hesaplar')
-      .select('*')
+      .select('*, uyeler:uye_id(uye_no)')
       .eq('proje_id', proje_id)
 
     if (cari_turu) q = q.eq('cari_turu', cari_turu)
@@ -271,7 +274,23 @@ export const cariHesapService = {
 
       if (error) {
         logger.error('fn_match_project_payments_fifo RPC error', { error, projeId });
+        // PG hatalarını anlamlı user-facing mesajlara çevir
+        // 23505 = unique violation (eşleşme çakışması), P0001 = RAISE EXCEPTION
+        const pgCode = (error as any).code
+        const pgMessage = (error as any).message ?? ''
+        if (pgCode === '23505') {
+          throw ApiError.conflict('Hesap kapama sırasında çakışan eşleştirme bulundu. Lütfen mevcut eşleştirmeleri kontrol edin.')
+        }
+        if (pgCode === 'P0001' && typeof pgMessage === 'string' && pgMessage.length < 200) {
+          throw ApiError.badRequest(pgMessage)
+        }
         throw error;
+      }
+
+      // RPC dönüş gövdesi { success: false, message: '...' } ise hata olarak ele al
+      if (data && typeof data === 'object' && (data as any).success === false) {
+        const msg = (data as any).message || 'Hesap kapama gerçekleştirilemedi'
+        throw ApiError.badRequest(String(msg))
       }
 
       return {
