@@ -1,6 +1,6 @@
 # Backlog — koopGenHes
 
-**Son güncelleme:** 2026-05-11 (gece — TASK-DB-04 apply sonrası)
+**Son güncelleme:** 2026-05-11 (gece — Sprint Closure tamamlandı, 14 P3 task kapatıldı)
 **Bir sonraki çalışma:** 2026-05-12 (yarın)
 
 Bu dosya günden güne kalan işleri biriktirir. Yarın açıp buradan devam.
@@ -134,7 +134,48 @@ WHERE role='admin' AND user_id NOT IN (
 
 ---
 
-## 🟡 Açık Sprint Task'ları (Batch 4 / sonraki)
+## ✅ Sprint Backlog-Closure — Bu Sprintte Kapatılan (2026-05-11 gece)
+
+**Session:** `workspace/sessions/20260511-backlog-closure-sprint/`
+**Commit'ler:**
+- `81d1178` — Batch 1: cosmetic + cleanup (U-9, U-11, U-12, CODE-007, SEC-015)
+- `6878fde` — Batch 2: frontend UX (A2-03, A4-01, A5-01, A8-01, U-8)
+- `35eca5d` — Batch 3: SEC-012 CSP/HSTS + CODE-005 createPayment integration test
+
+### Kapatılanlar (14 task)
+
+- [x] **U-9 (P3):** Tag label `Başlangıç Bedeli` → `Başl. Bedeli` (UyeDetailPage)
+- [x] **U-10 (P3):** OdemeKayit çek `banka_adi` → `banka` rename — zaten yapılmış, doğrulandı
+- [x] **U-11 (P3):** OdemeKayit Select optionRender sadeleştirme — `data.render` indirection kaldırıldı
+- [x] **U-12 (P3):** `getErrorMessage` Zod array `details` desteği + yeni `toFormFields` helper
+- [x] **CODE-007 (P3):** `seed_admin_user_role.sql` + `seed_all_users_admin.sql` deprecation header
+- [x] **SEC-015 (P3):** Çek `vade_tarihi` defensive guard comment netleştirme (kaldırılmıyor — sigorta)
+- [x] **CQ-01 (P3):** Dead code `useBreakpoint`/`isMobile` — pages tarafında zaten yapılmış (önceki sprintler), doğrulandı; AdminLayout'ta aktif kullanım (A1-02 skip listesinde)
+- [x] **A2-03 (P3):** `DataTable.stickyFirstColumn` opt-in prop — UyeList + FirmaList aktif
+- [x] **A4-01 (P2):** Empty state action-oriented copy + CTA — ProjeList "İlk Projeyi Oluştur", ProjeDetail "Projeler Listesine Dön", UyeList "Yeni Üye butonu ile başlayın"
+- [x] **A5-01 (P3):** LoadingState tutarlılığı — `aria-busy` / `role="status"` / `aria-live="polite"` + inline prop (Spin standardize)
+- [x] **A8-01 (P3):** Tooltip mobile `trigger="click"` — `useIsTouchDevice` hook + UyeDetailPage undo-flow Tooltip
+- [x] **U-8 (P3):** UyeDetailPage error state — `isError`/`error`/`refetch` ile guard pattern (Result + Tekrar dene button)
+- [x] **SEC-012 (P3):** Helmet frontend CSP/HSTS — `client/vercel.json` headers (HSTS preload, CSP, X-Frame-Options, Referrer-Policy, Permissions-Policy)
+- [x] **CODE-005 (P3):** `createPayment` happy path integration test — `server/tests/integration/createPayment.happyPath.test.ts` (6 yeni test: staff/admin 201, anon 401, null-role 403, tutar negatif 400, uyelik_baslangic+banka_hesap_id superRefine 400)
+
+### Doğrulama
+- server tsc clean
+- vitest **50/50 PASS** (44 baseline + 6 yeni createPayment integration)
+- client tsc clean
+- client vite build clean (2.19 MB / 618 KB gzip)
+
+### Bilinçli Skip (sonraki sprintte)
+- **SEC-013** JWT lokal verify — büyük auth refactor riski
+- **CODE-006** ESLint `no-explicit-any` — codebase-wide tarama, ayrı sprint
+- **A1-02 + CQ-02** AdminLayout MainHeader refactor — UI regression riski
+- **A2-02** Aidatlar filtre Drawer — UX karar gerektirir
+- **A3-01** `aria-invalid` runtime doğrulaması — Playwright run'a bağlı
+- **A3-02** `validateTrigger` global standardize — form behavior değişikliği
+
+---
+
+## 🟡 Açık Sprint Task'ları (sonraki)
 
 ### TASK-DB-04 — TAMAMLANDI ✅ (2026-05-11 commit `25240a9`)
 
@@ -146,37 +187,17 @@ WHERE role='admin' AND user_id NOT IN (
 
 **Doğrulama gereken:** Audit log `actor_id` üretim doğrulaması — son 13 prod audit kaydı `actor_id=NULL`, fakat hepsi TASK-DB-03 öncesi (2026-05-10 21:55). Bugün yapılan değişikliklerden sonra **kullanıcı bir mutate işlem yapıp** `SELECT actor_id, actor_email FROM audit_logs ORDER BY changed_at DESC LIMIT 5` ile dolu mu doğrulamalı.
 
-### Backend P3 (kalan — bu sprintte atlanan)
+### Backend P3 (kalan)
 
-- [ ] **SEC-013 (P3):** JWT lokal verify (jose lib) — Supabase round-trip azaltma
-- [ ] **SEC-015 (P3):** Çek `vade_tarihi` server-default kaldır — schema seviyesinde zorunlu kıl. TASK-BE-04'te superRefine ile yapıldı, service'de defensive default hala var
-- [ ] **CODE-001 (P2):** `cariHesap.service.ts.createPayment` çek branch'ini özel metoda ayır — **TASK-BE-07'de yapıldı** (kapat)
-- [ ] **CODE-005 (P3):** Yeni feature integration test (`createPayment` happy path) + Playwright E2E `uyelik-devir-flow.spec.ts` zaten var, kapatılabilir
-- [ ] **CODE-006 (P3):** ESLint `no-explicit-any` warn + migration timestamp uniqueness CI test — büyük, ayrı sprint
-- [ ] **CODE-007 (P3):** `seed_admin_user_role.sql` ve `seed_all_users_admin.sql` deprecation/clean-up
-- [ ] **SEC-012 (P3):** Helmet CSP/HSTS — frontend tarafında
+- [ ] **SEC-013 (P3):** JWT lokal verify (jose lib) — Supabase round-trip azaltma. Büyük auth refactor, dikkatli test gerekir.
+- [ ] **CODE-006 (P3):** ESLint `no-explicit-any` warn + migration timestamp uniqueness CI test — büyük, ayrı sprint (100+ warning üretebilir).
 
-### Frontend P3 (kalan — bu sprintte atlanan)
+### Frontend P3 (kalan)
 
-- [ ] **A1-02 + CQ-02 (P3):** AdminLayout MainHeader kalan JS-isMobile branch'ları → CSS class
-- [ ] **CQ-01 (P3):** Dead code temizliği — `useBreakpoint`/`isMobile` artık kullanılmayan 9 sayfada deklarasyonları sil
-- [ ] **A2-02 (P2):** Aidatlar filtre satırı mobile Drawer/Collapse
-- [ ] **A2-03 (P3):** DataTable `fixed: 'left'` sticky column
-- [ ] **A3-01 (P3):** `aria-invalid` runtime doğrulaması (manuel/Playwright)
-- [ ] **A3-02 (P2):** `validateTrigger` global standardize
-- [ ] **A4-01 (P2):** Empty state action-oriented copy
-- [ ] **A5-01 (P3):** LoadingState tutarlılığı
-- [ ] **A8-01 (P3):** Tooltip mobile `trigger="click"`
-- [ ] **U-2 (P2):** OdemeKayit `onValuesChange` → `useEffect(islemTuru)` (**TASK-FE-04'te yapıldı** ✓)
-- [ ] **U-3 (P2):** UyeDetailPage Ödemeler kolonu filter/sort (**TASK-FE-05'te yapıldı** ✓)
-- [ ] **U-4 (P2):** undo flow netleştir (**TASK-PM-01'de yapıldı** ✓, kapat)
-- [ ] **U-5 (P2):** Form hata mesajları ikon (**TASK-FE-06'da yapıldı** ✓)
-- [ ] **U-7 (P3):** Statistic value `clamp()` responsive font — zaten UI sprint'inde yapıldı
-- [ ] **U-8 (P3):** UyeDetailPage error state (Result + retry button)
-- [ ] **U-9 (P3):** Tag label "Başlangıç Bedeli" → "Başl. Bedeli" + ellipsis
-- [ ] **U-10 (P3):** OdemeKayit çek "banka_adi" → "banka" rename
-- [ ] **U-11 (P3):** OdemeKayit `optionRender` sadeleştir
-- [ ] **U-12 (P3):** `getErrorMessage` Zod array parse desteği
+- [ ] **A1-02 + CQ-02 (P3):** AdminLayout MainHeader kalan JS-isMobile branch'ları → CSS class. UI regression riski; dikkatli refactor sprint.
+- [ ] **A2-02 (P2):** Aidatlar filtre satırı mobile Drawer/Collapse — UX karar gerektirir (kullanıcı flow değişikliği).
+- [ ] **A3-01 (P3):** `aria-invalid` runtime doğrulaması (manuel/Playwright) — Playwright run'a bağlı.
+- [ ] **A3-02 (P2):** `validateTrigger` global standardize — form behavior değişikliği; kontrollü test.
 
 ### TASK-DB-03 — TAMAMLANDI ✅
 
@@ -212,7 +233,8 @@ WHERE role='admin' AND user_id NOT IN (
 - `workspace/sessions/20260511-cari-payment-500-fix/` (kapalı — commit `2bd297b`)
 - `workspace/sessions/20260511-audit-actor-rpc-continued/` (kapalı — TASK-DB-03 13 RPC)
 - `workspace/sessions/20260511-backlog-sprint-batch1/` (kapandı — commit'ler 1f8f5bc + b077eee)
-- `workspace/sessions/20260511-backlog-sprint-batch3/` (BU SPRINT, kapandı — commit'ler c67269f + 2303411 + 1bc29a4)
+- `workspace/sessions/20260511-backlog-sprint-batch3/` (kapandı — commit'ler c67269f + 2303411 + 1bc29a4)
+- `workspace/sessions/20260511-backlog-closure-sprint/` (BU SPRINT, kapandı — commit'ler 81d1178 + 6878fde + 35eca5d, 14 P3 task)
 
 ---
 
@@ -236,21 +258,22 @@ WHERE role='admin' AND user_id NOT IN (
 ## Son commitler (referans için)
 
 ```
-1bc29a4 test(sprint-batch3): AntD v6 message selector fix — 5 E2E instance kararsizdi
+35eca5d feat(sprint-closure): batch 3 — SEC-012 CSP/HSTS + CODE-005 createPayment integration test
+6878fde feat(sprint-closure): batch 2 — frontend UX (A2-03/A4-01/A5-01/A8-01/U-8)
+81d1178 feat(sprint-closure): batch 1 — cosmetic + cleanup (U-9/U-11/U-12/CODE-007/SEC-015)
+c9af436 docs(backlog): TASK-DB-04 kapanis + manuel adimlar guncellemesi
+25240a9 feat(TASK-DB-04): proje_id NOT NULL apply + schema sertlestirme
+1bc29a4 test(sprint-batch3): AntD v6 message selector fix
 2303411 fix(sprint-batch3): TASK-PM-01 undo flow tooltip + Space direction typo + spec addendum
-c67269f feat(sprint-batch3): backend P3 — Morgan PII redact + cariHareketSchema strict + audit policy comments + AuthRequest types
-24cd7ac docs(backlog): sprint-batch1 kapanis — 12 task kapatildi (P1+P2)
-b077eee feat(sprint-batch2): TASK-BE-05/06/07 + TASK-FE-03/04/05/06 + CI guard
-1f8f5bc feat(sprint-batch1): TASK-BE-04 schema sertlestirme + fn_match_firm_payments_fifo p_actor_id
+c67269f feat(sprint-batch3): backend P3 — Morgan PII redact + cariHareketSchema strict + audit policy comments
 ```
 
-Yarın açış: **bu dosyanın 🔴 bölümündeki manuel adımları** yap:
-1. `supabase db push` → migration `20260511000005_audit_policy_comments.sql` deploy
-2. `supabase db push` ile `20260510000018_audit_proje_id_nullable.sql` çalıştır → NOTICE çıktısı paylaş (TASK-DB-04 için NULL count)
-3. Vercel preview UI testi (Space direction fix sonrası — özellikle Aidatlar, FirmaList, UyeList sayfalarında Space alignments)
-4. Playwright run: `cd client && npx playwright test fifo-safety.spec.ts serefiye-refresh.spec.ts` ile 5 düzeltilmiş E2E'yi doğrula
+Yarın açış: **bu dosyanın 🔴 bölümündeki manuel doğrulama adımları** halen geçerli:
+1. Vercel preview UI testi — yeni eklenen empty state CTA'ları (ProjeList "İlk Projeyi Oluştur"), sticky kolon (UyeList/FirmaList mobile horizontal scroll), tooltip mobile click (UyeDetailPage undo flow info icon)
+2. **CSP doğrulaması:** Vercel deploy sonrası `https://koop-gen-hes.vercel.app` üzerinde DevTools Console'da CSP violation var mı kontrol; özellikle `connect-src` Supabase + Render URL'leri için.
+3. Audit log `actor_id` doğrulaması — son 5 mutate sonrası `SELECT actor_id, actor_email FROM audit_logs ORDER BY changed_at DESC LIMIT 5` (TASK-DB-03 + DB-04 closure)
+4. Playwright run: `cd client && npx playwright test` ile genel regression.
 
-Sonra Batch 4 task'larına geç:
-1. **TASK-DB-04 apply** — NULL audit sonucu paylaşıldıktan sonra backfill + NOT NULL migration
-2. **Backend P3 kalan** — SEC-013 JWT lokal verify, CODE-006/007 hijyeni
-3. **Frontend P3 kalan** — A2-02 (Aidatlar Drawer), A3-02 (validateTrigger), A4-01 (empty state)
+Sonraki sprint (Batch 5) kalanları:
+- **Backend:** SEC-013 (JWT jose), CODE-006 (ESLint no-explicit-any)
+- **Frontend P3:** A1-02/CQ-02 (AdminLayout refactor), A2-02 (Aidatlar Drawer), A3-01 (aria-invalid Playwright), A3-02 (validateTrigger global)
