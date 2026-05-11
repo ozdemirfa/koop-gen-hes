@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Card, Form, Select, InputNumber, DatePicker, Input, Button, Space, message, Row, Col, Divider, Typography, Badge, Checkbox, Radio } from 'antd'
+import { App, Card, Form, Select, InputNumber, DatePicker, Input, Button, Space, Row, Col, Divider, Typography, Badge, Checkbox, Radio, Alert } from 'antd'
 import { SaveOutlined, ClearOutlined, BankOutlined, MoneyCollectOutlined, AuditOutlined, RollbackOutlined, UserAddOutlined } from '@ant-design/icons'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { getErrorMessage } from '../../lib/apiError'
@@ -16,6 +16,8 @@ const { TextArea } = Input
 export const OdemeKayit: React.FC = () => {
   const [form] = Form.useForm()
   const { activeProject } = useProject()
+  const queryClient = useQueryClient()
+  const { message } = App.useApp()
   const [filterCariTuru, setFilterCariTuru] = useState<'uye' | 'firma'>('uye')
 
   // Form değerlerini izle — useWatch reaktif, Ant Design Form internal'ı ile sync.
@@ -24,29 +26,16 @@ export const OdemeKayit: React.FC = () => {
 
   usePageSettings('Cari Ödeme/Tahsilat Kaydı')
 
-  // TASK-FE-04 (sprint 20260511-backlog-batch1):
-  // islem_turu degisikliginde yan etkiler. Onceden onValuesChange icinde
-  // imperative `setFieldValue` + state set karisıyordu — Ant Design recursion
-  // davranisi ve state senkronizasyonu kirılgandı. useEffect ile reaktif:
+  // REV-PAY-05 (2026-05-12): uyelik_baslangic hibrit semantik kazandı (cari=tahakkuk,
+  // banka/nakit=tahsilat). Banka alanları artık temizlenmez — kullanıcı seçer.
   useEffect(() => {
     if (islemTuru === 'iade_odeme' || islemTuru === 'uyelik_baslangic') {
       setFilterCariTuru('uye')
       // cari_hesap'i sıfırla (filter degisince cari listesi farklilasir)
       form.setFieldValue('cari_hesap_id', undefined)
     }
-    if (islemTuru === 'uyelik_baslangic') {
-      // uyelik_baslangic icin odeme_turu zorla 'cari' olur ve banka alanlari
-      // schema tarafindan reddedilir (TASK-BE-04).
-      form.setFieldValue('odeme_turu', 'cari')
-      form.setFieldValue('banka_hesap_id', undefined)
-      form.setFieldValue('cek_id', undefined)
-      form.setFieldValue('vade_tarihi', undefined)
-      form.setFieldValue('banka', undefined)
-      form.setFieldValue('sube', undefined)
-    }
     if (islemTuru === 'iade_odeme') {
-      // iade_odeme icin 'cari' YASAK (TASK-BE-04). Mevcut secili 'cari' ise
-      // varsayilan olarak 'banka'ya cevir; degilse kullanicinin secimine sayg.
+      // iade_odeme icin 'cari' YASAK. Mevcut secili 'cari' ise varsayilan 'banka'ya cevir.
       const current = form.getFieldValue('odeme_turu')
       if (!current || current === 'cari') {
         form.setFieldValue('odeme_turu', 'banka')
@@ -62,7 +51,12 @@ export const OdemeKayit: React.FC = () => {
       const { data } = await api.get('/cari-hareketler/accounts', {
         params: { proje_id: activeProject.id }
       })
-      return data.data as { id: string; cari_adi: string; cari_turu: 'uye' | 'firma' }[]
+      return data.data as {
+        id: string
+        cari_adi: string
+        cari_turu: 'uye' | 'firma'
+        uyeler?: { uye_no?: string } | null
+      }[]
     },
     enabled: !!activeProject?.id
   })
@@ -96,6 +90,21 @@ export const OdemeKayit: React.FC = () => {
     },
     onSuccess: () => {
       message.success('Cari işlem başarıyla kaydedildi')
+      // A1 (2026-05-12): üye/firma detay sayfalarındaki kart ve listelerin yansıması için
+      // ilgili tüm query'leri invalidate et. Belirli bir üye ID bilinmediği için sweep yap;
+      // tanstack/react-query queryKey prefix match ile aynı namespace altındaki tüm
+      // entry'leri stale işaretler.
+      queryClient.invalidateQueries({ queryKey: ['uye'] })
+      queryClient.invalidateQueries({ queryKey: ['uye-aidatlar'] })
+      queryClient.invalidateQueries({ queryKey: ['uye-odemeler'] })
+      queryClient.invalidateQueries({ queryKey: ['aidatlar'] })
+      queryClient.invalidateQueries({ queryKey: ['aidat-ozet'] })
+      queryClient.invalidateQueries({ queryKey: ['cari-accounts'] })
+      queryClient.invalidateQueries({ queryKey: ['cari-ekstre'] })
+      queryClient.invalidateQueries({ queryKey: ['cari-hareketler'] })
+      queryClient.invalidateQueries({ queryKey: ['banka-hareketleri'] })
+      queryClient.invalidateQueries({ queryKey: ['banka-hesaplari'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard-ozet'] })
       form.resetFields()
       setFilterCariTuru('uye')
     },
@@ -133,27 +142,32 @@ export const OdemeKayit: React.FC = () => {
             is_teminat: false
           }}
         >
+          {/* REV-PAY-06 (2026-05-12): Form hizalama — Cari Türü filter Cari Hesap
+              label'ının extra slot'una taşındı; 41px manuel offset kaldırıldı. İki
+              kolonun label+input başlangıcı aynı hizada. */}
           <Row gutter={24}>
             <Col xs={24} md={12}>
-              <div style={{ marginBottom: 8 }}>
-                <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Cari Türü Filtrele:</Typography.Text>
-                <Radio.Group
-                  value={filterCariTuru}
-                  onChange={(e) => {
-                    setFilterCariTuru(e.target.value)
-                    form.setFieldValue('cari_hesap_id', undefined)
-                  }}
-                  buttonStyle="solid"
-                  size="small"
-                  disabled={islemTuru === 'iade_odeme' || islemTuru === 'uyelik_baslangic'}
-                >
-                  <Radio.Button value="uye">Üyeler</Radio.Button>
-                  <Radio.Button value="firma">Firmalar</Radio.Button>
-                </Radio.Group>
-              </div>
               <Form.Item
                 name="cari_hesap_id"
-                label="Cari Hesap"
+                label={
+                  <Space size="small">
+                    <span>Cari Hesap</span>
+                    <Radio.Group
+                      value={filterCariTuru}
+                      onChange={(e) => {
+                        setFilterCariTuru(e.target.value)
+                        form.setFieldValue('cari_hesap_id', undefined)
+                      }}
+                      buttonStyle="solid"
+                      size="small"
+                      disabled={islemTuru === 'iade_odeme' || islemTuru === 'uyelik_baslangic'}
+                      onClick={(e) => e.preventDefault()}
+                    >
+                      <Radio.Button value="uye">Üyeler</Radio.Button>
+                      <Radio.Button value="firma">Firmalar</Radio.Button>
+                    </Radio.Group>
+                  </Space>
+                }
                 rules={[{ required: true, message: 'Lütfen bir cari hesap seçin' }]}
               >
                 <Select
@@ -164,29 +178,34 @@ export const OdemeKayit: React.FC = () => {
                   allowClear
                   className="w-full"
                   suffixIcon={<AuditOutlined />}
-                  // U-11 (2026-05-11): `data.render` indirection kaldırıldı —
-                  // optionRender doğrudan option.data alanlarından (cariTuru, cariAdi)
-                  // JSX üretiyor. label alanı search/filter için string olarak kalır.
-                  options={filteredAccounts?.map(acc => ({
-                    value: acc.id,
-                    label: `${acc.cari_adi} (${acc.cari_turu === 'uye' ? 'Üye' : 'Firma'})`,
-                    cariTuru: acc.cari_turu,
-                    cariAdi: acc.cari_adi,
-                  }))}
+                  // REV-PAY-04 (2026-05-12): Üye için "U-No - Ad Soyad", Firma için
+                  // sadece unvan (cari_adi). Badge görsel ayrımı korur, label string
+                  // search/filter için unique kalır.
+                  options={filteredAccounts?.map(acc => {
+                    const uyeNo = acc.uyeler?.uye_no
+                    const display = acc.cari_turu === 'uye' && uyeNo
+                      ? `${uyeNo} - ${acc.cari_adi}`
+                      : acc.cari_adi
+                    return {
+                      value: acc.id,
+                      label: display,
+                      cariTuru: acc.cari_turu,
+                      display,
+                    }
+                  })}
                   optionRender={({ data }) => (
                     <Space>
                       <Badge
                         status={data.cariTuru === 'uye' ? 'processing' : 'warning'}
                         text={data.cariTuru === 'uye' ? 'Üye' : 'Firma'}
                       />
-                      <span>{data.cariAdi}</span>
+                      <span>{data.display}</span>
                     </Space>
                   )}
                 />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
-              <div style={{ height: 41, display: 'block' }} className="hidden md:block"></div>
               <Form.Item
                 name="islem_turu"
                 label="İşlem Türü"
@@ -210,25 +229,27 @@ export const OdemeKayit: React.FC = () => {
             </Col>
           </Row>
 
-          {/* TASK-FE-03: uyelik_baslangic'te tarih kolonu full-width. */}
+          {/* REV-PAY-07 (2026-05-12): uyelik_baslangic için Ödeme Aracı görünür olur.
+              odeme_turu='cari' tahakkuk, banka/nakit/kredi_karti tahsilat semantiği. */}
           <Row gutter={24}>
-            {islemTuru !== 'uyelik_baslangic' && (
-              <Col xs={24} md={12}>
-                <Form.Item
-                  name="odeme_turu"
-                  label="Ödeme Aracı"
-                  rules={[{ required: true }]}
-                >
-                  <Select className="w-full">
-                    <Option value="nakit">Nakit</Option>
-                    <Option value="banka">Banka (EFT/Havale)</Option>
-                    <Option value="kredi_karti">Kredi Kartı</Option>
-                    <Option value="cek">Çek</Option>
-                  </Select>
-                </Form.Item>
-              </Col>
-            )}
-            <Col xs={24} md={islemTuru === 'uyelik_baslangic' ? 24 : 12}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="odeme_turu"
+                label="Ödeme Aracı"
+                rules={[{ required: true }]}
+              >
+                <Select className="w-full">
+                  <Option value="nakit">Nakit</Option>
+                  <Option value="banka">Banka (EFT/Havale)</Option>
+                  <Option value="kredi_karti">Kredi Kartı</Option>
+                  <Option value="cek">Çek</Option>
+                  {islemTuru === 'uyelik_baslangic' && (
+                    <Option value="cari">Cari (Tahakkuk — para hareketi yok)</Option>
+                  )}
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
               <Form.Item
                 name="tarih"
                 label="İşlem Tarihi"
@@ -238,6 +259,26 @@ export const OdemeKayit: React.FC = () => {
               </Form.Item>
             </Col>
           </Row>
+
+          {/* REV-PAY-08: Üyelik başlangıç bedeli için kullanıcıya semantik uyarı. */}
+          {islemTuru === 'uyelik_baslangic' && odemeTuru === 'cari' && (
+            <Alert
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+              message="Tahakkuk kaydı"
+              description="Bu işlem üyenin cari hesabına alacak kaydı (tahakkuk) açar; herhangi bir para hareketi yaratmaz."
+            />
+          )}
+          {islemTuru === 'uyelik_baslangic' && odemeTuru && odemeTuru !== 'cari' && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: 16 }}
+              message="Tahsilat kaydı"
+              description="Bu işlem gerçek bir para tahsilatı olarak kaydedilir. Üye için önceden başlangıç bedeli tahakkuku yapılmış olmalıdır (Üye Detay sayfasından)."
+            />
+          )}
 
           <Divider dashed />
 
@@ -254,8 +295,8 @@ export const OdemeKayit: React.FC = () => {
             </Row>
           )}
 
-          {/* Dinamik Alanlar: Banka */}
-          {odemeTuru === 'banka' && islemTuru !== 'uyelik_baslangic' && (
+          {/* Dinamik Alanlar: Banka (REV-PAY-09: uyelik_baslangic + banka da geçerli) */}
+          {odemeTuru === 'banka' && (
             <Row gutter={24}>
               <Col span={24}>
                 <Form.Item

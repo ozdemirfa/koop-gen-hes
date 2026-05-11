@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Card, Descriptions, Tabs, Tag, Row, Col, Statistic, Button, message, Space, Typography, Select, App, Popconfirm, Tooltip } from 'antd'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { DollarOutlined, HistoryOutlined, UserOutlined, AuditOutlined, RollbackOutlined, PercentageOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import { DollarOutlined, HistoryOutlined, UserOutlined, AuditOutlined, RollbackOutlined, PercentageOutlined, InfoCircleOutlined, UserAddOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { getErrorMessage } from '../../lib/apiError'
@@ -13,6 +13,7 @@ import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { LoadingState } from '../../components/common/LoadingState'
 import { ErrorState } from '../../components/common/ErrorState'
 import { FaizBorclandirModal } from './components/FaizBorclandirModal'
+import { BaslangicBedeliTahakkukModal } from './components/BaslangicBedeliTahakkukModal'
 
 import { trNumberParser, trMoneyFormatter } from '../../lib/format'
 import { useIsTouchDevice } from '../../hooks/useIsTouchDevice'
@@ -42,6 +43,7 @@ export const UyeDetailPage: React.FC = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [faizModalOpen, setFaizModalOpen] = useState(false)
+  const [baslangicModalOpen, setBaslangicModalOpen] = useState(false)
   const { message: messageApi } = App.useApp()
   const isTouchDevice = useIsTouchDevice()
 
@@ -53,9 +55,15 @@ export const UyeDetailPage: React.FC = () => {
     },
     onSuccess: () => {
       messageApi.success('Eşleşme başarıyla kaldırıldı')
+      // A1 (2026-05-12): kart özetlerinin (dashboard, aidat-ozet) ve cari ekstresinin
+      // de güncellenmesi için sweep'i genişlet.
       queryClient.invalidateQueries({ queryKey: ['uye', id] })
       queryClient.invalidateQueries({ queryKey: ['uye-aidatlar', id] })
       queryClient.invalidateQueries({ queryKey: ['uye-odemeler', id] })
+      queryClient.invalidateQueries({ queryKey: ['aidatlar'] })
+      queryClient.invalidateQueries({ queryKey: ['aidat-ozet'] })
+      queryClient.invalidateQueries({ queryKey: ['cari-ekstre'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard-ozet'] })
     },
     onError: (err) => messageApi.error(getErrorMessage(err))
   })
@@ -87,9 +95,15 @@ export const UyeDetailPage: React.FC = () => {
     onSuccess: (res: any) => {
       const count = res.data?.matched_count || 0
       messageApi.success(`${count} adet borç-ödeme kaydı FIFO kuralı ile eşleştirildi.`)
+      // A1 (2026-05-12): match-payments sonrası özet kartlar + cari ekstresi de
+      // yansımalı; genişletilmiş invalidation sweep'i.
       queryClient.invalidateQueries({ queryKey: ['uye', id] })
       queryClient.invalidateQueries({ queryKey: ['uye-aidatlar', id] })
       queryClient.invalidateQueries({ queryKey: ['uye-odemeler', id] })
+      queryClient.invalidateQueries({ queryKey: ['aidatlar'] })
+      queryClient.invalidateQueries({ queryKey: ['aidat-ozet'] })
+      queryClient.invalidateQueries({ queryKey: ['cari-ekstre'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard-ozet'] })
     },
     onError: (err) => messageApi.error(getErrorMessage(err, 'Eşleştirme hatası'))
   })
@@ -277,12 +291,35 @@ export const UyeDetailPage: React.FC = () => {
   ]
 
   // Finansal özet hesapla
-  const toplamTahakkuk = aidatlar?.reduce((sum, a) => sum + Number(a.toplam_tahakkuk || a.toplam_borc || a.toplam_tutar || 0), 0) || 0
+  // REV-PAY-10 (2026-05-12): cari_hareketler'den uyelik_baslangic ve iade_odeme
+  // kalemleri özet kartlara dahil edildi.
+  //   - uyelik_baslangic + alacak>0  → tahakkuk (Toplam Tahakkuk'a +)
+  //   - uyelik_baslangic + borc>0    → tahsilat (Toplam Ödeme'ye +)
+  //   - iade_odeme                   → Toplam Ödeme'den - (üyeye geri verilen para)
+  const baslangicBedeliTahakkuk = odemeler?.reduce(
+    (s, o: any) => s + (o.islem_turu === 'uyelik_baslangic' ? Number(o.alacak || 0) : 0),
+    0
+  ) || 0
+  const baslangicBedeliTahsilat = odemeler?.reduce(
+    (s, o: any) => s + (o.islem_turu === 'uyelik_baslangic' ? Number(o.borc || 0) : 0),
+    0
+  ) || 0
+  const toplamIadeOdeme = odemeler?.reduce(
+    (s, o: any) => s + (o.islem_turu === 'iade_odeme' ? Number(o.alacak || 0) : 0),
+    0
+  ) || 0
+
+  const aidatTahakkuk = aidatlar?.reduce((sum, a) => sum + Number(a.toplam_tahakkuk || a.toplam_borc || a.toplam_tutar || 0), 0) || 0
+  const aidatOdenen = aidatlar?.reduce((sum, a) => sum + Number(a.toplam_odenen || a.dinamik_odenen_tutar || a.odenen_tutar || 0), 0) || 0
+
+  const toplamTahakkuk = aidatTahakkuk + baslangicBedeliTahakkuk
   const toplamGecikmeFaizi = aidatlar?.reduce((sum, a) => sum + Number(a.toplam_faiz || a.gecikme_faizi || 0), 0) || 0
-  const toplamOdenen = aidatlar?.reduce((sum, a) => sum + Number(a.toplam_odenen || a.dinamik_odenen_tutar || a.odenen_tutar || 0), 0) || 0
-  
-  // Geciken Borç: Tüm kalemlerdeki kalan bakiye
-  const toplamKalan = aidatlar?.reduce((sum, a) => sum + Number(a.kalan_borc || (Number(a.toplam_tahakkuk || a.toplam_borc || 0) - Number(a.toplam_odenen || a.dinamik_odenen_tutar || 0))), 0) || 0
+  const toplamOdenen = aidatOdenen + baslangicBedeliTahsilat - toplamIadeOdeme
+
+  // Geciken Borç: aidat kalan + başlangıç bedeli net (tahakkuk - tahsilat)
+  const aidatKalan = aidatlar?.reduce((sum, a) => sum + Number(a.kalan_borc || (Number(a.toplam_tahakkuk || a.toplam_borc || 0) - Number(a.toplam_odenen || a.dinamik_odenen_tutar || 0))), 0) || 0
+  const baslangicBedeliKalan = baslangicBedeliTahakkuk - baslangicBedeliTahsilat + toplamIadeOdeme
+  const toplamKalan = aidatKalan + baslangicBedeliKalan
 
   const blokAdi = uye?.serefiye_tablosu?.bloklar?.blok_adi || '-'
   const daireNo = uye?.serefiye_tablosu?.daire_no || '-'
@@ -309,19 +346,26 @@ export const UyeDetailPage: React.FC = () => {
         onBack={() => navigate('/uyeler')}
         extra={
           <Space>
-            <Button 
-              icon={<AuditOutlined />} 
-              onClick={() => matchMutation.mutate()} 
+            <Button
+              icon={<AuditOutlined />}
+              onClick={() => matchMutation.mutate()}
               loading={matchMutation.isPending}
               title="Mevcut eşleşmemiş ödemeleri borçlarla FIFO kuralına göre kapatır"
             >
               Hesap Kapatma (FIFO)
             </Button>
-            <Button 
-              type="primary" 
-              size="large" 
+            <Button
+              icon={<UserAddOutlined />}
+              onClick={() => setBaslangicModalOpen(true)}
+              title="Üyelik başlangıç bedeli için cari hesaba tahakkuk (alacak) kaydı açar"
+            >
+              Başlangıç Bedeli Tahakkuk
+            </Button>
+            <Button
+              type="primary"
+              size="large"
               danger
-              icon={<PercentageOutlined />} 
+              icon={<PercentageOutlined />}
               onClick={() => setFaizModalOpen(true)}
             >
               Üye Faiz Borç İşle
@@ -465,6 +509,16 @@ export const UyeDetailPage: React.FC = () => {
           onCancel={() => setFaizModalOpen(false)}
           uyeId={id}
           aidatlar={aidatlar || []}
+        />
+      )}
+
+      {id && uye?.proje_id && (
+        <BaslangicBedeliTahakkukModal
+          open={baslangicModalOpen}
+          onCancel={() => setBaslangicModalOpen(false)}
+          uyeId={id}
+          projeId={uye.proje_id}
+          uyeAd={`${uye.ad ?? ''} ${uye.soyad ?? ''}`.trim()}
         />
       )}
     </div>

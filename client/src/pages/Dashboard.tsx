@@ -30,7 +30,7 @@ import { usePageSettings } from '../contexts/LayoutContext'
 import { useProject } from '../contexts/ProjectContext'
 import dayjs from 'dayjs'
 import { trNumberFormatter, trMoneyFormatter } from '../lib/format'
-import { Button, message, Popconfirm } from 'antd'
+import { App, Button, Popconfirm } from 'antd'
 
 const { RangePicker } = DatePicker
 
@@ -48,6 +48,7 @@ const TLSuffix = <span className="stat-suffix">TL</span>
 
 export const Dashboard: React.FC = () => {
   const { activeProject } = useProject()
+  const { message } = App.useApp()
   const queryClient = useQueryClient()
   const [dates, setDates] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null)
 
