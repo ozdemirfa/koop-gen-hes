@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Card, Form, Select, InputNumber, DatePicker, Input, Button, Space, message, Row, Col, Divider, Typography, Badge, Checkbox, Radio } from 'antd'
 import { SaveOutlined, ClearOutlined, BankOutlined, MoneyCollectOutlined, AuditOutlined, RollbackOutlined, UserAddOutlined } from '@ant-design/icons'
 import { useQuery, useMutation } from '@tanstack/react-query'
@@ -16,13 +16,43 @@ const { TextArea } = Input
 export const OdemeKayit: React.FC = () => {
   const [form] = Form.useForm()
   const { activeProject } = useProject()
-  const [odemeTuru, setOdemeTuru] = useState<string | null>('banka')
   const [filterCariTuru, setFilterCariTuru] = useState<'uye' | 'firma'>('uye')
-  
-  // Form değerlerini izle
+
+  // Form değerlerini izle — useWatch reaktif, Ant Design Form internal'ı ile sync.
   const islemTuru = Form.useWatch('islem_turu', form)
+  const odemeTuru = Form.useWatch('odeme_turu', form)
 
   usePageSettings('Cari Ödeme/Tahsilat Kaydı')
+
+  // TASK-FE-04 (sprint 20260511-backlog-batch1):
+  // islem_turu degisikliginde yan etkiler. Onceden onValuesChange icinde
+  // imperative `setFieldValue` + state set karisıyordu — Ant Design recursion
+  // davranisi ve state senkronizasyonu kirılgandı. useEffect ile reaktif:
+  useEffect(() => {
+    if (islemTuru === 'iade_odeme' || islemTuru === 'uyelik_baslangic') {
+      setFilterCariTuru('uye')
+      // cari_hesap'i sıfırla (filter degisince cari listesi farklilasir)
+      form.setFieldValue('cari_hesap_id', undefined)
+    }
+    if (islemTuru === 'uyelik_baslangic') {
+      // uyelik_baslangic icin odeme_turu zorla 'cari' olur ve banka alanlari
+      // schema tarafindan reddedilir (TASK-BE-04).
+      form.setFieldValue('odeme_turu', 'cari')
+      form.setFieldValue('banka_hesap_id', undefined)
+      form.setFieldValue('cek_id', undefined)
+      form.setFieldValue('vade_tarihi', undefined)
+      form.setFieldValue('banka', undefined)
+      form.setFieldValue('sube', undefined)
+    }
+    if (islemTuru === 'iade_odeme') {
+      // iade_odeme icin 'cari' YASAK (TASK-BE-04). Mevcut secili 'cari' ise
+      // varsayilan olarak 'banka'ya cevir; degilse kullanicinin secimine sayg.
+      const current = form.getFieldValue('odeme_turu')
+      if (!current || current === 'cari') {
+        form.setFieldValue('odeme_turu', 'banka')
+      }
+    }
+  }, [islemTuru, form])
 
   // Cari Hesaplar (Üyeler + Firmalar) Fetch
   const { data: accounts, isLoading: accountsLoading } = useQuery({
@@ -67,7 +97,6 @@ export const OdemeKayit: React.FC = () => {
     onSuccess: () => {
       message.success('Cari işlem başarıyla kaydedildi')
       form.resetFields()
-      setOdemeTuru('banka')
       setFilterCariTuru('uye')
     },
     onError: (err) => {
@@ -81,10 +110,6 @@ export const OdemeKayit: React.FC = () => {
       return
     }
     saveMutation.mutate(values)
-  }
-
-  const handleOdemeTuruChange = (value: string) => {
-    setOdemeTuru(value)
   }
 
   if (!activeProject) {
@@ -106,20 +131,6 @@ export const OdemeKayit: React.FC = () => {
             islem_turu: 'giden_odeme',
             odeme_turu: 'banka',
             is_teminat: false
-          }}
-          onValuesChange={(changedValues) => {
-            if (changedValues.odeme_turu) {
-              setOdemeTuru(changedValues.odeme_turu)
-            }
-            if (changedValues.islem_turu === 'iade_odeme' || changedValues.islem_turu === 'uyelik_baslangic') {
-              setFilterCariTuru('uye')
-              form.setFieldValue('cari_hesap_id', undefined)
-            }
-            // uyelik_baslangic seçilince odeme_turu'yu otomatik 'cari' yap
-            if (changedValues.islem_turu === 'uyelik_baslangic') {
-              form.setFieldValue('odeme_turu', 'cari')
-              setOdemeTuru('cari')
-            }
           }}
         >
           <Row gutter={24}>
@@ -176,22 +187,23 @@ export const OdemeKayit: React.FC = () => {
               >
                 <Select className="w-full">
                   <Option value="giden_odeme">
-                    <Space orientation="horizontal"><MoneyCollectOutlined className="text-red-500" /> Giden Ödeme (Ödeme Yapıldı)</Space>
+                    <Space><MoneyCollectOutlined className="text-red-500" /> Giden Ödeme (Ödeme Yapıldı)</Space>
                   </Option>
                   <Option value="gelen_odeme">
-                    <Space orientation="horizontal"><MoneyCollectOutlined className="text-green-500" /> Gelen Ödeme (Tahsilat Yapıldı)</Space>
+                    <Space><MoneyCollectOutlined className="text-green-500" /> Gelen Ödeme (Tahsilat Yapıldı)</Space>
                   </Option>
                   <Option value="iade_odeme">
-                    <Space orientation="horizontal"><RollbackOutlined className="text-blue-500" /> Üyelik Bedeli İadesi</Space>
+                    <Space><RollbackOutlined className="text-blue-500" /> Üyelik Bedeli İadesi</Space>
                   </Option>
                   <Option value="uyelik_baslangic">
-                    <Space orientation="horizontal"><UserAddOutlined className="text-orange-500" /> Üyelik Başlangıç Bedeli</Space>
+                    <Space><UserAddOutlined className="text-orange-500" /> Üyelik Başlangıç Bedeli</Space>
                   </Option>
                 </Select>
               </Form.Item>
             </Col>
           </Row>
 
+          {/* TASK-FE-03: uyelik_baslangic'te tarih kolonu full-width. */}
           <Row gutter={24}>
             {islemTuru !== 'uyelik_baslangic' && (
               <Col xs={24} md={12}>
@@ -200,7 +212,7 @@ export const OdemeKayit: React.FC = () => {
                   label="Ödeme Aracı"
                   rules={[{ required: true }]}
                 >
-                  <Select onChange={handleOdemeTuruChange} className="w-full">
+                  <Select className="w-full">
                     <Option value="nakit">Nakit</Option>
                     <Option value="banka">Banka (EFT/Havale)</Option>
                     <Option value="kredi_karti">Kredi Kartı</Option>
@@ -209,7 +221,7 @@ export const OdemeKayit: React.FC = () => {
                 </Form.Item>
               </Col>
             )}
-            <Col xs={24} md={12}>
+            <Col xs={24} md={islemTuru === 'uyelik_baslangic' ? 24 : 12}>
               <Form.Item
                 name="tarih"
                 label="İşlem Tarihi"
@@ -319,21 +331,20 @@ export const OdemeKayit: React.FC = () => {
             <Row justify="end">
               <Col>
                 <Space size="middle">
-                  <Button 
+                  <Button
                     size="large"
-                    icon={<ClearOutlined />} 
+                    icon={<ClearOutlined />}
                     onClick={() => {
                       form.resetFields()
-                      setOdemeTuru('banka')
                       setFilterCariTuru('uye')
                     }}
                   >
                     Temizle
                   </Button>
-                  <Button 
-                    type="primary" 
+                  <Button
+                    type="primary"
                     size="large"
-                    icon={<SaveOutlined />} 
+                    icon={<SaveOutlined />}
                     loading={saveMutation.isPending}
                     htmlType="submit"
                     className="bg-blue-600"

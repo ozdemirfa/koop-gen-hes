@@ -3,6 +3,41 @@ import { ApiError } from '../utils/ApiError'
 import { requireProjeId } from '../utils/projectGuard'
 import logger from '../utils/logger'
 
+// TASK-BE-06 (sprint 20260511-backlog-batch1):
+// islem_turu_in CSV parametresinin whitelist + slice limiti. Whitelist disinda
+// bir deger gelirse atilir; uzunluk MAX_ISLEM_TURU_IN ile sinirlanir (DoS koruma).
+const ISLEM_TURU_WHITELIST = new Set<string>([
+  'gelen_odeme',
+  'giden_odeme',
+  'iade_odeme',
+  'uyelik_baslangic',
+  'aidat_kayit',
+  'hakedis',
+  'gecikme_faizi',
+  'fatura',
+  'odeme',
+])
+const MAX_ISLEM_TURU_IN = 12
+
+type PaymentInput = {
+  proje_id: string
+  cari_hesap_id: string
+  islem_turu: 'gelen_odeme' | 'giden_odeme' | 'iade_odeme' | 'uyelik_baslangic'
+  odeme_turu: 'nakit' | 'banka' | 'cek' | 'kredi_karti' | 'cari'
+  tutar: number
+  tarih: string
+  aciklama?: string
+  belge_no?: string
+  banka_hesap_id?: string
+  cek_id?: string
+  vade_tarihi?: string
+  banka?: string
+  sube?: string
+  kaynak_tipi?: string
+  kaynak_id?: string
+  actorId?: string
+}
+
 export const cariHesapService = {
   async list(query: Record<string, any>) {
     const projeIdRaw = Array.isArray(query.proje_id) ? query.proje_id[0] : query.proje_id
@@ -48,10 +83,12 @@ export const cariHesapService = {
 
     if (query.islem_turu) q = q.eq('islem_turu', query.islem_turu)
     if (query.islem_turu_in) {
+      // Whitelist + slice(0,N) DoS/garbage protection (TASK-BE-06).
       const types = String(query.islem_turu_in)
         .split(',')
         .map(s => s.trim())
-        .filter(Boolean)
+        .filter(t => t && ISLEM_TURU_WHITELIST.has(t))
+        .slice(0, MAX_ISLEM_TURU_IN)
       if (types.length > 0) q = q.in('islem_turu', types)
     }
     if (query.baslangic_tarihi) q = q.gte('tarih', query.baslangic_tarihi)
@@ -59,7 +96,7 @@ export const cariHesapService = {
 
     const { data, error } = await q.order('tarih', { ascending: true })
     if (error) throw error
-    return data
+    return data ?? []
   },
 
   async listAccounts(query: Record<string, any>) {
@@ -79,7 +116,7 @@ export const cariHesapService = {
 
     const { data, error } = await q.order('cari_adi', { ascending: true })
     if (error) throw error
-    return data
+    return data ?? []
   },
 
   async create(body: Record<string, any>) {
@@ -93,98 +130,104 @@ export const cariHesapService = {
     return data
   },
 
-  async createPayment(paymentData: {
-    proje_id: string,
-    cari_hesap_id: string,
-    islem_turu: 'gelen_odeme' | 'giden_odeme' | 'iade_odeme' | 'uyelik_baslangic',
-    odeme_turu: 'nakit' | 'banka' | 'cek' | 'kredi_karti' | 'cari',
-    tutar: number,
-    tarih: string,
-    aciklama?: string,
-    belge_no?: string,
-    banka_hesap_id?: string,
-    cek_id?: string,
-    vade_tarihi?: string,
-    banka?: string,
-    sube?: string,
-    kaynak_tipi?: string,
-    kaynak_id?: string,
-    actorId?: string
-  }) {
+  // TASK-BE-07 (sprint 20260511-backlog-batch1):
+  // Çek path'i kendi metoduna ayrıldı. createPayment artık sadece dispatcher.
+  async createPayment(paymentData: PaymentInput) {
+    if (paymentData.odeme_turu === 'cek') {
+      return this._createPaymentAsCek(paymentData)
+    }
+    return this._createPaymentNormal(paymentData)
+  },
+
+  async _createPaymentAsCek(paymentData: PaymentInput) {
+    const {
+      cari_hesap_id,
+      proje_id,
+      tutar,
+      cek_id,
+      vade_tarihi,
+      banka,
+      sube,
+      belge_no,
+      aciklama,
+    } = paymentData
+
+    // Mevcut bir çek seçilmişse ilişkilendirme yeterli — yeni cek_id üretilmez.
+    if (cek_id) {
+      return { id: cek_id, message: 'Mevcut çek ilişkilendirildi.' }
+    }
+
+    // Cari hesaptan firma_id'yi bul (cekler tablosunda firma_id zorunludur).
+    const { data: cari } = await supabaseAdmin
+      .from('cari_hesaplar')
+      .select('firma_id')
+      .eq('id', cari_hesap_id)
+      .single()
+
+    if (!cari?.firma_id) {
+      throw new ApiError(400, 'Çek kaydı için geçerli bir firma cari hesabı gereklidir.')
+    }
+
+    // Schema seviyesinde vade_tarihi zorunlu kılındı (TASK-BE-04). Yine de
+    // defansif kontrol; servis-içi cagri yapan biri bu yolu atlayabilir.
+    if (!vade_tarihi) {
+      throw new ApiError(400, 'Çek kaydı için vade tarihi zorunludur.')
+    }
+
+    const { data: newCek, error: cekError } = await supabaseAdmin
+      .from('cekler')
+      .insert([{
+        proje_id,
+        firma_id: cari.firma_id,
+        cek_no: belge_no || 'YENI-CEK',
+        banka: banka || 'Belirtilmedi',
+        sube: sube || '',
+        tutar,
+        vade_tarihi,
+        durum: 'beklemede',
+        aciklama,
+      }])
+      .select()
+      .single()
+
+    if (cekError) throw cekError
+
+    // Çek ödendiğinde cari hareket atılacağı için burada cari_hareketler'e kayıt ATMIYORUZ.
+    return {
+      ...newCek,
+      is_cek: true,
+      message: 'Çek kaydı oluşturuldu. Cari hareket çek ödendiğinde oluşacaktır.',
+    }
+  },
+
+  async _createPaymentNormal(paymentData: PaymentInput) {
     const {
       islem_turu,
       tutar,
       odeme_turu,
       banka_hesap_id,
-      cek_id,
-      vade_tarihi,
-      banka,
-      sube,
       actorId,
+      // cek-specific alanlar normal path icin kullanilmaz, drop edilir.
+      cek_id: _cek_id,
+      vade_tarihi: _vade_tarihi,
+      banka: _banka,
+      sube: _sube,
       ...rest
-    } = paymentData;
+    } = paymentData
 
-    // 1. Çek Entegrasyonu Özel Durumu
-    if (odeme_turu === 'cek') {
-      let finalCekId = cek_id;
-      
-      if (!finalCekId) {
-        // Cari hesaptan firma_id'yi bul (Cekler tablosunda firma_id zorunludur)
-        const { data: cari } = await supabaseAdmin
-          .from('cari_hesaplar')
-          .select('firma_id')
-          .eq('id', rest.cari_hesap_id)
-          .single();
-
-        if (!cari?.firma_id) {
-          throw new ApiError(400, 'Çek kaydı için geçerli bir firma cari hesabı gereklidir.');
-        }
-
-        const { data: newCek, error: cekError } = await supabaseAdmin
-          .from('cekler')
-          .insert([{
-            proje_id: rest.proje_id,
-            firma_id: cari.firma_id,
-            cek_no: rest.belge_no || 'YENI-CEK',
-            banka: banka || 'Belirtilmedi',
-            sube: sube || '',
-            tutar: tutar,
-            vade_tarihi: vade_tarihi || new Date().toISOString().split('T')[0],
-            durum: 'beklemede',
-            aciklama: rest.aciklama
-          }])
-          .select()
-          .single();
-
-        if (cekError) throw cekError;
-        
-        // Çek ödendiğinde cari hareket atılacağı için burada cari_hareketler'e kayıt ATMIYORUZ.
-        return { 
-          ...newCek,
-          is_cek: true,
-          message: 'Çek kaydı oluşturuldu. Cari hareket çek ödendiğinde oluşacaktır.' 
-        };
-      } else {
-        // Zaten cek_id gelmişse (mevcut bir çek seçilmişse)
-        return { id: finalCekId, message: 'Mevcut çek ilişkilendirildi.' };
-      }
-    }
-
-    // --- Normal İşleyiş (Nakit, Banka, Kredi Kartı) ---
     const { data: hareket, error: hareketError } = await supabaseAdmin.rpc('fn_create_payment_atomic', {
       p_payment_data: {
         ...rest,
         islem_turu,
         odeme_turu,
         tutar,
-        banka_hesap_id
+        banka_hesap_id,
       },
-      p_actor_id: actorId ?? null
-    });
+      p_actor_id: actorId ?? null,
+    })
 
-    if (hareketError) throw hareketError;
-
-    return hareket;
+    if (hareketError) throw hareketError
+    return hareket
   },
 
   async undoClosure(id: string, actorId?: string) {

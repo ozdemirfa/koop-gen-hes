@@ -85,12 +85,43 @@ body {
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18) !important;
 }
 
+/*
+ * TASK-FE-06 (sprint 20260511-backlog-batch1):
+ * Form hata mesajlarına ikon + WCAG SC 1.4.1 (use-of-color) uyumlu.
+ *
+ * AntD `Form.Item validateStatus="error"` durumunda DOM:
+ *  - input/select/picker'a `aria-invalid="true"` ekler (test edildi v5.21+),
+ *  - hata mesajı kutusunu .ant-form-item-explain-error olarak render eder.
+ *
+ * Bu CSS, hata mesajının önüne ::before pseudo-element ile uyarı üçgeni ekler
+ * — kırmızı border + uyarı ikonu birlikte WCAG 2.2 SC 1.4.1 (renk tek başına
+ * bilgi taşımaz) gereğini karşılar. SVG inline data URI: browser CDN bagimliligi yok.
+ */
 .ant-form-item-explain-error {
   color: var(--error) !important;
   font-weight: 500 !important;
   font-size: 12px !important;
   margin-top: 2px !important;
+  display: flex !important;
+  align-items: flex-start;
+  gap: 4px;
 }
+
+.ant-form-item-explain-error::before {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23ef4444'%3e%3cpath d='M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 12.5A5.5 5.5 0 1 1 8 2.5a5.5 5.5 0 0 1 0 11zm-.75-9h1.5v5h-1.5v-5zm.75 6.5a1 1 0 1 1 0 2 1 1 0 0 1 0-2z'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+/* Ekran okuyucu uyumu: explain wrapper'inin role="alert" yapısı AntD tarafından sağlanır;
+   ek olarak bizim Form.Item label'larının yanına ::after("zorunlu") veya aria-required AntD tarafından eklenir.
+   Bu blok yalnızca görsel kontrast/ikon tarafıyla ilgilenir. */
 
 .sidebar-logo {
   height: 32px;

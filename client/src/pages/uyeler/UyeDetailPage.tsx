@@ -190,10 +190,18 @@ export const UyeDetailPage: React.FC = () => {
   const odemeColumns = [
     { title: 'Tarih', dataIndex: 'odeme_tarihi', key: 'tarih', render: (d: string) => dayjs(d).format('DD.MM.YYYY') },
     {
+      // TASK-FE-05 (sprint 20260511-backlog-batch1): filter + sorter eklendi.
       title: 'İşlem Türü',
       dataIndex: 'islem_turu',
       key: 'islem_turu',
       width: 140,
+      filters: Object.entries(islemTuruMeta).map(([k, v]) => ({ text: v.label, value: k })),
+      onFilter: (val: any, r: any) => r.islem_turu === val,
+      sorter: (a: any, b: any) =>
+        (islemTuruMeta[a.islem_turu]?.label ?? a.islem_turu ?? '').localeCompare(
+          islemTuruMeta[b.islem_turu]?.label ?? b.islem_turu ?? '',
+          'tr',
+        ),
       render: (v: string) => {
         const m = islemTuruMeta[v] ?? { color: 'default', label: v }
         return <Tag color={m.color}>{m.label}</Tag>
