@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Card, Descriptions, Tabs, Tag, Row, Col, Statistic, Button, Space, App, Popconfirm, Tooltip } from 'antd'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -35,6 +35,9 @@ interface AidatOdeme {
   gecikme_faizi?: number
   dinamik_odenen_tutar?: number
   odenen_tutar?: number
+  // REV-AIDAT-01: başlangıç bedeli virtual row marker (Aidat Hesapları tab'inde
+  // gerçek aidat satırlarıyla aynı kolonlarda gösterilir).
+  isStarter?: boolean
 }
 
 export const UyeDetailPage: React.FC = () => {
@@ -172,11 +175,64 @@ export const UyeDetailPage: React.FC = () => {
     iptal: 'default',
   }
 
+  // REV-AIDAT-01 (2026-05-12): Başlangıç bedeli tahakkukları artık Ödemeler tab'i
+  // yerine Aidat Hesapları tab'inde gerçek aidatlarla aynı kolon yapısıyla görünür.
+  // Cari hareketlerden uyelik_baslangic + alacak>0 + kaynak_tipi IS NULL satırlarını
+  // virtual row olarak topla. Ödenen tutar, FIFO sonrası kaynak_tipi='baslangic_bedeli'
+  // + kaynak_id=tahakkuk_ch.id ile bağlanmış borç kayıtlarının toplamı.
+  const baslangicBedeliRows: AidatOdeme[] = useMemo(() => {
+    if (!odemeler) return []
+    const matchedByTarget = new Map<string, number>()
+    odemeler.forEach((o: any) => {
+      if (o.kaynak_tipi === 'baslangic_bedeli' && o.kaynak_id) {
+        const prev = matchedByTarget.get(o.kaynak_id) ?? 0
+        matchedByTarget.set(o.kaynak_id, prev + Number(o.borc || 0))
+      }
+    })
+    return odemeler
+      .filter((o: any) => o.islem_turu === 'uyelik_baslangic' && Number(o.alacak || 0) > 0)
+      .map((o: any) => {
+        const tahakkuk = Number(o.alacak || 0)
+        const odenen = matchedByTarget.get(o.id) ?? 0
+        const kalan = Math.max(0, tahakkuk - odenen)
+        const durum = kalan <= 0.009 ? 'odendi' : 'bekliyor'
+        return {
+          id: `bb-${o.id}`,
+          yil: 0,
+          ay: 0,
+          baz_tutar: tahakkuk,
+          toplam_faiz: 0,
+          toplam_tahakkuk: tahakkuk,
+          toplam_odenen: odenen,
+          kalan_borc: kalan,
+          son_odeme_tarihi: o.tarih,
+          durum,
+          isStarter: true,
+        } as AidatOdeme
+      })
+  }, [odemeler])
+
+  // Aidat tab dataSource: gerçek aidatlar + başlangıç bedeli virtual rows (üstte).
+  const aidatDataSource: AidatOdeme[] = useMemo(
+    () => [...baslangicBedeliRows, ...(aidatlar ?? [])],
+    [baslangicBedeliRows, aidatlar]
+  )
+
+  // Ödemeler tab dataSource: tahakkuk (alacak) satırlarını gizle — sadece gerçek
+  // tahsilatlar ve iade kayıtları görünür.
+  const visibleOdemeler = useMemo(() => {
+    if (!odemeler) return []
+    return odemeler.filter(
+      (o: any) => !(o.islem_turu === 'uyelik_baslangic' && Number(o.alacak || 0) > 0)
+    )
+  }, [odemeler])
+
   const aidatColumns = [
     {
       title: 'Dönem',
       key: 'donem',
-      render: (_: unknown, r: AidatOdeme) => `${r.ay}/${r.yil}`,
+      render: (_: unknown, r: AidatOdeme) =>
+        r.isStarter ? <Tag color="orange">Başl. Bedeli</Tag> : `${r.ay}/${r.yil}`,
     },
     {
       title: 'Vade',
@@ -349,35 +405,34 @@ export const UyeDetailPage: React.FC = () => {
   ]
 
   // Finansal özet hesapla
-  // REV-PAY-10 (2026-05-12): cari_hareketler'den uyelik_baslangic ve iade_odeme
-  // kalemleri özet kartlara dahil edildi.
-  //   - uyelik_baslangic + alacak>0  → tahakkuk (Toplam Tahakkuk'a +)
-  //   - uyelik_baslangic + borc>0    → tahsilat (Toplam Ödeme'ye +)
-  //   - iade_odeme                   → Toplam Ödeme'den - (üyeye geri verilen para)
-  const baslangicBedeliTahakkuk = odemeler?.reduce(
-    (s, o: any) => s + (o.islem_turu === 'uyelik_baslangic' ? Number(o.alacak || 0) : 0),
+  // REV-PAY-12 (2026-05-12): Aggregator cari_hareketler üzerinden gerçek nakit yön
+  // hesabı kullanır (FIFO eşleşmesi olsun olmasın). Mantık:
+  //   - Toplam Tahakkuk = aidat tahakkukları + uyelik_baslangic alacakları
+  //   - Toplam Ödeme    = tüm gelen_odeme borçları + uyelik_baslangic borçları (tahsilatlar)
+  //                       - iade_odeme alacakları (üyeye geri verilen para)
+  //   - Toplam Kalan    = Toplam Tahakkuk - Toplam Ödeme
+  const baslangicBedeliTahakkuk = (odemeler ?? []).reduce(
+    (s: number, o: any) => s + (o.islem_turu === 'uyelik_baslangic' ? Number(o.alacak || 0) : 0),
     0
-  ) || 0
-  const baslangicBedeliTahsilat = odemeler?.reduce(
-    (s, o: any) => s + (o.islem_turu === 'uyelik_baslangic' ? Number(o.borc || 0) : 0),
+  )
+  const tumTahsilat = (odemeler ?? []).reduce(
+    (s: number, o: any) =>
+      s + ((o.islem_turu === 'gelen_odeme' || o.islem_turu === 'uyelik_baslangic') ? Number(o.borc || 0) : 0),
     0
-  ) || 0
-  const toplamIadeOdeme = odemeler?.reduce(
-    (s, o: any) => s + (o.islem_turu === 'iade_odeme' ? Number(o.alacak || 0) : 0),
+  )
+  const toplamIadeOdeme = (odemeler ?? []).reduce(
+    (s: number, o: any) => s + (o.islem_turu === 'iade_odeme' ? Number(o.alacak || 0) : 0),
     0
-  ) || 0
+  )
 
   const aidatTahakkuk = aidatlar?.reduce((sum, a) => sum + Number(a.toplam_tahakkuk || a.toplam_borc || a.toplam_tutar || 0), 0) || 0
-  const aidatOdenen = aidatlar?.reduce((sum, a) => sum + Number(a.toplam_odenen || a.dinamik_odenen_tutar || a.odenen_tutar || 0), 0) || 0
 
   const toplamTahakkuk = aidatTahakkuk + baslangicBedeliTahakkuk
   const toplamGecikmeFaizi = aidatlar?.reduce((sum, a) => sum + Number(a.toplam_faiz || a.gecikme_faizi || 0), 0) || 0
-  const toplamOdenen = aidatOdenen + baslangicBedeliTahsilat - toplamIadeOdeme
+  const toplamOdenen = tumTahsilat - toplamIadeOdeme
 
-  // Geciken Borç: aidat kalan + başlangıç bedeli net (tahakkuk - tahsilat)
-  const aidatKalan = aidatlar?.reduce((sum, a) => sum + Number(a.kalan_borc || (Number(a.toplam_tahakkuk || a.toplam_borc || 0) - Number(a.toplam_odenen || a.dinamik_odenen_tutar || 0))), 0) || 0
-  const baslangicBedeliKalan = baslangicBedeliTahakkuk - baslangicBedeliTahsilat + toplamIadeOdeme
-  const toplamKalan = aidatKalan + baslangicBedeliKalan
+  // Geciken Borç: Toplam Tahakkuk - Toplam Ödeme (negatif olamaz; iade fazlasında alacaklı)
+  const toplamKalan = toplamTahakkuk - toplamOdenen
 
   const daireNo = uye?.serefiye_tablosu?.daire_no || '-'
 
@@ -498,9 +553,9 @@ export const UyeDetailPage: React.FC = () => {
                 <div style={{ paddingTop: 16 }}>
                   <DataTable
                     columns={aidatColumns}
-                    dataSource={aidatlar}
+                    dataSource={aidatDataSource}
                     rowKey="id"
-                    loading={aidatLoading}
+                    loading={aidatLoading || odemeLoading}
                     hideCard
                     pagination={false}
                   />
@@ -514,7 +569,7 @@ export const UyeDetailPage: React.FC = () => {
                 <div style={{ paddingTop: 16 }}>
                   <DataTable
                     columns={odemeColumns}
-                    dataSource={odemeler}
+                    dataSource={visibleOdemeler}
                     rowKey="id"
                     loading={odemeLoading}
                     hideCard

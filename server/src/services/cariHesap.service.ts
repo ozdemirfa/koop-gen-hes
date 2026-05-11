@@ -109,12 +109,14 @@ export const cariHesapService = {
     // tüm projelerin cari hesapları sızar.
     const proje_id = requireProjeId(proje_id_raw)
 
-    // REV-PAY-04: OdemeKayit dropdown'da "U-No - Ad Soyad" / "Firma Unvan" formatı için
-    // uye_no join eklendi. cari_adi (trigger ile set) üye için "Ad Soyad", firma için
-    // unvan döndüğünden firma tarafı için ek alan gerekmez.
+    // REV-PAY-04 (revize 2026-05-12): OdemeKayit dropdown'da "U-No - Ad Soyad"
+    // formatı için uye_no join. PostgREST sözdizimi `<table>!<fk_column>(cols)`.
+    // Önceki `uyeler:uye_id(...)` sözdizimi tablo *alias*'ı olarak yorumlanıyordu
+    // (tablo adı="uyeler", alias="uye_id") — PostgREST 400 fırlatıp listAccounts'ı
+    // boşaltıyordu; bu yüzden Firma Ekstre header'ında dropdown boş kalıyordu.
     let q = supabaseAdmin
       .from('cari_hesaplar')
-      .select('*, uyeler:uye_id(uye_no)')
+      .select('*, uyeler!uye_id(uye_no)')
       .eq('proje_id', proje_id)
 
     if (cari_turu) q = q.eq('cari_turu', cari_turu)
