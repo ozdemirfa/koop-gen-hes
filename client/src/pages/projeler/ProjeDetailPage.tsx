@@ -101,7 +101,7 @@ export const ProjeDetailPage: React.FC = () => {
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={8}>
           <Card title="Proje Bilgileri" variant="borderless">
-            <Space orientation="vertical" style={{ width: '100%' }}>
+            <Space direction="vertical" style={{ width: '100%' }}>
               <div>
                 <Text type="secondary">Durum</Text>
                 <div><Tag color={durumRenkleri[proje.durum]}>{durumEtiketleri[proje.durum]}</Tag></div>

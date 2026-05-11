@@ -169,7 +169,7 @@ export const YillikPlanPage: React.FC = () => {
   const dataSource = useMemo(() => Object.values(pivotedData), [pivotedData])
 
   const headerActions = useMemo(() => (
-    <Space orientation="horizontal" size="small">
+    <Space direction="horizontal" size="small">
       <Button
         icon={<ArrowLeftOutlined />}
         onClick={() => navigate(`/projeler/${projeId}`)}
@@ -292,7 +292,7 @@ export const YillikPlanPage: React.FC = () => {
     fixed: 'right' as const,
     width: 100,
     render: (_: any, record: any) => (
-      <Space orientation="horizontal">
+      <Space direction="horizontal">
         <Button
           type="primary"
           size="small"
@@ -357,7 +357,7 @@ export const YillikPlanPage: React.FC = () => {
           adet != null && fiyat != null ? Math.round(Number(adet) * Number(fiyat) * 100) / 100 : null
 
         return (
-          <Space orientation="vertical" size={2} style={{ width: '100%' }}>
+          <Space direction="vertical" size={2} style={{ width: '100%' }}>
             <InputNumber
               size="small"
               style={{ width: '100%' }}
@@ -420,7 +420,7 @@ export const YillikPlanPage: React.FC = () => {
               </span>
             }
           >
-            <Space orientation="vertical">
+            <Space direction="vertical">
               <Button 
                 type="primary" 
                 onClick={() => createPlanMutation.mutate(parseInt(yil!))} 

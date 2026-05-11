@@ -238,7 +238,7 @@ export const CariEkstrePage: React.FC = () => {
         const hasMatchedPayments = isHakedis && r.kaynak_id && hareketler?.some(m => m.kaynak_id === r.kaynak_id && m.islem_turu !== 'hakedis');
 
         return (
-          <Space orientation="vertical" size={2}>
+          <Space direction="vertical" size={2}>
             <Space>
               <Tag color={typeInfo.color} style={{ fontSize: '10px', margin: 0, borderRadius: '4px' }}>
                 {typeInfo.label}
@@ -263,7 +263,7 @@ export const CariEkstrePage: React.FC = () => {
       key: 'aciklama',
       responsive: ['sm'] as ('sm')[],
       render: (_: any, r: CariHareket) => (
-        <Space orientation="vertical" size={0}>
+        <Space direction="vertical" size={0}>
           <Typography.Text className="text-slate-600" style={{ fontSize: '12px' }}>{r.aciklama || '-'}</Typography.Text>
           {r.belge_no && <Typography.Text type="secondary" style={{ fontSize: '11px' }}>No: {r.belge_no}</Typography.Text>}
         </Space>

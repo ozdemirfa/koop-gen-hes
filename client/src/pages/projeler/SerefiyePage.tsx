@@ -159,7 +159,7 @@ export const SerefiyePage: React.FC = () => {
   }
 
   const actions = useMemo(() => (
-    <Space orientation="horizontal">
+    <Space direction="horizontal">
       <Button
         icon={<ArrowLeftOutlined />}
         onClick={() => navigate(`/projeler/${projeId}`)}

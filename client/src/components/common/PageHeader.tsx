@@ -39,7 +39,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
       gap: '12px',
       marginBottom: '20px'
     }}>
-      <Space orientation="vertical" size={0}>
+      <Space direction="vertical" size={0}>
         <Space align="center" size="small">
           {(showBack || onBack || backPath) && (
             <Button 

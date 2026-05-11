@@ -88,7 +88,7 @@ export const ParametersPage: React.FC = () => {
       key: 'name',
       width: '30%',
       render: (text: string, record: SystemParameter) => (
-        <Space orientation="vertical" size={0}>
+        <Space direction="vertical" size={0}>
           <Text strong>{text}</Text>
           <Text type="secondary" style={{ fontSize: '12px' }}>{record.description}</Text>
         </Space>

@@ -182,7 +182,7 @@ export const UyeFormPage: React.FC = () => {
           </Form.Item>
 
           <Form.Item>
-            <Space orientation="horizontal">
+            <Space direction="horizontal">
               <Button type="primary" htmlType="submit" loading={mutation.isPending}>
                 {isEditing ? 'Güncelle' : 'Kaydet'}
               </Button>

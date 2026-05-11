@@ -207,3 +207,31 @@ Değişiklik **yok**. Mevcut `/aidatlar?uye_id={id}` zaten doğru üyenin aidatl
 - A'nın `durum`'unu otomatik `istifa`/`ihrac` yapmak — admin kararı, manuel kalır.
 - Mükerrer `uyelik_baslangic` engellemesi (ilk kayıt + devir gibi meşru senaryolar var).
 - Eski cari hareket satırlarını ters kayıtla iptal etme (reversal) workflow'u.
+
+---
+
+## Addendum: Undo Flow Davranışı (TASK-PM-01, sprint 20260511-backlog-batch3)
+
+`iade_odeme` ve `uyelik_baslangic` kalem türlerinin undo/geri-al davranışı bilinçli olarak **kapalıdır**.
+
+### Karar matrisi
+
+| Kalem | "Eşleşmeyi Kaldır" butonu görünür mü? | Neden? |
+|---|---|---|
+| `gelen_odeme` (Tahsilat) | Evet — `kaynak_id` doluysa | FIFO matcher aidat kapatmış olabilir; admin manuel geri alabilir |
+| `iade_odeme` | **HAYIR** — info ikonu görünür | İade aidat ile eşleşmez (banka çıkışı + cari alacak). Geri almak isteyen admin **karşıt bir tahsilat kaydı (gelen_odeme)** oluşturmalı |
+| `uyelik_baslangic` | **HAYIR** — info ikonu görünür | Tahakkuk kalemidir; bir ödeme (FIFO ile) veya iade ile manuel olarak kapatılır. Direkt geri alma yok; admin yanlış kaydetmişse mevcut cari hareket silme akışını kullanır |
+
+### UI davranışı
+
+`UyeDetailPage.tsx` Ödemeler tab'ı, "İşlem" kolonunda:
+- `islem_turu in ('iade_odeme', 'uyelik_baslangic')` → gri `InfoCircleOutlined` ikonu + Tooltip (kalem türüne özel mesaj).
+- Diğer durumlar → mevcut Popconfirm + `RollbackOutlined` davranışı.
+
+### Edge case kararları
+
+| Senaryo | Karar |
+|---|---|
+| `iade_odeme` yanlış kaydedildi | Karşıt `gelen_odeme` (tahsilat) ile dengele. Cari hareket silme **yapılmamalı** çünkü audit log'da silme kaydı, ters kayıt iz bırakmaktan daha kırılgan |
+| `uyelik_baslangic` yanlış kaydedildi | Mevcut cari hareket silme akışı (admin-only). Audit log silme kaydını yakalar |
+| `iade_odeme` `kaynak_id` dolu (FIFO bir eşleşme yaptı) | Bu durum bugün **olmamalı** — `fn_match_member_payments_fifo` `iade_odeme`'yi candidate olarak almıyor. Yine olursa info tooltip yine de gösteriliyor (defensive UX) |

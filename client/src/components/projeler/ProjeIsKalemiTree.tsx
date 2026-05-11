@@ -119,7 +119,7 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data, yil }) => {
       title: 'Poz / Tanım', 
       key: 'tanim', 
       render: (_: any, r: any) => (
-        <Space orientation="vertical" size={0}>
+        <Space direction="vertical" size={0}>
           <Text strong style={{ fontSize: '12px' }}>{r.kalem_kodu}</Text>
           <Text>{r.tanim}</Text>
         </Space>
@@ -148,7 +148,7 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data, yil }) => {
       key: 'action',
       width: 80,
       render: (_: any, r: any) => (
-        <Space orientation="horizontal">
+        <Space direction="horizontal">
           <Button 
             type="text" 
             size="small" 

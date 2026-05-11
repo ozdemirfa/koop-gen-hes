@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
-import { Card, Descriptions, Tabs, Tag, Row, Col, Statistic, Button, message, Space, Typography, Select, App, Popconfirm } from 'antd'
+import { Card, Descriptions, Tabs, Tag, Row, Col, Statistic, Button, message, Space, Typography, Select, App, Popconfirm, Tooltip } from 'antd'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { DollarOutlined, HistoryOutlined, UserOutlined, AuditOutlined, RollbackOutlined, PercentageOutlined } from '@ant-design/icons'
+import { DollarOutlined, HistoryOutlined, UserOutlined, AuditOutlined, RollbackOutlined, PercentageOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { getErrorMessage } from '../../lib/apiError'
@@ -215,7 +215,25 @@ export const UyeDetailPage: React.FC = () => {
       title: 'İşlem',
       key: 'action',
       width: 80,
+      // TASK-PM-01 (sprint 20260511-backlog-batch3): iade_odeme ve uyelik_baslangic
+      // için undo flow YOK. Bu kalemler aidat ile FIFO eşleşmediği için "Eşleşmeyi Kaldır"
+      // anlamlı değil. Kullanıcıya neden butonun çıkmadığını info ikonu ile açıkla.
       render: (_: any, r: any) => {
+        const NO_UNDO_TYPES = ['iade_odeme', 'uyelik_baslangic']
+        if (NO_UNDO_TYPES.includes(r.islem_turu)) {
+          return (
+            <Tooltip
+              title={
+                r.islem_turu === 'iade_odeme'
+                  ? 'İade kayıtları aidat ile eşleşmez. Geri almak için karşıt bir tahsilat kaydı oluşturun.'
+                  : 'Üyelik başlangıç bedeli bir tahakkuk kalemidir; ödeme/iade ile manuel kapatılır, geri alınamaz.'
+              }
+            >
+              <InfoCircleOutlined style={{ color: '#bfbfbf' }} />
+            </Tooltip>
+          )
+        }
+
         const isMatched = !!r.kaynak_id;
         if (!isMatched) return null;
 
@@ -227,11 +245,11 @@ export const UyeDetailPage: React.FC = () => {
             okText="Evet, Kaldır"
             cancelText="Vazgeç"
           >
-            <Button 
-              type="text" 
-              size="small" 
-              danger 
-              icon={<RollbackOutlined />} 
+            <Button
+              type="text"
+              size="small"
+              danger
+              icon={<RollbackOutlined />}
               loading={undoMatchMutation.isPending && undoMatchMutation.variables === r.id}
               title="Eşleşmeyi Geri Al"
             />

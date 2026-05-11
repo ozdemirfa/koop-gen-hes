@@ -78,7 +78,7 @@ export const UyeListPage: React.FC = () => {
   })
 
   const actions = React.useMemo(() => (
-    <Space orientation="horizontal" size="small" wrap>
+    <Space direction="horizontal" size="small" wrap>
       <Input
         placeholder="Ara..."
         prefix={<SearchOutlined />}

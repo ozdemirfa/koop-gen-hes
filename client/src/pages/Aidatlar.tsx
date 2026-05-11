@@ -250,7 +250,7 @@ export const Aidatlar: React.FC = () => {
   }
 
   const listActions = useMemo(() => (
-    <Space orientation="horizontal" size="small" wrap>
+    <Space direction="horizontal" size="small" wrap>
       <Input
         placeholder="Üye Ara"
         prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
@@ -321,7 +321,7 @@ export const Aidatlar: React.FC = () => {
   ), [filterYil, filterAy, filterDurum, filterBlokId, filterHasDaire, filterUyeAdi, yearOptions, bloklar])
 
   const tanimActions = useMemo(() => (
-    <Space orientation="horizontal" size="small">
+    <Space direction="horizontal" size="small">
       <Select
         placeholder="Yıl"
         value={filterTanimYil}
@@ -393,7 +393,7 @@ export const Aidatlar: React.FC = () => {
         const showButton = (r.durum === 'gecikti' || (r.durum === 'bekliyor' && isOverdue)) && hasInterest;
 
         return (
-          <Space orientation="vertical" size={2} style={{ width: '100%', alignItems: 'flex-end' }}>
+          <Space direction="vertical" size={2} style={{ width: '100%', alignItems: 'flex-end' }}>
             <Text type={r.faiz_yansitildi ? "danger" : "secondary"} strong={r.faiz_yansitildi}>
               {r.gecikme_faizi > 0 ? <MoneyDisplay amount={r.gecikme_faizi} /> : '-'}
             </Text>
@@ -470,7 +470,7 @@ export const Aidatlar: React.FC = () => {
       render: (_: any, r: Aidat) => {
         const colors: Record<string, string> = { bekliyor: 'blue', gecikti: 'red', odendi: 'green' }
         return (
-          <Space orientation="vertical" size={0}>
+          <Space direction="vertical" size={0}>
             <Tag color={colors[r.durum]}>{r.durum.toUpperCase()}</Tag>
             {r.durum === 'gecikti' && r.gecikme_gun_sayisi > 0 && (
               <Text type="danger" style={{ fontSize: '11px' }}>{r.gecikme_gun_sayisi} Gün</Text>
@@ -496,7 +496,7 @@ export const Aidatlar: React.FC = () => {
       title: 'İşlem',
       key: 'action',
       render: (_: any, r: AidatTanimi) => (
-        <Space orientation="horizontal">
+        <Space direction="horizontal">
           <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(r)} disabled={r.durum === 'borclandi'} />
           {r.durum === 'plan' && (
             <Popconfirm title="Tüm aktif üyelere borç yansıtılacak. Emin misiniz?" onConfirm={() => chargeMutation.mutate(r.id)}>
