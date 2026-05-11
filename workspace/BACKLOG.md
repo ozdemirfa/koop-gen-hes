@@ -1,6 +1,6 @@
 # Backlog — koopGenHes
 
-**Son güncelleme:** 2026-05-11 (akşam — backlog-sprint-batch1 sonrası)
+**Son güncelleme:** 2026-05-11 (gece — backlog-sprint-batch3 sonrası)
 **Bir sonraki çalışma:** 2026-05-12 (yarın)
 
 Bu dosya günden güne kalan işleri biriktirir. Yarın açıp buradan devam.
@@ -9,9 +9,11 @@ Bu dosya günden güne kalan işleri biriktirir. Yarın açıp buradan devam.
 
 ## 🔴 Hemen yapılacak — Doğrulama / Manuel Adımlar
 
-### 1. supabase db push (TASK-DB-03 closure)
+### 1. supabase db push (TASK-DB-03 closure + sprint-batch3 closure)
 
-Migration `20260511000004_audit_actor_firm_fifo.sql` remote'a uygulanmalı:
+İki migration deploy edilmeli:
+- `20260511000004_audit_actor_firm_fifo.sql` (önceki sprint, BACKLOG'dan beklemede)
+- `20260511000005_audit_policy_comments.sql` (sprint-batch3, audit log policy COMMENT'leri)
 
 ```bash
 supabase db push
@@ -57,7 +59,21 @@ LIMIT 10;
 
 `actor_id` ve `actor_email` artık dolu gelmeli (önceden NULL'du). Firma FIFO eşleştirmesi sonrası da `actor_id` dolu olmalı (yeni: migration `20260511000004`).
 
-### 4. (Daha önce yapılmadıysa) Admin rollback
+### 4. TASK-DB-04 NULL audit — `supabase db push` ile dry-run NOTICE çıktısını topla
+
+Migration `20260510000018_audit_proje_id_nullable.sql` zaten repo'da; `db push` sırasında bir kez çalışır ve **Messages** sekmesinde her tablonun NULL count'unu raporlar:
+
+```
+NOTICE:  Table cekler: NULL count = 0
+NOTICE:  Table faturalar: NULL count = 3
+NOTICE:  Table cari_hareketler: NULL count = 0
+...
+```
+
+Sonucu paylaş — master backfill stratejisi + `SET NOT NULL` migration hazırlasın.
+Detay: `workspace/sessions/20260511-backlog-sprint-batch3/output/db04-audit.md`
+
+### 5. (Daha önce yapılmadıysa) Admin rollback
 
 `README-admin-rollback.md` artık silindi (önceki commit'te). Eğer `seed_all_users_admin` migration'ı sonucu hala tüm user'lar admin'se manuel:
 
@@ -103,25 +119,80 @@ WHERE role='admin' AND user_id NOT IN (
 
 ---
 
-## 🟡 Açık Sprint Task'ları (Batch 3 / yarın)
+## ✅ Sprint Backlog-Batch3 — Bu Sprintte Kapatılan (2026-05-11 akşam)
 
-### Önceki QA Sprint Backlog (`20260510-qa-review-sprint`) — kalan
+**Session:** `workspace/sessions/20260511-backlog-sprint-batch3/`
+**Commit'ler:**
+- `c67269f` — backend P3 (Morgan PII redact, cariHareketSchema strict, audit policy comments, AuthRequest types)
+- `2303411` — TASK-PM-01 undo flow tooltip + Space direction typo bulk fix + spec addendum
+- `1bc29a4` — AntD v6 message selector fix (5 E2E instance)
 
-- [ ] **TASK-PM-01 (P2):** `iade_odeme` / `uyelik_baslangic` undo flow tooltip + spec
-- [ ] **17 P3 task** — kozmetik/kalite (Morgan PII, JWT lokal verify, AuthRequest types, Helmet/CSP, vb.)
-- [ ] **TASK-DB-04 sonrası:** `proje_id NOT NULL` audit sonucunu uygulamaya geçir (mevcut migration `20260510000018` sadece dry-run NOTICE üretiyor)
-- [ ] **5 E2E test bug:** AntD 6 selector pattern güncellemeleri (qa-report-v3.md §kalan FAIL)
+### Kapatılanlar
 
-### UI Responsive Sprint — Kalan P3 + Backlog
+- [x] **TASK-PM-01 (P2):** UyeDetailPage undo flow tooltip (iade_odeme + uyelik_baslangic için info ikonu + Tooltip) + spec addendum (undo flow karar matrisi).
+- [x] **SEC-011 (P3):** Morgan log query string PII redact — `REDACT_WHITELIST` dışındaki tüm query parametreler `[redacted:N]`.
+- [x] **SEC-014 (P3):** `cariHareketSchema` `.strict()` + `proje_id` zorunlu — mass assignment koruması.
+- [x] **SEC-010 (P3):** `audit_logs` RLS policy'lerine açıklayıcı COMMENT (yeni migration `20260511000005_audit_policy_comments.sql`).
+- [x] **CODE-002 (P3):** `cariHesap.controller` AuthRequest `<any,any,any,any>` → Zod-derive types.
+- [x] **UX-006 (P3):** `Space orientation="..."` → `direction="..."` typo bulk fix (14 dosya, 26 instance).
+- [x] **A6-02 (P3):** `StrictConfirmDelete.tsx` `width="min(450px, 95vw)"` — zaten önceki sprint'te kapanmıştı, doğrulandı.
+- [x] **5 E2E selector fix:** AntD v6 `.ant-message-success` → `.ant-message-notice-content .ant-message-success`.
+- [x] **TASK-DB-04 statik audit:** Production schema risk değerlendirmesi yapıldı — migration **yazılmadı**, kullanıcı kararına bırakıldı (detay: `workspace/sessions/20260511-backlog-sprint-batch3/output/db04-audit.md`).
 
-Detay: `workspace/sessions/20260511-ui-responsive-sprint/sprint-plan.md`
+### Doğrulama
+- server tsc clean
+- vitest **44/44 PASS** (baseline korundu)
+- client tsc + vite build clean (2.19 MB)
+- E2E selector fix'leri statik düzeltme; tam Playwright run kullanıcı tarafından doğrulanmalı
 
-- [ ] **7 P3 bulgu** — code-audit.md'de listeli
-- [ ] **BL-* task'lar** — sprint dışına itelenenler
+---
+
+## 🟡 Açık Sprint Task'ları (Batch 4 / sonraki)
+
+### TASK-DB-04 — DEVAM EDEN (kullanıcı eylemi bekliyor)
+
+**Durum:** Statik audit raporu hazır (`db04-audit.md`). Kullanıcı eylemi gerekli:
+
+1. `supabase db push` ile mevcut migration `20260510000018_audit_proje_id_nullable.sql` çalıştır → NOTICE'larda her tablo için NULL count.
+2. NOTICE çıktısını paylaş → master backfill stratejisi + `SET NOT NULL` migration draft yazsın.
+
+**Risk:** 14 tabloda `proje_id` NULLABLE. Schema'ların büyük kısmı `proje_id`'yi optional kabul ediyor → prod'da NULL satır olma olasılığı yüksek. Körlemesine `SET NOT NULL` migration'ı patlatır.
+
+### Backend P3 (kalan — bu sprintte atlanan)
+
+- [ ] **SEC-013 (P3):** JWT lokal verify (jose lib) — Supabase round-trip azaltma
+- [ ] **SEC-015 (P3):** Çek `vade_tarihi` server-default kaldır — schema seviyesinde zorunlu kıl. TASK-BE-04'te superRefine ile yapıldı, service'de defensive default hala var
+- [ ] **CODE-001 (P2):** `cariHesap.service.ts.createPayment` çek branch'ini özel metoda ayır — **TASK-BE-07'de yapıldı** (kapat)
+- [ ] **CODE-005 (P3):** Yeni feature integration test (`createPayment` happy path) + Playwright E2E `uyelik-devir-flow.spec.ts` zaten var, kapatılabilir
+- [ ] **CODE-006 (P3):** ESLint `no-explicit-any` warn + migration timestamp uniqueness CI test — büyük, ayrı sprint
+- [ ] **CODE-007 (P3):** `seed_admin_user_role.sql` ve `seed_all_users_admin.sql` deprecation/clean-up
+- [ ] **SEC-012 (P3):** Helmet CSP/HSTS — frontend tarafında
+
+### Frontend P3 (kalan — bu sprintte atlanan)
+
+- [ ] **A1-02 + CQ-02 (P3):** AdminLayout MainHeader kalan JS-isMobile branch'ları → CSS class
+- [ ] **CQ-01 (P3):** Dead code temizliği — `useBreakpoint`/`isMobile` artık kullanılmayan 9 sayfada deklarasyonları sil
+- [ ] **A2-02 (P2):** Aidatlar filtre satırı mobile Drawer/Collapse
+- [ ] **A2-03 (P3):** DataTable `fixed: 'left'` sticky column
+- [ ] **A3-01 (P3):** `aria-invalid` runtime doğrulaması (manuel/Playwright)
+- [ ] **A3-02 (P2):** `validateTrigger` global standardize
+- [ ] **A4-01 (P2):** Empty state action-oriented copy
+- [ ] **A5-01 (P3):** LoadingState tutarlılığı
+- [ ] **A8-01 (P3):** Tooltip mobile `trigger="click"`
+- [ ] **U-2 (P2):** OdemeKayit `onValuesChange` → `useEffect(islemTuru)` (**TASK-FE-04'te yapıldı** ✓)
+- [ ] **U-3 (P2):** UyeDetailPage Ödemeler kolonu filter/sort (**TASK-FE-05'te yapıldı** ✓)
+- [ ] **U-4 (P2):** undo flow netleştir (**TASK-PM-01'de yapıldı** ✓, kapat)
+- [ ] **U-5 (P2):** Form hata mesajları ikon (**TASK-FE-06'da yapıldı** ✓)
+- [ ] **U-7 (P3):** Statistic value `clamp()` responsive font — zaten UI sprint'inde yapıldı
+- [ ] **U-8 (P3):** UyeDetailPage error state (Result + retry button)
+- [ ] **U-9 (P3):** Tag label "Başlangıç Bedeli" → "Başl. Bedeli" + ellipsis
+- [ ] **U-10 (P3):** OdemeKayit çek "banka_adi" → "banka" rename
+- [ ] **U-11 (P3):** OdemeKayit `optionRender` sadeleştir
+- [ ] **U-12 (P3):** `getErrorMessage` Zod array parse desteği
 
 ### TASK-DB-03 — TAMAMLANDI ✅
 
-13 mutate RPC + member FIFO + project FIFO + **firm FIFO** (bu sprint) actor_id pattern'i uygulandı.
+13 mutate RPC + member FIFO + project FIFO + **firm FIFO** actor_id pattern'i uygulandı.
 
 ---
 
@@ -152,7 +223,8 @@ Detay: `workspace/sessions/20260511-ui-responsive-sprint/sprint-plan.md`
 - `workspace/sessions/20260511-ui-responsive-sprint/` (kapalı — CLOSED.md mevcut)
 - `workspace/sessions/20260511-cari-payment-500-fix/` (kapalı — commit `2bd297b`)
 - `workspace/sessions/20260511-audit-actor-rpc-continued/` (kapalı — TASK-DB-03 13 RPC)
-- `workspace/sessions/20260511-backlog-sprint-batch1/` (BU SPRINT, kapandı — commit'ler 1f8f5bc + b077eee)
+- `workspace/sessions/20260511-backlog-sprint-batch1/` (kapandı — commit'ler 1f8f5bc + b077eee)
+- `workspace/sessions/20260511-backlog-sprint-batch3/` (BU SPRINT, kapandı — commit'ler c67269f + 2303411 + 1bc29a4)
 
 ---
 
@@ -176,17 +248,21 @@ Detay: `workspace/sessions/20260511-ui-responsive-sprint/sprint-plan.md`
 ## Son commitler (referans için)
 
 ```
+1bc29a4 test(sprint-batch3): AntD v6 message selector fix — 5 E2E instance kararsizdi
+2303411 fix(sprint-batch3): TASK-PM-01 undo flow tooltip + Space direction typo + spec addendum
+c67269f feat(sprint-batch3): backend P3 — Morgan PII redact + cariHareketSchema strict + audit policy comments + AuthRequest types
+24cd7ac docs(backlog): sprint-batch1 kapanis — 12 task kapatildi (P1+P2)
 b077eee feat(sprint-batch2): TASK-BE-05/06/07 + TASK-FE-03/04/05/06 + CI guard
 1f8f5bc feat(sprint-batch1): TASK-BE-04 schema sertlestirme + fn_match_firm_payments_fifo p_actor_id
-04c074c fix(migration): TASK-DB-03 COMMENT ON FUNCTION imzasi ekle
-5c8275e feat(audit): TASK-DB-03 devami — 13 RPC'ye p_actor_id pattern uygula
-2bd297b fix(payment-500): odeme_yontemi enum cast eksigi (42804) + errorHandler PG kod genislemesi
-36d893d fix(ui): responsive button labels + modal widths + dead code cleanup
-e5e3965 feat(audit): TASK-DB-03 actor_id integration — trigger + 3 RPC
 ```
 
-Yarın açış: **bu dosyanın 🔴 bölümündeki manuel adımları** (özellikle `supabase db push`) yap; sonra 🟡 Batch 3 task'larına geç:
-1. **TASK-PM-01** — undo flow tooltip + spec güncellemesi
-2. **5 E2E AntD 6 selector fix** — Playwright çalıştırılması
-3. **TASK-DB-04** — proje_id NOT NULL apply (risk değerlendirmesi ile)
-4. **17 P3 kozmetik task** — backlog hijyen sprinti olarak gruplandırılabilir
+Yarın açış: **bu dosyanın 🔴 bölümündeki manuel adımları** yap:
+1. `supabase db push` → migration `20260511000005_audit_policy_comments.sql` deploy
+2. `supabase db push` ile `20260510000018_audit_proje_id_nullable.sql` çalıştır → NOTICE çıktısı paylaş (TASK-DB-04 için NULL count)
+3. Vercel preview UI testi (Space direction fix sonrası — özellikle Aidatlar, FirmaList, UyeList sayfalarında Space alignments)
+4. Playwright run: `cd client && npx playwright test fifo-safety.spec.ts serefiye-refresh.spec.ts` ile 5 düzeltilmiş E2E'yi doğrula
+
+Sonra Batch 4 task'larına geç:
+1. **TASK-DB-04 apply** — NULL audit sonucu paylaşıldıktan sonra backfill + NOT NULL migration
+2. **Backend P3 kalan** — SEC-013 JWT lokal verify, CODE-006/007 hijyeni
+3. **Frontend P3 kalan** — A2-02 (Aidatlar Drawer), A3-02 (validateTrigger), A4-01 (empty state)
