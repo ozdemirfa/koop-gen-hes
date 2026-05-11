@@ -25,19 +25,19 @@ export const createPayment = catchAsync(async (req: AuthRequest<any, any, any, a
 
 export const performFifoClosure = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   const { proje_id } = req.body;
-  const data = await cariHesapService.performFifoClosure(proje_id)
+  const data = await cariHesapService.performFifoClosure(proje_id, req.user?.id)
   res.json({ success: true, data })
 })
 
 export const undoClosure = catchAsync(async (req: AuthRequest<{ id: string }, any, any, any>, res: Response) => {
   const { id } = req.params;
-  const data = await cariHesapService.undoClosure(id);
+  const data = await cariHesapService.undoClosure(id, req.user?.id);
   res.json(data);
 })
 
 export const undoHakedisClosure = catchAsync(async (req: AuthRequest<{ id: string }, any, any, any>, res: Response) => {
   const { id } = req.params;
-  const data = await cariHesapService.undoHakedisClosure(id);
+  const data = await cariHesapService.undoHakedisClosure(id, req.user?.id);
   res.json(data);
 })
 

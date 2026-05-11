@@ -8,7 +8,7 @@ import logger from '../utils/logger'
 
 export const getAidatTanimlari = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   // Verileri listelemeden önce varsa bekleyen borçlandırmaları çalıştır
-  await aidatTanimiService.executeCharging().catch((err) => logger.error('Charging error', { err }))
+  await aidatTanimiService.executeCharging(undefined, req.user?.id).catch((err) => logger.error('Charging error', { err }))
 
   const data = await aidatTanimiService.list(req.query as Record<string, any>)
   res.json({ success: true, data })
@@ -20,7 +20,7 @@ export const createAidatTanimi = catchAsync(async (req: AuthRequest<any, any, an
 })
 
 export const createYillikPlan = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await aidatTanimiService.createYillikPlan(req.body)
+  const data = await aidatTanimiService.createYillikPlan(req.body, req.user?.id)
   res.status(201).json({ success: true, data })
 })
 
@@ -35,18 +35,18 @@ export const deleteAidatTanimi = catchAsync(async (req: AuthRequest<any, any, an
 })
 
 export const chargeTanim = catchAsync(async (req: AuthRequest<{ id: string }, any, any, any>, res: Response) => {
-  const data = await aidatTanimiService.chargeTanim(req.params.id)
+  const data = await aidatTanimiService.chargeTanim(req.params.id, req.user?.id)
   res.json({ success: true, data })
 })
 
 export const executeCharging = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await aidatTanimiService.executeCharging(req.body.date)
+  const data = await aidatTanimiService.executeCharging(req.body.date, req.user?.id)
   res.json({ success: true, data })
 })
 
 export const bulkChargeInterest = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   const { aidat_ids } = req.body
-  const data = await aidatTanimiService.bulkChargeInterest(aidat_ids)
+  const data = await aidatTanimiService.bulkChargeInterest(aidat_ids, req.user?.id)
   res.json({ success: true, data })
 })
 
@@ -68,13 +68,13 @@ export const calculateLateFees = catchAsync(async (req: AuthRequest<any, any, an
 })
 
 export const calculateSingleLateFee = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await aidatService.calculateSingleLateFee(req.params.id)
+  const data = await aidatService.calculateSingleLateFee(req.params.id, req.user?.id)
   res.json({ success: true, data })
 })
 
 export const toggleInterest = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   const { active } = req.body
-  const data = await aidatService.toggleInterest(req.params.id, active)
+  const data = await aidatService.toggleInterest(req.params.id, active, req.user?.id)
   res.json({ success: true, data })
 })
 
@@ -84,6 +84,6 @@ export const getAidatById = catchAsync(async (req: AuthRequest<any, any, any, an
 })
 
 export const recordPayment = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await aidatService.recordPayment(req.params.id, req.body)
+  const data = await aidatService.recordPayment(req.params.id, req.body, req.user?.id)
   res.json({ success: true, data })
 })

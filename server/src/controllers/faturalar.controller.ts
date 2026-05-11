@@ -14,12 +14,12 @@ export const getFaturaById = catchAsync(async (req: AuthRequest<any, any, any, a
 })
 
 export const createFatura = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await faturaService.create(req.body)
+  const data = await faturaService.create(req.body, req.user?.id)
   res.status(201).json({ success: true, data })
 })
 
 export const updateFatura = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await faturaService.update(req.params.id, req.body)
+  const data = await faturaService.update(req.params.id, req.body, req.user?.id)
   res.json({ success: true, data })
 })
 

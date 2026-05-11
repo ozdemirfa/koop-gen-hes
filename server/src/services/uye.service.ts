@@ -145,12 +145,13 @@ export const uyeService = {
     return data
   },
 
-  async matchPaymentsFIFO(uyeId: string, projeId: string) {
+  async matchPaymentsFIFO(uyeId: string, projeId: string, actorId?: string) {
     if (!projeId) throw ApiError.badRequest('proje_id zorunludur')
-    
+
     const { data, error } = await supabaseAdmin.rpc('fn_match_member_payments_fifo', {
       p_proje_id: projeId,
-      p_uye_id: uyeId
+      p_uye_id: uyeId,
+      p_actor_id: actorId ?? null
     })
 
     if (error) {

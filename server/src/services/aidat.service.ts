@@ -144,9 +144,10 @@ export const aidatTanimiService = {
     return { success: true }
   },
 
-  async chargeTanim(id: string) {
+  async chargeTanim(id: string, actorId?: string) {
     const { data, error } = await supabaseAdmin.rpc('fn_charge_aidat_tanimi', {
-      p_tanim_id: id
+      p_tanim_id: id,
+      p_actor_id: actorId ?? null
     })
 
     if (error) {
@@ -162,15 +163,16 @@ export const aidatTanimiService = {
     return data
   },
 
-  async createYillikPlan(body: { proje_id: string, yil: number, kalemler: Partial<AidatTanimi>[] }) {
+  async createYillikPlan(body: { proje_id: string, yil: number, kalemler: Partial<AidatTanimi>[] }, actorId?: string) {
     const { proje_id, yil, kalemler } = body
-    
+
     try {
       // Use RPC for atomic database transaction
       const { data, error } = await supabaseAdmin.rpc('create_yillik_aidat_plani', {
         p_proje_id: proje_id,
         p_yil: yil,
-        p_kalemler: kalemler
+        p_kalemler: kalemler,
+        p_actor_id: actorId ?? null
       })
 
       if (error) {
@@ -194,9 +196,10 @@ export const aidatTanimiService = {
     }
   },
 
-  async executeCharging(date?: string) {
+  async executeCharging(date?: string, actorId?: string) {
     const { data, error } = await supabaseAdmin.rpc('fn_execute_aidat_charging', {
-      p_date: date || new Date().toISOString().split('T')[0]
+      p_date: date || new Date().toISOString().split('T')[0],
+      p_actor_id: actorId ?? null
     })
 
     if (error) {
@@ -208,9 +211,10 @@ export const aidatTanimiService = {
     return data
   },
 
-  async bulkChargeInterest(aidatIds: string[]) {
+  async bulkChargeInterest(aidatIds: string[], actorId?: string) {
     const { data, error } = await supabaseAdmin.rpc('fn_bulk_charge_interest', {
-      p_aidat_ids: aidatIds
+      p_aidat_ids: aidatIds,
+      p_actor_id: actorId ?? null
     })
 
     if (error) {
@@ -321,7 +325,7 @@ export const aidatService = {
     }
   },
 
-  async recordPayment(aidatId: string, body: Record<string, any>) {
+  async recordPayment(aidatId: string, body: Record<string, any>, actorId?: string) {
     // Önce aidatın varlığını ve durumunu kontrol et
     const { data: aidat, error: getError } = await supabaseAdmin
       .from('aidat_detaylari')
@@ -355,7 +359,8 @@ export const aidatService = {
       belge_no: body.makbuz_no,
       banka_hesap_id: body.banka_hesap_id,
       kaynak_tipi: 'aidat',
-      kaynak_id: aidat.id
+      kaynak_id: aidat.id,
+      actorId
     })
 
     // Toplam ödenen tutarı cari_hareketler üzerinden hesaplayıp durumu güncelle
@@ -441,11 +446,14 @@ export const aidatService = {
     return { message: 'Gecikme faizleri hesaplandı' }
   },
 
-  async calculateSingleLateFee(id: string) {
+  async calculateSingleLateFee(id: string, actorId?: string) {
     // Bu metod için de oran kontrolü eklenebilir ama tekil aidat için tanımı bulmak gerekir
     // fn_calculate_single_aidat_late_fee içindeki SQL zaten güncel oran neyse onu alır.
     // getSummary veya calculateLateFees çalışınca zaten oranlar güncellenmiş olacak.
-    const { data, error } = await supabaseAdmin.rpc('fn_calculate_single_aidat_late_fee', { p_aidat_id: id })
+    const { data, error } = await supabaseAdmin.rpc('fn_calculate_single_aidat_late_fee', {
+      p_aidat_id: id,
+      p_actor_id: actorId ?? null
+    })
     if (error) {
       logger.error(`Tekil gecikme faizi hesaplama hatası (ID: ${id}):`, error)
       throw error
@@ -453,10 +461,11 @@ export const aidatService = {
     return data
   },
 
-  async toggleInterest(id: string, active: boolean) {
-    const { data, error } = await supabaseAdmin.rpc('fn_toggle_aidat_faiz', { 
-      p_aidat_id: id, 
-      p_active: active 
+  async toggleInterest(id: string, active: boolean, actorId?: string) {
+    const { data, error } = await supabaseAdmin.rpc('fn_toggle_aidat_faiz', {
+      p_aidat_id: id,
+      p_active: active,
+      p_actor_id: actorId ?? null
     })
 
     if (error) {
@@ -471,7 +480,7 @@ export const aidatService = {
     return data
   },
 
-  async recordBulkPayment(uyeId: string, body: { proje_id?: string, tutar: number, odeme_tarihi: string, odeme_yontemi: string, makbuz_no?: string, aciklama?: string }) {
+  async recordBulkPayment(uyeId: string, body: { proje_id?: string, tutar: number, odeme_tarihi: string, odeme_yontemi: string, makbuz_no?: string, aciklama?: string }, actorId?: string) {
     const { tutar, proje_id, ...odemeMeta } = body
     let kalanTutar = tutar
 
@@ -544,7 +553,8 @@ export const aidatService = {
           aciklama: odemeMeta.aciklama || `${aidat.ay}/${aidat.yil} Aidat Tahsilatı`,
           belge_no: odemeMeta.makbuz_no,
           kaynak_tipi: 'aidat',
-          kaynak_id: aidat.id
+          kaynak_id: aidat.id,
+          actorId
         })
 
         kalanTutar = Math.round((kalanTutar - odenecekTutar) * 100) / 100

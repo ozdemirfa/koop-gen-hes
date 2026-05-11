@@ -41,25 +41,27 @@ export const faturaService = {
     return data
   },
 
-  async create(body: Record<string, any>) {
+  async create(body: Record<string, any>, actorId?: string) {
     const { kalemler, ...masterData } = body
 
     const { data, error } = await supabaseAdmin.rpc('fn_create_fatura_atomic', {
       p_master: masterData,
-      p_kalemler: kalemler ?? null
+      p_kalemler: kalemler ?? null,
+      p_actor_id: actorId ?? null
     })
 
     if (error) throw error
     return data
   },
 
-  async update(id: string, body: Record<string, any>) {
+  async update(id: string, body: Record<string, any>, actorId?: string) {
     const { kalemler, ...masterData } = body
 
     const { data, error } = await supabaseAdmin.rpc('fn_update_fatura_atomic', {
       p_id: id,
       p_master: masterData,
-      p_kalemler: kalemler ?? null
+      p_kalemler: kalemler ?? null,
+      p_actor_id: actorId ?? null
     })
 
     if (error) {

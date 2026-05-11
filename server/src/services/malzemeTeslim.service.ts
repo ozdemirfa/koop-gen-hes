@@ -39,12 +39,13 @@ export const malzemeTeslimService = {
     return data
   },
 
-  async create(body: Record<string, any>) {
+  async create(body: Record<string, any>, actorId?: string) {
     const { kalemler, ...masterData } = body
 
     const { data: irsaliye, error: irsaliyeError } = await supabaseAdmin.rpc('fn_create_irsaliye_atomic', {
       p_master_data: masterData,
-      p_kalemler: kalemler || []
+      p_kalemler: kalemler || [],
+      p_actor_id: actorId ?? null
     })
 
     if (irsaliyeError) throw irsaliyeError

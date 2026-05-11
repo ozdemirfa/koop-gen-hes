@@ -14,7 +14,7 @@ export const getMalzemeTeslimById = catchAsync(async (req: AuthRequest<any, any,
 })
 
 export const createMalzemeTeslim = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await malzemeTeslimService.create(req.body)
+  const data = await malzemeTeslimService.create(req.body, req.user?.id)
   res.status(201).json({ success: true, data })
 })
 

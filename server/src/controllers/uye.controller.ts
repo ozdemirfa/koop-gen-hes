@@ -35,12 +35,12 @@ export const getUyeAidatlar = catchAsync(async (req: AuthRequest<{ id: string },
 })
 
 export const bulkPayment = catchAsync(async (req: AuthRequest<{ id: string }, any, any, any>, res: Response) => {
-  const data = await aidatService.recordBulkPayment(req.params.id, req.body)
+  const data = await aidatService.recordBulkPayment(req.params.id, req.body, req.user?.id)
   res.json({ success: true, data })
 })
 
 export const matchPaymentsFIFO = catchAsync(async (req: AuthRequest<{ id: string }, any, any, any>, res: Response) => {
   const { proje_id } = req.query
-  const data = await uyeService.matchPaymentsFIFO(req.params.id, proje_id as string)
+  const data = await uyeService.matchPaymentsFIFO(req.params.id, proje_id as string, req.user?.id)
   res.json({ success: true, data })
 })

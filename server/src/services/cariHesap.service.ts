@@ -187,9 +187,10 @@ export const cariHesapService = {
     return hareket;
   },
 
-  async undoClosure(id: string) {
+  async undoClosure(id: string, actorId?: string) {
     const { data, error } = await supabaseAdmin.rpc('fn_undo_payment_match', {
-      p_movement_id: id
+      p_movement_id: id,
+      p_actor_id: actorId ?? null
     });
 
     if (error) throw error;
@@ -200,9 +201,10 @@ export const cariHesapService = {
     return data;
   },
 
-  async undoHakedisClosure(id: string) {
+  async undoHakedisClosure(id: string, actorId?: string) {
     const { data, error } = await supabaseAdmin.rpc('fn_undo_hakedis_closure', {
-      p_hakedis_id: id
+      p_hakedis_id: id,
+      p_actor_id: actorId ?? null
     });
 
     if (error) throw error;
@@ -213,10 +215,11 @@ export const cariHesapService = {
     return data;
   },
 
-  async performFifoClosure(projeId: string) {
+  async performFifoClosure(projeId: string, actorId?: string) {
     try {
       const { data, error } = await supabaseAdmin.rpc('fn_match_project_payments_fifo', {
-        p_proje_id: projeId
+        p_proje_id: projeId,
+        p_actor_id: actorId ?? null
       });
 
       if (error) {
