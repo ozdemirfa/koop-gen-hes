@@ -308,9 +308,11 @@ export const projeService = {
 
   // Yıllık harcama planı
   async getYillikPlan(projeId: string, yil: number) {
+    // REV-PLAN-01: Adet × Birim Fiyat sekmesinde input default'u harcama kaleminin
+    // master birim fiyatı olabilsin diye proje_is_kalemleri.birim_fiyat join'e eklendi.
     const { data: plan, error } = await supabaseAdmin
       .from('yillik_harcama_planlari')
-      .select('*, yillik_plan_kalemleri(*, proje_is_kalemleri(kalem_kodu, tanim))')
+      .select('*, yillik_plan_kalemleri(*, proje_is_kalemleri(kalem_kodu, tanim, birim_fiyat))')
       .eq('proje_id', projeId)
       .eq('yil', yil)
       .maybeSingle()

@@ -158,6 +158,9 @@ export const YillikPlanPage: React.FC = () => {
           kalem_id: pk.proje_is_kalemi_id,
           kalem_kodu: pk.proje_is_kalemleri.kalem_kodu,
           tanim: pk.proje_is_kalemleri.tanim,
+          // REV-PLAN-02: Adet sekmesi birim fiyat input'u, kayıtlı değer yoksa
+          // harcama kaleminin master birim_fiyat değerini default olarak gösterir.
+          varsayilan_birim_fiyat: pk.proje_is_kalemleri.birim_fiyat ?? null,
           aylar: {}
         }
       }
@@ -351,8 +354,12 @@ export const YillikPlanPage: React.FC = () => {
 
         const adet =
           editingAdet[pk.id] !== undefined ? editingAdet[pk.id] : (pk.planlanan_adet ?? null)
+        // REV-PLAN-02: kullanıcının kayıtlı değeri yoksa harcama kaleminin master birim
+        // fiyatını default olarak göster. Kullanıcı kaydederse planlanan_birim_fiyat DB'ye yazılır.
         const fiyat =
-          editingFiyat[pk.id] !== undefined ? editingFiyat[pk.id] : (pk.planlanan_birim_fiyat ?? null)
+          editingFiyat[pk.id] !== undefined
+            ? editingFiyat[pk.id]
+            : (pk.planlanan_birim_fiyat ?? record.varsayilan_birim_fiyat ?? null)
         const hesaplanan =
           adet != null && fiyat != null ? Math.round(Number(adet) * Number(fiyat) * 100) / 100 : null
 

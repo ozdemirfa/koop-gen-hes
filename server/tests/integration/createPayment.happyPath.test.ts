@@ -143,16 +143,18 @@ describe('POST /api/cari-hareketler/payment (happy path)', () => {
     expect(res.status).toBe(400)
   })
 
-  it('uyelik_baslangic + banka_hesap_id → 400 (superRefine reddi)', async () => {
+  // REV-PAY-03 (2026-05-12): uyelik_baslangic hibrit semantik kazandı. Banka path
+  // artık tahsilat olarak kabul edilir (önceki superRefine yasağı kaldırıldı).
+  it('uyelik_baslangic + banka_hesap_id → 201 (tahsilat path)', async () => {
     currentUser = { id: 'u-staff', role: 'staff' }
     const res = await request(app)
       .post('/api/cari-hareketler/payment')
       .send({
         ...validPayload,
         islem_turu: 'uyelik_baslangic',
-        odeme_turu: 'cari',
+        odeme_turu: 'banka',
         banka_hesap_id: 'a3333333-3333-4333-a333-333333333333',
       })
-    expect(res.status).toBe(400)
+    expect(res.status).toBe(201)
   })
 })

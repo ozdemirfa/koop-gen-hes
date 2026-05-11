@@ -14,12 +14,17 @@ export const cariHareketSchema = z.object({
   belge_no: z.string().optional().nullable()
 }).strict()
 
-// TASK-BE-04 (sprint 20260511-backlog-batch1):
-// Defense-in-depth for cari payment schema. uyelik_baslangic is a pure accrual,
-// iade_odeme must hit a real money path, çek requires vade_tarihi at the schema
-// level so server-side defaults can no longer mask a frontend bug. tutar has a
-// 1 billion TRY upper bound to limit audit-log blast radius from a malicious
-// or buggy client.
+// REV-PAY-03 (2026-05-12):
+// uyelik_baslangic semantiği hibrit hale getirildi (TASK-BE-04 tasarımı revize edildi):
+//   * odeme_turu='cari'                       → TAHAKKUK (banka hareketi yok, cari'de alacak)
+//   * odeme_turu IN ('banka','nakit','kredi_karti','cek')  → TAHSİLAT (cari'de borc + banka/çek hareketi)
+// Tahakkuk girişi artık Üye Detay'daki "Başlangıç Bedeli Tahakkuk Et" modal'ından
+// (odeme_turu='cari' ile) yapılır; OdemeKayit sayfasında banka seçimi de mümkündür.
+// Eski yasak kuralları (banka_hesap_id/cek_id/vade_tarihi/banka/sube/odeme_turu) kaldırıldı.
+//
+// iade_odeme hâlâ 'cari' kabul etmez (gerçek para çıkışı zorunlu).
+// Çek için vade_tarihi zorunluluğu korunur.
+// tutar 1 milyar TL üst sınırı korunur.
 export const TUTAR_UPPER_BOUND = 1_000_000_000
 
 export const cariPaymentSchema = z.object({
@@ -40,61 +45,13 @@ export const cariPaymentSchema = z.object({
   banka: z.string().optional().nullable(),
   sube: z.string().optional().nullable(),
 }).superRefine((data, ctx) => {
-  // uyelik_baslangic sadece tahakkuk kaydı — banka/çek/vade alanları yasak
-  if (data.islem_turu === 'uyelik_baslangic') {
-    if (data.banka_hesap_id) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['banka_hesap_id'],
-        message: 'uyelik_baslangic için banka_hesap_id gönderilemez',
-      })
-    }
-    if (data.cek_id) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['cek_id'],
-        message: 'uyelik_baslangic için cek_id gönderilemez',
-      })
-    }
-    if (data.vade_tarihi) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['vade_tarihi'],
-        message: 'uyelik_baslangic için vade_tarihi gönderilemez',
-      })
-    }
-    if (data.banka) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['banka'],
-        message: 'uyelik_baslangic için banka adı alanı gönderilemez',
-      })
-    }
-    if (data.sube) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['sube'],
-        message: 'uyelik_baslangic için şube alanı gönderilemez',
-      })
-    }
-    if (data.odeme_turu === 'banka' || data.odeme_turu === 'cek') {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['odeme_turu'],
-        message: "uyelik_baslangic için odeme_turu 'cari' veya 'nakit' olmalı (banka/cek değil)",
-      })
-    }
-  }
-
   // iade_odeme gerçek bir para hareketi olmalı — kasa/banka/çek/kart geçer, 'cari' değil
-  if (data.islem_turu === 'iade_odeme') {
-    if (data.odeme_turu === 'cari') {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['odeme_turu'],
-        message: "iade_odeme için odeme_turu 'cari' olamaz — gerçek bir para çıkışı (banka/nakit/çek/kredi_karti) zorunlu",
-      })
-    }
+  if (data.islem_turu === 'iade_odeme' && data.odeme_turu === 'cari') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['odeme_turu'],
+      message: "iade_odeme için odeme_turu 'cari' olamaz — gerçek bir para çıkışı (banka/nakit/çek/kredi_karti) zorunlu",
+    })
   }
 
   // Çek ödemesi için vade_tarihi zorunlu — server-default vade tarihi finansal kaydı bozar
@@ -103,6 +60,15 @@ export const cariPaymentSchema = z.object({
       code: z.ZodIssueCode.custom,
       path: ['vade_tarihi'],
       message: 'Çek ödemesi için vade_tarihi zorunludur',
+    })
+  }
+
+  // Banka ödemesinde banka_hesap_id zorunlu (defense-in-depth — frontend de Form rule koyuyor)
+  if (data.odeme_turu === 'banka' && !data.banka_hesap_id) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['banka_hesap_id'],
+      message: 'Banka ödemesi için banka_hesap_id zorunludur',
     })
   }
 })

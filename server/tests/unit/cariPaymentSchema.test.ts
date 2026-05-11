@@ -33,12 +33,15 @@ describe('cariPaymentSchema', () => {
     expect(result.success).toBe(true)
   })
 
-  it('rejects uyelik_baslangic with banka_hesap_id (no banka movement allowed)', () => {
+  // REV-PAY-03 (2026-05-12): uyelik_baslangic hibrit semantik — TAHAKKUK (cari) +
+  // TAHSILAT (banka/nakit/cek/kredi_karti) artık ikisi de geçerli. Eski TASK-BE-04
+  // yasak kuralları kaldırıldı.
+  it('accepts uyelik_baslangic with banka_hesap_id (tahsilat path)', () => {
     const result = cariPaymentSchema.safeParse({
       ...baseValid,
       islem_turu: 'uyelik_baslangic',
     })
-    expect(result.success).toBe(false)
+    expect(result.success).toBe(true)
   })
 
   it('rejects unknown islem_turu', () => {
@@ -46,54 +49,67 @@ describe('cariPaymentSchema', () => {
     expect(result.success).toBe(false)
   })
 
-  // === TASK-BE-04 — extra defense-in-depth (sprint 20260511-backlog-batch1) ===
+  // === REV-PAY-03 — hibrit semantik testleri ===
 
-  it('rejects uyelik_baslangic with cek_id (sales channel not allowed for accrual)', () => {
+  it('accepts uyelik_baslangic with cek_id + vade_tarihi (tahsilat path)', () => {
     const result = cariPaymentSchema.safeParse({
       ...baseValid,
       banka_hesap_id: undefined,
-      odeme_turu: 'cari',
+      odeme_turu: 'cek',
       islem_turu: 'uyelik_baslangic',
       cek_id: VALID_CEK_ID,
+      vade_tarihi: '2026-06-01',
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts uyelik_baslangic with vade_tarihi on cek path', () => {
+    const result = cariPaymentSchema.safeParse({
+      ...baseValid,
+      banka_hesap_id: undefined,
+      odeme_turu: 'cek',
+      islem_turu: 'uyelik_baslangic',
+      vade_tarihi: '2026-06-01',
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts uyelik_baslangic with banka (bank name) field on cek path', () => {
+    const result = cariPaymentSchema.safeParse({
+      ...baseValid,
+      banka_hesap_id: undefined,
+      odeme_turu: 'cek',
+      vade_tarihi: '2026-06-30',
+      islem_turu: 'uyelik_baslangic',
+      banka: 'Garanti BBVA',
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts uyelik_baslangic with sube field on cek path', () => {
+    const result = cariPaymentSchema.safeParse({
+      ...baseValid,
+      banka_hesap_id: undefined,
+      odeme_turu: 'cek',
+      vade_tarihi: '2026-06-30',
+      islem_turu: 'uyelik_baslangic',
+      sube: 'Kadıköy',
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects banka payment without banka_hesap_id (defense-in-depth)', () => {
+    const { banka_hesap_id, ...minimal } = baseValid
+    const result = cariPaymentSchema.safeParse({
+      ...minimal,
+      islem_turu: 'gelen_odeme',
+      odeme_turu: 'banka',
     })
     expect(result.success).toBe(false)
     if (!result.success) {
       const message = result.error.issues.map((i) => i.message).join(' ')
-      expect(message).toMatch(/uyelik_baslangic/i)
+      expect(message).toMatch(/banka_hesap_id/i)
     }
-  })
-
-  it('rejects uyelik_baslangic with vade_tarihi (no due-date semantics for accrual)', () => {
-    const result = cariPaymentSchema.safeParse({
-      ...baseValid,
-      banka_hesap_id: undefined,
-      odeme_turu: 'cari',
-      islem_turu: 'uyelik_baslangic',
-      vade_tarihi: '2026-06-01',
-    })
-    expect(result.success).toBe(false)
-  })
-
-  it('rejects uyelik_baslangic with banka (bank name) field set', () => {
-    const result = cariPaymentSchema.safeParse({
-      ...baseValid,
-      banka_hesap_id: undefined,
-      odeme_turu: 'cari',
-      islem_turu: 'uyelik_baslangic',
-      banka: 'Garanti BBVA',
-    })
-    expect(result.success).toBe(false)
-  })
-
-  it('rejects uyelik_baslangic with sube field set', () => {
-    const result = cariPaymentSchema.safeParse({
-      ...baseValid,
-      banka_hesap_id: undefined,
-      odeme_turu: 'cari',
-      islem_turu: 'uyelik_baslangic',
-      sube: 'Kadıköy',
-    })
-    expect(result.success).toBe(false)
   })
 
   it('rejects iade_odeme with odeme_turu=cari (refund must hit a bank/nakit/cek path)', () => {
