@@ -135,7 +135,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-COMMENT ON FUNCTION public.fn_create_fatura_atomic IS
+COMMENT ON FUNCTION public.fn_create_fatura_atomic(JSONB, JSONB, UUID) IS
   'Fatura + kalemler + (gelen ise) cari hareket atomik. p_actor_id verilirse'
   ' app.actor_id session var set edilir; audit trigger bu degeri okur.';
 
@@ -274,7 +274,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-COMMENT ON FUNCTION public.fn_update_fatura_atomic IS
+COMMENT ON FUNCTION public.fn_update_fatura_atomic(UUID, JSONB, JSONB, UUID) IS
   'Fatura + kalemler + cari hareket guncelleme atomik. p_actor_id verilirse'
   ' app.actor_id session var set edilir; audit trigger bu degeri okur.';
 
@@ -356,7 +356,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-COMMENT ON FUNCTION public.fn_charge_aidat_tanimi IS
+COMMENT ON FUNCTION public.fn_charge_aidat_tanimi(UUID, UUID) IS
   'Aidat tanimi manuel borclandirma + her daire icin aidat + cari hareket. '
   'p_actor_id verilirse app.actor_id session var set edilir.';
 
@@ -423,7 +423,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-COMMENT ON FUNCTION public.create_yillik_aidat_plani IS
+COMMENT ON FUNCTION public.create_yillik_aidat_plani(UUID, INTEGER, JSONB, UUID) IS
   'Yillik aidat plani UPSERT. p_actor_id verilirse app.actor_id session var set edilir.';
 
 -- =====================================================================
@@ -473,7 +473,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-COMMENT ON FUNCTION public.fn_execute_aidat_charging IS
+COMMENT ON FUNCTION public.fn_execute_aidat_charging(DATE, UUID) IS
   'Plan asamasindaki tum aidat tanimlarini sirayla borclandir. '
   'p_actor_id verilirse app.actor_id session var set edilir + alt RPC''ye iletilir.';
 
@@ -559,7 +559,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-COMMENT ON FUNCTION public.fn_bulk_charge_interest IS
+COMMENT ON FUNCTION public.fn_bulk_charge_interest(UUID[], UUID) IS
   'Coklu aidat icin faiz tahakkuku. p_actor_id verilirse app.actor_id session var set edilir.';
 
 -- =====================================================================
@@ -658,7 +658,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-COMMENT ON FUNCTION public.fn_toggle_aidat_faiz IS
+COMMENT ON FUNCTION public.fn_toggle_aidat_faiz(UUID, BOOLEAN, UUID) IS
   'Aidat faiz yansitma toggle (security check ile). p_actor_id verilirse app.actor_id set edilir.';
 
 -- =====================================================================
@@ -759,7 +759,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-COMMENT ON FUNCTION public.fn_calculate_single_aidat_late_fee IS
+COMMENT ON FUNCTION public.fn_calculate_single_aidat_late_fee(UUID, UUID) IS
   'Tek aidat icin gecikme faizi hesapla (faiz_yansitildi uyumlu). p_actor_id verilirse app.actor_id set edilir.';
 
 -- =====================================================================
@@ -813,7 +813,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-COMMENT ON FUNCTION public.fn_create_irsaliye_atomic IS
+COMMENT ON FUNCTION public.fn_create_irsaliye_atomic(JSONB, JSONB, UUID) IS
   'Irsaliye + kalemler atomik. p_actor_id verilirse app.actor_id set edilir.';
 
 -- =====================================================================
@@ -921,7 +921,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-COMMENT ON FUNCTION public.fn_match_member_payments_fifo IS
+COMMENT ON FUNCTION public.fn_match_member_payments_fifo(UUID, UUID, UUID) IS
   'Uye bazli FIFO odeme eslestirme. p_actor_id verilirse app.actor_id set edilir.';
 
 -- =====================================================================
@@ -963,7 +963,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-COMMENT ON FUNCTION public.fn_match_project_payments_fifo IS
+COMMENT ON FUNCTION public.fn_match_project_payments_fifo(UUID, UUID) IS
   'Proje bazli FIFO eslestirme (uye + firma). p_actor_id verilirse app.actor_id set edilir + alt member RPC''ye iletilir.';
 
 -- =====================================================================
@@ -1035,7 +1035,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-COMMENT ON FUNCTION public.fn_undo_payment_match IS
+COMMENT ON FUNCTION public.fn_undo_payment_match(UUID, UUID) IS
   'Eslesme geri al + ilgili aidat/hakedis durum revert. p_actor_id verilirse app.actor_id set edilir.';
 
 -- =====================================================================
@@ -1073,7 +1073,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-COMMENT ON FUNCTION public.fn_undo_hakedis_closure IS
+COMMENT ON FUNCTION public.fn_undo_hakedis_closure(UUID, UUID) IS
   'Hakedis closure undo (tum eslemeleri serbest birak). p_actor_id verilirse app.actor_id set edilir.';
 
 COMMIT;
