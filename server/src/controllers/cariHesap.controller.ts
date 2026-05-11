@@ -65,3 +65,30 @@ export const undoHakedisClosure = catchAsync(
   }
 )
 
+// A3 (sprint 20260511-uye-tahsilat-firma-revisions): aidat satırı bazında toplu undo.
+export const undoAidatClosure = catchAsync(
+  async (req: AuthRequest<{ aidatId: string }>, res: Response) => {
+    const { aidatId } = req.params
+    const data = await cariHesapService.undoAidatClosure(aidatId, req.user?.id)
+    res.json(data)
+  }
+)
+
+// B2 (sprint 20260511-uye-tahsilat-firma-revisions): tahsilat satırı düzenle.
+export const updateCariHareket = catchAsync(
+  async (req: AuthRequest<{ id: string }, unknown, Record<string, unknown>>, res: Response) => {
+    const { id } = req.params
+    const data = await cariHesapService.update(id, req.body as Record<string, any>)
+    res.json({ success: true, data })
+  }
+)
+
+// B1 + B3 (sprint 20260511-uye-tahsilat-firma-revisions): tahsilat satırı sil.
+export const deleteCariHareket = catchAsync(
+  async (req: AuthRequest<{ id: string }>, res: Response) => {
+    const { id } = req.params
+    const data = await cariHesapService.delete(id)
+    res.json(data)
+  }
+)
+

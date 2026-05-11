@@ -47,7 +47,18 @@ export const UyeDetailPage: React.FC = () => {
   const { message: messageApi } = App.useApp()
   const isTouchDevice = useIsTouchDevice()
 
-  // Undo Match Mutation
+  // Helper: tüm cache invalidation sweep'i (undo + match sonrası ortak).
+  const invalidateAllPaymentCaches = () => {
+    queryClient.invalidateQueries({ queryKey: ['uye', id] })
+    queryClient.invalidateQueries({ queryKey: ['uye-aidatlar', id] })
+    queryClient.invalidateQueries({ queryKey: ['uye-odemeler', id] })
+    queryClient.invalidateQueries({ queryKey: ['aidatlar'] })
+    queryClient.invalidateQueries({ queryKey: ['aidat-ozet'] })
+    queryClient.invalidateQueries({ queryKey: ['cari-ekstre'] })
+    queryClient.invalidateQueries({ queryKey: ['dashboard-ozet'] })
+  }
+
+  // Undo Match Mutation (ödeme satırı bazında)
   const undoMatchMutation = useMutation({
     mutationFn: async (movementId: string) => {
       const { data } = await api.post(`/cari-hareketler/${movementId}/undo-closure`)
@@ -55,17 +66,22 @@ export const UyeDetailPage: React.FC = () => {
     },
     onSuccess: () => {
       messageApi.success('Eşleşme başarıyla kaldırıldı')
-      // A1 (2026-05-12): kart özetlerinin (dashboard, aidat-ozet) ve cari ekstresinin
-      // de güncellenmesi için sweep'i genişlet.
-      queryClient.invalidateQueries({ queryKey: ['uye', id] })
-      queryClient.invalidateQueries({ queryKey: ['uye-aidatlar', id] })
-      queryClient.invalidateQueries({ queryKey: ['uye-odemeler', id] })
-      queryClient.invalidateQueries({ queryKey: ['aidatlar'] })
-      queryClient.invalidateQueries({ queryKey: ['aidat-ozet'] })
-      queryClient.invalidateQueries({ queryKey: ['cari-ekstre'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard-ozet'] })
+      invalidateAllPaymentCaches()
     },
     onError: (err) => messageApi.error(getErrorMessage(err))
+  })
+
+  // A3 (sprint 20260511-uye-tahsilat-firma-revisions): aidat satırı bazında toplu undo.
+  const undoAidatMutation = useMutation({
+    mutationFn: async (aidatId: string) => {
+      const { data } = await api.post(`/cari-hareketler/aidat/${aidatId}/undo-closure`)
+      return data
+    },
+    onSuccess: (resp: any) => {
+      messageApi.success(resp?.message || 'Aidat kapama başarıyla geri alındı')
+      invalidateAllPaymentCaches()
+    },
+    onError: (err) => messageApi.error(getErrorMessage(err, 'Kapama iptal edilemedi'))
   })
 
   // Üye detaylarını getir
@@ -204,6 +220,49 @@ export const UyeDetailPage: React.FC = () => {
       dataIndex: 'durum',
       key: 'durum',
       render: (d: string) => <Tag color={aidatDurumRenk[d] || 'default'}>{d.toUpperCase()}</Tag>,
+    },
+    {
+      // A3 (sprint 20260511-uye-tahsilat-firma-revisions): aidat satırı bazında
+      // toplu kapama iptal. toplam_odenen > 0 olan satırlarda undo butonu görünür.
+      title: 'İşlem',
+      key: 'aidat_action',
+      width: 80,
+      render: (_: unknown, r: AidatOdeme) => {
+        const odenen = Number(r.toplam_odenen ?? r.dinamik_odenen_tutar ?? r.odenen_tutar ?? 0)
+        if (odenen <= 0) {
+          return (
+            <Tooltip
+              trigger={isTouchDevice ? ['click', 'hover'] : ['hover']}
+              title="Bu aidata henüz bir ödeme eşleştirilmemiş, geri alınacak kapama yok."
+            >
+              <InfoCircleOutlined
+                style={{ color: '#bfbfbf', cursor: isTouchDevice ? 'pointer' : 'help' }}
+                aria-label="Bu aidat için kapama iptal edilemez"
+              />
+            </Tooltip>
+          )
+        }
+        return (
+          <Popconfirm
+            title="Aidat Kapamayı Geri Al"
+            description="Bu aidata bağlı tüm ödeme eşleşmeleri kaldırılacak ve durum yeniden hesaplanacak. Emin misiniz?"
+            onConfirm={() => undoAidatMutation.mutate(r.id)}
+            okText="Evet, Geri Al"
+            cancelText="Vazgeç"
+            okButtonProps={{ danger: true }}
+          >
+            <Button
+              type="text"
+              size="small"
+              danger
+              icon={<RollbackOutlined />}
+              loading={undoAidatMutation.isPending && undoAidatMutation.variables === r.id}
+              title="Kapama Geri Al"
+              aria-label="Aidat kapamayı geri al"
+            />
+          </Popconfirm>
+        )
+      },
     },
   ]
 

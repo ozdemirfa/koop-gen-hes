@@ -135,6 +135,76 @@ export const cariHesapService = {
     return data
   },
 
+  // B2 (sprint 20260511-uye-tahsilat-firma-revisions): tahsilat satırı düzenleme.
+  // Sadece "açıklama, tarih, belge_no, tutar (borc/alacak)" gibi metadata alanlarına
+  // izin verilir. Eşleştirme alanlarına (kaynak_tipi/kaynak_id) dokunulmaz —
+  // kapatma bağı varsa kullanıcı önce A3/undo flow'unu kullanmalı.
+  async update(id: string, body: Record<string, any>) {
+    // Whitelist: sadece güvenli alanlar
+    const allowed = ['aciklama', 'tarih', 'belge_no', 'borc', 'alacak', 'odeme_turu', 'banka_hesap_id']
+    const patch: Record<string, any> = {}
+    for (const k of allowed) {
+      if (k in body) patch[k] = body[k]
+    }
+
+    // B3: kapatılmış (eşleşmiş) hareket düzenlenemez — tutar değişikliği
+    // aidat/hakedis durumunu bozar.
+    const { data: existing, error: fetchErr } = await supabaseAdmin
+      .from('cari_hareketler')
+      .select('id, kaynak_tipi, kaynak_id')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (fetchErr) throw fetchErr
+    if (!existing) throw ApiError.notFound('Cari hareket bulunamadı')
+
+    if (existing.kaynak_tipi && existing.kaynak_id) {
+      // Tutar değişikliği yasak; sadece açıklama/belge_no/tarih ile sınırla.
+      if ('borc' in patch || 'alacak' in patch || 'odeme_turu' in patch || 'banka_hesap_id' in patch) {
+        throw ApiError.conflict(
+          'Bu kayıt bir aidat/hakediş ile eşleştirildiği için tutar veya ödeme yöntemi değiştirilemez. Önce hesap kapamayı geri alın.'
+        )
+      }
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('cari_hareketler')
+      .update(patch)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  // B1 + B3 (sprint 20260511-uye-tahsilat-firma-revisions): tahsilat satırı sil.
+  // Kapatılmış (kaynak_id NOT NULL) bir hareket doğrudan silinemez — 409 + Türkçe mesaj.
+  async delete(id: string) {
+    const { data: existing, error: fetchErr } = await supabaseAdmin
+      .from('cari_hareketler')
+      .select('id, kaynak_tipi, kaynak_id, islem_turu')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (fetchErr) throw fetchErr
+    if (!existing) throw ApiError.notFound('Cari hareket bulunamadı')
+
+    if (existing.kaynak_tipi && existing.kaynak_id) {
+      throw ApiError.conflict(
+        'Bu tahsilat bir aidat/hakediş ile eşleştirilmiş ve doğrudan silinemez. Önce hesap kapamayı geri alın.'
+      )
+    }
+
+    const { error } = await supabaseAdmin
+      .from('cari_hareketler')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+    return { success: true, message: 'Tahsilat kaydı silindi.' }
+  },
+
   // TASK-BE-07 (sprint 20260511-backlog-batch1):
   // Çek path'i kendi metoduna ayrıldı. createPayment artık sadece dispatcher.
   async createPayment(paymentData: PaymentInput) {
@@ -255,6 +325,23 @@ export const cariHesapService = {
     const { data, error } = await supabaseAdmin.rpc('fn_undo_hakedis_closure', {
       p_hakedis_id: id,
       p_actor_id: actorId ?? null
+    });
+
+    if (error) throw error;
+    if (data && data.success === false) {
+      throw new ApiError(400, data.message);
+    }
+
+    return data;
+  },
+
+  // A3 (sprint 20260511-uye-tahsilat-firma-revisions): Aidat satırı bazında toplu undo.
+  // RPC fn_undo_aidat_closure ile bir aidata bağlı tüm cari_hareketler eşleşmelerini
+  // tek transaction'da temizler, aidat durumunu yeniden hesaplar.
+  async undoAidatClosure(aidatId: string, actorId?: string) {
+    const { data, error } = await supabaseAdmin.rpc('fn_undo_aidat_closure', {
+      p_aidat_id: aidatId,
+      p_actor_id: actorId ?? null,
     });
 
     if (error) throw error;

@@ -24,6 +24,7 @@ import { HakedisDetailPage } from './pages/hakedisler/HakedisDetailPage'
 import { FaturaListPage } from './pages/faturalar/FaturaListPage'
 import { CariEkstrePage } from './pages/cariHesap/CariEkstrePage'
 import { OdemeKayit } from './pages/cariHesap/OdemeKayit'
+import { TahsilatListPage } from './pages/cariHesap/TahsilatListPage'
 import { BankaHesapListPage } from './pages/bankaHesap/BankaHesapListPage'
 import { BankaHareketleriPage } from './pages/bankaHesap/BankaHareketleriPage'
 import { MalzemeTeslimListPage } from './pages/malzemeTeslim/MalzemeTeslimListPage'
@@ -134,6 +135,8 @@ const App: React.FC = () => {
                         <Route path="firmalar/:id" element={<FirmaDetailPage />} />
                         <Route path="cari-hesaplar" element={<CariEkstrePage />} />
                         <Route path="cari-hesaplar/odeme-kayit" element={<OdemeKayit />} />
+                        <Route path="cari-hesaplar/tahsilatlar" element={<TahsilatListPage />} />
+                        <Route path="tahsilatlar" element={<TahsilatListPage />} />
                         <Route path="sozlesmeler/yeni" element={<SozlesmeFormPage />} />
                         <Route path="sozlesmeler/:id" element={<SozlesmeDetailPage />} />
                         <Route path="sozlesmeler/:id/duzenle" element={<SozlesmeFormPage />} />

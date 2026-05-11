@@ -73,7 +73,20 @@ export const SozlesmeFormPage: React.FC = () => {
     },
     onSuccess: (data) => {
       message.success(isEditing ? 'Sözleşme güncellendi' : 'Sözleşme oluşturuldu')
+      // C5 (sprint 20260511-uye-tahsilat-firma-revisions): düzenleme sonrası
+      // detay + iş kalemleri + hakediş tarafı + firma özet listeleri stale kalıyordu.
+      // Genişletilmiş invalidation sweep'i — predicate ile tüm 'sozlesme*' query'lerini yakala.
       queryClient.invalidateQueries({ queryKey: ['sozlesmeler'] })
+      queryClient.invalidateQueries({ queryKey: ['sozlesme', id] })
+      queryClient.invalidateQueries({ queryKey: ['is-kalemleri', id] })
+      queryClient.invalidateQueries({ queryKey: ['sozlesme-kalemleri', id] })
+      queryClient.invalidateQueries({ queryKey: ['sozlesmeler-select'] })
+      queryClient.invalidateQueries({ queryKey: ['firma-summary-stats'] })
+      // Firma sayfasındaki ['sozlesmeler', { firma_id, activeProjectId }] tuple key'i
+      // partial-match için predicate gerekiyor.
+      queryClient.invalidateQueries({
+        predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'sozlesmeler',
+      })
       const targetId = isEditing ? id : data.data?.id
       navigate(targetId ? `/sozlesmeler/${targetId}` : '/firmalar')
     },

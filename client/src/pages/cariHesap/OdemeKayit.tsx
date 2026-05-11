@@ -152,20 +152,25 @@ export const OdemeKayit: React.FC = () => {
                 label={
                   <Space size="small">
                     <span>Cari Hesap</span>
-                    <Radio.Group
-                      value={filterCariTuru}
-                      onChange={(e) => {
-                        setFilterCariTuru(e.target.value)
-                        form.setFieldValue('cari_hesap_id', undefined)
-                      }}
-                      buttonStyle="solid"
-                      size="small"
-                      disabled={islemTuru === 'iade_odeme' || islemTuru === 'uyelik_baslangic'}
+                    <span
+                      // Radio.Group antd6'da onClick prop tipi yok; wrapper'a taşıdık.
                       onClick={(e) => e.preventDefault()}
+                      style={{ display: 'inline-flex' }}
                     >
-                      <Radio.Button value="uye">Üyeler</Radio.Button>
-                      <Radio.Button value="firma">Firmalar</Radio.Button>
-                    </Radio.Group>
+                      <Radio.Group
+                        value={filterCariTuru}
+                        onChange={(e) => {
+                          setFilterCariTuru(e.target.value)
+                          form.setFieldValue('cari_hesap_id', undefined)
+                        }}
+                        buttonStyle="solid"
+                        size="small"
+                        disabled={islemTuru === 'iade_odeme' || islemTuru === 'uyelik_baslangic'}
+                      >
+                        <Radio.Button value="uye">Üyeler</Radio.Button>
+                        <Radio.Button value="firma">Firmalar</Radio.Button>
+                      </Radio.Group>
+                    </span>
                   </Space>
                 }
                 rules={[{ required: true, message: 'Lütfen bir cari hesap seçin' }]}
