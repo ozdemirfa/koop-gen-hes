@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 export const cekSchema = z.object({
   firma_id: z.string().uuid('Firma seçimi zorunlu'),
-  proje_id: z.string().uuid().optional().nullable(),
+  proje_id: z.string().uuid('Geçerli bir proje ID gereklidir'),
   cek_no: z.string().min(1, 'Çek no zorunlu'),
   banka: z.string().min(1, 'Banka adı zorunlu'),
   sube: z.string().optional().nullable(),

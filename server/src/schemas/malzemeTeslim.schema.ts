@@ -11,7 +11,7 @@ export const irsaliyeSchema = z.object({
   firma_id: z.string().uuid('Firma seçimi zorunlu'),
   sozlesme_id: z.string().uuid().optional().nullable(),
   hakedis_id: z.string().uuid().optional().nullable(),
-  proje_id: z.string().uuid().optional().nullable(),
+  proje_id: z.string().uuid('Geçerli bir proje ID gereklidir'),
   teslim_tarihi: z.string().optional(),
   irsaliye_no: z.string().optional().nullable(),
   teslim_alan: z.string().optional().nullable(),

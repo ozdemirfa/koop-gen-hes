@@ -12,7 +12,7 @@ export const faturaKalemiSchema = z.object({
 
 export const createFaturaSchema = z.object({
   firma_id: z.string().uuid('Firma seçimi zorunlu'),
-  proje_id: z.string().uuid().optional().nullable(),
+  proje_id: z.string().uuid('Geçerli bir proje ID gereklidir'),
   fatura_tipi: z.enum(FATURA_TIPLERI),
   fatura_no: z.string().min(1, 'Fatura no zorunlu'),
   fatura_tarihi: z.string(),
