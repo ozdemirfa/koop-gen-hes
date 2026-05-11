@@ -164,17 +164,24 @@ export const OdemeKayit: React.FC = () => {
                   allowClear
                   className="w-full"
                   suffixIcon={<AuditOutlined />}
+                  // U-11 (2026-05-11): `data.render` indirection kaldırıldı —
+                  // optionRender doğrudan option.data alanlarından (cariTuru, cariAdi)
+                  // JSX üretiyor. label alanı search/filter için string olarak kalır.
                   options={filteredAccounts?.map(acc => ({
                     value: acc.id,
                     label: `${acc.cari_adi} (${acc.cari_turu === 'uye' ? 'Üye' : 'Firma'})`,
-                    render: (
-                      <Space>
-                        <Badge status={acc.cari_turu === 'uye' ? 'processing' : 'warning'} text={acc.cari_turu === 'uye' ? 'Üye' : 'Firma'} />
-                        <span>{acc.cari_adi}</span>
-                      </Space>
-                    )
+                    cariTuru: acc.cari_turu,
+                    cariAdi: acc.cari_adi,
                   }))}
-                  optionRender={(option) => option.data.render}
+                  optionRender={({ data }) => (
+                    <Space>
+                      <Badge
+                        status={data.cariTuru === 'uye' ? 'processing' : 'warning'}
+                        text={data.cariTuru === 'uye' ? 'Üye' : 'Firma'}
+                      />
+                      <span>{data.cariAdi}</span>
+                    </Space>
+                  )}
                 />
               </Form.Item>
             </Col>

@@ -184,7 +184,7 @@ export const UyeDetailPage: React.FC = () => {
   const islemTuruMeta: Record<string, { color: string; label: string }> = {
     gelen_odeme:      { color: 'green',  label: 'Tahsilat' },
     iade_odeme:       { color: 'blue',   label: 'İade' },
-    uyelik_baslangic: { color: 'orange', label: 'Başlangıç Bedeli' },
+    uyelik_baslangic: { color: 'orange', label: 'Başl. Bedeli' },
   }
 
   const odemeColumns = [

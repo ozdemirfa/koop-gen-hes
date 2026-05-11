@@ -170,8 +170,10 @@ export const cariHesapService = {
       throw new ApiError(400, 'Çek kaydı için geçerli bir firma cari hesabı gereklidir.')
     }
 
-    // Schema seviyesinde vade_tarihi zorunlu kılındı (TASK-BE-04). Yine de
-    // defansif kontrol; servis-içi cagri yapan biri bu yolu atlayabilir.
+    // SEC-015 / TASK-BE-04: vade_tarihi controller'a gelmeden Zod superRefine
+    // tarafından zorunlu kılınıyor (cariPaymentSchema). Bu defansif guard yalnızca
+    // service-içi doğrudan çağrı (test/seed/CLI tooling) olasılığı için var; HTTP
+    // path'inde unreachable. Kaldırılmaması: future regression sigortası.
     if (!vade_tarihi) {
       throw new ApiError(400, 'Çek kaydı için vade tarihi zorunludur.')
     }

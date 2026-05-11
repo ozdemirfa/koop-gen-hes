@@ -3,6 +3,12 @@
 -- Sprint H sonrası backend her mutate endpoint'te user_roles kontrolü yapıyor;
 -- bu kullanıcının kaydı yoksa 403 dönüyor. Bu seed mevcut kullanıcıyı admin yapar
 -- (yoksa NOOP); ileride başka admin atamaları manuel INSERT ile yapılabilir.
+--
+-- ⚠️ DEPRECATED (2026-05-11, CODE-007): Bu migration production'da apply edilmiştir.
+-- Yeni production deploy'larında çalışmaz çünkü `admin@kooperatif.com` email'i yok.
+-- Yeni admin atamaları için manual SQL veya `seed_all_users_admin.sql` (eski) yerine
+-- artık dashboard/admin-paneli üzerinden role assignment beklenmelidir. Bu dosya
+-- migration history bütünlüğü için silinmemiştir; yeni env'lerde NOOP çalışır.
 
 INSERT INTO public.user_roles (user_id, role)
 SELECT u.id, 'admin'
