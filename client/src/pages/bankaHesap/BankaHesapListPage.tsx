@@ -183,12 +183,13 @@ export const BankaHesapListPage: React.FC = () => {
         okText="Kaydet"
         cancelText="İptal"
       >
-        <Form 
-          form={form} 
-          layout="vertical" 
+        <Form
+          form={form}
+          layout="vertical"
           onFinish={(v) => saveMutation.mutate(v)}
           style={{ marginTop: 16 }}
           initialValues={{ aktif: true }}
+          validateTrigger={["onBlur", "onChange"]}
         >
           <Form.Item name="banka_adi" label="Banka Adı" rules={[{ required: true }]}>
             <Input />

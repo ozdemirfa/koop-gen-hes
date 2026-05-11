@@ -107,13 +107,14 @@ export const UyeFormPage: React.FC = () => {
       />
 
       <Card loading={(isEditing && uyeLoading)} variant="borderless" className="shadow-sm">
-        <Form 
-          form={form} 
-          layout="vertical" 
+        <Form
+          form={form}
+          layout="vertical"
           onFinish={(values) => mutation.mutate(values)}
           style={{ maxWidth: 800 }}
           initialValues={{ durum: 'aktif' }}
           autoComplete="off"
+          validateTrigger={["onBlur", "onChange"]}
         >
           <div style={{ display: 'flex', gap: 16 }}>
             <Form.Item name="uye_no" label="Üye No" style={{ flex: 1 }}>

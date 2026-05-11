@@ -146,7 +146,7 @@ export const PozListPage: React.FC = () => {
         destroyOnHidden
         width="min(520px, 95vw)"
       >
-        <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)}>
+        <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)} validateTrigger={["onBlur", "onChange"]}>
           <Form.Item 
             name="poz_no" 
             label="Poz No" 

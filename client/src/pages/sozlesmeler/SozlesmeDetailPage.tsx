@@ -282,7 +282,7 @@ export const SozlesmeDetailPage: React.FC = () => {
         confirmLoading={saveKalemMutation.isPending}
         width="min(650px, 95vw)"
       >
-        <Form form={kalemForm} layout="vertical" onFinish={(v) => saveKalemMutation.mutate(v)}>
+        <Form form={kalemForm} layout="vertical" onFinish={(v) => saveKalemMutation.mutate(v)} validateTrigger={["onBlur", "onChange"]}>
           {!editingKalem && (
             <Form.Item label="Hazır Pozlardan Seç" help="Ön tanımlı bir poz seçerek alanları otomatik doldurabilirsiniz.">
               <Select 

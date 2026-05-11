@@ -241,13 +241,14 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data, yil }) => {
         confirmLoading={saveMutation.isPending}
         width="min(600px, 95vw)"
       >
-        <Form 
-          form={form} 
-          layout="vertical" 
-          onFinish={(v) => saveMutation.mutate(v)} 
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={(v) => saveMutation.mutate(v)}
           onValuesChange={handleValuesChange}
           autoComplete="off"
           size="small"
+          validateTrigger={["onBlur", "onChange"]}
         >
           {!editingKalem && (
             <Form.Item label="Pozlar Tablosundan Seç">

@@ -723,6 +723,7 @@ export const Aidatlar: React.FC = () => {
           }}
           autoComplete="off"
           size="small"
+          validateTrigger={["onBlur", "onChange"]}
         >
           <Row gutter={16}>
             <Col span={12}>

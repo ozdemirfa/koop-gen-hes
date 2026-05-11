@@ -206,7 +206,26 @@ body {
  * Replaced JS-based isMobile branching (Grid.useBreakpoint returns {} on
  * initial render, causing layout shift / clipped titles on Vercel cold start).
  * CSS media queries are SSR-safe and remove the initial render race.
+ *
+ * Sprint 20260511-open-backlog-sprint (A1-02 + CQ-02):
+ * Migrate remaining JS-isMobile branches in MainHeader to CSS — padding/gap,
+ * hamburger toggle visibility, headerActions margin/overflow, header-right gap.
  */
+.admin-header {
+  padding: 0 24px;
+}
+.admin-header-left {
+  gap: 16px;
+}
+.admin-header-actions {
+  margin-left: 8px;
+}
+.admin-header-right {
+  gap: 8px;
+}
+.admin-header-hamburger {
+  display: none;
+}
 .admin-header-title {
   max-width: 240px;
 }
@@ -214,6 +233,21 @@ body {
   font-size: 16px;
 }
 @media (max-width: 767px) {
+  .admin-header {
+    padding: 0 12px;
+  }
+  .admin-header-left {
+    gap: 8px;
+  }
+  .admin-header-actions {
+    margin-left: 4px;
+  }
+  .admin-header-right {
+    gap: 4px;
+  }
+  .admin-header-hamburger {
+    display: inline-flex;
+  }
   .admin-header-title {
     max-width: min(180px, 40vw);
   }

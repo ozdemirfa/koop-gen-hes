@@ -260,6 +260,7 @@ export const ProjeListPage: React.FC = () => {
           initialValues={{ durum: 'planli' }}
           size="small"
           autoComplete="off"
+          validateTrigger={["onBlur", "onChange"]}
         >
           <Row gutter={12}>
             <Col span={16}>

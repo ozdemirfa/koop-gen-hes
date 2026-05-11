@@ -44,7 +44,7 @@ export const Login: React.FC = () => {
           <Text type="secondary">Yönetim paneline giriş yapın</Text>
         </div>
 
-        <Form name="login" onFinish={onFinish} layout="vertical">
+        <Form name="login" onFinish={onFinish} layout="vertical" validateTrigger={["onBlur", "onChange"]}>
           <Form.Item name="email" label="E-posta" rules={[{ required: true, type: 'email', message: 'Lütfen geçerli bir e-posta girin!' }]}>
             <Input size="large" placeholder="ornek@kooperatif.com" />
           </Form.Item>

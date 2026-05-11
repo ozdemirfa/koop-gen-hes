@@ -245,7 +245,7 @@ export const CekTakibiPage: React.FC = () => {
         confirmLoading={saveMutation.isPending}
         width="min(600px, 95vw)"
       >
-        <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)} initialValues={{ durum: 'beklemede', keside_tarihi: dayjs() }}>
+        <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)} initialValues={{ durum: 'beklemede', keside_tarihi: dayjs() }} validateTrigger={["onBlur", "onChange"]}>
           <Form.Item name="firma_id" label="Firma" rules={[{ required: true }]}>
             <Select showSearch optionFilterProp="children">
               {firmalar?.map((f: any) => <Select.Option key={f.id} value={f.id}>{f.unvan}</Select.Option>)}
@@ -319,7 +319,7 @@ export const CekTakibiPage: React.FC = () => {
           <p><strong>Tutar:</strong> <MoneyDisplay amount={payingCek?.tutar || 0} /></p>
           <p><strong>Banka:</strong> {payingCek?.banka}</p>
         </div>
-        <Form form={payForm} layout="vertical" onFinish={(v) => payMutation.mutate({ id: payingCek!.id, ...v })}>
+        <Form form={payForm} layout="vertical" onFinish={(v) => payMutation.mutate({ id: payingCek!.id, ...v })} validateTrigger={["onBlur", "onChange"]}>
           <Form.Item name="banka_hesap_id" label="Ödemenin Yapılacağı Banka Hesabı" rules={[{ required: true, message: 'Lütfen banka hesabı seçin' }]}>
             <Select placeholder="Banka hesabı seçin">
               {bankaHesaplar?.map((b: any) => (

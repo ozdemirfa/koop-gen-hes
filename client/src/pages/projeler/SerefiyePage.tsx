@@ -346,7 +346,7 @@ export const SerefiyePage: React.FC = () => {
         destroyOnHidden
         width="min(520px, 95vw)"
       >
-        <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)} autoComplete="off">
+        <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)} autoComplete="off" validateTrigger={["onBlur", "onChange"]}>
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item name="kat" label="Kat">
@@ -408,6 +408,7 @@ export const SerefiyePage: React.FC = () => {
           onFinish={(v) => assignUyeMutation.mutate({ serefiyeId: editingSerefiye!.id, uyeId: v.uye_id })}
           style={{ marginTop: 16 }}
           autoComplete="off"
+          validateTrigger={["onBlur", "onChange"]}
         >
           <Form.Item
             name="uye_id"

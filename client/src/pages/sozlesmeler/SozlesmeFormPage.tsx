@@ -95,6 +95,7 @@ export const SozlesmeFormPage: React.FC = () => {
           layout="vertical"
           onFinish={(v) => mutation.mutate(v)}
           style={{ maxWidth: 800 }}
+          validateTrigger={["onBlur", "onChange"]}
         >
           <Form.Item name="firma_id" label="Firma" rules={[{ required: true, message: 'Firma seçin' }]}>
             <Select

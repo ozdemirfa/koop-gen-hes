@@ -263,11 +263,12 @@ export const HakedisListPage: React.FC = () => {
         okText="Oluştur"
         cancelText="İptal"
       >
-        <Form 
-          form={createForm} 
-          layout="vertical" 
+        <Form
+          form={createForm}
+          layout="vertical"
           onFinish={(v) => createMutation.mutate(v)}
           style={{ marginTop: 16 }}
+          validateTrigger={["onBlur", "onChange"]}
         >
           <Form.Item name="firma_id_virtual" label="Firma" rules={[{ required: true, message: 'Firma seçin' }]}>
             <Select

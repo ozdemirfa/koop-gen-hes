@@ -229,11 +229,12 @@ export const MalzemeTeslimListPage: React.FC = () => {
         cancelText="İptal"
         styles={{ body: { paddingTop: 16 } }}
       >
-        <Form 
-          form={form} 
-          layout="vertical" 
+        <Form
+          form={form}
+          layout="vertical"
           onFinish={(v) => saveMutation.mutate(v)}
           size="small"
+          validateTrigger={["onBlur", "onChange"]}
         >
           <Row gutter={16}>
             <Col span={12}>

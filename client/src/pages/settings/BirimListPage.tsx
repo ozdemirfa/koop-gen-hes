@@ -72,10 +72,11 @@ export const BirimListPage: React.FC = () => {
     <Card variant="borderless" className="shadow-sm">
       <div style={{ marginBottom: 24, padding: '16px', background: '#f8fafc', borderRadius: '8px' }}>
         <Typography.Title level={5} style={{ marginTop: 0 }}>Yeni Birim Ekle</Typography.Title>
-        <Form 
-          form={form} 
-          layout="inline" 
+        <Form
+          form={form}
+          layout="inline"
           onFinish={(v) => createMutation.mutate(v)}
+          validateTrigger={["onBlur", "onChange"]}
         >
           <Form.Item 
             name="ad" 

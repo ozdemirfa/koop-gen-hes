@@ -159,6 +159,7 @@ export const ParametersPage: React.FC = () => {
             layout="vertical"
             onFinish={(v) => saveMutation.mutate({ key: editingParam.key, value: v.value })}
             style={{ marginTop: 16 }}
+            validateTrigger={["onBlur", "onChange"]}
           >
             <div style={{ marginBottom: 16 }}>
               <Text type="secondary">Düzenlenen Parametre:</Text>

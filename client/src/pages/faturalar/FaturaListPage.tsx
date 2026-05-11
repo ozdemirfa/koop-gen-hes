@@ -295,6 +295,7 @@ export const FaturaListPage: React.FC = () => {
           onValuesChange={calculateTotals}
           style={{ marginTop: 8 }}
           autoComplete="off"
+          validateTrigger={["onBlur", "onChange"]}
         >          <Row gutter={16}>
             <Col span={10}>
               <Form.Item name="firma_id" label="Firma" rules={[{ required: true }]} style={{ marginBottom: 12 }}>

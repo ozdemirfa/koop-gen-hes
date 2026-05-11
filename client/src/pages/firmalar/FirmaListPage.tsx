@@ -354,11 +354,12 @@ export const FirmaListPage: React.FC = () => {
         okText="Kaydet"
         cancelText="İptal"
       >
-        <Form 
-          form={form} 
-          layout="vertical" 
+        <Form
+          form={form}
+          layout="vertical"
           onFinish={(v) => saveMutation.mutate(v)}
           style={{ marginTop: 16 }}
+          validateTrigger={["onBlur", "onChange"]}
         >
           <Form.Item name="firma_tipi" label="Firma Tipi" rules={[{ required: true, message: 'Tip seçin' }]}>
             <Select>

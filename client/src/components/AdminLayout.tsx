@@ -134,45 +134,53 @@ const SiderContent: React.FC<{
   </>
 ))
 
-// Separate component for Header that consumes LayoutContext
-// This isolates context-driven re-renders to just this component
+// Separate component for Header that consumes LayoutContext.
+// This isolates context-driven re-renders to just this component.
+//
+// Sprint 20260511-open-backlog-sprint (A1-02 + CQ-02):
+// Migrated all JS-isMobile branches to CSS classes (admin-header*). The hamburger
+// button is always rendered but hidden on >=768px via CSS, eliminating JS-driven
+// conditional render that caused hydration mismatch on slow Vercel cold start.
 const MainHeader: React.FC<{
-  isMobile: boolean
   onToggleCollapsed: () => void
   onLogout: () => void
   settingsMenu: any
-}> = ({ isMobile, onToggleCollapsed, onLogout, settingsMenu }) => {
+}> = ({ onToggleCollapsed, onLogout, settingsMenu }) => {
   const { title, headerActions, headerRightActions } = useLayout()
 
   return (
-    <Header style={{ 
-      padding: isMobile ? '0 12px' : '0 24px', 
-      background: 'white', 
-      display: 'flex', 
-      justifyContent: 'space-between', 
-      alignItems: 'center',
-      borderBottom: '1px solid #e2e8f0',
-      position: 'sticky',
-      top: 0,
-      zIndex: 999,
-      height: 64
-    }}>
-      <div id="header-left" style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '16px', flex: 1, minWidth: 0 }}>
-        {isMobile && (
-          <Button
-            type="text"
-            icon={<MenuOutlined />}
-            onClick={onToggleCollapsed}
-            style={{
-              fontSize: '16px',
-              width: 32,
-              height: 32,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          />
-        )}
+    <Header
+      className="admin-header"
+      style={{
+        background: 'white',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        borderBottom: '1px solid #e2e8f0',
+        position: 'sticky',
+        top: 0,
+        zIndex: 999,
+        height: 64
+      }}
+    >
+      <div
+        id="header-left"
+        className="admin-header-left"
+        style={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 0 }}
+      >
+        <Button
+          type="text"
+          icon={<MenuOutlined />}
+          onClick={onToggleCollapsed}
+          className="admin-header-hamburger"
+          style={{
+            fontSize: '16px',
+            width: 32,
+            height: 32,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        />
         {title && (
           <div
             className="admin-header-title"
@@ -194,15 +202,14 @@ const MainHeader: React.FC<{
             </Typography.Text>
           </div>
         )}
-        
+
         {headerActions && (
           <div
-            className={isMobile ? 'hide-scrollbar' : ''}
+            className="hide-scrollbar admin-header-actions"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              marginLeft: isMobile ? '4px' : '8px',
               flexShrink: 0,
               minWidth: 'fit-content',
               maxWidth: '100%',
@@ -214,19 +221,23 @@ const MainHeader: React.FC<{
           </div>
         )}
       </div>
-      <div id="header-right" style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '4px' : '8px', marginLeft: '8px' }}>
+      <div
+        id="header-right"
+        className="admin-header-right"
+        style={{ display: 'flex', alignItems: 'center', marginLeft: '8px' }}
+      >
         {headerRightActions && (
           <div style={{ display: 'flex', alignItems: 'center' }}>
             {headerRightActions}
           </div>
         )}
         <Dropdown menu={settingsMenu} placement="bottomRight" arrow>
-          <Button 
-            type="text" 
-            icon={<SettingOutlined />} 
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
+          <Button
+            type="text"
+            icon={<SettingOutlined />}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
               justifyContent: 'center',
               color: '#64748b',
               height: 40,
@@ -235,7 +246,7 @@ const MainHeader: React.FC<{
             }}
           />
         </Dropdown>
-        
+
         <div
           className="admin-header-separator"
           style={{ width: '1px', height: '24px', background: '#e2e8f0', margin: '0 4px' }}
@@ -399,11 +410,10 @@ export const AdminLayout: React.FC = () => {
         </Sider>
       )}
       <Layout>
-        <MainHeader 
-          isMobile={isMobile} 
-          onToggleCollapsed={() => setCollapsed(!collapsed)} 
-          onLogout={handleLogout} 
-          settingsMenu={settingsMenu} 
+        <MainHeader
+          onToggleCollapsed={() => setCollapsed(!collapsed)}
+          onLogout={handleLogout}
+          settingsMenu={settingsMenu}
         />
         <Content style={{ 
           margin: '24px', 

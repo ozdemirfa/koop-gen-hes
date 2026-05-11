@@ -108,12 +108,13 @@ export const AidatYillikPlanPage: React.FC = () => {
       />
 
       <Card>
-        <Form 
-          form={form} 
-          layout="vertical" 
+        <Form
+          form={form}
+          layout="vertical"
           onFinish={(v) => createTanimMutation.mutate(v)}
           initialValues={{ yil: dayjs().year(), kalemler: initialKalemler }}
           autoComplete="off"
+          validateTrigger={["onBlur", "onChange"]}
         >
           <Row gutter={16} align="middle">
             <Col span={6}>
