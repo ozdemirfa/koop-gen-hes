@@ -19,5 +19,11 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // Sprint 20260511-open-backlog-sprint (CODE-006):
+      // Surface untyped `any` usages as warnings (not errors). Build pipeline
+      // does not fail on warnings — gradually migrate to typed payloads.
+      '@typescript-eslint/no-explicit-any': 'warn',
+    },
   },
 ])
