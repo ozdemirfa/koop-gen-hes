@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
-import { Card, Descriptions, Table, Button, Modal, Form, Input, InputNumber, Space, Tag, message, Row, Col, Select } from 'antd'
+import { Card, Descriptions, Table, Button, Modal, Form, Input, InputNumber, Space, message, Row, Col, Select } from 'antd'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { getErrorMessage } from '../../lib/apiError'
@@ -105,6 +105,32 @@ export const SozlesmeDetailPage: React.FC = () => {
   const deleteKalemMutation = useMutation({
     mutationFn: async (kalemId: string) => {
       await api.delete(`/sozlesmeler/is-kalemleri/${kalemId}`)
+
+      // C4 (sprint 20260511-uye-tahsilat-firma-revisions): silme sonrası kalan
+      // kalemleri 1'den itibaren yeniden numaralandır. Eksik sira_no dizilerini
+      // (örn 1,3,4) önler — kullanıcı manuel düzenleme yapamadığı için bu UI'da
+      // tek kalan yol.
+      const remaining = (isKalemleri || [])
+        .filter((k) => k.id !== kalemId)
+        .sort((a, b) => a.sira_no - b.sira_no)
+
+      // Sadece numaraları kaymış olanları güncelle — gereksiz PUT trafiği önlenir.
+      const updates = remaining
+        .map((k, idx) => ({ kalem: k, yeniSira: idx + 1 }))
+        .filter(({ kalem, yeniSira }) => kalem.sira_no !== yeniSira)
+
+      await Promise.all(
+        updates.map(({ kalem, yeniSira }) =>
+          api.put(`/sozlesmeler/is-kalemleri/${kalem.id}`, {
+            sira_no: yeniSira,
+            poz_no: kalem.poz_no,
+            tanim: kalem.tanim,
+            birim: kalem.birim,
+            miktar: kalem.miktar,
+            birim_fiyat: kalem.birim_fiyat,
+          })
+        )
+      )
     },
     onSuccess: () => {
       message.success('İş kalemi silindi')
@@ -282,7 +308,7 @@ export const SozlesmeDetailPage: React.FC = () => {
         confirmLoading={saveKalemMutation.isPending}
         width="min(650px, 95vw)"
       >
-        <Form form={kalemForm} layout="vertical" onFinish={(v) => saveKalemMutation.mutate(v)} validateTrigger={["onBlur", "onChange"]}>
+        <Form form={kalemForm} layout="vertical" onFinish={(v) => saveKalemMutation.mutate(v)} validateTrigger={["onBlur", "onChange"]} autoComplete="off">
           {!editingKalem && (
             <Form.Item label="Hazır Pozlardan Seç" help="Ön tanımlı bir poz seçerek alanları otomatik doldurabilirsiniz.">
               <Select 
@@ -301,8 +327,10 @@ export const SozlesmeDetailPage: React.FC = () => {
           
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="sira_no" label="Sıra No">
-                <InputNumber min={0} style={{ width: '100%' }} />
+              {/* C4 (sprint 20260511-uye-tahsilat-firma-revisions): sira_no otomatik atanır,
+                  kullanıcı manuel değiştiremez. Yeni eklemede max+1, silmede 1'den yeniden numaralandırma. */}
+              <Form.Item name="sira_no" label="Sıra No" tooltip="Otomatik atanır">
+                <InputNumber min={0} style={{ width: '100%' }} disabled />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -312,7 +340,7 @@ export const SozlesmeDetailPage: React.FC = () => {
             </Col>
           </Row>
           <Form.Item name="tanim" label="Tanım" rules={[{ required: true, message: 'Tanım zorunlu' }]}>
-            <Input.TextArea rows={2} />
+            <Input.TextArea autoComplete="off" rows={2} />
           </Form.Item>
           <Row gutter={16}>
             <Col span={8}>

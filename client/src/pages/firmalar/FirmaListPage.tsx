@@ -360,6 +360,7 @@ export const FirmaListPage: React.FC = () => {
           onFinish={(v) => saveMutation.mutate(v)}
           style={{ marginTop: 16 }}
           validateTrigger={["onBlur", "onChange"]}
+          autoComplete="off"
         >
           <Form.Item name="firma_tipi" label="Firma Tipi" rules={[{ required: true, message: 'Tip seçin' }]}>
             <Select>
@@ -368,23 +369,45 @@ export const FirmaListPage: React.FC = () => {
             </Select>
           </Form.Item>
           <Form.Item name="unvan" label="Ünvan" rules={[{ required: true, message: 'Ünvan zorunlu' }]}>
-            <Input />
+            <Input autoComplete="off" />
           </Form.Item>
           <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item name="vergi_no" label="Vergi No" style={{ flex: 1 }}>
-              <Input maxLength={11} />
+            {/* C1 (sprint 20260511-uye-tahsilat-firma-revisions): vergi_no tam 10 hane rakam */}
+            <Form.Item
+              name="vergi_no"
+              label="Vergi No"
+              style={{ flex: 1 }}
+              normalize={(v?: string) => (v ? v.replace(/\D/g, '').slice(0, 10) : v)}
+              rules={[
+                {
+                  validator: (_, value) => {
+                    if (!value) return Promise.resolve()
+                    if (!/^\d{10}$/.test(value)) {
+                      return Promise.reject(new Error('Vergi No 10 haneli rakam olmalı'))
+                    }
+                    return Promise.resolve()
+                  },
+                },
+              ]}
+            >
+              <Input
+                autoComplete="off"
+                inputMode="numeric"
+                maxLength={10}
+                placeholder="10 haneli rakam"
+              />
             </Form.Item>
             <Form.Item name="vergi_dairesi" label="Vergi Dairesi" style={{ flex: 1 }}>
-              <Input />
+              <Input autoComplete="off" />
             </Form.Item>
           </div>
           <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item 
-               name="telefon" 
-               label="Telefon" 
+            <Form.Item
+               name="telefon"
+               label="Telefon"
                style={{ flex: 1 }}
                rules={[
-                 { 
+                 {
                    validator: (_, value) => {
                      if (!value) return Promise.resolve()
                      const clean = getPhoneRaw(value)
@@ -397,19 +420,19 @@ export const FirmaListPage: React.FC = () => {
                ]}
                getValueFromEvent={(e) => formatPhone(e.target.value)}
              >
-              <Input placeholder="5xx xxx xx xx" maxLength={13} />
-            </Form.Item>            
+              <Input autoComplete="off" placeholder="5xx xxx xx xx" maxLength={13} />
+            </Form.Item>
             <Form.Item name="email" label="E-posta" rules={[{ type: 'email', message: 'Geçerli e-posta girin' }]} style={{ flex: 1 }}>
-              <Input />
+              <Input autoComplete="off" />
             </Form.Item>
           </div>
           <div style={{ display: 'flex', gap: 16 }}>
             <Form.Item name="yetkili_kisi" label="Yetkili Kişi" style={{ flex: 1 }}>
-              <Input />
+              <Input autoComplete="off" />
             </Form.Item>
-            <Form.Item 
-              name="iban" 
-              label="IBAN" 
+            <Form.Item
+              name="iban"
+              label="IBAN"
               style={{ flex: 1 }}
               rules={[
                 {
@@ -424,8 +447,9 @@ export const FirmaListPage: React.FC = () => {
                 }
               ]}
             >
-              <Input 
-                maxLength={34} 
+              <Input
+                autoComplete="off"
+                maxLength={34}
                 placeholder="TR..."
                 onChange={(e) => {
                   const formatted = formatIBANInput(e.target.value)
@@ -435,10 +459,10 @@ export const FirmaListPage: React.FC = () => {
             </Form.Item>
           </div>
           <Form.Item name="adres" label="Adres">
-            <Input.TextArea rows={2} />
+            <Input.TextArea autoComplete="off" rows={2} />
           </Form.Item>
           <Form.Item name="notlar" label="Notlar">
-            <Input.TextArea rows={2} />
+            <Input.TextArea autoComplete="off" rows={2} />
           </Form.Item>
           <Form.Item name="aktif" label="Aktif" valuePropName="checked" initialValue={true}>
             <Switch />

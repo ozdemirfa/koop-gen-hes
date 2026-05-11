@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Card, Descriptions, Tabs, Tag, Row, Col, Statistic, Button, message, Space, Typography, Select, App, Popconfirm, Tooltip } from 'antd'
+import { Card, Descriptions, Tabs, Tag, Row, Col, Statistic, Button, Space, App, Popconfirm, Tooltip } from 'antd'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { DollarOutlined, HistoryOutlined, UserOutlined, AuditOutlined, RollbackOutlined, PercentageOutlined, InfoCircleOutlined, UserAddOutlined } from '@ant-design/icons'
@@ -15,10 +15,9 @@ import { ErrorState } from '../../components/common/ErrorState'
 import { FaizBorclandirModal } from './components/FaizBorclandirModal'
 import { BaslangicBedeliTahakkukModal } from './components/BaslangicBedeliTahakkukModal'
 
-import { trNumberParser, trMoneyFormatter } from '../../lib/format'
+import { trMoneyFormatter } from '../../lib/format'
 import { useIsTouchDevice } from '../../hooks/useIsTouchDevice'
 
-const { Text } = Typography
 
 interface AidatOdeme {
   id: string
@@ -380,7 +379,6 @@ export const UyeDetailPage: React.FC = () => {
   const baslangicBedeliKalan = baslangicBedeliTahakkuk - baslangicBedeliTahsilat + toplamIadeOdeme
   const toplamKalan = aidatKalan + baslangicBedeliKalan
 
-  const blokAdi = uye?.serefiye_tablosu?.bloklar?.blok_adi || '-'
   const daireNo = uye?.serefiye_tablosu?.daire_no || '-'
 
   // U-8 (2026-05-11): error/loading guard — Result + retry

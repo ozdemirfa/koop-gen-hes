@@ -7,7 +7,7 @@ import api from '../../lib/api'
 import { getErrorMessage } from '../../lib/apiError'
 import { PageHeader } from '../../components/common/PageHeader'
 
-import { trNumberFormatter, trNumberParser, trMoneyFormatter } from '../../lib/format'
+import { trNumberParser, trMoneyFormatter } from '../../lib/format'
 
 export const SozlesmeFormPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -109,6 +109,7 @@ export const SozlesmeFormPage: React.FC = () => {
           onFinish={(v) => mutation.mutate(v)}
           style={{ maxWidth: 800 }}
           validateTrigger={["onBlur", "onChange"]}
+          autoComplete="off"
         >
           <Form.Item name="firma_id" label="Firma" rules={[{ required: true, message: 'Firma seçin' }]}>
             <Select
@@ -128,7 +129,7 @@ export const SozlesmeFormPage: React.FC = () => {
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item name="sozlesme_no" label="Sözleşme No">
-                <Input placeholder="Boş bırakılırsa otomatik üretilir" />
+                <Input autoComplete="off" placeholder="Boş bırakılırsa otomatik üretilir" />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -152,7 +153,7 @@ export const SozlesmeFormPage: React.FC = () => {
           </Row>
 
           <Form.Item name="konu" label="Konu" rules={[{ required: true, message: 'Konu zorunlu' }]}>
-            <Input.TextArea rows={2} />
+            <Input.TextArea autoComplete="off" rows={2} />
           </Form.Item>
 
           <Row gutter={16}>
@@ -202,7 +203,7 @@ export const SozlesmeFormPage: React.FC = () => {
           </Row>
 
           <Form.Item name="notlar" label="Notlar">
-            <Input.TextArea rows={2} />
+            <Input.TextArea autoComplete="off" rows={2} />
           </Form.Item>
 
           <Form.Item style={{ marginBottom: 0 }}>

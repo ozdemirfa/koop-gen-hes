@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { Card, Space, Select, DatePicker, Statistic, Row, Col, Tag, Button, message, Typography, Badge, Popconfirm } from 'antd'
 import { DownloadOutlined, AuditOutlined, RollbackOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { getErrorMessage } from '../../lib/apiError'
@@ -57,11 +58,20 @@ const ODEME_TURU_LABELS: Record<string, string> = {
 export const CariEkstrePage: React.FC = () => {
   const { activeProject } = useProject()
   const queryClient = useQueryClient()
+  const [searchParams] = useSearchParams()
+  // C8 (sprint 20260511-uye-tahsilat-firma-revisions): URL params'tan gelen
+  // firma_id veya cari_hesap_id ile sayfa açıldığında header'daki Select kutusu
+  // boş kalmasın. accounts listesi yüklendikten sonra useEffect ile default değer atanır.
+  const initialFirmaId = searchParams.get('firma_id') || undefined
+  const initialCariHesapId = searchParams.get('cari_hesap_id') || undefined
   const [dates, setDates] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null]>([
     dayjs().startOf('year'),
     dayjs().endOf('year'),
   ])
-  const [cariHesapId, setCariHesapId] = useState<string | undefined>(undefined)
+  const [cariHesapId, setCariHesapId] = useState<string | undefined>(initialCariHesapId)
+  // Default seçimin sadece bir kez yapılması — kullanıcı manuel temizleme yaptıktan
+  // sonra accounts refetch olsa bile tekrar dolmasın.
+  const [defaultApplied, setDefaultApplied] = useState<boolean>(!!initialCariHesapId)
 
   // Undo Match Mutation
   const undoMatchMutation = useMutation({
@@ -90,6 +100,30 @@ export const CariEkstrePage: React.FC = () => {
     },
     enabled: !!activeProject?.id
   })
+
+  // C8: accounts yüklendikten sonra URL'den gelen firma_id'yi cari_hesap_id'ye eşle.
+  // Sadece bir kez uygulanır (defaultApplied flag) — kullanıcı sonra clear yapabilir.
+  useEffect(() => {
+    if (defaultApplied) return
+    if (!accounts || accounts.length === 0) return
+
+    if (initialCariHesapId) {
+      // Direkt cari_hesap_id geldiyse, listedeki ile doğrula
+      const found = accounts.find((a) => a.id === initialCariHesapId)
+      if (found) {
+        setCariHesapId(found.id)
+        setDefaultApplied(true)
+        return
+      }
+    }
+    if (initialFirmaId) {
+      const found = accounts.find((a) => a.firma_id === initialFirmaId)
+      if (found) {
+        setCariHesapId(found.id)
+        setDefaultApplied(true)
+      }
+    }
+  }, [accounts, defaultApplied, initialCariHesapId, initialFirmaId])
 
   // Hareketler Fetch
   const { data: rawHareketler, isLoading, isError, error, refetch } = useQuery({
