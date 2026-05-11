@@ -142,37 +142,35 @@ export const OdemeKayit: React.FC = () => {
             is_teminat: false
           }}
         >
-          {/* REV-PAY-06 (2026-05-12): Form hizalama — Cari Türü filter Cari Hesap
-              label'ının extra slot'una taşındı; 41px manuel offset kaldırıldı. İki
-              kolonun label+input başlangıcı aynı hizada. */}
+          {/* REV-PAY-13 (2026-05-12): Cari Türü filter Form.Item label'ından çıkarıldı
+              — label içindeki span wrapper'ın preventDefault'u Radio click'lerini
+              de bloke ediyor, toggle çalışmıyordu. Filter şimdi tüm Row'un üstünde
+              kendi satırında; aşağıdaki iki Form.Item (Cari Hesap, İşlem Türü)
+              aynı hizada başlar. */}
+          <div style={{ marginBottom: 8 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12, marginRight: 8 }}>
+              Cari Türü Filtre:
+            </Typography.Text>
+            <Radio.Group
+              value={filterCariTuru}
+              onChange={(e) => {
+                setFilterCariTuru(e.target.value)
+                form.setFieldValue('cari_hesap_id', undefined)
+              }}
+              buttonStyle="solid"
+              size="small"
+              disabled={islemTuru === 'iade_odeme' || islemTuru === 'uyelik_baslangic'}
+            >
+              <Radio.Button value="uye">Üyeler</Radio.Button>
+              <Radio.Button value="firma">Firmalar</Radio.Button>
+            </Radio.Group>
+          </div>
+
           <Row gutter={24}>
             <Col xs={24} md={12}>
               <Form.Item
                 name="cari_hesap_id"
-                label={
-                  <Space size="small">
-                    <span>Cari Hesap</span>
-                    <span
-                      // Radio.Group antd6'da onClick prop tipi yok; wrapper'a taşıdık.
-                      onClick={(e) => e.preventDefault()}
-                      style={{ display: 'inline-flex' }}
-                    >
-                      <Radio.Group
-                        value={filterCariTuru}
-                        onChange={(e) => {
-                          setFilterCariTuru(e.target.value)
-                          form.setFieldValue('cari_hesap_id', undefined)
-                        }}
-                        buttonStyle="solid"
-                        size="small"
-                        disabled={islemTuru === 'iade_odeme' || islemTuru === 'uyelik_baslangic'}
-                      >
-                        <Radio.Button value="uye">Üyeler</Radio.Button>
-                        <Radio.Button value="firma">Firmalar</Radio.Button>
-                      </Radio.Group>
-                    </span>
-                  </Space>
-                }
+                label="Cari Hesap"
                 rules={[{ required: true, message: 'Lütfen bir cari hesap seçin' }]}
               >
                 <Select
