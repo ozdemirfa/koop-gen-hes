@@ -197,11 +197,26 @@ export const BankaHesapListPage: React.FC = () => {
           <Form.Item name="sube" label="Şube">
             <Input />
           </Form.Item>
-          <Form.Item name="hesap_no" label="Hesap No">
+          <Form.Item
+            name="hesap_no"
+            label="Hesap No"
+            rules={[
+              {
+                validator: (_, value) => {
+                  if (!value) return Promise.resolve()
+                  if (/^\d{7}$/.test(value)) return Promise.resolve()
+                  return Promise.reject(new Error('Hesap no 7 haneli sayı olmalı'))
+                },
+              },
+            ]}
+            extra="7 haneli sayı"
+          >
             <Input
               inputMode="numeric"
+              maxLength={7}
+              placeholder="1234567"
               onChange={(e) => {
-                const digits = e.target.value.replace(/\D/g, '')
+                const digits = e.target.value.replace(/\D/g, '').slice(0, 7)
                 if (digits !== e.target.value) {
                   form.setFieldsValue({ hesap_no: digits })
                 }

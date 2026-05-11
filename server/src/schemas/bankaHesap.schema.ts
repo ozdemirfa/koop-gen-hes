@@ -5,7 +5,12 @@ export const bankaHesapSchema = z.object({
   proje_id: z.string().uuid('Geçerli bir proje ID gereklidir'),
   banka_adi: z.string().min(1, 'Banka adı zorunlu'),
   sube: z.string().optional().nullable(),
-  hesap_no: z.string().optional().nullable(),
+  // hesap_no: 7 haneli sayı (girilirse). Boş/null kabul edilir.
+  hesap_no: z
+    .union([z.string().regex(/^\d{7}$/, 'Hesap no 7 haneli sayı olmalı'), z.literal(''), z.null(), z.undefined()])
+    .transform((v) => (v === '' || v === undefined ? null : v))
+    .nullable()
+    .optional(),
   iban: z.string().optional().nullable(),
   aktif: z.boolean().optional()
 })
