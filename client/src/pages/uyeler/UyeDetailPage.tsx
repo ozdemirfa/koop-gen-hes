@@ -218,13 +218,40 @@ export const UyeDetailPage: React.FC = () => {
     [baslangicBedeliRows, aidatlar]
   )
 
-  // Ödemeler tab dataSource: tahakkuk (alacak) satırlarını gizle — sadece gerçek
-  // tahsilatlar ve iade kayıtları görünür.
+  // Ödemeler tab dataSource: tahakkuk (alacak) satırlarını gizle + FIFO split sonucu
+  // parçalanmış payment'ları orijinal ödemeye gruplayarak tek satır göster.
+  // Grup anahtarı: (tarih + odeme_turu + banka_hesap_id + belge_no + aciklama)
+  // FIFO INSERT'leri orijinal payment'tan tüm bu alanları kopyaladığı için bu set
+  // tek bir kullanıcı ödemesini tanımlar.
   const visibleOdemeler = useMemo(() => {
     if (!odemeler) return []
-    return odemeler.filter(
+    const filtered = odemeler.filter(
       (o: any) => !(o.islem_turu === 'uyelik_baslangic' && Number(o.alacak || 0) > 0)
     )
+    // REV-PAY-14 (2026-05-12): split parçaları aynı (tarih, odeme_turu,
+    // banka_hesap_id, belge_no, aciklama, islem_turu) ile tek satıra konsolide.
+    const groups = new Map<string, any>()
+    filtered.forEach((o: any) => {
+      const key = [
+        o.tarih,
+        o.odeme_turu || '',
+        o.banka_hesap_id || '',
+        o.belge_no || '',
+        o.aciklama || '',
+        o.islem_turu,
+      ].join('|')
+      const existing = groups.get(key)
+      if (existing) {
+        existing.tutar = Number(existing.tutar || 0) + Number(o.tutar || 0)
+        existing.borc = Number(existing.borc || 0) + Number(o.borc || 0)
+        existing.alacak = Number(existing.alacak || 0) + Number(o.alacak || 0)
+        // Eşleşme satırlarından biri matched ise grup matched sayılır
+        if (o.kaynak_id) existing.kaynak_id = o.kaynak_id
+      } else {
+        groups.set(key, { ...o })
+      }
+    })
+    return Array.from(groups.values())
   }, [odemeler])
 
   const aidatColumns = [

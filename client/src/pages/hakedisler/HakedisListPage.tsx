@@ -10,6 +10,7 @@ import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { usePageSettings } from '../../contexts/LayoutContext'
+import { useProject } from '../../contexts/ProjectContext'
 import { trNumberFormatter, trNumberParser } from '../../lib/format'
 
 interface Hakedis {
@@ -46,6 +47,7 @@ export const HakedisListPage: React.FC = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { message } = App.useApp()
+  const { activeProject } = useProject()
   const [filterDurum, setFilterDurum] = useState<string | undefined>(undefined)
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [selectedFirmaId, setSelectedFirmaId] = useState<string | null>(null)
@@ -106,8 +108,15 @@ export const HakedisListPage: React.FC = () => {
 
   const createMutation = useMutation({
     mutationFn: async (values: Record<string, unknown>) => {
+      // REV-HAK-01 (2026-05-12): proje_id payload'a eklenmeli. Aksi halde
+      // DB'ye proje_id=NULL hakediş kaydı düşer ve onay akışında cari_hareketler
+      // INSERT'i 23502 NOT NULL violation ile reddedilir ("Zorunlu alan eksik: proje_id").
+      if (!activeProject?.id) {
+        throw new Error('Hakediş oluşturmak için önce aktif bir proje seçmelisiniz.')
+      }
       const payload = {
         ...values,
+        proje_id: activeProject.id,
         donem_baslangic: values.donem_baslangic
           ? (values.donem_baslangic as dayjs.Dayjs).format('YYYY-MM-DD')
           : null,

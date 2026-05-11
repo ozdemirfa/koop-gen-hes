@@ -260,7 +260,7 @@ export const HakedisDetailPage: React.FC = () => {
             icon={<SaveOutlined />}
             onClick={() => saveMutation.mutate()}
             loading={saveMutation.isPending}
-            disabled={!hasChanges}
+            disabled={editableKalemler.length === 0}
           >
             Kaydet
           </Button>
