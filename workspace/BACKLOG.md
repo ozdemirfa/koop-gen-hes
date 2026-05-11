@@ -1,6 +1,6 @@
 # Backlog — koopGenHes
 
-**Son güncelleme:** 2026-05-11 (gece — backlog-sprint-batch3 sonrası)
+**Son güncelleme:** 2026-05-11 (gece — TASK-DB-04 apply sonrası)
 **Bir sonraki çalışma:** 2026-05-12 (yarın)
 
 Bu dosya günden güne kalan işleri biriktirir. Yarın açıp buradan devam.
@@ -9,24 +9,16 @@ Bu dosya günden güne kalan işleri biriktirir. Yarın açıp buradan devam.
 
 ## 🔴 Hemen yapılacak — Doğrulama / Manuel Adımlar
 
-### 1. supabase db push (TASK-DB-03 closure + sprint-batch3 closure)
+### 1. ✅ Migration deploy'ları — TAMAMLANDI
 
-İki migration deploy edilmeli:
-- `20260511000004_audit_actor_firm_fifo.sql` (önceki sprint, BACKLOG'dan beklemede)
-- `20260511000005_audit_policy_comments.sql` (sprint-batch3, audit log policy COMMENT'leri)
+Bugün deploy edilen migration'lar (`supabase migration list` ile remote = local):
+- `20260511000003` 13 RPC actor_id pattern
+- `20260511000004` firm_fifo actor_id pattern
+- `20260511000005` audit_logs RLS policy COMMENT
+- `20260511000006` `fn_audit_proje_id_nulls` RPC
+- `20260511000007` 12 tabloda `proje_id SET NOT NULL`
 
-```bash
-supabase db push
-```
-
-Sonra Supabase SQL editor'da imza doğrula:
-
-```sql
-SELECT proname, pg_get_function_identity_arguments(oid)
-FROM pg_proc
-WHERE proname = 'fn_match_firm_payments_fifo';
--- Beklenen: (p_proje_id uuid, p_firma_id uuid, p_actor_id uuid DEFAULT NULL)
-```
+RPC imza doğrulaması da otomatik yapıldı; kalan tek manuel adım: gerçek kullanıcı işlemiyle audit doğrulaması (bkz §3).
 
 ### 2. Vercel preview UI testi (UI responsive sprint sonrası + OdemeKayit refactor)
 
@@ -45,33 +37,28 @@ Kapsayacak sayfalar: Aidat Tanımları, Üye Yönetimi, Hakedişler, Faturalar, 
 
 Detaylı checklist: `workspace/sessions/20260511-ui-responsive-sprint/output/qa/runtime-audit.md`
 
-### 3. Audit log doğrulaması (TASK-DB-03 sonrası)
+### 3. Audit log doğrulaması (TASK-DB-03 + DB-04 closure sonrası)
 
-Yeni üye/ödeme işlemi yap, sonra Supabase SQL Editor'a:
+**Production query'sinde (2026-05-11 gece) son 13 audit kaydı `actor_id=NULL` çıktı** — fakat hepsi 2026-05-10 21:55 saat damgalı, yani TASK-DB-03 öncesi. Bugün yapılan değişiklikler **henüz gerçek bir authenticated kullanıcı işlemi ile test edilmedi**.
+
+Test prosedürü:
+1. Vercel preview'da login ol
+2. Yeni bir aidat tahakkuku / fatura / firma FIFO eşleştirme yap
+3. Sonra Supabase SQL Editor:
 
 ```sql
 SELECT actor_id, actor_email, table_name, operation, changed_at
 FROM public.audit_logs
-WHERE changed_at > NOW() - INTERVAL '1 hour'
+WHERE changed_at > NOW() - INTERVAL '10 minutes'
 ORDER BY changed_at DESC
 LIMIT 10;
 ```
 
-`actor_id` ve `actor_email` artık dolu gelmeli (önceden NULL'du). Firma FIFO eşleştirmesi sonrası da `actor_id` dolu olmalı (yeni: migration `20260511000004`).
+`actor_id` ve `actor_email` dolu gelmeli. Hâlâ NULL geliyorsa: ya controller `req.user?.id` aktarmıyor, ya da yeni RPC çağrılmamış olabilir — bana ilet, debug edeyim.
 
-### 4. TASK-DB-04 NULL audit — `supabase db push` ile dry-run NOTICE çıktısını topla
+### 4. ✅ TASK-DB-04 — TAMAMLANDI (commit `25240a9`)
 
-Migration `20260510000018_audit_proje_id_nullable.sql` zaten repo'da; `db push` sırasında bir kez çalışır ve **Messages** sekmesinde her tablonun NULL count'unu raporlar:
-
-```
-NOTICE:  Table cekler: NULL count = 0
-NOTICE:  Table faturalar: NULL count = 3
-NOTICE:  Table cari_hareketler: NULL count = 0
-...
-```
-
-Sonucu paylaş — master backfill stratejisi + `SET NOT NULL` migration hazırlasın.
-Detay: `workspace/sessions/20260511-backlog-sprint-batch3/output/db04-audit.md`
+Production audit RPC + 12 BASE TABLE `SET NOT NULL` migration deploy edildi + Zod schema sertleştirme. Detay: BACKLOG `🟡 Açık Sprint Task'ları` bölümünde.
 
 ### 5. (Daha önce yapılmadıysa) Admin rollback
 
@@ -149,14 +136,15 @@ WHERE role='admin' AND user_id NOT IN (
 
 ## 🟡 Açık Sprint Task'ları (Batch 4 / sonraki)
 
-### TASK-DB-04 — DEVAM EDEN (kullanıcı eylemi bekliyor)
+### TASK-DB-04 — TAMAMLANDI ✅ (2026-05-11 commit `25240a9`)
 
-**Durum:** Statik audit raporu hazır (`db04-audit.md`). Kullanıcı eylemi gerekli:
+**Audit RPC** (`fn_audit_proje_id_nulls`, migration `20260511000006`): Production'da nullable `proje_id` olan 12 BASE TABLE + 2 VIEW tarandı, **hepsinde `null_cnt = 0`**.
 
-1. `supabase db push` ile mevcut migration `20260510000018_audit_proje_id_nullable.sql` çalıştır → NOTICE'larda her tablo için NULL count.
-2. NOTICE çıktısını paylaş → master backfill stratejisi + `SET NOT NULL` migration draft yazsın.
+**Apply migration** (`20260511000007`, deploy edildi): 12 BASE TABLE'da `ALTER COLUMN proje_id SET NOT NULL`. View'lar (`aidat_detaylari`, `kasa_durumu`) skip edildi.
 
-**Risk:** 14 tabloda `proje_id` NULLABLE. Schema'ların büyük kısmı `proje_id`'yi optional kabul ediyor → prod'da NULL satır olma olasılığı yüksek. Körlemesine `SET NOT NULL` migration'ı patlatır.
+**Schema sertleştirme** (Zod): 8 INSERT body schema'sında `proje_id` `.optional()`/`.optional().nullable()` → required UUID. (Query filter schema'ları optional kaldı.)
+
+**Doğrulama gereken:** Audit log `actor_id` üretim doğrulaması — son 13 prod audit kaydı `actor_id=NULL`, fakat hepsi TASK-DB-03 öncesi (2026-05-10 21:55). Bugün yapılan değişikliklerden sonra **kullanıcı bir mutate işlem yapıp** `SELECT actor_id, actor_email FROM audit_logs ORDER BY changed_at DESC LIMIT 5` ile dolu mu doğrulamalı.
 
 ### Backend P3 (kalan — bu sprintte atlanan)
 
