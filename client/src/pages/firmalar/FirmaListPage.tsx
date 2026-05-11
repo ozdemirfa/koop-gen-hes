@@ -334,6 +334,7 @@ export const FirmaListPage: React.FC = () => {
             rowKey="id"
             loading={isLoading}
             totalItems={firmaData?.pagination?.totalCount}
+            stickyFirstColumn /* A2-03: firma adı kolonu sticky */
             onRow={(record) => ({
               onClick: () => navigate(`/firmalar/${record.id}`),
               style: { cursor: 'pointer' }

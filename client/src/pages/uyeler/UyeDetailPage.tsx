@@ -10,9 +10,12 @@ import { getErrorMessage } from '../../lib/apiError'
 import { PageHeader } from '../../components/common/PageHeader'
 import { DataTable } from '../../components/common/DataTable'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
+import { LoadingState } from '../../components/common/LoadingState'
+import { ErrorState } from '../../components/common/ErrorState'
 import { FaizBorclandirModal } from './components/FaizBorclandirModal'
 
 import { trNumberParser, trMoneyFormatter } from '../../lib/format'
+import { useIsTouchDevice } from '../../hooks/useIsTouchDevice'
 
 const { Text } = Typography
 
@@ -40,6 +43,7 @@ export const UyeDetailPage: React.FC = () => {
   const queryClient = useQueryClient()
   const [faizModalOpen, setFaizModalOpen] = useState(false)
   const { message: messageApi } = App.useApp()
+  const isTouchDevice = useIsTouchDevice()
 
   // Undo Match Mutation
   const undoMatchMutation = useMutation({
@@ -57,7 +61,15 @@ export const UyeDetailPage: React.FC = () => {
   })
 
   // Üye detaylarını getir
-  const { data: uye, isLoading: uyeLoading } = useQuery({
+  // U-8 (2026-05-11): isError + error + refetch eklendi; aşağıda erken-return
+  // guard pattern'iyle Result + retry button gösteriliyor.
+  const {
+    data: uye,
+    isLoading: uyeLoading,
+    isError: uyeIsError,
+    error: uyeError,
+    refetch: uyeRefetch,
+  } = useQuery({
     queryKey: ['uye', id],
     queryFn: async () => {
       const { data } = await api.get(`/uyeler/${id}`)
@@ -223,13 +235,18 @@ export const UyeDetailPage: React.FC = () => {
         if (NO_UNDO_TYPES.includes(r.islem_turu)) {
           return (
             <Tooltip
+              // A8-01 (2026-05-11): mobile/touch cihazlarda hover yok; click ile aç.
+              trigger={isTouchDevice ? ['click', 'hover'] : ['hover']}
               title={
                 r.islem_turu === 'iade_odeme'
                   ? 'İade kayıtları aidat ile eşleşmez. Geri almak için karşıt bir tahsilat kaydı oluşturun.'
                   : 'Üyelik başlangıç bedeli bir tahakkuk kalemidir; ödeme/iade ile manuel kapatılır, geri alınamaz.'
               }
             >
-              <InfoCircleOutlined style={{ color: '#bfbfbf' }} />
+              <InfoCircleOutlined
+                style={{ color: '#bfbfbf', cursor: isTouchDevice ? 'pointer' : 'help' }}
+                aria-label="Bu kalem için işlem geri alınamaz; detay için tıklayın"
+              />
             </Tooltip>
           )
         }
@@ -269,6 +286,20 @@ export const UyeDetailPage: React.FC = () => {
 
   const blokAdi = uye?.serefiye_tablosu?.bloklar?.blok_adi || '-'
   const daireNo = uye?.serefiye_tablosu?.daire_no || '-'
+
+  // U-8 (2026-05-11): error/loading guard — Result + retry
+  if (uyeLoading) {
+    return <LoadingState fullHeight />
+  }
+  if (uyeIsError || (!uyeLoading && !uye)) {
+    return (
+      <ErrorState
+        error={uyeError}
+        title={uyeIsError ? 'Üye yüklenemedi' : 'Üye bulunamadı'}
+        onRetry={() => uyeRefetch()}
+      />
+    )
+  }
 
   return (
     <div>

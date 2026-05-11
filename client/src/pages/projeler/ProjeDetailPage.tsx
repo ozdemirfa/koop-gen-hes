@@ -94,7 +94,12 @@ export const ProjeDetailPage: React.FC = () => {
 
   if (isLoading) return <LoadingState fullHeight />
   if (isError) return <ErrorState error={error} onRetry={() => refetch()} />
-  if (!proje) return <EmptyState description="Proje bulunamadı" />
+  if (!proje) return (
+    <EmptyState
+      description="Bu proje bulunamadı veya silinmiş olabilir."
+      action={<Button type="primary" onClick={() => navigate('/projeler')}>Projeler Listesine Dön</Button>}
+    />
+  )
 
   return (
     <div className="animate-in fade-in duration-500">

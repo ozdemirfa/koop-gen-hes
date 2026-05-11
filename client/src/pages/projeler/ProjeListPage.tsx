@@ -155,7 +155,21 @@ export const ProjeListPage: React.FC = () => {
         ) : isError ? (
           <Col span={24}><ErrorState error={error} onRetry={() => refetch()} /></Col>
         ) : projeler?.length === 0 ? (
-          <Col span={24}><EmptyState description="Henüz proje eklenmemiş" /></Col>
+          <Col span={24}>
+            {/* A4-01 (2026-05-11): action-oriented copy + primary CTA */}
+            <EmptyState
+              description="Henüz bir projeniz yok. Başlamak için ilk projenizi oluşturun."
+              action={
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => { setEditingProje(null); form.resetFields(); setModalOpen(true) }}
+                >
+                  İlk Projeyi Oluştur
+                </Button>
+              }
+            />
+          </Col>
         ) : (
           projeler?.map((p) => (
             <Col xs={24} sm={12} lg={8} key={p.id}>

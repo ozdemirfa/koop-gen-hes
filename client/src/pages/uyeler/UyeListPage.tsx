@@ -214,7 +214,8 @@ export const UyeListPage: React.FC = () => {
             rowKey="id"
             loading={isLoading}
             totalItems={uyeData?.pagination?.totalCount}
-            emptyDescription="Kayıtlı üye bulunamadı"
+            emptyDescription="Bu projede kayıtlı üye yok. Yeni Üye butonu ile başlayın."
+            stickyFirstColumn /* A2-03: üye no/adı kolonu sticky */
             onRow={(record: Uye) => ({
               onClick: () => navigate(`/uyeler/${record.id}`),
               style: { cursor: 'pointer' }
