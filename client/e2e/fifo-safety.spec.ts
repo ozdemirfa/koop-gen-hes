@@ -25,7 +25,9 @@ test.describe('FIFO Matching Security & Isolation', () => {
     await matchBtn.click()
     
     // Wait for success message
-    await expect(page.locator('.ant-message-success')).toBeVisible()
+    // AntD v6: message DOM yapısı `ant-message-notice-content` altında; class selector
+    // hâlâ var ama parent yapısı değiştiği için notice-content scope'u daha kararlı.
+    await expect(page.locator('.ant-message-notice-content .ant-message-success')).toBeVisible()
 
     // 3. Verify that member 2's balance remains unchanged (Negative test)
     // We should ideally check DB or API directly, but here we can check UI

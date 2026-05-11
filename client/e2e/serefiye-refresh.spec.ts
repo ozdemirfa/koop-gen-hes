@@ -70,8 +70,10 @@ test.describe('Serefiye Tabloyu Yenile Akışı', () => {
       expect(response.status()).toBe(200);
 
       // 5. Başarı mesajını bekle
-      await expect(page.locator('.ant-message-success')).toBeVisible({ timeout: 15000 });
-      await expect(page.locator('.ant-message-success')).toContainText('Şerefiye tablosu yenilendi');
+      // AntD v6: message DOM yapısı `ant-message-notice-content` altında scope'lanır.
+      const successMsg = page.locator('.ant-message-notice-content .ant-message-success')
+      await expect(successMsg).toBeVisible({ timeout: 15000 });
+      await expect(successMsg).toContainText('Şerefiye tablosu yenilendi');
 
       // 6. Tablonun hala veri içerdiğini doğrula
       const rows = page.locator('.ant-table-row');
@@ -79,8 +81,9 @@ test.describe('Serefiye Tabloyu Yenile Akışı', () => {
     } else {
       console.log('Tablo boş, "Tabloyu Oluştur" testi yapılıyor.');
       await generateBtn.click();
-      await expect(page.locator('.ant-message-success')).toBeVisible({ timeout: 15000 });
-      await expect(page.locator('.ant-message-success')).toContainText('oluşturuldu');
+      const successMsg = page.locator('.ant-message-notice-content .ant-message-success')
+      await expect(successMsg).toBeVisible({ timeout: 15000 });
+      await expect(successMsg).toContainText('oluşturuldu');
     }
   });
 });
