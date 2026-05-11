@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
 import { createClient } from '@supabase/supabase-js'
-import { jwtVerify } from 'jose'
+import { jwtVerify, createRemoteJWKSet } from 'jose'
 import { ApiError } from '../utils/ApiError'
 import logger from '../utils/logger'
 import { getUserRole } from './roleCache'
@@ -13,8 +13,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
   logger.error('[AUTH] SUPABASE_URL veya SUPABASE_ANON_KEY eksik (VITE_ prefixed versiyonları da kontrol edin)')
 }
 
-if (!supabaseJwtSecret) {
-  logger.warn('[AUTH] SUPABASE_JWT_SECRET set degil — lokal JWT verify devre disi, fallback olarak supabase.auth.getUser kullanilacak (her request bir round-trip)')
+if (!supabaseJwtSecret && !supabaseUrl) {
+  logger.warn('[AUTH] Ne SUPABASE_JWT_SECRET ne de SUPABASE_URL var — lokal JWT verify devre disi, fallback supabase.auth.getUser (her request bir round-trip)')
 }
 
 export interface AuthRequest<
@@ -30,12 +30,20 @@ export interface AuthRequest<
   }
 }
 
-// Sprint 20260511-open-backlog-sprint (SEC-013):
+// Sprint 20260511-open-backlog-sprint (SEC-013) + JWKS hibrit guncellemesi:
 // Lokal JWT verify ile supabase.auth.getUser round-trip elimine edildi.
-// SUPABASE_JWT_SECRET set ise jose ile HS256 dogrulanir (1-2ms).
-// Set degilse fallback olarak getUser kullanilir (geri uyumlu).
+// 1. SUPABASE_JWT_SECRET set ise jose HS256 ile dogrular (legacy + test path, 1-2ms).
+// 2. Aksi takdirde SUPABASE_URL'den JWKS endpoint'i fetch eder ve ES256/RS256
+//    asymmetric signature ile dogrular (modern Supabase projeler, ilk request 5-10ms
+//    sonrasi cache'li ~1-2ms). Supabase 2024 sonrasi yeni projeler default asymmetric.
+// 3. Hicbiri yoksa fallback olarak supabase.auth.getUser kullanilir.
 const jwtSecretBytes = supabaseJwtSecret
   ? new TextEncoder().encode(supabaseJwtSecret)
+  : null
+
+// Supabase JWKS endpoint — asymmetric key rotation otomatik handle edilir.
+const jwks = supabaseUrl
+  ? createRemoteJWKSet(new URL(`${supabaseUrl}/auth/v1/.well-known/jwks.json`))
   : null
 
 const authClient = createClient(supabaseUrl, supabaseAnonKey, {
@@ -43,24 +51,42 @@ const authClient = createClient(supabaseUrl, supabaseAnonKey, {
 })
 
 /**
- * Lokal JWT verify (HS256 + Supabase JWT Secret).
+ * Lokal JWT verify — hibrit (HS256 legacy + ES256/RS256 JWKS modern).
  * Basarili olursa { id, email } doner; aksi takdirde null.
  * exception throw etmez — fallback yolunu acik tutar.
  */
 export async function verifyJwtLocal(token: string): Promise<{ id: string; email?: string } | null> {
-  if (!jwtSecretBytes) return null
-  try {
-    const { payload } = await jwtVerify(token, jwtSecretBytes, {
-      algorithms: ['HS256'],
-    })
-    // Supabase JWT payload: { sub, email, role, aud, exp, iat }
-    if (typeof payload.sub !== 'string' || !payload.sub) return null
-    const email = typeof payload.email === 'string' ? payload.email : undefined
-    return { id: payload.sub, email }
-  } catch (_err) {
-    // signature mismatch, expired, malformed → null (fallback'e birakiyoruz)
-    return null
+  // 1. HS256 legacy path (SUPABASE_JWT_SECRET set ise + test ortami)
+  if (jwtSecretBytes) {
+    try {
+      const { payload } = await jwtVerify(token, jwtSecretBytes, {
+        algorithms: ['HS256'],
+      })
+      if (typeof payload.sub === 'string' && payload.sub) {
+        const email = typeof payload.email === 'string' ? payload.email : undefined
+        return { id: payload.sub, email }
+      }
+    } catch (_err) {
+      // HS256 imzasi tutmuyor — JWKS yoluna dus
+    }
   }
+
+  // 2. JWKS asymmetric path (modern Supabase, ES256/RS256)
+  if (jwks) {
+    try {
+      const { payload } = await jwtVerify(token, jwks, {
+        algorithms: ['ES256', 'RS256'],
+      })
+      if (typeof payload.sub === 'string' && payload.sub) {
+        const email = typeof payload.email === 'string' ? payload.email : undefined
+        return { id: payload.sub, email }
+      }
+    } catch (_err) {
+      // JWKS de fail — supabase.auth.getUser fallback'ine birakilir
+    }
+  }
+
+  return null
 }
 
 export async function authMiddleware(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
