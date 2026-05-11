@@ -19,6 +19,8 @@ const ISLEM_TURU_WHITELIST = new Set<string>([
 ])
 const MAX_ISLEM_TURU_IN = 12
 
+// Nullable alanlar Zod schema'da `.optional().nullable()` olduğu için
+// burada da `null` desteği eklendi (TASK-BE-10, sprint 20260511-backlog-batch3).
 type PaymentInput = {
   proje_id: string
   cari_hesap_id: string
@@ -26,13 +28,13 @@ type PaymentInput = {
   odeme_turu: 'nakit' | 'banka' | 'cek' | 'kredi_karti' | 'cari'
   tutar: number
   tarih: string
-  aciklama?: string
-  belge_no?: string
-  banka_hesap_id?: string
-  cek_id?: string
-  vade_tarihi?: string
-  banka?: string
-  sube?: string
+  aciklama?: string | null
+  belge_no?: string | null
+  banka_hesap_id?: string | null
+  cek_id?: string | null
+  vade_tarihi?: string | null
+  banka?: string | null
+  sube?: string | null
   kaynak_tipi?: string
   kaynak_id?: string
   actorId?: string

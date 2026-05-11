@@ -37,7 +37,37 @@ app.use(cors({
 
 app.use(express.json())
 
-app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev', {
+// TASK-BE-09 (sprint 20260511-backlog-batch3, SEC-011):
+// PII-leak koruması — query string'leri redact et. Üye/cari aramada `?search=Ahmet+Yilmaz`
+// gibi PII log'a sızabilir. Redact kuralı: sadece path tut, query'yi `?[redacted]` yap.
+// Whitelist (proje_id, page, page_size gibi) production log debug'ını korumak için kalır.
+const REDACT_WHITELIST = new Set(['page', 'page_size', 'proje_id', 'order'])
+morgan.token('redacted-url', (req: Request) => {
+  const url = req.url || ''
+  const qIdx = url.indexOf('?')
+  if (qIdx === -1) return url
+  const path = url.slice(0, qIdx)
+  const qs = new URLSearchParams(url.slice(qIdx + 1))
+  const kept: string[] = []
+  let redactedCount = 0
+  qs.forEach((value, key) => {
+    if (REDACT_WHITELIST.has(key)) {
+      kept.push(`${key}=${value}`)
+    } else {
+      redactedCount++
+    }
+  })
+  const suffix = redactedCount > 0 ? `${kept.length ? '&' : ''}[redacted:${redactedCount}]` : ''
+  return kept.length || redactedCount
+    ? `${path}?${kept.join('&')}${suffix}`
+    : path
+})
+
+const morganFormat = process.env.NODE_ENV === 'production'
+  ? ':remote-addr - :remote-user [:date[clf]] ":method :redacted-url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent"'
+  : ':method :redacted-url :status :res[content-length] - :response-time ms'
+
+app.use(morgan(morganFormat, {
   stream: { write: (msg: string) => logger.info(msg.trim()) },
 }))
 

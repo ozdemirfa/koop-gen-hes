@@ -1,15 +1,18 @@
 import { z } from 'zod'
 import { CARI_HAREKET_TIPLERI } from '../config/constants'
 
+// TASK-BE-08 (sprint 20260511-backlog-batch3, SEC-014):
+// proje_id artık zorunlu (multi-tenant izolasyon defense-in-depth) + .strict() mode
+// extra field reddi (mass assignment koruması, örn. kaynak_tipi/kaynak_id manipülasyonu).
 export const cariHareketSchema = z.object({
-  proje_id: z.string().uuid().optional(),
+  proje_id: z.string().uuid('proje_id zorunludur'),
   firma_id: z.string().uuid(),
   hareket_tipi: z.enum(CARI_HAREKET_TIPLERI),
   tutar: z.number().positive(),
   tarih: z.string().optional(),
   aciklama: z.string().optional().nullable(),
   belge_no: z.string().optional().nullable()
-})
+}).strict()
 
 // TASK-BE-04 (sprint 20260511-backlog-batch1):
 // Defense-in-depth for cari payment schema. uyelik_baslangic is a pure accrual,
