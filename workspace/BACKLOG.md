@@ -187,17 +187,17 @@ WHERE role='admin' AND user_id NOT IN (
 
 **Doğrulama gereken:** Audit log `actor_id` üretim doğrulaması — son 13 prod audit kaydı `actor_id=NULL`, fakat hepsi TASK-DB-03 öncesi (2026-05-10 21:55). Bugün yapılan değişikliklerden sonra **kullanıcı bir mutate işlem yapıp** `SELECT actor_id, actor_email FROM audit_logs ORDER BY changed_at DESC LIMIT 5` ile dolu mu doğrulamalı.
 
-### Backend P3 (kalan)
+### Backend P3 — TAMAMLANDI ✅ (sprint 20260511-open-backlog-sprint)
 
-- [ ] **SEC-013 (P3):** JWT lokal verify (jose lib) — Supabase round-trip azaltma. Büyük auth refactor, dikkatli test gerekir.
-- [ ] **CODE-006 (P3):** ESLint `no-explicit-any` warn + migration timestamp uniqueness CI test — büyük, ayrı sprint (100+ warning üretebilir).
+- [x] **SEC-013 (P3):** JWT lokal verify (jose@5) — `verifyJwtLocal` helper + auth.ts refactor (commit `6ced9b9`). SUPABASE_JWT_SECRET env set ise lokal HS256 verify; aksi takdirde fallback `supabase.auth.getUser`. Tahmini ~100ms tasarruf per request. 5 unit test PASS. **Manuel adım:** Render'da `SUPABASE_JWT_SECRET` env eklenmeli.
+- [x] **CODE-006 (P3):** ESLint `no-explicit-any` warn (eslint.config.js) + migration timestamp uniqueness CI test (`migrationTimestampUnique.test.ts`, 2 PASS) (commit `8c92b30`). 156 no-explicit-any warning raporlandı (refactor ayrı task).
 
-### Frontend P3 (kalan)
+### Frontend P3 — TAMAMLANDI ✅ (sprint 20260511-open-backlog-sprint)
 
-- [ ] **A1-02 + CQ-02 (P3):** AdminLayout MainHeader kalan JS-isMobile branch'ları → CSS class. UI regression riski; dikkatli refactor sprint.
-- [ ] **A2-02 (P2):** Aidatlar filtre satırı mobile Drawer/Collapse — UX karar gerektirir (kullanıcı flow değişikliği).
-- [ ] **A3-01 (P3):** `aria-invalid` runtime doğrulaması (manuel/Playwright) — Playwright run'a bağlı.
-- [ ] **A3-02 (P2):** `validateTrigger` global standardize — form behavior değişikliği; kontrollü test.
+- [x] **A1-02 + CQ-02 (P3):** AdminLayout MainHeader CSS migration — isMobile prop kaldırıldı, padding/gap/hamburger CSS class'lara taşındı (commit `699a132`).
+- [x] **A2-02 (P2):** Aidatlar filtre Drawer — useBreakpoint + mobile "Filtrele" button + Badge + vertical Drawer (commit `a4a3922`).
+- [x] **A3-01 (P3):** `aria-invalid` runtime Playwright spec — `client/e2e/aria-invalid.spec.ts` (3 senaryo) (commit `a4a3922`). **Manuel adım:** lokal docker + supabase start gerekli.
+- [x] **A3-02 (P2):** `validateTrigger` global standardize — 18 dosyada 20 Form'a `["onBlur","onChange"]` (commit `699a132`).
 
 ### TASK-DB-03 — TAMAMLANDI ✅
 
@@ -274,6 +274,9 @@ Yarın açış: **bu dosyanın 🔴 bölümündeki manuel doğrulama adımları*
 3. Audit log `actor_id` doğrulaması — son 5 mutate sonrası `SELECT actor_id, actor_email FROM audit_logs ORDER BY changed_at DESC LIMIT 5` (TASK-DB-03 + DB-04 closure)
 4. Playwright run: `cd client && npx playwright test` ile genel regression.
 
-Sonraki sprint (Batch 5) kalanları:
-- **Backend:** SEC-013 (JWT jose), CODE-006 (ESLint no-explicit-any)
-- **Frontend P3:** A1-02/CQ-02 (AdminLayout refactor), A2-02 (Aidatlar Drawer), A3-01 (aria-invalid Playwright), A3-02 (validateTrigger global)
+Sonraki sprint (Batch 5) kalanları — TAMAMLANDI ✅ (sprint 20260511-open-backlog-sprint):
+- [x] **Backend:** SEC-013 (JWT jose@5 lokal verify), CODE-006 (ESLint no-explicit-any warn + migration timestamp CI test)
+- [x] **Frontend P3:** A1-02/CQ-02 (AdminLayout CSS migration), A2-02 (Aidatlar Drawer), A3-01 (aria-invalid Playwright), A3-02 (validateTrigger global)
+
+Commit'ler: `a4a3922` (Batch 1) + `699a132` (Batch 2) + `8c92b30` (CODE-006) + `6ced9b9` (SEC-013)
+Test baseline: 50 → **57 PASS** (+2 migration timestamp, +5 verifyJwtLocal)
