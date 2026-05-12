@@ -1,22 +1,35 @@
-import React, { useState } from 'react'
-import { Card, Row, Col, Statistic, DatePicker, Button, Space, Typography } from 'antd'
+import React, { useState, useMemo } from 'react'
+import { Card, Row, Col, Statistic, DatePicker, Button, Typography } from 'antd'
 import { FilePdfOutlined, RiseOutlined, FallOutlined, DollarOutlined, BarChartOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
-import { PageHeader } from '../../components/common/PageHeader'
-import { MoneyDisplay } from '../../components/common/MoneyDisplay'
+import { usePageSettings } from '../../contexts/LayoutContext'
 import { LoadingState } from '../../components/common/LoadingState'
 import { ErrorState } from '../../components/common/ErrorState'
 import { DataTable } from '../../components/common/DataTable'
 
 import { trMoneyFormatter } from '../../lib/format'
 
-const { Title, Text } = Typography
-
 export const YillikRaporPage: React.FC = () => {
   const [targetYear, setTargetYear] = useState(dayjs())
   const activeProjectId = localStorage.getItem('activeProjectId')
+
+  const actions = useMemo(() => (
+    <DatePicker
+      picker="year"
+      value={targetYear}
+      onChange={(v) => v && setTargetYear(v)}
+      format="YYYY"
+      size="small"
+    />
+  ), [targetYear])
+
+  usePageSettings('Yıllık Mali Rapor', actions)
+
+  const handlePdfDownload = () => {
+    window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'}/raporlar/yillik-rapor/pdf?yil=${targetYear.year()}&proje_id=${activeProjectId}`, '_blank')
+  }
 
   const { data: rapor, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['yillik-rapor', targetYear.year(), activeProjectId],
@@ -50,27 +63,16 @@ export const YillikRaporPage: React.FC = () => {
 
   return (
     <div>
-      <PageHeader
-        title="Yıllık Mali Rapor"
-        extra={
-          <Space>
-            <DatePicker
-              picker="year"
-              value={targetYear}
-              onChange={(v) => v && setTargetYear(v)}
-              format="YYYY"
-            />
-            <Button 
-              icon={<FilePdfOutlined />} 
-              onClick={() => {
-                window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'}/raporlar/yillik-rapor/pdf?yil=${targetYear.year()}&proje_id=${activeProjectId}`, '_blank');
-              }}
-            >
-              PDF İndir
-            </Button>
-          </Space>
-        }
-      />
+      <div style={{ marginBottom: 12 }}>
+        <Button
+          size="small"
+          icon={<FilePdfOutlined />}
+          onClick={handlePdfDownload}
+          disabled={!activeProjectId}
+        >
+          PDF İndir
+        </Button>
+      </div>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col span={6}>

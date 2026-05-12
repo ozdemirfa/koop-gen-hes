@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Card, Table, Row, Col, Statistic, DatePicker, Button, Space, Tag, Typography } from 'antd'
+import { Card, Table, Row, Col, Statistic, DatePicker, Button, Tag, Typography } from 'antd'
 import { FilePdfOutlined, RiseOutlined, FallOutlined, DollarOutlined, CalendarOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
@@ -32,28 +32,20 @@ export const AylikRaporPage: React.FC = () => {
   })
 
   const actions = useMemo(() => (
-    <Space>
-      <DatePicker
-        picker="month"
-        value={targetDate}
-        onChange={(v) => v && setTargetDate(v)}
-        format="MMMM YYYY"
-        size="small"
-      />
-      <Button 
-        size="small"
-        icon={<FilePdfOutlined />} 
-        onClick={() => {
-          window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'}/raporlar/aylik-rapor/pdf?yil=${targetDate.year()}&ay=${targetDate.month() + 1}&proje_id=${activeProjectId}`, '_blank');
-        }}
-        disabled={!activeProjectId}
-      >
-        PDF İndir
-      </Button>
-    </Space>
-  ), [targetDate, activeProjectId])
+    <DatePicker
+      picker="month"
+      value={targetDate}
+      onChange={(v) => v && setTargetDate(v)}
+      format="MMMM YYYY"
+      size="small"
+    />
+  ), [targetDate])
 
   usePageSettings('Aylık Mali Rapor', actions)
+
+  const handlePdfDownload = () => {
+    window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'}/raporlar/aylik-rapor/pdf?yil=${targetDate.year()}&ay=${targetDate.month() + 1}&proje_id=${activeProjectId}`, '_blank')
+  }
 
   const gelirColumns = [
     { title: 'Tarih', dataIndex: 'tarih', key: 'tarih', render: (t: string) => dayjs(t).format('DD.MM.YYYY') },
@@ -98,6 +90,16 @@ export const AylikRaporPage: React.FC = () => {
 
   return (
     <div style={{ padding: '0 0 24px 0' }}>
+      <div style={{ marginBottom: 12 }}>
+        <Button
+          size="small"
+          icon={<FilePdfOutlined />}
+          onClick={handlePdfDownload}
+          disabled={!activeProjectId}
+        >
+          PDF İndir
+        </Button>
+      </div>
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col span={8}>
           <Card variant="borderless" size="small" className="stat-card shadow-sm">
