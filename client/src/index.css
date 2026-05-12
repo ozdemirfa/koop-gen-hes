@@ -254,12 +254,6 @@ body {
   .admin-header-title .ant-typography {
     font-size: 14px;
   }
-  .admin-header-separator {
-    display: none;
-  }
-  .admin-header-logout {
-    padding: 4px 8px !important;
-  }
 }
 
 .small-datepicker-popup .ant-picker-panel-container {
