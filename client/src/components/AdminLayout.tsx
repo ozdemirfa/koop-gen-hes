@@ -340,6 +340,7 @@ export const AdminLayout: React.FC = () => {
       { key: '/ayarlar/birimler', label: 'Birimler' },
       { key: '/ayarlar/pozlar', label: 'Pozlar' },
       { key: '/ayarlar/parametreler', label: 'Parametreler' },
+      { key: '/ayarlar/sifre-degistir', label: 'Şifre Değiştir' },
       { type: 'divider' as const },
       { key: 'logout', icon: <LogoutOutlined />, label: 'Çıkış Yap', danger: true },
     ],
