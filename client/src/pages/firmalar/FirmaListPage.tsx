@@ -10,6 +10,7 @@ import { usePageSettings } from '../../contexts/LayoutContext'
 import { formatIBAN, formatIBANInput, getIBANRaw, trMoneyFormatter, formatPhone, getPhoneRaw } from '../../lib/format'
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
+import { HeaderActionsToolbar } from '../../components/common/HeaderActionsToolbar'
 
 interface Firma {
   id: string
@@ -50,14 +51,32 @@ export const FirmaListPage: React.FC = () => {
     }
   }, [isModalOpen, form])
 
-  const headerActions = useMemo(() => (
-    <Space wrap>
+  // OC-05 (sprint 20260511-ui-responsive-sprint extension):
+  // HeaderActionsToolbar — primary=Yeni Firma, secondary=Search+Tip+Aktif Select
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (search) count++
+    if (filterTip) count++
+    if (filterAktif && filterAktif !== 'true') count++ // 'true' default kabul
+    return count
+  }, [search, filterTip, filterAktif])
+
+  const primaryAction = useMemo(() => (
+    <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
+      Yeni Firma
+    </Button>
+  ), [])
+
+  const secondaryActions = useMemo(() => (
+    <>
       <Input
         placeholder="Firma ara..."
         prefix={<SearchOutlined />}
         allowClear
+        value={search}
         onChange={(e) => setSearch(e.target.value)}
         style={{ width: 220 }}
+        size="small"
       />
       <Select
         placeholder="Tip"
@@ -65,6 +84,7 @@ export const FirmaListPage: React.FC = () => {
         onChange={setFilterTip}
         allowClear
         style={{ width: 130 }}
+        size="small"
       >
         <Select.Option value="yuklenici">Yüklenici</Select.Option>
         <Select.Option value="tedarikci">Tedarikçi</Select.Option>
@@ -75,15 +95,22 @@ export const FirmaListPage: React.FC = () => {
         onChange={setFilterAktif}
         allowClear
         style={{ width: 110 }}
+        size="small"
       >
         <Select.Option value="true">Aktif</Select.Option>
         <Select.Option value="false">Pasif</Select.Option>
       </Select>
-      <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
-        Yeni Firma
-      </Button>
-    </Space>
-  ), [filterTip, filterAktif])
+    </>
+  ), [search, filterTip, filterAktif])
+
+  const headerActions = useMemo(() => (
+    <HeaderActionsToolbar
+      primary={primaryAction}
+      secondary={secondaryActions}
+      filterCount={activeFilterCount}
+      drawerTitle="Firma Filtreleri"
+    />
+  ), [primaryAction, secondaryActions, activeFilterCount])
 
   usePageSettings('Firma Listesi', headerActions)
 
