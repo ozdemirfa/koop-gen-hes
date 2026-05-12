@@ -40,6 +40,7 @@ import { MizanPage } from './pages/raporlar/MizanPage'
 import { BirimListPage } from './pages/settings/BirimListPage'
 import { PozListPage } from './pages/settings/PozListPage'
 import { ParametersPage } from './pages/settings/ParametersPage'
+import { SifreDegistirPage } from './pages/settings/SifreDegistirPage'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 
 const queryClient = new QueryClient({
@@ -158,6 +159,7 @@ const App: React.FC = () => {
                         <Route path="ayarlar/birimler" element={<BirimListPage />} />
                         <Route path="ayarlar/pozlar" element={<PozListPage />} />
                         <Route path="ayarlar/parametreler" element={<ParametersPage />} />
+                        <Route path="ayarlar/sifre-degistir" element={<SifreDegistirPage />} />
                       </Route>
                     </Routes>
                   </Router>
