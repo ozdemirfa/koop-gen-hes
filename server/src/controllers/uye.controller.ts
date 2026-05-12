@@ -45,8 +45,3 @@ export const matchPaymentsFIFO = catchAsync(async (req: AuthRequest<{ id: string
   res.json({ success: true, data })
 })
 
-export const reallocPaymentsFIFO = catchAsync(async (req: AuthRequest<{ id: string }, any, any, any>, res: Response) => {
-  const { proje_id } = req.query
-  const data = await uyeService.reallocPaymentsFIFO(req.params.id, proje_id as string, req.user?.id)
-  res.json({ success: true, data })
-})
