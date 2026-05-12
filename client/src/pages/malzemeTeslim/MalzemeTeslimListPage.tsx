@@ -167,7 +167,7 @@ export const MalzemeTeslimListPage: React.FC = () => {
     />
   ), [primaryAction, secondaryActions, activeFilterCount])
 
-  usePageSettings('Malzeme Teslimatı ve İrsaliye', actions)
+  usePageSettings('Teslimatlar', actions)
 
   const columns = [
     {
