@@ -18,11 +18,9 @@ import {
   ArrowUpOutlined,
   ArrowDownOutlined,
   WalletOutlined,
-  SyncOutlined,
 } from '@ant-design/icons'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import api from '../lib/api'
-import { getErrorMessage } from '../lib/apiError'
 import { LoadingState } from '../components/common/LoadingState'
 import { ErrorState } from '../components/common/ErrorState'
 import { EmptyState } from '../components/common/EmptyState'
@@ -30,7 +28,6 @@ import { usePageSettings } from '../contexts/LayoutContext'
 import { useProject } from '../contexts/ProjectContext'
 import dayjs from 'dayjs'
 import { trNumberFormatter, trMoneyFormatter } from '../lib/format'
-import { App, Button, Popconfirm } from 'antd'
 
 const { RangePicker } = DatePicker
 
@@ -48,8 +45,6 @@ const TLSuffix = <span className="stat-suffix">TL</span>
 
 export const Dashboard: React.FC = () => {
   const { activeProject } = useProject()
-  const { message } = App.useApp()
-  const queryClient = useQueryClient()
   const [dates, setDates] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null)
 
   const { data: ozet, isLoading, isError, error, refetch } = useQuery({
@@ -76,39 +71,8 @@ export const Dashboard: React.FC = () => {
     enabled: !!activeProject?.id
   })
 
-  const fifoClosureMutation = useMutation({
-    mutationFn: async () => {
-      return await api.post('/cari-hareketler/fifo-kapama', { proje_id: activeProject?.id })
-    },
-    onSuccess: () => {
-      message.success('Hesap kapamaları başarıyla tamamlandı.')
-      queryClient.invalidateQueries({ queryKey: ['aidatlar'] })
-      queryClient.invalidateQueries({ queryKey: ['aidat-ozet'] })
-      queryClient.invalidateQueries({ queryKey: ['cari-ekstre'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard-ozet'] })
-      queryClient.invalidateQueries({ queryKey: ['banka-hareketleri'] })
-    },
-    onError: (err) => message.error(getErrorMessage(err))
-  })
-
   const actions = React.useMemo(() => (
     <Space size="small" wrap>
-      <Popconfirm
-        title="Hesap Kapamaları"
-        description="Boştaki ödemeler FIFO mantığı ile aidat ve hakedişlerle eşleştirilecek. Devam edilsin mi?"
-        onConfirm={() => fifoClosureMutation.mutate()}
-        okText="Evet"
-        cancelText="Hayır"
-      >
-        <Button
-          size="small"
-          icon={<SyncOutlined />}
-          loading={fifoClosureMutation.isPending}
-          disabled={!activeProject}
-        >
-          Hesap Kapamalarını Yap
-        </Button>
-      </Popconfirm>
       <RangePicker
         size="small"
         value={dates}
@@ -117,7 +81,7 @@ export const Dashboard: React.FC = () => {
         style={{ width: 240 }}
       />
     </Space>
-  ), [dates, activeProject, fifoClosureMutation])
+  ), [dates])
   usePageSettings('Pano', actions)
 
   if (!activeProject) {
