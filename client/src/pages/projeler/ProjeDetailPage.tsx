@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Row, Col, Card, Statistic, Tag, Button, Space, Divider, Typography, Select } from 'antd'
-import { CalendarOutlined, ProjectOutlined, ArrowLeftOutlined, EditOutlined, BarChartOutlined, HomeOutlined } from '@ant-design/icons'
+import { CalendarOutlined, ProjectOutlined, ArrowLeftOutlined, BarChartOutlined, HomeOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { PageHeader } from '../../components/common/PageHeader'
@@ -43,29 +43,8 @@ export const ProjeDetailPage: React.FC = () => {
     enabled: !!id
   })
 
-  const yearOptions = useMemo(() => {
-    const current = dayjs().year()
-    let start = current - 1
-    let end = current + 1
-    if (proje?.baslangic_tarihi) start = dayjs(proje.baslangic_tarihi).year()
-    if (proje?.bitis_tarihi) end = dayjs(proje.bitis_tarihi).year()
-    else if (proje?.baslangic_tarihi) end = start + 5
-    if (start > end) end = start
-    const opts: { label: string; value: number }[] = []
-    for (let y = start; y <= end; y++) opts.push({ label: `${y}`, value: y })
-    return opts
-  }, [proje])
-
   const actions = useMemo(() => (
     <Space>
-      <Select
-        size="small"
-        value={selectedYear}
-        onChange={setSelectedYear}
-        options={yearOptions}
-        style={{ width: 90 }}
-        title="Yıllık plan görüntüleme yılı"
-      />
       <Button
         icon={<HomeOutlined />}
         onClick={() => navigate(`/projeler/${id}/serefiye`)}
@@ -81,14 +60,14 @@ export const ProjeDetailPage: React.FC = () => {
         Yıllık Plan
       </Button>
       <Button
-        icon={<EditOutlined />}
+        icon={<ArrowLeftOutlined />}
         onClick={() => navigate('/projeler')}
         style={{ background: 'white' }}
       >
-        Projeler Listesinde Düzenle
+        Geri
       </Button>
     </Space>
-  ), [id, navigate, selectedYear, yearOptions])
+  ), [id, navigate, selectedYear])
 
   usePageSettings(proje?.proje_adi || 'Proje Detayı', actions)
 
