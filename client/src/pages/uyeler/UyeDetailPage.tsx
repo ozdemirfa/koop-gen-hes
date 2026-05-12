@@ -106,8 +106,8 @@ export const UyeDetailPage: React.FC = () => {
   // FIFO Eşleştirme Mutation
   const matchMutation = useMutation({
     mutationFn: async () => {
-      return await api.post(`/uyeler/${id}/match-payments`, null, { 
-        params: { proje_id: uye?.proje_id } 
+      return await api.post(`/uyeler/${id}/match-payments`, null, {
+        params: { proje_id: uye?.proje_id }
       })
     },
     onSuccess: (res: any) => {
@@ -124,6 +124,25 @@ export const UyeDetailPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['dashboard-ozet'] })
     },
     onError: (err) => messageApi.error(getErrorMessage(err, 'Eşleştirme hatası'))
+  })
+
+  // REV-FIFO-04 (2026-05-12): FIFO Yeniden Dağıt mutation.
+  // Tüm aidat-bağlı ödemeleri detach edip vade sırasına göre yeniden dağıtır.
+  // match-payments yalnızca yeni gelenleri eşler; eski yanlış allocation'ları düzeltmez.
+  // Bu endpoint admin-only.
+  const reallocMutation = useMutation({
+    mutationFn: async () => {
+      return await api.post(`/uyeler/${id}/realloc-payments`, null, {
+        params: { proje_id: uye?.proje_id }
+      })
+    },
+    onSuccess: (res: any) => {
+      const detached = res.data?.data?.detach_count ?? 0
+      const recomputed = res.data?.data?.recomputed_count ?? 0
+      messageApi.success(`FIFO yeniden dağıtım tamamlandı: ${detached} ödeme kaydı, ${recomputed} aidat güncellendi.`)
+      invalidateAllPaymentCaches()
+    },
+    onError: (err) => messageApi.error(getErrorMessage(err, 'FIFO yeniden dağıtım hatası'))
   })
 
   // Aidatları getir
@@ -298,10 +317,45 @@ export const UyeDetailPage: React.FC = () => {
       render: (v: number) => v > 0 ? <MoneyDisplay amount={v} colored /> : '-',
     },
     {
+      // REV-FIFO-04 (2026-05-12): rozet derived-from-kalan.
+      // View'daki durum kolonuna güvenmek yerine kalan_borc + son_odeme_tarihi
+      // üzerinden yeniden hesaplıyoruz; böylece view ile sapsa bile UI tutarlı kalır.
+      // Kurallar:
+      //   kalan_borc = 0          → odendi (yeşil)
+      //   kalan_borc < tahakkuk   → kismi  (sarı)  ← yeni durum (FIFO realloc öncesi görünür)
+      //   kalan_borc = tahakkuk, vade geçmiş → gecikti (kırmızı)
+      //   kalan_borc = tahakkuk, vade geçmedi → bekliyor (mavi)
       title: 'Durum',
-      dataIndex: 'durum',
       key: 'durum',
-      render: (d: string) => <Tag color={aidatDurumRenk[d] || 'default'}>{d.toUpperCase()}</Tag>,
+      render: (_: unknown, r: AidatOdeme) => {
+        const tahakkuk = Number(r.toplam_tahakkuk || r.toplam_borc || r.toplam_tutar || 0)
+        const odenen = Number(r.toplam_odenen ?? r.dinamik_odenen_tutar ?? r.odenen_tutar ?? 0)
+        const kalan = Math.max(0, tahakkuk - odenen)
+        const vadeGecmis = r.son_odeme_tarihi && dayjs(r.son_odeme_tarihi).isBefore(dayjs(), 'day')
+
+        let durumKey: string
+        let label: string
+        if (kalan <= 0.009) {
+          durumKey = 'odendi'
+          label = 'ÖDENDİ'
+        } else if (odenen > 0.009) {
+          durumKey = 'kismi'
+          label = 'KISMİ'
+        } else if (vadeGecmis) {
+          durumKey = 'gecikti'
+          label = 'GECİKTİ'
+        } else {
+          durumKey = 'bekliyor'
+          label = 'BEKLİYOR'
+        }
+        const colorMap: Record<string, string> = {
+          odendi: 'green',
+          kismi: 'gold',
+          gecikti: 'red',
+          bekliyor: 'blue',
+        }
+        return <Tag color={colorMap[durumKey] || aidatDurumRenk[r.durum] || 'default'}>{label}</Tag>
+      },
     },
     {
       // A3 (sprint 20260511-uye-tahsilat-firma-revisions): aidat satırı bazında
@@ -493,6 +547,24 @@ export const UyeDetailPage: React.FC = () => {
             >
               Hesap Kapatma (FIFO)
             </Button>
+            {/* REV-FIFO-04 (2026-05-12): admin-only. Geçmiş allocation'ları sıfırlar
+                 ve TÜM ödemeleri vade sırasıyla yeniden dağıtır. Eski parçalı kapama
+                 hatalarını düzeltmek için kullanılır. */}
+            <Popconfirm
+              title="FIFO Yeniden Dağıtım"
+              description="Bu üyenin tüm aidat-bağlı ödeme eşleşmeleri sıfırlanacak ve vade sırasına göre yeniden dağıtılacak. Eski parçalı kapama hatalarını düzeltir. Devam edilsin mi?"
+              onConfirm={() => reallocMutation.mutate()}
+              okText="Evet, Yeniden Dağıt"
+              cancelText="İptal"
+            >
+              <Button
+                icon={<RollbackOutlined />}
+                loading={reallocMutation.isPending}
+                title="Tüm aidat-bağlı ödemeleri sıfırlar ve vade sırasıyla yeniden dağıtır (admin)"
+              >
+                FIFO Yeniden Dağıt
+              </Button>
+            </Popconfirm>
             <Button
               icon={<UserAddOutlined />}
               onClick={() => setBaslangicModalOpen(true)}

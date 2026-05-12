@@ -160,6 +160,25 @@ export const uyeService = {
     }
 
     return data
+  },
+
+  async reallocPaymentsFIFO(uyeId: string, projeId: string, actorId?: string) {
+    if (!projeId) throw ApiError.badRequest('proje_id zorunludur')
+
+    // Realloc: tüm aidat/baslangic_bedeli-bağlı ödemeleri sıfırlar, vade sırasıyla
+    // yeniden dağıtır ve durum kolonunu view formülüyle yeniden hesaplar.
+    const { data, error } = await supabaseAdmin.rpc('fn_realloc_member_payments_fifo', {
+      p_proje_id: projeId,
+      p_uye_id: uyeId,
+      p_actor_id: actorId ?? null
+    })
+
+    if (error) {
+      logger.error(`FIFO realloc hatası (UyeID: ${uyeId}, ProjeID: ${projeId}):`, error)
+      throw error
+    }
+
+    return data
   }
 }
 
