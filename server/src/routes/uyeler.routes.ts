@@ -30,9 +30,4 @@ router.post('/:id/toplu-odeme', requireRole('staff'), uyeController.bulkPayment)
 // POST /api/uyeler/:id/match-payments
 router.post('/:id/match-payments', requireRole('staff'), uyeController.matchPaymentsFIFO)
 
-// POST /api/uyeler/:id/realloc-payments
-// FIFO Yeniden Dağıt: tüm aidat-bağlı ödemeleri detach edip vade sırasına göre yeniden dağıtır.
-// Admin-only (geçmiş kayıtları manipüle ettiği için).
-router.post('/:id/realloc-payments', requireRole('admin'), uyeController.reallocPaymentsFIFO)
-
 export default router

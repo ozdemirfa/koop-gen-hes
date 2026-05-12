@@ -126,25 +126,6 @@ export const UyeDetailPage: React.FC = () => {
     onError: (err) => messageApi.error(getErrorMessage(err, 'Eşleştirme hatası'))
   })
 
-  // REV-FIFO-04 (2026-05-12): FIFO Yeniden Dağıt mutation.
-  // Tüm aidat-bağlı ödemeleri detach edip vade sırasına göre yeniden dağıtır.
-  // match-payments yalnızca yeni gelenleri eşler; eski yanlış allocation'ları düzeltmez.
-  // Bu endpoint admin-only.
-  const reallocMutation = useMutation({
-    mutationFn: async () => {
-      return await api.post(`/uyeler/${id}/realloc-payments`, null, {
-        params: { proje_id: uye?.proje_id }
-      })
-    },
-    onSuccess: (res: any) => {
-      const detached = res.data?.data?.detach_count ?? 0
-      const recomputed = res.data?.data?.recomputed_count ?? 0
-      messageApi.success(`FIFO yeniden dağıtım tamamlandı: ${detached} ödeme kaydı, ${recomputed} aidat güncellendi.`)
-      invalidateAllPaymentCaches()
-    },
-    onError: (err) => messageApi.error(getErrorMessage(err, 'FIFO yeniden dağıtım hatası'))
-  })
-
   // Aidatları getir
   const { data: aidatlar, isLoading: aidatLoading } = useQuery({
     queryKey: ['uye-aidatlar', id, uye?.proje_id],
@@ -231,11 +212,16 @@ export const UyeDetailPage: React.FC = () => {
       })
   }, [odemeler])
 
-  // Aidat tab dataSource: gerçek aidatlar + başlangıç bedeli virtual rows (üstte).
-  const aidatDataSource: AidatOdeme[] = useMemo(
-    () => [...baslangicBedeliRows, ...(aidatlar ?? [])],
-    [baslangicBedeliRows, aidatlar]
-  )
+  // Aidat tab dataSource: başlangıç bedeli virtual rows (üstte) + aidatlar
+  // dönem bilgisine göre eskiden yeniye sıralı (yıl → ay → vade tarihi).
+  const aidatDataSource: AidatOdeme[] = useMemo(() => {
+    const sorted = [...(aidatlar ?? [])].sort((a, b) => {
+      if (a.yil !== b.yil) return a.yil - b.yil
+      if (a.ay !== b.ay) return a.ay - b.ay
+      return dayjs(a.son_odeme_tarihi).valueOf() - dayjs(b.son_odeme_tarihi).valueOf()
+    })
+    return [...baslangicBedeliRows, ...sorted]
+  }, [baslangicBedeliRows, aidatlar])
 
   // Ödemeler tab dataSource: tahakkuk (alacak) satırlarını gizle + FIFO split sonucu
   // parçalanmış payment'ları orijinal ödemeye gruplayarak tek satır göster.
@@ -547,24 +533,6 @@ export const UyeDetailPage: React.FC = () => {
             >
               Hesap Kapatma (FIFO)
             </Button>
-            {/* REV-FIFO-04 (2026-05-12): admin-only. Geçmiş allocation'ları sıfırlar
-                 ve TÜM ödemeleri vade sırasıyla yeniden dağıtır. Eski parçalı kapama
-                 hatalarını düzeltmek için kullanılır. */}
-            <Popconfirm
-              title="FIFO Yeniden Dağıtım"
-              description="Bu üyenin tüm aidat-bağlı ödeme eşleşmeleri sıfırlanacak ve vade sırasına göre yeniden dağıtılacak. Eski parçalı kapama hatalarını düzeltir. Devam edilsin mi?"
-              onConfirm={() => reallocMutation.mutate()}
-              okText="Evet, Yeniden Dağıt"
-              cancelText="İptal"
-            >
-              <Button
-                icon={<RollbackOutlined />}
-                loading={reallocMutation.isPending}
-                title="Tüm aidat-bağlı ödemeleri sıfırlar ve vade sırasıyla yeniden dağıtır (admin)"
-              >
-                FIFO Yeniden Dağıt
-              </Button>
-            </Popconfirm>
             <Button
               icon={<UserAddOutlined />}
               onClick={() => setBaslangicModalOpen(true)}
