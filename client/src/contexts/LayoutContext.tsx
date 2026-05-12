@@ -22,29 +22,16 @@ export const LayoutProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setTitle(prev => prev === newTitle ? prev : newTitle)
   }, [])
 
+  // Reference equality yeterli; usePageSettings hook'u zaten lastActions ref'i ile
+  // gereksiz çağrıları filtreliyor. type+key tabanlı sığ karşılaştırma children
+  // değişimini göremediği için sayfa data'sı async geldiğinde header güncel
+  // kalmıyordu (örn. Hakediş Detay → veri yüklenince beliren Kaydet/Onayla butonları).
   const setHeaderActionsStable = useCallback((actions: React.ReactNode | null) => {
-    setHeaderActions(prev => {
-      if (prev === actions) return prev
-      // Basic check for React elements to avoid some infinite loops
-      if (React.isValidElement(prev) && React.isValidElement(actions)) {
-        if (prev.type === actions.type && prev.key === actions.key) {
-          return prev
-        }
-      }
-      return actions
-    })
+    setHeaderActions(prev => prev === actions ? prev : actions)
   }, [])
 
   const setHeaderRightActionsStable = useCallback((actions: React.ReactNode | null) => {
-    setHeaderRightActions(prev => {
-      if (prev === actions) return prev
-      if (React.isValidElement(prev) && React.isValidElement(actions)) {
-        if (prev.type === actions.type && prev.key === actions.key) {
-          return prev
-        }
-      }
-      return actions
-    })
+    setHeaderRightActions(prev => prev === actions ? prev : actions)
   }, [])
 
   const value = useMemo(() => ({
