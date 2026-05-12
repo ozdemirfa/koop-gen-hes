@@ -144,9 +144,8 @@ const SiderContent: React.FC<{
 // conditional render that caused hydration mismatch on slow Vercel cold start.
 const MainHeader: React.FC<{
   onToggleCollapsed: () => void
-  onLogout: () => void
   settingsMenu: any
-}> = ({ onToggleCollapsed, onLogout, settingsMenu }) => {
+}> = ({ onToggleCollapsed, settingsMenu }) => {
   const { title, headerActions, headerRightActions } = useLayout()
 
   return (
@@ -247,27 +246,6 @@ const MainHeader: React.FC<{
             }}
           />
         </Dropdown>
-
-        <div
-          className="admin-header-separator"
-          style={{ width: '1px', height: '24px', background: '#e2e8f0', margin: '0 4px' }}
-        />
-
-        <Button
-          type="text"
-          icon={<LogoutOutlined />}
-          onClick={onLogout}
-          className="admin-header-logout"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            color: '#64748b',
-            height: 40,
-            borderRadius: 8,
-          }}
-        >
-          Çıkış Yap
-        </Button>
       </div>
     </Header>
   )
@@ -362,9 +340,17 @@ export const AdminLayout: React.FC = () => {
       { key: '/ayarlar/birimler', label: 'Birimler' },
       { key: '/ayarlar/pozlar', label: 'Pozlar' },
       { key: '/ayarlar/parametreler', label: 'Parametreler' },
+      { type: 'divider' as const },
+      { key: 'logout', icon: <LogoutOutlined />, label: 'Çıkış Yap', danger: true },
     ],
-    onClick: ({ key }: { key: string }) => handleNavigation(key),
-  }), [handleNavigation])
+    onClick: ({ key }: { key: string }) => {
+      if (key === 'logout') {
+        handleLogout()
+      } else {
+        handleNavigation(key)
+      }
+    },
+  }), [handleNavigation, handleLogout])
 
   const siderProps = {
     collapsed,
@@ -413,7 +399,6 @@ export const AdminLayout: React.FC = () => {
       <Layout>
         <MainHeader
           onToggleCollapsed={() => setCollapsed(!collapsed)}
-          onLogout={handleLogout}
           settingsMenu={settingsMenu}
         />
         <Content style={{ 
