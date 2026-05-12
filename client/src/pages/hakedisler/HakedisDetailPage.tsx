@@ -298,7 +298,7 @@ export const HakedisDetailPage: React.FC = () => {
         </Popconfirm>
       )}
     </Space>
-  ), [navigate, handlePdfDownload, isTaslak, hakedis?.durum, hasChanges, saveMutation.isPending, approveMutation.isPending, unapproveMutation.isPending])
+  ), [navigate, handlePdfDownload, isTaslak, hakedis?.durum, hasChanges, editableKalemler.length, saveMutation.isPending, approveMutation.isPending, unapproveMutation.isPending])
 
   usePageSettings(hakedis ? `Hakediş #${hakedis.hakedis_no}` : 'Hakediş Detayı', actions)
 
