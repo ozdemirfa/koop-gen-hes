@@ -9,6 +9,7 @@ import { usePageSettings } from '../../contexts/LayoutContext'
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
 import { ConfirmDelete } from '../../components/common/ConfirmDelete'
+import { HeaderActionsToolbar } from '../../components/common/HeaderActionsToolbar'
 import { useDebounce } from '../../hooks/useDebounce'
 
 const { Text } = Typography
@@ -102,8 +103,37 @@ export const MalzemeTeslimListPage: React.FC = () => {
     onError: (err) => message.error(getErrorMessage(err)),
   })
 
-  const actions = useMemo(() => (
-    <Space size="small">
+  // OC-04 (sprint 20260511-ui-responsive-sprint extension):
+  // HeaderActionsToolbar — primary=Yeni İrsaliye, secondary=Search+Hakediş Select
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (searchTerm) count++
+    if (filterHakedis) count++
+    return count
+  }, [searchTerm, filterHakedis])
+
+  const primaryAction = useMemo(() => (
+    <Button
+      size="small"
+      type="primary"
+      icon={<PlusOutlined />}
+      disabled={!activeProjectId}
+      onClick={() => {
+        setEditingIrsaliye(null)
+        form.resetFields()
+        form.setFieldsValue({
+          teslim_tarihi: dayjs(),
+          kalemler: [{ malzeme_adi: '', birim: 'Adet', miktar: 1 }],
+        })
+        setModalOpen(true)
+      }}
+    >
+      Yeni İrsaliye
+    </Button>
+  ), [form, activeProjectId])
+
+  const secondaryActions = useMemo(() => (
+    <>
       <Input
         placeholder="İrsaliye No Ara..."
         prefix={<SearchOutlined style={{ color: 'var(--text-tertiary)' }} />}
@@ -111,36 +141,31 @@ export const MalzemeTeslimListPage: React.FC = () => {
         onChange={(e) => setSearchTerm(e.target.value)}
         allowClear
         style={{ width: 180 }}
+        size="small"
         className="header-search-input"
       />
       <Select
         placeholder="Hakediş Durumu"
         allowClear
         style={{ width: 150 }}
+        size="small"
         value={filterHakedis}
         onChange={setFilterHakedis}
       >
         <Select.Option value="yapildi">Yapıldı</Select.Option>
         <Select.Option value="yapilmadi">Yapılmadı</Select.Option>
       </Select>
-      <Button
-        type="primary"
-        icon={<PlusOutlined />}
-        disabled={!activeProjectId}
-        onClick={() => {
-          setEditingIrsaliye(null)
-          form.resetFields()
-          form.setFieldsValue({
-            teslim_tarihi: dayjs(),
-            kalemler: [{ malzeme_adi: '', birim: 'Adet', miktar: 1 }],
-          })
-          setModalOpen(true)
-        }}
-      >
-        Yeni İrsaliye
-      </Button>
-    </Space>
-  ), [searchTerm, filterHakedis, form, activeProjectId])
+    </>
+  ), [searchTerm, filterHakedis])
+
+  const actions = useMemo(() => (
+    <HeaderActionsToolbar
+      primary={primaryAction}
+      secondary={secondaryActions}
+      filterCount={activeFilterCount}
+      drawerTitle="İrsaliye Filtreleri"
+    />
+  ), [primaryAction, secondaryActions, activeFilterCount])
 
   usePageSettings('Malzeme Teslimatı ve İrsaliye', actions)
 

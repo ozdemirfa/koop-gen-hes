@@ -1,13 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Button, Modal, Form, InputNumber, Select, message, Card, Typography, Tag, Space, DatePicker, Input, Row, Col, Statistic, App, Popconfirm, Tooltip, Drawer, Badge, Grid } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, CheckCircleOutlined, CalculatorOutlined, HistoryOutlined, WalletOutlined, FilterOutlined } from '@ant-design/icons'
+import { Button, Modal, Form, InputNumber, Select, message, Card, Typography, Tag, Space, DatePicker, Input, Row, Col, Statistic, App, Popconfirm, Tooltip } from 'antd'
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, CheckCircleOutlined, CalculatorOutlined, HistoryOutlined, WalletOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api from '../lib/api'
 import { getErrorMessage } from '../lib/apiError'
 import { MoneyDisplay } from '../components/common/MoneyDisplay'
 import { DataTable } from '../components/common/DataTable'
+import { HeaderActionsToolbar } from '../components/common/HeaderActionsToolbar'
 import { usePageSettings } from '../contexts/LayoutContext'
 import { useProject } from '../contexts/ProjectContext'
 import { trNumberFormatter, trNumberParser, formatMoney, trMoneyFormatter } from '../lib/format'
@@ -16,7 +17,6 @@ import { ErrorState } from '../components/common/ErrorState'
 import { useDebounce } from '../hooks/useDebounce'
 
 const { Text, Title } = Typography
-const { useBreakpoint } = Grid
 
 interface Aidat {
   id: string
@@ -87,11 +87,11 @@ export const Aidatlar: React.FC = () => {
   const queryClient = useQueryClient()
   const { activeProject } = useProject()
   const { message: messageApi } = App.useApp()
-  const screens = useBreakpoint()
-  const isMobile = !screens.md
 
-  // Mobile filter Drawer
-  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
+  // OC-07 (sprint 20260511-ui-responsive-sprint extension):
+  // Inline useBreakpoint() + filterDrawerOpen state'i HeaderActionsToolbar
+  // wrapper'ına devredildi. Mobile/desktop detect + Drawer açma artık
+  // helper component'in sorumluluğunda.
 
   // Aktif filtre sayısı (badge için) — Aidat Listesi filtreleri
   const activeListFilterCount = useMemo(() => {
@@ -419,36 +419,21 @@ export const Aidatlar: React.FC = () => {
     </Space>
   )
 
-  // Header action — mobile: tek "Filtrele" buton; desktop: inline satır
-  const listActions = useMemo(() => {
-    if (isMobile) {
-      return (
-        <Badge count={activeListFilterCount} size="small" offset={[-4, 4]}>
-          <Button
-            icon={<FilterOutlined />}
-            onClick={() => setFilterDrawerOpen(true)}
-            size="small"
-          >
-            Filtrele
-          </Button>
-        </Badge>
-      )
-    }
-    return listFilterControls
-  }, [isMobile, activeListFilterCount, filterYil, filterAy, filterDurum, filterBlokId, filterHasDaire, filterUyeAdi, yearOptions, bloklar])
+  // OC-07: Aidat Listesi header — HeaderActionsToolbar
+  // (Aidat Listesi sayfasında primary CTA yok; tüm filter'lar secondary).
+  const listActions = useMemo(() => (
+    <HeaderActionsToolbar
+      secondary={listFilterControls}
+      secondaryMobile={listFilterControlsVertical}
+      filterCount={activeListFilterCount}
+      drawerTitle="Aidat Filtreleri"
+    />
+  ), [listFilterControls, listFilterControlsVertical, activeListFilterCount])
 
-  const tanimActions = useMemo(() => (
-    <Space orientation="horizontal" size="small">
-      <Select
-        placeholder="Yıl"
-        value={filterTanimYil}
-        onChange={setFilterTanimYil}
-        allowClear
-        style={{ width: 90 }}
-        size="small"
-      >
-        {yearOptions.map(y => <Select.Option key={y} value={y}>{y}</Select.Option>)}
-      </Select>
+  // OC-07: Aidat Tanımları header — HeaderActionsToolbar
+  // primary=Yeni + Yıllık Plan (her ikisi her zaman görünür kalsın), secondary=Yıl Select
+  const tanimPrimary = useMemo(() => (
+    <Space size="small">
       <Button
         type="primary"
         icon={<PlusOutlined />}
@@ -467,7 +452,29 @@ export const Aidatlar: React.FC = () => {
         Yıllık Plan
       </Button>
     </Space>
-  ), [filterTanimYil, yearOptions, navigate])
+  ), [activeProject, navigate])
+
+  const tanimSecondary = useMemo(() => (
+    <Select
+      placeholder="Yıl"
+      value={filterTanimYil}
+      onChange={setFilterTanimYil}
+      allowClear
+      style={{ width: 90 }}
+      size="small"
+    >
+      {yearOptions.map(y => <Select.Option key={y} value={y}>{y}</Select.Option>)}
+    </Select>
+  ), [filterTanimYil, yearOptions])
+
+  const tanimActions = useMemo(() => (
+    <HeaderActionsToolbar
+      primary={tanimPrimary}
+      secondary={tanimSecondary}
+      filterCount={filterTanimYil ? 1 : 0}
+      drawerTitle="Tanım Filtreleri"
+    />
+  ), [tanimPrimary, tanimSecondary, filterTanimYil])
 
   usePageSettings(isTanimlarPage ? 'Aidat Tanımları' : 'Aidat Listesi', isTanimlarPage ? tanimActions : listActions)
 
@@ -688,16 +695,8 @@ export const Aidatlar: React.FC = () => {
         size="small"
       />
 
-      <Drawer
-        title="Aidat Filtreleri"
-        placement="right"
-        onClose={() => setFilterDrawerOpen(false)}
-        open={filterDrawerOpen && !isTanimlarPage}
-        width="min(360px, 90vw)"
-        styles={{ body: { paddingTop: 12 } }}
-      >
-        {listFilterControlsVertical}
-      </Drawer>
+      {/* OC-07: Inline filter Drawer kaldırıldı — HeaderActionsToolbar
+          mobile Drawer'ı kendi içinde yönetiyor (secondaryMobile prop). */}
 
       <Modal
         title={editingTanim ? 'Tanım Düzenle' : 'Yeni Tanım Ekle'}

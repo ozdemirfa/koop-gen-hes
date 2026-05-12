@@ -9,6 +9,7 @@ import { getErrorMessage } from '../../lib/apiError'
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
+import { HeaderActionsToolbar } from '../../components/common/HeaderActionsToolbar'
 import { trMoneyFormatter, trNumberParser } from '../../lib/format'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { useProject } from '../../contexts/ProjectContext'
@@ -198,9 +199,21 @@ export const CariEkstrePage: React.FC = () => {
     document.body.removeChild(link)
   }
 
-  const actions = useMemo(() => (
-    <Space size="small" wrap>
-      <Button size="small" icon={<DownloadOutlined />} onClick={exportToCSV}>CSV İndir</Button>
+  // OC-06 (sprint 20260511-ui-responsive-sprint extension):
+  // HeaderActionsToolbar — primary=CSV İndir, secondary=Firma Select + RangePicker
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (cariHesapId) count++
+    // dates default = bu yılın başlangıç/bitişi — default kabul edilirse filter sayılmaz
+    return count
+  }, [cariHesapId])
+
+  const primaryAction = useMemo(() => (
+    <Button size="small" icon={<DownloadOutlined />} onClick={exportToCSV}>CSV İndir</Button>
+  ), [exportToCSV])
+
+  const secondaryActions = useMemo(() => (
+    <>
       <Select
         showSearch
         placeholder="Firma Seçin"
@@ -224,8 +237,17 @@ export const CariEkstrePage: React.FC = () => {
         format="DD.MM.YYYY"
         style={{ width: 240 }}
       />
-    </Space>
+    </>
   ), [cariHesapId, dates, accounts, accountsLoading])
+
+  const actions = useMemo(() => (
+    <HeaderActionsToolbar
+      primary={primaryAction}
+      secondary={secondaryActions}
+      filterCount={activeFilterCount}
+      drawerTitle="Ekstre Filtreleri"
+    />
+  ), [primaryAction, secondaryActions, activeFilterCount])
 
   usePageSettings('Firma Ekstre', actions)
 

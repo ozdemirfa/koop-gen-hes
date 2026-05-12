@@ -9,6 +9,7 @@ import { getErrorMessage } from '../../lib/apiError'
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
+import { HeaderActionsToolbar } from '../../components/common/HeaderActionsToolbar'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { useProject } from '../../contexts/ProjectContext'
 import { trNumberFormatter, trNumberParser } from '../../lib/format'
@@ -53,26 +54,40 @@ export const HakedisListPage: React.FC = () => {
   const [selectedFirmaId, setSelectedFirmaId] = useState<string | null>(null)
   const [createForm] = Form.useForm()
 
-  const headerActions = React.useMemo(() => (
-    <Space>
-      <Select
-        placeholder="Durum"
-        size="small"
-        value={filterDurum}
-        onChange={setFilterDurum}
-        allowClear
-        style={{ width: 130 }}
-      >
-        <Select.Option value="taslak">Taslak</Select.Option>
-        <Select.Option value="onaylandi">Onaylandı</Select.Option>
-        <Select.Option value="odendi">Ödendi</Select.Option>
-        <Select.Option value="iptal">İptal</Select.Option>
-      </Select>
-      <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
-        Yeni Hakediş
-      </Button>
-    </Space>
+  // OC-02 (sprint 20260511-ui-responsive-sprint extension):
+  // HeaderActionsToolbar — primary=Yeni Hakediş, secondary=Durum Select
+  const activeFilterCount = filterDurum ? 1 : 0
+
+  const primaryAction = React.useMemo(() => (
+    <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
+      Yeni Hakediş
+    </Button>
+  ), [])
+
+  const secondaryActions = React.useMemo(() => (
+    <Select
+      placeholder="Durum"
+      size="small"
+      value={filterDurum}
+      onChange={setFilterDurum}
+      allowClear
+      style={{ width: 130 }}
+    >
+      <Select.Option value="taslak">Taslak</Select.Option>
+      <Select.Option value="onaylandi">Onaylandı</Select.Option>
+      <Select.Option value="odendi">Ödendi</Select.Option>
+      <Select.Option value="iptal">İptal</Select.Option>
+    </Select>
   ), [filterDurum])
+
+  const headerActions = React.useMemo(() => (
+    <HeaderActionsToolbar
+      primary={primaryAction}
+      secondary={secondaryActions}
+      filterCount={activeFilterCount}
+      drawerTitle="Hakediş Filtreleri"
+    />
+  ), [primaryAction, secondaryActions, activeFilterCount])
 
   usePageSettings('Hakedişler', headerActions)
 

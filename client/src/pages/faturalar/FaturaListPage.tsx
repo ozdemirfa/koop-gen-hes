@@ -10,6 +10,7 @@ import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { ConfirmDelete } from '../../components/common/ConfirmDelete'
+import { HeaderActionsToolbar } from '../../components/common/HeaderActionsToolbar'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { useProject } from '../../contexts/ProjectContext'
 import { trMoneyFormatter, trNumberParser } from '../../lib/format'
@@ -72,25 +73,53 @@ export const FaturaListPage: React.FC = () => {
     },
   })
 
-  const actions = useMemo(() => (
-    <Space>
-      <Select 
-        size="small" 
-        placeholder="Tip" 
-        value={filterTip} 
-        onChange={setFilterTip} 
-        allowClear 
+  // OC-03 (sprint 20260511-ui-responsive-sprint extension):
+  // HeaderActionsToolbar — primary=Yeni Fatura, secondary=Tip+Durum Select
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (filterTip) count++
+    if (filterDurum) count++
+    return count
+  }, [filterTip, filterDurum])
+
+  const primaryAction = useMemo(() => (
+    <Button
+      size="small"
+      type="primary"
+      icon={<PlusOutlined />}
+      disabled={!activeProject}
+      onClick={() => {
+        setEditingFatura(null);
+        form.resetFields();
+        form.setFieldsValue({
+          kalemler: [{ kalem_adi: '', birim: 'Adet', miktar: 1, birim_fiyat: 0, kdv_orani: 20 }]
+        });
+        setModalOpen(true)
+      }}
+    >
+      Yeni Fatura
+    </Button>
+  ), [form, activeProject])
+
+  const secondaryActions = useMemo(() => (
+    <>
+      <Select
+        size="small"
+        placeholder="Tip"
+        value={filterTip}
+        onChange={setFilterTip}
+        allowClear
         style={{ width: 110 }}
       >
         <Select.Option value="gelen">Gelen</Select.Option>
         <Select.Option value="giden">Giden</Select.Option>
       </Select>
-      <Select 
-        size="small" 
-        placeholder="Durum" 
-        value={filterDurum} 
-        onChange={setFilterDurum} 
-        allowClear 
+      <Select
+        size="small"
+        placeholder="Durum"
+        value={filterDurum}
+        onChange={setFilterDurum}
+        allowClear
         style={{ width: 130 }}
       >
         <Select.Option value="bekliyor">Bekliyor</Select.Option>
@@ -98,24 +127,17 @@ export const FaturaListPage: React.FC = () => {
         <Select.Option value="kismi_odendi">Kısmi Ödendi</Select.Option>
         <Select.Option value="iptal">İptal</Select.Option>
       </Select>
-      <Button
-        size="small"
-        type="primary"
-        icon={<PlusOutlined />}
-        disabled={!activeProject}
-        onClick={() => {
-          setEditingFatura(null);
-          form.resetFields();
-          form.setFieldsValue({
-            kalemler: [{ kalem_adi: '', birim: 'Adet', miktar: 1, birim_fiyat: 0, kdv_orani: 20 }]
-          });
-          setModalOpen(true)
-        }}
-      >
-        Yeni Fatura
-      </Button>
-    </Space>
-  ), [filterTip, filterDurum, form, activeProject])
+    </>
+  ), [filterTip, filterDurum])
+
+  const actions = useMemo(() => (
+    <HeaderActionsToolbar
+      primary={primaryAction}
+      secondary={secondaryActions}
+      filterCount={activeFilterCount}
+      drawerTitle="Fatura Filtreleri"
+    />
+  ), [primaryAction, secondaryActions, activeFilterCount])
 
   usePageSettings('Fatura Yönetimi', actions)
 

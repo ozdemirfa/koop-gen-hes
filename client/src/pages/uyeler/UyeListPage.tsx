@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Button, Input, Select, Space, Tag, App } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -11,6 +11,7 @@ import { DataTable } from '../../components/common/DataTable'
 import { StrictConfirmDelete } from '../../components/common/StrictConfirmDelete'
 import { ErrorState } from '../../components/common/ErrorState'
 import { EmptyState } from '../../components/common/EmptyState'
+import { HeaderActionsToolbar } from '../../components/common/HeaderActionsToolbar'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { useProject } from '../../contexts/ProjectContext'
 
@@ -77,12 +78,32 @@ export const UyeListPage: React.FC = () => {
     onError: (err) => messageApi.error(getErrorMessage(err)),
   })
 
-  const actions = React.useMemo(() => (
-    <Space orientation="horizontal" size="small" wrap>
+  // OC-01 (sprint 20260511-ui-responsive-sprint extension):
+  // Header action'lar HeaderActionsToolbar ile sarmalandı.
+  // Mobile (<768px): "Yeni Üye" inline + Drawer içinde Search+3 Select.
+  // Desktop (>=768px): hepsi inline (mevcut davranış).
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (search) count++
+    if (filterDurum) count++
+    if (filterBlok) count++
+    if (filterDaire) count++
+    return count
+  }, [search, filterDurum, filterBlok, filterDaire])
+
+  const primaryAction = useMemo(() => (
+    <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/uyeler/yeni')} size="small">
+      Yeni Üye
+    </Button>
+  ), [navigate])
+
+  const secondaryActions = useMemo(() => (
+    <>
       <Input
         placeholder="Ara..."
         prefix={<SearchOutlined />}
         allowClear
+        value={search}
         onChange={(e) => setSearch(e.target.value)}
         style={{ width: 200 }}
         autoComplete="off"
@@ -124,11 +145,17 @@ export const UyeListPage: React.FC = () => {
         <Select.Option value="atanmis">Atanmış</Select.Option>
         <Select.Option value="atanmamis">Atanmamış</Select.Option>
       </Select>
-      <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/uyeler/yeni')} size="small">
-        Yeni Üye
-      </Button>
-    </Space>
-  ), [filterDurum, filterBlok, filterDaire, bloklar, navigate])
+    </>
+  ), [search, filterDurum, filterBlok, filterDaire, bloklar])
+
+  const actions = useMemo(() => (
+    <HeaderActionsToolbar
+      primary={primaryAction}
+      secondary={secondaryActions}
+      filterCount={activeFilterCount}
+      drawerTitle="Üye Filtreleri"
+    />
+  ), [primaryAction, secondaryActions, activeFilterCount])
 
   usePageSettings('Üye Yönetimi', actions)
 
