@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { FATURA_TIPLERI, FATURA_DURUMLARI } from '../config/constants'
+import { FATURA_TIPLERI } from '../config/constants'
 
 export const faturaKalemiSchema = z.object({
   id: z.string().uuid().optional(),
@@ -20,7 +20,6 @@ export const createFaturaSchema = z.object({
   ara_toplam: z.number().min(0),
   kdv_tutar: z.number().min(0).optional(),
   toplam_tutar: z.number().min(0, 'Toplam tutar negatif olamaz'),
-  durum: z.enum(FATURA_DURUMLARI).optional(),
   aciklama: z.string().optional().nullable(),
   hakedis_id: z.string().uuid().optional().nullable(),
   kalemler: z.array(faturaKalemiSchema).min(1, 'En az bir kalem eklenmelidir')
