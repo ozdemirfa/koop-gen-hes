@@ -52,7 +52,7 @@ const menuItems = [
     children: [
       { key: '/banka-hesaplari', label: 'Banka Hesapları' },
       { key: '/cari-hesaplar/odeme-kayit', label: 'Ödeme/Tahsilat Kaydı' },
-      { key: '/cari-hesaplar/tahsilatlar', label: 'Tahsilat / Ödeme Listesi' },
+      { key: '/cari-hesaplar/tahsilatlar', label: 'Para Hareketleri' },
       { key: '/cek-takibi', label: 'Çek Takibi' },
     ],
   },
