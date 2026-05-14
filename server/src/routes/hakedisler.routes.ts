@@ -15,4 +15,8 @@ router.put('/:id/onayla', requireRole('admin'), hakedisController.approveHakedis
 router.put('/:id/onay-iptal', requireRole('admin'), hakedisController.unapproveHakedis)
 router.post('/:id/kalemler', requireRole('staff'), validate({ body: hakedisKalemlerBatchSchema }), hakedisController.updateKalemler)
 
+// Alternatif A: irsaliye → hakediş bağ kurma
+router.post('/:id/irsaliyeler', requireRole('staff'), hakedisController.attachIrsaliyeler)
+router.delete('/:id/irsaliyeler/:irsaliyeId', requireRole('staff'), hakedisController.detachIrsaliye)
+
 export default router

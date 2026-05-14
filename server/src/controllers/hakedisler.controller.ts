@@ -50,3 +50,14 @@ export const updateKalemler = catchAsync(async (req: AuthRequest<any, any, any, 
   const data = await hakedisService.updateKalemler(req.params.id, req.body.kalemler)
   res.json({ success: true, data })
 })
+
+// Alternatif A: açık irsaliyelerin hakedişe toplu eklenmesi
+export const attachIrsaliyeler = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const data = await hakedisService.attachIrsaliyeler(req.params.id, req.body.irsaliye_ids)
+  res.json({ success: true, data })
+})
+
+export const detachIrsaliye = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const data = await hakedisService.detachIrsaliye(req.params.id, req.params.irsaliyeId)
+  res.json({ success: true, data })
+})
