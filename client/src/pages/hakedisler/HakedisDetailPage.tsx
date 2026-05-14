@@ -2,13 +2,14 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { Card, Descriptions, Table, Button, InputNumber, Tag, Row, Col, Statistic, Space, Popconfirm, Select, Modal, Typography, App, Empty } from 'antd'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { CheckOutlined, SaveOutlined, FilePdfOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined, RollbackOutlined, LinkOutlined, DisconnectOutlined } from '@ant-design/icons'
+import { CheckOutlined, SaveOutlined, DownloadOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined, RollbackOutlined, LinkOutlined, DisconnectOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { getErrorMessage } from '../../lib/apiError'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { trNumberFormatter, trNumberParser, trMoneyFormatter } from '../../lib/format'
+import { downloadCsv } from '../../lib/csvExport'
 
 const { Text } = Typography
 
@@ -275,22 +276,61 @@ export const HakedisDetailPage: React.FC = () => {
   const digerKesintiler = Number(hakedis?.diger_kesintiler || 0)
   const netTutar = hakedisToplam - teminatKesintisi - stopajKesintisi - digerKesintiler
 
-  const handlePdfDownload = React.useCallback(async () => {
-    try {
-      const { data } = await api.get(`/hakedisler/${id}/pdf`, { responseType: 'blob' })
-      const blob = new Blob([data], { type: 'application/pdf' })
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `hakedis_${hakedis?.hakedis_no || id}.pdf`)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      window.URL.revokeObjectURL(url)
-    } catch {
-      message.error('PDF indirilirken hata oluştu')
-    }
-  }, [id, hakedis?.hakedis_no])
+  const handleCsvDownload = React.useCallback(() => {
+    if (!hakedis) return
+    const hakedisNo = hakedis.hakedis_no || id
+    downloadCsv(`hakedis-${hakedisNo}`, [
+      {
+        title: `Hakediş #${hakedisNo} — ${hakedis.sozlesmeler?.firmalar?.unvan || ''}`,
+        headers: ['Alan', 'Değer'],
+        rows: [
+          ['Firma', hakedis.sozlesmeler?.firmalar?.unvan || ''],
+          ['Sözleşme', hakedis.sozlesmeler?.konu || ''],
+          ['Durum', durumLabel[hakedis.durum] || hakedis.durum],
+          ['Dönem', hakedis.donem_baslangic ? dayjs(hakedis.donem_baslangic).format('MM/YYYY') : ''],
+          ['Onay Tarihi', hakedis.onay_tarihi ? dayjs(hakedis.onay_tarihi).format('DD.MM.YYYY') : ''],
+          ['Açıklama', hakedis.aciklama || ''],
+        ],
+      },
+      {
+        title: 'Kesinti Özeti',
+        headers: ['Kalem', 'Tutar (TL)'],
+        rows: [
+          ['Hakediş Toplam', hakedisToplam],
+          [`Teminat (%${teminatOrani})`, teminatKesintisi],
+          [`Stopaj (%${stopajOrani})`, stopajKesintisi],
+          ['Diğer Kesintiler', digerKesintiler],
+          ['Net Ödenecek', netTutar],
+        ],
+      },
+      {
+        title: 'İş Kalemleri',
+        headers: ['Poz No', 'Tanım', 'Birim', 'Sözleşme Mik.', 'Önceki Top.', 'Bu Ay Mik.', 'Birim Fiyat', 'Matrah', 'KDV %', 'KDVli Tutar'],
+        rows: editableKalemler.map((k) => [
+          k.poz_no || '',
+          k.tanim,
+          k.birim,
+          k.sozlesme_miktar,
+          k.onceki_miktar,
+          k.bu_ay_miktar,
+          k.birim_fiyat,
+          k.bu_ay_miktar * k.birim_fiyat,
+          k.kdv_orani,
+          k.bu_ay_miktar * k.birim_fiyat * (1 + k.kdv_orani / 100),
+        ]),
+      },
+      ...(hakedis.irsaliyeler && hakedis.irsaliyeler.length > 0 ? [{
+        title: 'Bağlı İrsaliyeler',
+        headers: ['Tarih', 'İrsaliye No', 'Teslim Alan', 'Kalemler'],
+        rows: hakedis.irsaliyeler.map((i: any) => [
+          dayjs(i.teslim_tarihi).format('DD.MM.YYYY'),
+          i.irsaliye_no || '',
+          i.teslim_alan || '',
+          (i.irsaliye_kalemleri || []).map((k: any) => `${k.malzeme_adi} ${k.miktar} ${k.birim}`).join(' | '),
+        ]),
+      }] : []),
+    ])
+  }, [hakedis, id, editableKalemler, hakedisToplam, teminatOrani, teminatKesintisi, stopajOrani, stopajKesintisi, digerKesintiler, netTutar])
 
   const actions = useMemo(() => {
     // UX kuralı: 3 mutate butonu da her zaman görünür; izinler `disabled` prop'u ile
@@ -324,10 +364,11 @@ export const HakedisDetailPage: React.FC = () => {
         type="text"
       />
       <Button
-        icon={<FilePdfOutlined />}
-        onClick={handlePdfDownload}
+        icon={<DownloadOutlined />}
+        onClick={handleCsvDownload}
+        disabled={!hakedis}
       >
-        PDF İndir
+        CSV İndir
       </Button>
       <Button
         type="primary"
@@ -373,7 +414,7 @@ export const HakedisDetailPage: React.FC = () => {
       </Popconfirm>
     </Space>
     )
-  }, [navigate, handlePdfDownload, isTaslak, hakedis?.durum, hasChanges, editableKalemler.length, saveMutation, approveMutation, unapproveMutation])
+  }, [navigate, handleCsvDownload, isTaslak, hakedis, hasChanges, editableKalemler.length, saveMutation, approveMutation, unapproveMutation])
 
   usePageSettings(hakedis ? `Hakediş #${hakedis.hakedis_no}` : 'Hakediş Detayı', actions)
 
