@@ -14,7 +14,6 @@ export const faturaService = {
     if (query.firma_id) q = q.eq('firma_id', query.firma_id)
     if (query.proje_id) q = q.eq('proje_id', query.proje_id)
     if (query.fatura_tipi) q = q.eq('fatura_tipi', query.fatura_tipi)
-    if (query.durum) q = q.eq('durum', query.durum)
     if (query.baslangic_tarihi) q = q.gte('fatura_tarihi', query.baslangic_tarihi)
     if (query.bitis_tarihi) q = q.lte('fatura_tarihi', query.bitis_tarihi)
 

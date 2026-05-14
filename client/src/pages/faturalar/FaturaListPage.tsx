@@ -38,14 +38,11 @@ interface Fatura {
   ara_toplam: number
   kdv_tutar: number
   toplam_tutar: number
-  durum: string
   firmalar?: { unvan: string }
   fatura_kalemleri: FaturaKalemi[]
 }
 
 const tipLabel: Record<string, string> = { gelen: 'Gelen', giden: 'Giden' }
-const durumLabel: Record<string, string> = { bekliyor: 'Bekliyor', odendi: 'Ödendi', kismi_odendi: 'Kısmi Ödendi', iptal: 'İptal' }
-const durumRenk: Record<string, string> = { bekliyor: 'blue', odendi: 'green', kismi_odendi: 'orange', iptal: 'red' }
 
 export const FaturaListPage: React.FC = () => {
   const { message } = App.useApp()
@@ -53,7 +50,6 @@ export const FaturaListPage: React.FC = () => {
   const queryClient = useQueryClient()
   const { activeProject } = useProject()
   const [filterTip, setFilterTip] = useState<string | undefined>(undefined)
-  const [filterDurum, setFilterDurum] = useState<string | undefined>(undefined)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingFatura, setEditingFatura] = useState<Fatura | null>(null)
   const [form] = Form.useForm()
@@ -78,9 +74,8 @@ export const FaturaListPage: React.FC = () => {
   const activeFilterCount = useMemo(() => {
     let count = 0
     if (filterTip) count++
-    if (filterDurum) count++
     return count
-  }, [filterTip, filterDurum])
+  }, [filterTip])
 
   const primaryAction = useMemo(() => (
     <Button
@@ -102,33 +97,18 @@ export const FaturaListPage: React.FC = () => {
   ), [form, activeProject])
 
   const secondaryActions = useMemo(() => (
-    <>
-      <Select
-        size="small"
-        placeholder="Tip"
-        value={filterTip}
-        onChange={setFilterTip}
-        allowClear
-        style={{ width: 110 }}
-      >
-        <Select.Option value="gelen">Gelen</Select.Option>
-        <Select.Option value="giden">Giden</Select.Option>
-      </Select>
-      <Select
-        size="small"
-        placeholder="Durum"
-        value={filterDurum}
-        onChange={setFilterDurum}
-        allowClear
-        style={{ width: 130 }}
-      >
-        <Select.Option value="bekliyor">Bekliyor</Select.Option>
-        <Select.Option value="odendi">Ödendi</Select.Option>
-        <Select.Option value="kismi_odendi">Kısmi Ödendi</Select.Option>
-        <Select.Option value="iptal">İptal</Select.Option>
-      </Select>
-    </>
-  ), [filterTip, filterDurum])
+    <Select
+      size="small"
+      placeholder="Tip"
+      value={filterTip}
+      onChange={setFilterTip}
+      allowClear
+      style={{ width: 110 }}
+    >
+      <Select.Option value="gelen">Gelen</Select.Option>
+      <Select.Option value="giden">Giden</Select.Option>
+    </Select>
+  ), [filterTip])
 
   const actions = useMemo(() => (
     <HeaderActionsToolbar
@@ -150,12 +130,11 @@ export const FaturaListPage: React.FC = () => {
   })
 
   const { data: faturaData, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['faturalar', activeProject?.id, filterTip, filterDurum],
+    queryKey: ['faturalar', activeProject?.id, filterTip],
     queryFn: async () => {
       const params: Record<string, string> = {}
       if (activeProject) params.proje_id = activeProject.id
       if (filterTip) params.fatura_tipi = filterTip
-      if (filterDurum) params.durum = filterDurum
       const { data } = await api.get('/faturalar', { params })
       return data
     },
@@ -250,13 +229,6 @@ export const FaturaListPage: React.FC = () => {
       align: 'right' as const,
       width: 130,
       render: (v: number) => <MoneyDisplay amount={v} />,
-    },
-    {
-      title: 'Durum',
-      dataIndex: 'durum',
-      key: 'durum',
-      width: 110,
-      render: (d: string) => <Tag color={durumRenk[d]}>{durumLabel[d] || d}</Tag>,
     },
     {
       title: 'İşlem',
