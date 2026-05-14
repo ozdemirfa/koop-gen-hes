@@ -180,4 +180,43 @@ describe('cariPaymentSchema', () => {
     })
     expect(result.success).toBe(true)
   })
+
+  // === 2026-05-15 hotfix: is_teminat whitelist + raw kaynak_tipi'nin strip edilmesi ===
+
+  it('accepts is_teminat=true on giden_odeme (teminat iadesi sinyali)', () => {
+    const result = cariPaymentSchema.safeParse({
+      ...baseValid,
+      islem_turu: 'giden_odeme',
+      is_teminat: true,
+    })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.is_teminat).toBe(true)
+    }
+  })
+
+  it('accepts is_teminat=false (default semantik)', () => {
+    const result = cariPaymentSchema.safeParse({
+      ...baseValid,
+      islem_turu: 'giden_odeme',
+      is_teminat: false,
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('strips raw kaynak_tipi field from payload (mass-assignment guard)', () => {
+    // Schema kaynak_tipi'yi whitelist'lemediği için Zod default davranışı strip.
+    // Bu test bilinçli: client'tan raw kaynak_tipi='hakedis' enjekte etmeye çalışan
+    // bir mass-assignment denemesi service katmanına ulaşmamalı.
+    const result = cariPaymentSchema.safeParse({
+      ...baseValid,
+      islem_turu: 'giden_odeme',
+      kaynak_tipi: 'hakedis', // bilinçli enjeksiyon denemesi
+    })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      // Whitelist'te olmadığı için silinmiş olmalı.
+      expect('kaynak_tipi' in result.data).toBe(false)
+    }
+  })
 })

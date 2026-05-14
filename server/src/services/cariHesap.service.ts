@@ -37,6 +37,10 @@ type PaymentInput = {
   sube?: string | null
   kaynak_tipi?: string
   kaynak_id?: string
+  // 2026-05-15 hotfix: cariPaymentSchema'da whitelist'lenmiş boolean sinyali.
+  // Frontend "Teminat İadesi" checkbox state'i; service tarafında kaynak_tipi='teminat'
+  // string'ine çevirilir (route handler boundary'sinde mapping; mass-assignment koruması).
+  is_teminat?: boolean
   actorId?: string
 }
 
@@ -291,8 +295,22 @@ export const cariHesapService = {
       vade_tarihi: _vade_tarihi,
       banka: _banka,
       sube: _sube,
+      // 2026-05-15 hotfix: is_teminat boolean sinyalini kaynak_tipi='teminat' string'ine
+      // map'le. Bu mapping bilinçli olarak service katmanında yapılır ki kaynak_tipi
+      // raw değer olarak client'tan kabul edilmesin (TASK-BE-08 SEC-014 mass-assignment
+      // koruması; kaynak_tipi='hakedis'/'fatura' gibi başka enum değerleri enjekte edilemez).
+      is_teminat,
+      // Var olabilecek kaynak_tipi/kaynak_id alanlarını (test/seed/CLI path için)
+      // drop et — sadece is_teminat → 'teminat' mapping geçerli.
+      kaynak_tipi: _ignoredKaynakTipi,
+      kaynak_id: _ignoredKaynakId,
       ...rest
     } = paymentData
+
+    // Teminat iadesi sinyali: yalnızca giden_odeme ile birlikte anlamlı.
+    // Trigger (fn_sync_teminat_iade_on_cari_hareket) zaten islem_turu IN ('giden_odeme','odeme')
+    // koşulunu da kontrol ediyor, ama burada da sınırlama defansif bir katman.
+    const derivedKaynakTipi = is_teminat && islem_turu === 'giden_odeme' ? 'teminat' : undefined
 
     const { data: hareket, error: hareketError } = await supabaseAdmin.rpc('fn_create_payment_atomic', {
       p_payment_data: {
@@ -301,6 +319,7 @@ export const cariHesapService = {
         odeme_turu,
         tutar,
         banka_hesap_id,
+        kaynak_tipi: derivedKaynakTipi,
       },
       p_actor_id: actorId ?? null,
     })
