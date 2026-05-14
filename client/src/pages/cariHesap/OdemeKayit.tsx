@@ -41,7 +41,19 @@ export const OdemeKayit: React.FC = () => {
         form.setFieldValue('odeme_turu', 'banka')
       }
     }
+    // Teminat checkbox sadece firma + giden_odeme'de görünür; bağlam dışına çıkınca
+    // sıfırla ki kayıt anında yanlışlıkla kaynak_tipi='teminat' gönderilmesin.
+    if (islemTuru !== 'giden_odeme') {
+      form.setFieldValue('is_teminat', false)
+    }
   }, [islemTuru, form])
+
+  // filterCariTuru değişiminde de teminat'ı sıfırla (firma → üye geçişinde).
+  useEffect(() => {
+    if (filterCariTuru !== 'firma') {
+      form.setFieldValue('is_teminat', false)
+    }
+  }, [filterCariTuru, form])
 
   // Cari Hesaplar (Üyeler + Firmalar) Fetch
   const { data: accounts, isLoading: accountsLoading } = useQuery({
@@ -285,13 +297,18 @@ export const OdemeKayit: React.FC = () => {
 
           <Divider dashed />
 
-          {/* Teminat Seçeneği (Sadece Giden Ödeme için) */}
-          {islemTuru === 'giden_odeme' && (
+          {/* Teminat Seçeneği — sadece firma + giden_odeme kombinasyonunda anlamlı.
+              Backend kaynak_tipi='teminat' giden_odeme kayıtlarını birikmiş teminat
+              havuzundan düşürmüş olarak hesaplıyor (firma.service.ts:76-88 ve 184). */}
+          {islemTuru === 'giden_odeme' && filterCariTuru === 'firma' && (
             <Row gutter={24} style={{ marginBottom: 16 }}>
               <Col span={24}>
                 <Form.Item name="is_teminat" valuePropName="checked" noStyle>
                   <Checkbox>
-                    <Typography.Text strong>Teminat Ödemesi</Typography.Text>
+                    <Typography.Text strong>Teminat İadesi</Typography.Text>
+                    <Typography.Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+                      (Ödeme tutarı firmanın birikmiş teminat havuzundan düşülür)
+                    </Typography.Text>
                   </Checkbox>
                 </Form.Item>
               </Col>
