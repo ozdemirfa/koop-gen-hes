@@ -103,14 +103,21 @@ export const FirmaListPage: React.FC = () => {
     </>
   ), [search, filterTip, filterAktif])
 
-  const headerActions = useMemo(() => (
-    <HeaderActionsToolbar
-      primary={primaryAction}
-      secondary={secondaryActions}
-      filterCount={activeFilterCount}
-      drawerTitle="Firma Filtreleri"
-    />
-  ), [primaryAction, secondaryActions, activeFilterCount])
+  const headerActions = useMemo(() => {
+    // LayoutContext.setHeaderActionsStable shallow (type+key) check yapıyor; controlled
+    // Input value değişimi tek başına header'a yansımıyor (search kutusu donuk kalıyor).
+    // Fingerprint key ile her gerçek state değişimini yakala (aynı pattern: PR #16, #19).
+    const stateKey = [search || 'empty', filterTip || 'none', filterAktif || 'none', `f${activeFilterCount}`].join('|')
+    return (
+      <HeaderActionsToolbar
+        key={`firma-list-${stateKey}`}
+        primary={primaryAction}
+        secondary={secondaryActions}
+        filterCount={activeFilterCount}
+        drawerTitle="Firma Filtreleri"
+      />
+    )
+  }, [primaryAction, secondaryActions, activeFilterCount, search, filterTip, filterAktif])
 
   usePageSettings('Firma Listesi', headerActions)
 
