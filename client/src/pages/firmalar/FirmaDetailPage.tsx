@@ -234,7 +234,6 @@ export const FirmaDetailPage: React.FC = () => {
     { title: 'Tarih', dataIndex: 'fatura_tarihi', key: 'tarih', render: (d: string) => dayjs(d).format('DD.MM.YYYY') },
     { title: 'Tutar', dataIndex: 'toplam_tutar', key: 'tutar', align: 'right' as const, render: (v: number) => <MoneyDisplay amount={v} /> },
     { title: 'Tip', dataIndex: 'fatura_tipi', key: 'tip', render: (t: string) => <Tag color={t === 'gelen' ? 'red' : 'green'}>{t.toUpperCase()}</Tag> },
-    { title: 'Durum', dataIndex: 'durum', key: 'durum', render: (d: string) => <Tag>{d.toUpperCase()}</Tag> },
     {
       title: 'İşlem',
       key: 'action',
