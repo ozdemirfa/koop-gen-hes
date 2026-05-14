@@ -67,9 +67,12 @@ export const bankaHesapService = {
   },
 
   async listHareketler(query: Record<string, any>) {
+    // 20260421000001_cari_hesap_revizyon_faz1.sql cari_hareketler.firma_id'yi drop edip
+    // cari_hesap_id'ye çevirdi. Bu yüzden firma'ya cari_hesaplar.firma_id üzerinden
+    // erişiyoruz; aksi halde PostgREST relationship çözemiyor ve PGRST200 fırlatıyordu.
     let q = supabaseAdmin
       .from('banka_hareketleri')
-      .select('*, banka_hesaplari!inner(banka_adi, proje_id), cari_hareketler!banka_hareket_id(firmalar(unvan))')
+      .select('*, banka_hesaplari!inner(banka_adi, proje_id), cari_hareketler!banka_hareket_id(cari_hesaplar(firmalar(unvan)))')
 
     // Filtreleme: banka_hesap_id varsa ona göre, yoksa proje_id varsa banka_hesaplari üzerinden filtrele
     if (query.banka_hesap_id) {
