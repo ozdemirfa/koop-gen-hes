@@ -240,10 +240,24 @@ export const HakedisDetailPage: React.FC = () => {
     }
   }, [id, hakedis?.hakedis_no])
 
-  const actions = useMemo(() => (
-    <Space>
-      <Button 
-        icon={<ArrowLeftOutlined />} 
+  const actions = useMemo(() => {
+    // LayoutContext'in stable setter'ı sadece (type, key) shallow karşılaştırması yapıyor;
+    // hakedis async yüklendiğinde dış <Space>'in tipi/keyi değişmediği için Kaydet/Onayla
+    // butonları header'a sızmıyor. Burada görsel içeriği etkileyen state'leri fingerprint'e
+    // dönüştürüp key'e koyuyoruz; böylece her gerçek içerik değişiminde header güncellenir.
+    const stateKey = [
+      hakedis?.durum ?? 'loading',
+      isTaslak ? 'edit' : 'view',
+      hasChanges ? 'dirty' : 'clean',
+      editableKalemler.length === 0 ? 'empty' : 'filled',
+      saveMutation.isPending ? 'saving' : '',
+      approveMutation.isPending ? 'approving' : '',
+      unapproveMutation.isPending ? 'unapproving' : '',
+    ].filter(Boolean).join('|')
+    return (
+    <Space key={`hakedis-actions-${stateKey}`}>
+      <Button
+        icon={<ArrowLeftOutlined />}
         onClick={() => navigate('/hakedisler')}
         type="text"
       />
@@ -298,7 +312,8 @@ export const HakedisDetailPage: React.FC = () => {
         </Popconfirm>
       )}
     </Space>
-  ), [navigate, handlePdfDownload, isTaslak, hakedis?.durum, hasChanges, editableKalemler.length, saveMutation.isPending, approveMutation.isPending, unapproveMutation.isPending])
+    )
+  }, [navigate, handlePdfDownload, isTaslak, hakedis?.durum, hasChanges, editableKalemler.length, saveMutation.isPending, approveMutation.isPending, unapproveMutation.isPending, saveMutation.mutate, approveMutation.mutate, unapproveMutation.mutate])
 
   usePageSettings(hakedis ? `Hakediş #${hakedis.hakedis_no}` : 'Hakediş Detayı', actions)
 
