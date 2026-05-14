@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { Card, Button, Space, Typography, Statistic, Row, Col } from 'antd'
-import { FilePdfOutlined, UserOutlined, TeamOutlined, DollarOutlined } from '@ant-design/icons'
+import { DownloadOutlined, UserOutlined, TeamOutlined, DollarOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import api from '../../lib/api'
@@ -12,6 +12,8 @@ import { DataTable } from '../../components/common/DataTable'
 import { EmptyState } from '../../components/common/EmptyState'
 
 import { trMoneyFormatter } from '../../lib/format'
+import { downloadCsv } from '../../lib/csvExport'
+import dayjs from 'dayjs'
 
 const { Text } = Typography
 
@@ -31,18 +33,34 @@ export const UyeBorcRaporPage: React.FC = () => {
     enabled: !!activeProjectId
   })
 
+  const handleCsvDownload = () => {
+    if (!list || list.length === 0) return
+    downloadCsv(`uye-borc-listesi-${dayjs().format('YYYYMMDD')}`, [
+      {
+        title: `Üye Borç Listesi — ${dayjs().format('DD.MM.YYYY')}`,
+        headers: ['Üye No', 'Ad Soyad', 'Toplam Borç (TL)', 'Toplam Tahsilat (TL)', 'Kalan Borç (TL)', 'Geciken Aidat Sayısı'],
+        rows: list.map((r: any) => [
+          r.uye_no || '',
+          `${r.ad || ''} ${r.soyad || ''}`.trim(),
+          r.toplam_borc || 0,
+          r.toplam_tahsilat || 0,
+          (r.toplam_borc || 0) - (r.toplam_tahsilat || 0),
+          r.geciken_sayisi || 0,
+        ]),
+      },
+    ])
+  }
+
   const actions = useMemo(() => (
-    <Button 
+    <Button
       size="small"
-      icon={<FilePdfOutlined />} 
-      onClick={() => {
-        window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'}/raporlar/uye-borc-listesi/pdf?proje_id=${activeProjectId}`, '_blank');
-      }}
-      disabled={!activeProjectId}
+      icon={<DownloadOutlined />}
+      onClick={handleCsvDownload}
+      disabled={!activeProjectId || !list || list.length === 0}
     >
-      PDF İndir
+      CSV İndir
     </Button>
-  ), [activeProjectId])
+  ), [activeProjectId, list])
 
   usePageSettings('Üye Borç Listesi', actions)
 

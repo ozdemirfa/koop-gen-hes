@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { Card, Row, Col, Statistic, DatePicker, Button, Typography } from 'antd'
-import { FilePdfOutlined, RiseOutlined, FallOutlined, DollarOutlined, BarChartOutlined } from '@ant-design/icons'
+import { DownloadOutlined, RiseOutlined, FallOutlined, DollarOutlined, BarChartOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
@@ -10,6 +10,9 @@ import { ErrorState } from '../../components/common/ErrorState'
 import { DataTable } from '../../components/common/DataTable'
 
 import { trMoneyFormatter } from '../../lib/format'
+import { downloadCsv } from '../../lib/csvExport'
+
+const AY_ETIKETLERI = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
 
 export const YillikRaporPage: React.FC = () => {
   const [targetYear, setTargetYear] = useState(dayjs())
@@ -27,8 +30,33 @@ export const YillikRaporPage: React.FC = () => {
 
   usePageSettings('Yıllık Mali Rapor', actions)
 
-  const handlePdfDownload = () => {
-    window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'}/raporlar/yillik-rapor/pdf?yil=${targetYear.year()}&proje_id=${activeProjectId}`, '_blank')
+  const handleCsvDownload = () => {
+    if (!rapor) return
+    const yil = targetYear.year()
+    const netBakiye = (rapor.toplam_aidat || 0) + (rapor.toplam_gelir || 0) - (rapor.toplam_gider || 0)
+    downloadCsv(`yillik-rapor-${yil}`, [
+      {
+        title: `Yıllık Mali Rapor — ${yil}`,
+        headers: ['Metrik', 'Tutar (TL)'],
+        rows: [
+          ['Yıllık Aidat Tahsilatı', rapor.toplam_aidat || 0],
+          ['Yıllık Diğer Gelirler', rapor.toplam_gelir || 0],
+          ['Yıllık Toplam Gider', rapor.toplam_gider || 0],
+          ['Yıllık Net Bakiye', netBakiye],
+        ],
+      },
+      {
+        title: `${yil} Aylık Döküm`,
+        headers: ['Ay', 'Aidat Tahsilatı', 'Diğer Gelirler', 'Giderler', 'Net'],
+        rows: (rapor.aylik || []).map((r: any) => [
+          AY_ETIKETLERI[(r.ay || 1) - 1] || r.ay,
+          r.aidat || 0,
+          r.gelir || 0,
+          r.gider || 0,
+          (r.aidat || 0) + (r.gelir || 0) - (r.gider || 0),
+        ]),
+      },
+    ])
   }
 
   const { data: rapor, isLoading, isError, error, refetch } = useQuery({
@@ -66,11 +94,11 @@ export const YillikRaporPage: React.FC = () => {
       <div style={{ marginBottom: 12 }}>
         <Button
           size="small"
-          icon={<FilePdfOutlined />}
-          onClick={handlePdfDownload}
-          disabled={!activeProjectId}
+          icon={<DownloadOutlined />}
+          onClick={handleCsvDownload}
+          disabled={!activeProjectId || !rapor}
         >
-          PDF İndir
+          CSV İndir
         </Button>
       </div>
 
