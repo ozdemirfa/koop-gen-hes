@@ -35,7 +35,10 @@ export const FirmaListPage: React.FC = () => {
   const [search, setSearch] = useState('')
   const [filterTip, setFilterTip] = useState<string | undefined>(undefined)
   const [filterAktif, setFilterAktif] = useState<string | undefined>('true')
-  const debouncedSearch = useDebounce(search, 300)
+  // 2026-05-15 UX: 300ms çok agresif — her harfte query tetikleyip loading state
+  // kullanıcının yazımını "duraklatma" hissi veriyordu. 1000ms ile yazma akışı bitince
+  // bir kez arama yapılır.
+  const debouncedSearch = useDebounce(search, 1000)
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editing, setEditing] = useState<Firma | null>(null)
