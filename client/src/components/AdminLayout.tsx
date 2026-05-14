@@ -220,6 +220,28 @@ const MainHeader: React.FC<{
             {headerActions}
           </div>
         )}
+        {/*
+          Page-owned search slot.
+          LayoutContext.setHeaderActionsStable, key + type aynı kalan re-render'ları
+          ihtiyaca göre prev'e bağlar (loop koruması — PR #14 ile geri eklendi).
+          Bu nedenle sayfalar `secondary` içine controlled text input koyduğunda
+          `<HeaderActionsToolbar>` key fingerprint'i her keystroke'ta değişip
+          Input'u remount ediyor; PR #30/#33'te denenen `key={search-i-içeren}`
+          stratejisi de focus kaybı yarattı. Çözüm: search input'unu Portal ile
+          context dışında bu slot'a render et — input page-owned subtree'sinde
+          stabil kalır, focus + controlled value korunur.
+        */}
+        <div
+          id="admin-header-search-slot"
+          className="admin-header-search-slot"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            flexShrink: 0,
+            marginLeft: 8,
+          }}
+        />
       </div>
       <div
         id="header-right"

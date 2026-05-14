@@ -220,6 +220,16 @@ body {
 .admin-header-actions {
   margin-left: 8px;
 }
+/*
+ * Page-owned header search slot (bkz. HeaderSearchPortal).
+ * Mobile'da daraltılır; flex-shrink açıkken (header-right'a yer kalsın).
+ */
+.admin-header-search-slot {
+  margin-left: 8px;
+}
+.admin-header-search-slot .ant-input-affix-wrapper {
+  height: 28px;
+}
 .admin-header-right {
   gap: 8px;
 }
@@ -241,6 +251,14 @@ body {
   }
   .admin-header-actions {
     margin-left: 4px;
+  }
+  .admin-header-search-slot {
+    margin-left: 4px;
+    flex-shrink: 1;
+    min-width: 0;
+  }
+  .admin-header-search-slot .ant-input-affix-wrapper {
+    width: min(160px, 36vw) !important;
   }
   .admin-header-right {
     gap: 4px;
