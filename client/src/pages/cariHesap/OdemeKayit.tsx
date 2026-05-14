@@ -135,6 +135,7 @@ export const OdemeKayit: React.FC = () => {
           form={form}
           layout="vertical"
           onFinish={onFinish}
+          autoComplete="off"
           initialValues={{
             tarih: dayjs(),
             islem_turu: 'giden_odeme',
@@ -342,7 +343,7 @@ export const OdemeKayit: React.FC = () => {
                   label="Çekin Bankası"
                   rules={[{ required: true, message: 'Banka adı zorunludur' }]}
                 >
-                  <Input placeholder="Örn: Garanti BBVA" suffix={<BankOutlined />} />
+                  <Input autoComplete="off" placeholder="Örn: Garanti BBVA" suffix={<BankOutlined />} />
                 </Form.Item>
               </Col>
             </Row>

@@ -260,6 +260,7 @@ export const MalzemeTeslimListPage: React.FC = () => {
           onFinish={(v) => saveMutation.mutate(v)}
           size="small"
           validateTrigger={["onBlur", "onChange"]}
+          autoComplete="off"
         >
           <Row gutter={16}>
             <Col span={12}>
@@ -280,7 +281,7 @@ export const MalzemeTeslimListPage: React.FC = () => {
             </Col>
             <Col span={6}>
               <Form.Item name="irsaliye_no" label="İrsaliye No">
-                <Input />
+                <Input autoComplete="off" />
               </Form.Item>
             </Col>
           </Row>
