@@ -50,15 +50,19 @@ export const YillikRaporPage: React.FC = () => {
       },
       {
         title: `${yil} Aylık Döküm`,
-        headers: ['Ay', 'Aidat Tahakkuku', 'Aidat Tahsilatı', 'Giderler', 'Nakit Farkı'],
+        headers: ['Ay', 'Aidat Tahakkuku', 'Aidat Tahsilatı', 'Geciken Alacak', 'Ort. Gecikme Gün', 'Giderler', 'Nakit Farkı'],
         rows: (rapor.aylik || []).map((r: any) => {
           const tahakkuk = Number(r.gelir || 0)
           const tahsilat = Number(r.tahsilat || 0)
           const gider = Number(r.gider || 0)
+          const geciken = Number(r.geciken_alacak || 0)
+          const ortGecikme = Number(r.ortalama_gecikme_gun || 0)
           return [
             AY_ETIKETLERI[(r.ay || 1) - 1] || r.ay,
             tahakkuk,
             tahsilat,
+            geciken,
+            ortGecikme,
             gider,
             tahsilat - gider,
           ]
@@ -105,6 +109,23 @@ export const YillikRaporPage: React.FC = () => {
       render: (v: number) => (
         <span style={{ color: '#3f8600', fontWeight: 500 }}>{trMoneyFormatter(Number(v || 0))}</span>
       ),
+    },
+    {
+      title: 'Geciken Alacaklar',
+      dataIndex: 'geciken_alacak',
+      key: 'geciken',
+      align: 'right' as const,
+      render: (v: number) => (
+        <span style={{ color: '#fa8c16' }}>{trMoneyFormatter(Number(v || 0))}</span>
+      ),
+    },
+    {
+      title: 'Ort. Gecikme Gün',
+      dataIndex: 'ortalama_gecikme_gun',
+      key: 'ortGecikme',
+      align: 'right' as const,
+      width: 130,
+      render: (v: number) => `${Number(v || 0)} gün`,
     },
     {
       title: 'Giderler',
