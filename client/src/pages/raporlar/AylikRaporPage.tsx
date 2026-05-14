@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { Card, Table, Row, Col, Statistic, DatePicker, Button, Tag, Typography } from 'antd'
-import { FilePdfOutlined, RiseOutlined, FallOutlined, DollarOutlined, CalendarOutlined } from '@ant-design/icons'
+import { DownloadOutlined, RiseOutlined, FallOutlined, DollarOutlined, CalendarOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
@@ -10,6 +10,7 @@ import { LoadingState } from '../../components/common/LoadingState'
 import { ErrorState } from '../../components/common/ErrorState'
 
 import { trMoneyFormatter } from '../../lib/format'
+import { downloadCsv } from '../../lib/csvExport'
 
 export const AylikRaporPage: React.FC = () => {
   const [targetDate, setTargetDate] = useState(dayjs())
@@ -43,8 +44,55 @@ export const AylikRaporPage: React.FC = () => {
 
   usePageSettings('Aylık Mali Rapor', actions)
 
-  const handlePdfDownload = () => {
-    window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'}/raporlar/aylik-rapor/pdf?yil=${targetDate.year()}&ay=${targetDate.month() + 1}&proje_id=${activeProjectId}`, '_blank')
+  const handleCsvDownload = () => {
+    if (!rapor) return
+    const yil = targetDate.year()
+    const ay = targetDate.month() + 1
+    downloadCsv(`aylik-rapor-${yil}-${String(ay).padStart(2, '0')}`, [
+      {
+        title: `Aylık Mali Rapor — ${dayjs().year(yil).month(ay - 1).format('MMMM YYYY')}`,
+        headers: ['Metrik', 'Tutar (TL)'],
+        rows: [
+          ['Toplam Aidat Tahsilatı', rapor.toplam_aidat_tahsilat || 0],
+          ['Diğer Gelirler', rapor.toplam_gelir || 0],
+          ['Toplam Giderler', rapor.toplam_gider || 0],
+          ['Yaklaşan: Bu Ay (T)', rapor.yaklasan_odemeler?.t || 0],
+          ['Yaklaşan: Gelecek Ay (T+1)', rapor.yaklasan_odemeler?.t1 || 0],
+          ['Yaklaşan: Sonraki Ay (T+2)', rapor.yaklasan_odemeler?.t2 || 0],
+        ],
+      },
+      {
+        title: 'Aidat Tahsilatları',
+        headers: ['Tarih', 'Üye', 'Ödeme Yöntemi', 'Tutar (TL)'],
+        rows: (rapor.aidat_tahsilat || []).map((r: any) => [
+          dayjs(r.tarih).format('DD.MM.YYYY'),
+          r.cari_hesaplar?.cari_adi || '',
+          (r.odeme_turu || 'banka').toUpperCase(),
+          r.borc || 0,
+        ]),
+      },
+      {
+        title: 'Gelirler',
+        headers: ['Tarih', 'Cari/Kaynak', 'Açıklama', 'Tutar (TL)'],
+        rows: (rapor.gelirler || []).map((r: any) => [
+          dayjs(r.tarih).format('DD.MM.YYYY'),
+          r.cari_hesaplar?.cari_adi || '',
+          r.aciklama || '',
+          r.alacak || 0,
+        ]),
+      },
+      {
+        title: 'Giderler',
+        headers: ['Tarih', 'Tür', 'Cari/Firma', 'Açıklama', 'Tutar (TL)'],
+        rows: (rapor.giderler || []).map((r: any) => [
+          dayjs(r.tarih).format('DD.MM.YYYY'),
+          r.islem_turu === 'hakedis' ? 'Hakediş' : (r.islem_turu === 'fatura' ? 'Fatura' : 'Gider'),
+          r.cari_hesaplar?.cari_adi || '',
+          r.aciklama || '',
+          r.borc || 0,
+        ]),
+      },
+    ])
   }
 
   const gelirColumns = [
@@ -93,11 +141,11 @@ export const AylikRaporPage: React.FC = () => {
       <div style={{ marginBottom: 12 }}>
         <Button
           size="small"
-          icon={<FilePdfOutlined />}
-          onClick={handlePdfDownload}
-          disabled={!activeProjectId}
+          icon={<DownloadOutlined />}
+          onClick={handleCsvDownload}
+          disabled={!activeProjectId || !rapor}
         >
-          PDF İndir
+          CSV İndir
         </Button>
       </div>
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>

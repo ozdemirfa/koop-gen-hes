@@ -2,11 +2,11 @@ import React, { useMemo } from 'react'
 import { Card, Table, Typography, Statistic, Row, Col, Tag, Button, Space } from 'antd'
 import { DataTable } from '../../components/common/DataTable'
 import { EmptyState } from '../../components/common/EmptyState'
-import { 
-  ArrowUpOutlined, 
-  ArrowDownOutlined, 
-  FileSearchOutlined, 
-  PrinterOutlined,
+import {
+  ArrowUpOutlined,
+  ArrowDownOutlined,
+  FileSearchOutlined,
+  DownloadOutlined,
   TeamOutlined,
   ShopOutlined
 } from '@ant-design/icons'
@@ -18,6 +18,8 @@ import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { LoadingState } from '../../components/common/LoadingState'
 import { ErrorState } from '../../components/common/ErrorState'
 import { trNumberFormatter, trMoneyFormatter } from '../../lib/format'
+import { downloadCsv } from '../../lib/csvExport'
+import dayjs from 'dayjs'
 
 const { Text } = Typography
 
@@ -45,17 +47,36 @@ export const MizanPage: React.FC = () => {
     enabled: !!activeProject?.id
   })
 
+  const handleCsvDownload = () => {
+    if (!list || list.length === 0) return
+    downloadCsv(`genel-mizan-${dayjs().format('YYYYMMDD')}`, [
+      {
+        title: `Genel Mizan — ${dayjs().format('DD.MM.YYYY')}`,
+        headers: ['Cari Adı', 'Tür', 'Toplam Borç (TL)', 'Toplam Alacak (TL)', 'Bakiye (TL)', 'Bakiye Yönü'],
+        rows: list.map((r) => [
+          r.cari_adi,
+          r.cari_turu === 'uye' ? 'ÜYE' : 'FİRMA',
+          r.toplam_borc,
+          r.toplam_alacak,
+          r.bakiye,
+          r.bakiye > 0 ? 'ALACAK BAKİYESİ (A)' : (r.bakiye < 0 ? 'BORÇ BAKİYESİ (B)' : 'DENK'),
+        ]),
+      },
+    ])
+  }
+
   const actions = useMemo(() => (
     <Space>
-      <Button 
-        size="small" 
-        icon={<PrinterOutlined />} 
-        onClick={() => window.print()}
+      <Button
+        size="small"
+        icon={<DownloadOutlined />}
+        onClick={handleCsvDownload}
+        disabled={!list || list.length === 0}
       >
-        Yazdır
+        CSV İndir
       </Button>
     </Space>
-  ), [])
+  ), [list])
 
   usePageSettings('Genel Mizan', actions)
 
