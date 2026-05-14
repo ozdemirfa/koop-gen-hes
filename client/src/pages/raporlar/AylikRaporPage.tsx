@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Card, Table, Row, Col, Statistic, DatePicker, Button, Tag, Typography } from 'antd'
+import { Card, Table, Row, Col, Statistic, DatePicker, Button, Tag, Typography, Tabs } from 'antd'
 import { DownloadOutlined, RiseOutlined, FallOutlined, DollarOutlined, CalendarOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
@@ -229,41 +229,53 @@ export const AylikRaporPage: React.FC = () => {
         </Row>
       </div>
 
-      <Row gutter={[12, 12]}>
-        <Col span={24}>
-          <Card title="Aidat Tahsilatları" size="small">
-            <Table
-              dataSource={rapor?.aidat_tahsilat || []}
-              columns={aidatColumns}
-              rowKey={(r, i) => i!}
-              pagination={{ pageSize: 5 }}
-              size="small"
-            />
-          </Card>
-        </Col>
-        <Col lg={12} span={24}>
-          <Card title="Gelirler" size="small">
-            <Table
-              dataSource={rapor?.gelirler || []}
-              columns={gelirColumns}
-              rowKey="id"
-              pagination={{ pageSize: 5 }}
-              size="small"
-            />
-          </Card>
-        </Col>
-        <Col lg={12} span={24}>
-          <Card title="Giderler" size="small">
-            <Table
-              dataSource={rapor?.giderler || []}
-              columns={giderColumns}
-              rowKey="id"
-              pagination={{ pageSize: 5 }}
-              size="small"
-            />
-          </Card>
-        </Col>
-      </Row>
+      <Card size="small" style={{ marginTop: 12 }}>
+        <Tabs
+          defaultActiveKey="aidat"
+          size="small"
+          items={[
+            {
+              key: 'aidat',
+              label: `Aidat Tahsilatları (${rapor?.aidat_tahsilat?.length || 0})`,
+              children: (
+                <Table
+                  dataSource={rapor?.aidat_tahsilat || []}
+                  columns={aidatColumns}
+                  rowKey={(r, i) => i!}
+                  pagination={{ pageSize: 10 }}
+                  size="small"
+                />
+              ),
+            },
+            {
+              key: 'gelir',
+              label: `Gelirler (${rapor?.gelirler?.length || 0})`,
+              children: (
+                <Table
+                  dataSource={rapor?.gelirler || []}
+                  columns={gelirColumns}
+                  rowKey="id"
+                  pagination={{ pageSize: 10 }}
+                  size="small"
+                />
+              ),
+            },
+            {
+              key: 'gider',
+              label: `Giderler (${rapor?.giderler?.length || 0})`,
+              children: (
+                <Table
+                  dataSource={rapor?.giderler || []}
+                  columns={giderColumns}
+                  rowKey="id"
+                  pagination={{ pageSize: 10 }}
+                  size="small"
+                />
+              ),
+            },
+          ]}
+        />
+      </Card>
     </div>
   )
 }

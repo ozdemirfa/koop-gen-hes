@@ -33,28 +33,36 @@ export const YillikRaporPage: React.FC = () => {
   const handleCsvDownload = () => {
     if (!rapor) return
     const yil = targetYear.year()
-    const netBakiye = (rapor.toplam_aidat || 0) + (rapor.toplam_gelir || 0) - (rapor.toplam_gider || 0)
+    const toplamTahsilat = Number(rapor.toplam_tahsilat || 0)
+    const toplamTahakkuk = Number(rapor.toplam_gelir || 0)
+    const toplamGider = Number(rapor.toplam_gider || 0)
+    const netBakiye = toplamTahsilat - toplamGider
     downloadCsv(`yillik-rapor-${yil}`, [
       {
         title: `Yıllık Mali Rapor — ${yil}`,
         headers: ['Metrik', 'Tutar (TL)'],
         rows: [
-          ['Yıllık Aidat Tahsilatı', rapor.toplam_aidat || 0],
-          ['Yıllık Diğer Gelirler', rapor.toplam_gelir || 0],
-          ['Yıllık Toplam Gider', rapor.toplam_gider || 0],
-          ['Yıllık Net Bakiye', netBakiye],
+          ['Yıllık Aidat Tahakkuku', toplamTahakkuk],
+          ['Yıllık Aidat Tahsilatı', toplamTahsilat],
+          ['Yıllık Toplam Gider', toplamGider],
+          ['Yıllık Nakit Farkı', netBakiye],
         ],
       },
       {
         title: `${yil} Aylık Döküm`,
-        headers: ['Ay', 'Aidat Tahsilatı', 'Diğer Gelirler', 'Giderler', 'Net'],
-        rows: (rapor.aylik || []).map((r: any) => [
-          AY_ETIKETLERI[(r.ay || 1) - 1] || r.ay,
-          r.aidat || 0,
-          r.gelir || 0,
-          r.gider || 0,
-          (r.aidat || 0) + (r.gelir || 0) - (r.gider || 0),
-        ]),
+        headers: ['Ay', 'Aidat Tahakkuku', 'Aidat Tahsilatı', 'Giderler', 'Nakit Farkı'],
+        rows: (rapor.aylik || []).map((r: any) => {
+          const tahakkuk = Number(r.gelir || 0)
+          const tahsilat = Number(r.tahsilat || 0)
+          const gider = Number(r.gider || 0)
+          return [
+            AY_ETIKETLERI[(r.ay || 1) - 1] || r.ay,
+            tahakkuk,
+            tahsilat,
+            gider,
+            tahsilat - gider,
+          ]
+        }),
       },
     ])
   }
@@ -74,9 +82,53 @@ export const YillikRaporPage: React.FC = () => {
     enabled: !!activeProjectId
   })
 
-  const columns: any[] = [
-    // ... rest of columns
-  ]
+  const columns = useMemo<any[]>(() => [
+    {
+      title: 'Ay',
+      dataIndex: 'ay',
+      key: 'ay',
+      width: 100,
+      render: (a: number) => AY_ETIKETLERI[(a || 1) - 1] || a,
+    },
+    {
+      title: 'Aidat Tahakkuku',
+      dataIndex: 'gelir',
+      key: 'tahakkuk',
+      align: 'right' as const,
+      render: (v: number) => trMoneyFormatter(Number(v || 0)),
+    },
+    {
+      title: 'Aidat Tahsilatı',
+      dataIndex: 'tahsilat',
+      key: 'tahsilat',
+      align: 'right' as const,
+      render: (v: number) => (
+        <span style={{ color: '#3f8600', fontWeight: 500 }}>{trMoneyFormatter(Number(v || 0))}</span>
+      ),
+    },
+    {
+      title: 'Giderler',
+      dataIndex: 'gider',
+      key: 'gider',
+      align: 'right' as const,
+      render: (v: number) => (
+        <span style={{ color: '#cf1322' }}>{trMoneyFormatter(Number(v || 0))}</span>
+      ),
+    },
+    {
+      title: 'Nakit Farkı',
+      key: 'fark',
+      align: 'right' as const,
+      render: (_: unknown, r: any) => {
+        const fark = Number(r.tahsilat || 0) - Number(r.gider || 0)
+        return (
+          <span style={{ color: fark >= 0 ? '#3f8600' : '#cf1322', fontWeight: 600 }}>
+            {trMoneyFormatter(fark)}
+          </span>
+        )
+      },
+    },
+  ], [])
 
   if (!activeProjectId) {
     return (
@@ -103,33 +155,34 @@ export const YillikRaporPage: React.FC = () => {
       </div>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col span={6}>
+        <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="Yıllık Aidat Tahsilatı"
-              value={rapor?.toplam_aidat || 0}
-              prefix={<DollarOutlined />}
-              suffix="TL"
-              formatter={(v) => trMoneyFormatter(v as number)}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="Yıllık Diğer Gelirler"
-              value={rapor?.toplam_gelir || 0}
+              title="Yıllık Aidat Tahakkuku"
+              value={Number(rapor?.toplam_gelir || 0)}
               prefix={<RiseOutlined />}
               suffix="TL"
               formatter={(v) => trMoneyFormatter(v as number)}
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} md={6}>
+          <Card>
+            <Statistic
+              title="Yıllık Aidat Tahsilatı"
+              value={Number(rapor?.toplam_tahsilat || 0)}
+              prefix={<DollarOutlined />}
+              suffix="TL"
+              formatter={(v) => trMoneyFormatter(v as number)}
+              styles={{ content: { color: '#3f8600' } }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
               title="Yıllık Toplam Gider"
-              value={rapor?.toplam_gider || 0}
+              value={Number(rapor?.toplam_gider || 0)}
               prefix={<FallOutlined />}
               suffix="TL"
               formatter={(v) => trMoneyFormatter(v as number)}
@@ -137,15 +190,15 @@ export const YillikRaporPage: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="Yıllık Net Bakiye"
-              value={(rapor?.toplam_aidat || 0) + (rapor?.toplam_gelir || 0) - (rapor?.toplam_gider || 0)}
+              title="Yıllık Nakit Farkı"
+              value={Number(rapor?.toplam_tahsilat || 0) - Number(rapor?.toplam_gider || 0)}
               prefix={<BarChartOutlined />}
               suffix="TL"
               formatter={(v) => trMoneyFormatter(v as number)}
-              styles={{ content: { color: '#3f8600' } }}
+              styles={{ content: { color: (Number(rapor?.toplam_tahsilat || 0) - Number(rapor?.toplam_gider || 0)) >= 0 ? '#3f8600' : '#cf1322' } }}
             />
           </Card>
         </Col>
