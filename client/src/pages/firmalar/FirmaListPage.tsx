@@ -11,6 +11,7 @@ import { formatIBAN, formatIBANInput, getIBANRaw, trMoneyFormatter, formatPhone,
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
 import { HeaderActionsToolbar } from '../../components/common/HeaderActionsToolbar'
+import { HeaderSearchPortal } from '../../components/common/HeaderSearchPortal'
 
 interface Firma {
   id: string
@@ -55,7 +56,18 @@ export const FirmaListPage: React.FC = () => {
   }, [isModalOpen, form])
 
   // OC-05 (sprint 20260511-ui-responsive-sprint extension):
-  // HeaderActionsToolbar — primary=Yeni Firma, secondary=Search+Tip+Aktif Select
+  // HeaderActionsToolbar — primary=Yeni Firma, secondary=Tip+Aktif Select (search HARİÇ)
+  //
+  // Sprint 20260514 (PR #30/#33 sonrası kalıcı fix):
+  //   Search Input artık <HeaderSearchPortal> ile sayfa-sahipli (page-owned) bir
+  //   subtree'de render ediliyor — LayoutContext'in shallow (type + key) eşitlik
+  //   bailout zincirinin dışında. Sebep: search'ı header secondary'sine koyup
+  //   stateKey içine almak (PR #30) her keystroke'ta toolbar'ı unmount/mount
+  //   ediyor (focus kaybı). Stale render koruması olarak getirilen fingerprint
+  //   key'i tamamen kaldırmak ise (PR #14 ile geri eklenen) shallow check
+  //   nedeniyle Input value'sunu donuk bırakıyor. Portal yaklaşımı her iki
+  //   sorunu da çözer: search state'i sayfa subtree'sinde reconcile edilir,
+  //   header re-mount zincirine girmez.
   const activeFilterCount = useMemo(() => {
     let count = 0
     if (search) count++
@@ -72,15 +84,6 @@ export const FirmaListPage: React.FC = () => {
 
   const secondaryActions = useMemo(() => (
     <>
-      <Input
-        placeholder="Firma ara..."
-        prefix={<SearchOutlined />}
-        allowClear
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        style={{ width: 220 }}
-        size="small"
-      />
       <Select
         placeholder="Tip"
         value={filterTip}
@@ -104,13 +107,16 @@ export const FirmaListPage: React.FC = () => {
         <Select.Option value="false">Pasif</Select.Option>
       </Select>
     </>
-  ), [search, filterTip, filterAktif])
+  ), [filterTip, filterAktif])
 
   const headerActions = useMemo(() => {
-    // LayoutContext.setHeaderActionsStable shallow (type+key) check yapıyor; controlled
-    // Input value değişimi tek başına header'a yansımıyor (search kutusu donuk kalıyor).
-    // Fingerprint key ile her gerçek state değişimini yakala (aynı pattern: PR #16, #19).
-    const stateKey = [search || 'empty', filterTip || 'none', filterAktif || 'none', `f${activeFilterCount}`].join('|')
+    // stateKey artık SADECE discrete (Select) state'ler + filterCount'u içerir.
+    // search ham metni key zincirinden ÇIKARILDI — keystroke'ta toolbar
+    // remount olmaz. activeFilterCount search'a bağlı olduğundan boş↔dolu
+    // geçişte 1 kez Badge sayısını güncellemek için key'e bağımlı kaldı
+    // (Badge re-render için secondary güncellemesi yeter, ama eski pattern
+    // korunarak Tip/Aktif değişimleriyle de prev'i kıralım).
+    const stateKey = [filterTip || 'none', filterAktif || 'none', `f${activeFilterCount}`].join('|')
     return (
       <HeaderActionsToolbar
         key={`firma-list-${stateKey}`}
@@ -120,7 +126,7 @@ export const FirmaListPage: React.FC = () => {
         drawerTitle="Firma Filtreleri"
       />
     )
-  }, [primaryAction, secondaryActions, activeFilterCount, search, filterTip, filterAktif])
+  }, [primaryAction, secondaryActions, activeFilterCount, filterTip, filterAktif])
 
   usePageSettings('Firma Listesi', headerActions)
 
@@ -278,6 +284,23 @@ export const FirmaListPage: React.FC = () => {
 
   return (
     <div className="animate-in fade-in duration-500">
+      {/*
+        Header'a portal'lanan search input — bkz. HeaderSearchPortal jsdoc.
+        Render ağacı bu sayfa subtree'sinde olduğu için search state değişimleri
+        Input'u unmount etmez (focus + controlled value korunur). DOM'da
+        AdminLayout'un #admin-header-search-slot div'i içinde görünür.
+      */}
+      <HeaderSearchPortal>
+        <Input
+          placeholder="Firma ara..."
+          prefix={<SearchOutlined />}
+          allowClear
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ width: 220 }}
+          size="small"
+        />
+      </HeaderSearchPortal>
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} lg={4}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small">
