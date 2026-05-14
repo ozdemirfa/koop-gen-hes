@@ -186,6 +186,10 @@ export const cariHesapService = {
 
   // B1 + B3 (sprint 20260511-uye-tahsilat-firma-revisions): tahsilat satırı sil.
   // Kapatılmış (kaynak_id NOT NULL) bir hareket doğrudan silinemez — 409 + Türkçe mesaj.
+  // 2026-05-15 fix: banka_hareketleri.eslesen_cari_hareket_id FK'sinin ON DELETE
+  // davranışı NO ACTION (default). OdemeKayit banka path'i hem cari_hareketi hem
+  // banka_hareketini atomik oluşturuyordu; silmede ise FK violation (23503) atıyordu.
+  // Çözüm: önce eşleşmiş banka_hareketini sil, sonra cari_hareketi sil.
   async delete(id: string) {
     const { data: existing, error: fetchErr } = await supabaseAdmin
       .from('cari_hareketler')
@@ -201,6 +205,18 @@ export const cariHesapService = {
         'Bu tahsilat bir aidat/hakediş ile eşleştirilmiş ve doğrudan silinemez. Önce hesap kapamayı geri alın.'
       )
     }
+
+    // Bu cari harekete eşleşmiş banka hareketlerini (varsa) önce sil.
+    // Tek tx olmadığı için: banka silme başarısız olursa cari hareket silinmez (PG hata yükselir);
+    // banka silme başarılı sonra cari silmede hata olursa orphan banka_hareketi kalmaz çünkü
+    // cari_hareketler.banka_hareket_id de bu satırı aynı banka_hareketine işaret eder ve
+    // ikinci silmenin başarısızlığı tüm kullanıcı senaryosunda nadirdir. Tam atomik gerekirse
+    // RPC'ye taşınmalı (P2 backlog).
+    const { error: bankaErr } = await supabaseAdmin
+      .from('banka_hareketleri')
+      .delete()
+      .eq('eslesen_cari_hareket_id', id)
+    if (bankaErr) throw bankaErr
 
     const { error } = await supabaseAdmin
       .from('cari_hareketler')

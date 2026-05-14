@@ -73,7 +73,7 @@ export const TahsilatListPage: React.FC = () => {
   const queryClient = useQueryClient()
   const isTouchDevice = useIsTouchDevice()
 
-  usePageSettings('Tahsilat / Ödeme Kayıtları')
+  usePageSettings('Para Hareketleri')
 
   const [dates, setDates] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null]>([
     dayjs().startOf('year'),
