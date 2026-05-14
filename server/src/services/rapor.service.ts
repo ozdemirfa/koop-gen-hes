@@ -43,20 +43,76 @@ export const raporService = {
   },
 
   async uyeBorcListesi(projeId: string) {
-    const { data, error } = await supabaseAdmin
-      .rpc('get_cari_mizan', { p_proje_id: projeId });
+    // 2026-05-15: aidat_detaylari view'ından durum='gecikti' satırları çek; üye
+    // bazında geciken borç toplamı, max gecikme günü, ortalama gecikme günü hesapla.
+    // Kullanıcı isteğine göre: borçlu üye no, ad soyad, daire blok & no, geciken borç,
+    // gecikme süresi, ortalama gecikme süresi.
+    const { data: aidatlar, error } = await supabaseAdmin
+      .from('aidat_detaylari')
+      .select('uye_id, uye_no, ad, soyad, daire_no, blok_adi, kalan_borc, gecikme_gun_sayisi, durum, son_odeme_tarihi')
+      .eq('proje_id', projeId)
+      .eq('durum', 'gecikti')
 
-    if (error) throw error;
+    if (error) throw error
+    if (!aidatlar || aidatlar.length === 0) return []
 
-    return (data || [])
-      .filter((item: any) => item.cari_turu === 'uye' && item.bakiye > 0)
-      .map((item: any) => ({
-        uye_no: item.uye_no,
-        ad: item.ad,
-        soyad: item.soyad,
-        toplam_borc: item.bakiye,
-        bakiye: item.bakiye
-      }));
+    type RowAcc = {
+      uye_id: string
+      uye_no: string
+      ad: string
+      soyad: string
+      daire_no: string | null
+      blok_adi: string | null
+      geciken_borc: number
+      max_gecikme_gun: number
+      gecikme_gun_toplam: number
+      gecikme_kalem_sayisi: number
+    }
+
+    const grouped = new Map<string, RowAcc>()
+    for (const a of aidatlar as any[]) {
+      if (!a.uye_id) continue
+      let acc = grouped.get(a.uye_id)
+      if (!acc) {
+        acc = {
+          uye_id: a.uye_id,
+          uye_no: a.uye_no,
+          ad: a.ad,
+          soyad: a.soyad,
+          daire_no: a.daire_no,
+          blok_adi: a.blok_adi,
+          geciken_borc: 0,
+          max_gecikme_gun: 0,
+          gecikme_gun_toplam: 0,
+          gecikme_kalem_sayisi: 0,
+        }
+        grouped.set(a.uye_id, acc)
+      }
+      const kalanBorc = Number(a.kalan_borc || 0)
+      const gun = Number(a.gecikme_gun_sayisi || 0)
+      acc.geciken_borc += kalanBorc
+      acc.max_gecikme_gun = Math.max(acc.max_gecikme_gun, gun)
+      acc.gecikme_gun_toplam += gun
+      acc.gecikme_kalem_sayisi += 1
+    }
+
+    return Array.from(grouped.values())
+      .filter(g => g.geciken_borc > 0)
+      .sort((a, b) => b.geciken_borc - a.geciken_borc)
+      .map(g => ({
+        uye_no: g.uye_no,
+        ad: g.ad,
+        soyad: g.soyad,
+        daire: g.blok_adi && g.daire_no ? `${g.blok_adi} - ${g.daire_no}` : (g.daire_no || g.blok_adi || ''),
+        blok_adi: g.blok_adi || '',
+        daire_no: g.daire_no || '',
+        geciken_borc: Math.round(g.geciken_borc * 100) / 100,
+        max_gecikme_gun: g.max_gecikme_gun,
+        ortalama_gecikme_gun: g.gecikme_kalem_sayisi > 0 ? Math.round(g.gecikme_gun_toplam / g.gecikme_kalem_sayisi) : 0,
+        // Geriye uyumluluk için eski alanlar:
+        toplam_borc: Math.round(g.geciken_borc * 100) / 100,
+        bakiye: Math.round(g.geciken_borc * 100) / 100,
+      }))
   },
 
   async aylikRapor(yil: number, ay: number, projeId: string) {
@@ -102,7 +158,41 @@ export const raporService = {
       throw error;
     }
 
-    return data;
+    // 2026-05-15: Aylık dataset'e aidatlar tablosundan ay bazlı geciken alacak +
+    // ortalama gecikme günü ekle. RPC'yi yeniden yazmak yerine service-katmanı
+    // enrichment (basit + test edilebilir).
+    const { data: aidatlar } = await supabaseAdmin
+      .from('aidat_detaylari')
+      .select('ay, durum, kalan_borc, gecikme_gun_sayisi')
+      .eq('proje_id', projeId)
+      .eq('yil', yil)
+      .eq('durum', 'gecikti')
+
+    const monthlyMap = new Map<number, { geciken_alacak: number; gecikme_gun_toplam: number; count: number }>()
+    for (const a of (aidatlar || []) as any[]) {
+      const m = Number(a.ay)
+      if (!m) continue
+      const stats = monthlyMap.get(m) ?? { geciken_alacak: 0, gecikme_gun_toplam: 0, count: 0 }
+      stats.geciken_alacak += Number(a.kalan_borc || 0)
+      stats.gecikme_gun_toplam += Number(a.gecikme_gun_sayisi || 0)
+      stats.count += 1
+      monthlyMap.set(m, stats)
+    }
+
+    const aylikEnriched = ((data?.aylik) || []).map((row: any) => {
+      const m = Number(row.ay)
+      const stats = monthlyMap.get(m)
+      return {
+        ...row,
+        geciken_alacak: stats ? Math.round(stats.geciken_alacak * 100) / 100 : 0,
+        ortalama_gecikme_gun: stats && stats.count > 0 ? Math.round(stats.gecikme_gun_toplam / stats.count) : 0,
+      }
+    })
+
+    return {
+      ...data,
+      aylik: aylikEnriched,
+    }
   },
 
   async hakedisOzet(projeId: string) {
