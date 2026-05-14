@@ -310,11 +310,21 @@ export const cariHesapService = {
     // Teminat iadesi sinyali: yalnızca giden_odeme ile birlikte anlamlı.
     // Trigger (fn_sync_teminat_iade_on_cari_hareket) zaten islem_turu IN ('giden_odeme','odeme')
     // koşulunu da kontrol ediyor, ama burada da sınırlama defansif bir katman.
-    const derivedKaynakTipi = is_teminat && islem_turu === 'giden_odeme' ? 'teminat' : undefined
+    const isTeminatIadesi = !!is_teminat && islem_turu === 'giden_odeme'
+    const derivedKaynakTipi = isTeminatIadesi ? 'teminat' : undefined
+
+    // Teminat iadesi için açıklama otomatik "Teminat İadesi" set edilir; kullanıcı kendi
+    // açıklamasını girmişse korunur (kayıt amacının net olması + cari ekstrede ayırt
+    // edilebilirlik için).
+    const rawAciklama = typeof rest.aciklama === 'string' ? rest.aciklama.trim() : ''
+    const derivedAciklama = isTeminatIadesi && !rawAciklama
+      ? 'Teminat İadesi'
+      : rest.aciklama
 
     const { data: hareket, error: hareketError } = await supabaseAdmin.rpc('fn_create_payment_atomic', {
       p_payment_data: {
         ...rest,
+        aciklama: derivedAciklama,
         islem_turu,
         odeme_turu,
         tutar,
