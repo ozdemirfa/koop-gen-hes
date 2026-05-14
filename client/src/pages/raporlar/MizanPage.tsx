@@ -65,18 +65,23 @@ export const MizanPage: React.FC = () => {
     ])
   }
 
-  const actions = useMemo(() => (
-    <Space>
-      <Button
-        size="small"
-        icon={<DownloadOutlined />}
-        onClick={handleCsvDownload}
-        disabled={!list || list.length === 0}
-      >
-        CSV İndir
-      </Button>
-    </Space>
-  ), [list])
+  const actions = useMemo(() => {
+    // LayoutContext fingerprint key (PR #16/19/30/35 pattern) — list undefined→array
+    // geçişinde Button'un disabled prop'u stale kalmasın.
+    const hasData = !!list && list.length > 0
+    return (
+      <Space key={`mizan-${hasData ? `n${list?.length}` : 'empty'}`}>
+        <Button
+          size="small"
+          icon={<DownloadOutlined />}
+          onClick={handleCsvDownload}
+          disabled={!hasData}
+        >
+          CSV İndir
+        </Button>
+      </Space>
+    )
+  }, [list])
 
   usePageSettings('Genel Mizan', actions)
 
