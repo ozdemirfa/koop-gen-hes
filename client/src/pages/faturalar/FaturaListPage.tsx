@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { Button, Select, Space, Tag, Modal, Form, Input, InputNumber, DatePicker, App, Row, Col, Divider, Typography } from 'antd'
+
+const { RangePicker } = DatePicker
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, DeleteOutlined, ScheduleOutlined, EditOutlined } from '@ant-design/icons'
@@ -50,6 +52,7 @@ export const FaturaListPage: React.FC = () => {
   const queryClient = useQueryClient()
   const { activeProject } = useProject()
   const [filterTip, setFilterTip] = useState<string | undefined>(undefined)
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingFatura, setEditingFatura] = useState<Fatura | null>(null)
   const [form] = Form.useForm()
@@ -74,8 +77,9 @@ export const FaturaListPage: React.FC = () => {
   const activeFilterCount = useMemo(() => {
     let count = 0
     if (filterTip) count++
+    if (dateRange?.[0] || dateRange?.[1]) count++
     return count
-  }, [filterTip])
+  }, [filterTip, dateRange])
 
   const primaryAction = useMemo(() => (
     <Button
@@ -97,27 +101,50 @@ export const FaturaListPage: React.FC = () => {
   ), [form, activeProject])
 
   const secondaryActions = useMemo(() => (
-    <Select
-      size="small"
-      placeholder="Tip"
-      value={filterTip}
-      onChange={setFilterTip}
-      allowClear
-      style={{ width: 110 }}
-    >
-      <Select.Option value="gelen">Gelen</Select.Option>
-      <Select.Option value="giden">Giden</Select.Option>
-    </Select>
-  ), [filterTip])
+    <>
+      <Select
+        size="small"
+        placeholder="Tip"
+        value={filterTip}
+        onChange={setFilterTip}
+        allowClear
+        style={{ width: 110 }}
+      >
+        <Select.Option value="gelen">Gelen</Select.Option>
+        <Select.Option value="giden">Giden</Select.Option>
+      </Select>
+      <RangePicker
+        size="small"
+        value={dateRange}
+        onChange={(vals) => setDateRange(vals as [dayjs.Dayjs | null, dayjs.Dayjs | null] | null)}
+        format="DD.MM.YYYY"
+        placeholder={['Başlangıç', 'Bitiş']}
+        style={{ width: 240 }}
+        allowEmpty={[true, true]}
+      />
+    </>
+  ), [filterTip, dateRange])
 
-  const actions = useMemo(() => (
-    <HeaderActionsToolbar
-      primary={primaryAction}
-      secondary={secondaryActions}
-      filterCount={activeFilterCount}
-      drawerTitle="Fatura Filtreleri"
-    />
-  ), [primaryAction, secondaryActions, activeFilterCount])
+  const actions = useMemo(() => {
+    // LayoutContext.setHeaderActionsStable shallow (type+key) check yapıyor; date range
+    // veya tip değişimi tek başına header'a yansımıyor. Fingerprint key ile state
+    // değişimlerini yakala (PR #16/19/30 ile aynı pattern).
+    const stateKey = [
+      filterTip || 'all',
+      dateRange?.[0]?.format('YYYYMMDD') || '',
+      dateRange?.[1]?.format('YYYYMMDD') || '',
+      `f${activeFilterCount}`,
+    ].join('|')
+    return (
+      <HeaderActionsToolbar
+        key={`fatura-list-${stateKey}`}
+        primary={primaryAction}
+        secondary={secondaryActions}
+        filterCount={activeFilterCount}
+        drawerTitle="Fatura Filtreleri"
+      />
+    )
+  }, [primaryAction, secondaryActions, activeFilterCount, filterTip, dateRange])
 
   usePageSettings('Fatura Yönetimi', actions)
 
@@ -130,11 +157,13 @@ export const FaturaListPage: React.FC = () => {
   })
 
   const { data: faturaData, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['faturalar', activeProject?.id, filterTip],
+    queryKey: ['faturalar', activeProject?.id, filterTip, dateRange?.[0]?.format('YYYY-MM-DD'), dateRange?.[1]?.format('YYYY-MM-DD')],
     queryFn: async () => {
       const params: Record<string, string> = {}
       if (activeProject) params.proje_id = activeProject.id
       if (filterTip) params.fatura_tipi = filterTip
+      if (dateRange?.[0]) params.baslangic_tarihi = dateRange[0].format('YYYY-MM-DD')
+      if (dateRange?.[1]) params.bitis_tarihi = dateRange[1].format('YYYY-MM-DD')
       const { data } = await api.get('/faturalar', { params })
       return data
     },
