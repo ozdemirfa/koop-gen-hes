@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Card, Row, Col, Statistic, DatePicker, Space, Typography } from 'antd'
+import { Card, Row, Col, Statistic, DatePicker, Space } from 'antd'
 import {
   CalendarOutlined,
   TeamOutlined,
@@ -35,10 +35,6 @@ const IconBadge: React.FC<{ icon: React.ReactNode; color: string }> = ({ icon, c
   <span className="stat-icon-badge" style={{ background: `${color}1F`, color }}>
     {icon}
   </span>
-)
-
-const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <Typography.Text className="stat-section-title">{children}</Typography.Text>
 )
 
 const TLSuffix = <span className="stat-suffix">TL</span>
@@ -101,8 +97,7 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="animate-in fade-in duration-500">
       {/* PROJE BİLGİLERİ */}
-      <SectionTitle>Proje Bilgileri</SectionTitle>
-      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+      <Row gutter={[8, 8]} style={{ marginBottom: 8 }}>
         <Col xs={24} sm={8}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
@@ -138,8 +133,7 @@ export const Dashboard: React.FC = () => {
       </Row>
 
       {/* TAHSİLAT */}
-      <SectionTitle>Tahsilat</SectionTitle>
-      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+      <Row gutter={[8, 8]} style={{ marginBottom: 8 }}>
         <Col xs={24} sm={8}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
@@ -179,8 +173,7 @@ export const Dashboard: React.FC = () => {
       </Row>
 
       {/* GİDER */}
-      <SectionTitle>Gider</SectionTitle>
-      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+      <Row gutter={[8, 8]} style={{ marginBottom: 8 }}>
         <Col xs={24} sm={8}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
@@ -220,8 +213,7 @@ export const Dashboard: React.FC = () => {
       </Row>
 
       {/* CARİ HESAP */}
-      <SectionTitle>Cari Hesap</SectionTitle>
-      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+      <Row gutter={[8, 8]} style={{ marginBottom: 8 }}>
         <Col xs={24} sm={8}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
@@ -269,8 +261,7 @@ export const Dashboard: React.FC = () => {
       </Row>
 
       {/* LİKİDİTE */}
-      <SectionTitle>Likidite</SectionTitle>
-      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+      <Row gutter={[8, 8]} style={{ marginBottom: 8 }}>
         <Col xs={24} sm={8}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
@@ -319,8 +310,7 @@ export const Dashboard: React.FC = () => {
       </Row>
 
       {/* KASA */}
-      <SectionTitle>Kasa</SectionTitle>
-      <Row gutter={[12, 12]}>
+      <Row gutter={[8, 8]}>
         <Col xs={24} sm={8}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
