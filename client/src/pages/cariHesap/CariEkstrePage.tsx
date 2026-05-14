@@ -240,14 +240,28 @@ export const CariEkstrePage: React.FC = () => {
     </>
   ), [cariHesapId, dates, accounts, accountsLoading])
 
-  const actions = useMemo(() => (
-    <HeaderActionsToolbar
-      primary={primaryAction}
-      secondary={secondaryActions}
-      filterCount={activeFilterCount}
-      drawerTitle="Ekstre Filtreleri"
-    />
-  ), [primaryAction, secondaryActions, activeFilterCount])
+  const actions = useMemo(() => {
+    // LayoutContext.setHeaderActionsStable, type + key shallow eşitliğinde prev'i tutar.
+    // accounts undefined → array geçişinde HeaderActionsToolbar'ın type'ı/keyi değişmiyor
+    // ve Select options'ı boş kalıyordu (Firma Ekstre header'da "Firma Seçin" boş dropdown).
+    // İçeriği etkileyen state'lerden fingerprint key türetip stale güncellemeyi kırıyoruz.
+    const stateKey = [
+      accountsLoading ? 'loading' : `acc${accounts?.length ?? 0}`,
+      cariHesapId ?? 'none',
+      `f${activeFilterCount}`,
+      dates?.[0]?.format('YYYYMMDD') ?? '',
+      dates?.[1]?.format('YYYYMMDD') ?? '',
+    ].filter(Boolean).join('|')
+    return (
+      <HeaderActionsToolbar
+        key={`cari-ekstre-${stateKey}`}
+        primary={primaryAction}
+        secondary={secondaryActions}
+        filterCount={activeFilterCount}
+        drawerTitle="Ekstre Filtreleri"
+      />
+    )
+  }, [primaryAction, secondaryActions, activeFilterCount, accounts, accountsLoading, cariHesapId, dates])
 
   usePageSettings('Firma Ekstre', actions)
 
