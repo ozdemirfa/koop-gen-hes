@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { Card, Descriptions, Table, Button, InputNumber, Tag, Row, Col, Statistic, Space, Popconfirm, Select, Modal, Typography, App } from 'antd'
+import { Card, Descriptions, Table, Button, InputNumber, Tag, Row, Col, Statistic, Space, Popconfirm, Select, Modal, Typography, App, Empty } from 'antd'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { CheckOutlined, SaveOutlined, FilePdfOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined, RollbackOutlined } from '@ant-design/icons'
+import { CheckOutlined, SaveOutlined, FilePdfOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined, RollbackOutlined, LinkOutlined, DisconnectOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { getErrorMessage } from '../../lib/apiError'
@@ -66,6 +66,8 @@ export const HakedisDetailPage: React.FC = () => {
   const [hasChanges, setHasChanges] = useState(false)
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [selectedKalemId, setSelectedKalemId] = useState<string | undefined>()
+  const [irsaliyeModalOpen, setIrsaliyeModalOpen] = useState(false)
+  const [selectedIrsaliyeIds, setSelectedIrsaliyeIds] = useState<React.Key[]>([])
 
   const { data: hakedis, isLoading } = useQuery({
     queryKey: ['hakedis', id],
@@ -153,6 +155,56 @@ export const HakedisDetailPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['hakedisler'] })
     },
     onError: (err) => message.error(getErrorMessage(err, 'İşlem başarısız')),
+  })
+
+  // Alternatif A: hakedişin sözleşme firmasına ait açık irsaliyeler (hakedis_id NULL)
+  const firmaId = hakedis?.sozlesmeler?.firma_id
+  const projeId = hakedis?.proje_id
+  const { data: acikIrsaliyeler, isLoading: irsaliyelerLoading } = useQuery({
+    queryKey: ['acik-irsaliyeler', firmaId, projeId],
+    queryFn: async () => {
+      const { data } = await api.get('/malzeme-teslimleri', {
+        params: { firma_id: firmaId, proje_id: projeId, has_hakedis: 'false', limit: 200 }
+      })
+      return data.data as Array<{
+        id: string
+        irsaliye_no?: string
+        teslim_tarihi: string
+        teslim_alan?: string
+        irsaliye_kalemleri: Array<{ id: string; malzeme_adi: string; birim: string; miktar: number }>
+      }>
+    },
+    enabled: !!firmaId && !!projeId && irsaliyeModalOpen,
+  })
+
+  const attachIrsaliyelerMutation = useMutation({
+    mutationFn: async (irsaliye_ids: string[]) => {
+      const { data } = await api.post(`/hakedisler/${id}/irsaliyeler`, { irsaliye_ids })
+      return data
+    },
+    onSuccess: () => {
+      message.success(`${selectedIrsaliyeIds.length} irsaliye hakedişe bağlandı`)
+      queryClient.invalidateQueries({ queryKey: ['hakedis', id] })
+      queryClient.invalidateQueries({ queryKey: ['acik-irsaliyeler'] })
+      queryClient.invalidateQueries({ queryKey: ['irsaliyeler'] })
+      setIrsaliyeModalOpen(false)
+      setSelectedIrsaliyeIds([])
+    },
+    onError: (err) => message.error(getErrorMessage(err)),
+  })
+
+  const detachIrsaliyeMutation = useMutation({
+    mutationFn: async (irsaliyeId: string) => {
+      const { data } = await api.delete(`/hakedisler/${id}/irsaliyeler/${irsaliyeId}`)
+      return data
+    },
+    onSuccess: () => {
+      message.success('İrsaliye bağı kaldırıldı')
+      queryClient.invalidateQueries({ queryKey: ['hakedis', id] })
+      queryClient.invalidateQueries({ queryKey: ['acik-irsaliyeler'] })
+      queryClient.invalidateQueries({ queryKey: ['irsaliyeler'] })
+    },
+    onError: (err) => message.error(getErrorMessage(err)),
   })
 
   const handleMiktarChange = (index: number, value: number | null) => {
@@ -575,6 +627,135 @@ export const HakedisDetailPage: React.FC = () => {
           )}
         />
       </Card>
+
+      {/* Alternatif A: Bağlı İrsaliyeler */}
+      <Card
+        title={`Bağlı İrsaliyeler (${hakedis?.irsaliyeler?.length || 0})`}
+        variant="borderless"
+        styles={{ body: { padding: 0 } }}
+        className="shadow-sm"
+        style={{ marginTop: 24 }}
+        extra={isTaslak && (
+          <Button
+            type="dashed"
+            icon={<LinkOutlined />}
+            onClick={() => setIrsaliyeModalOpen(true)}
+          >
+            Açık İrsaliye Ekle
+          </Button>
+        )}
+      >
+        {hakedis?.irsaliyeler && hakedis.irsaliyeler.length > 0 ? (
+          <Table
+            size="small"
+            pagination={false}
+            rowKey="id"
+            dataSource={hakedis.irsaliyeler}
+            columns={[
+              { title: 'İrsaliye No', dataIndex: 'irsaliye_no', key: 'no', render: (v: string) => v || '-' },
+              {
+                title: 'Teslim Tarihi',
+                dataIndex: 'teslim_tarihi',
+                key: 'tarih',
+                render: (d: string) => dayjs(d).format('DD.MM.YYYY'),
+                width: 120,
+              },
+              { title: 'Teslim Alan', dataIndex: 'teslim_alan', key: 'teslim_alan', render: (v: string) => v || '-' },
+              {
+                title: 'Kalemler',
+                key: 'kalemler',
+                render: (_: unknown, r: any) => (
+                  <Space size="small" wrap>
+                    {r.irsaliye_kalemleri?.map((k: any) => (
+                      <Tag key={k.id} color="processing">
+                        {k.malzeme_adi} — {k.miktar} {k.birim}
+                      </Tag>
+                    ))}
+                  </Space>
+                )
+              },
+              ...(isTaslak ? [{
+                title: '',
+                key: 'action',
+                width: 60,
+                render: (_: unknown, r: any) => (
+                  <Popconfirm
+                    title="Bu irsaliyenin hakedişe bağını kaldırmak istediğinizden emin misiniz?"
+                    onConfirm={() => detachIrsaliyeMutation.mutate(r.id)}
+                    okText="Evet"
+                    cancelText="Hayır"
+                  >
+                    <Button
+                      type="text"
+                      danger
+                      size="small"
+                      icon={<DisconnectOutlined />}
+                      loading={detachIrsaliyeMutation.isPending}
+                    />
+                  </Popconfirm>
+                )
+              }] : []),
+            ]}
+          />
+        ) : (
+          <div style={{ padding: 24 }}>
+            <Empty description={isTaslak ? "Henüz bağlı irsaliye yok. 'Açık İrsaliye Ekle' butonu ile firmanın boştaki irsaliyelerini bu hakedişe ekleyebilirsiniz." : "Bu hakedişe bağlı irsaliye bulunmuyor."} />
+          </div>
+        )}
+      </Card>
+
+      {/* Açık İrsaliye Seçim Modal */}
+      <Modal
+        title="Açık İrsaliyeleri Hakedişe Ekle"
+        open={irsaliyeModalOpen}
+        onCancel={() => { setIrsaliyeModalOpen(false); setSelectedIrsaliyeIds([]) }}
+        onOk={() => attachIrsaliyelerMutation.mutate(selectedIrsaliyeIds as string[])}
+        okText={`Seçilenleri Ekle (${selectedIrsaliyeIds.length})`}
+        okButtonProps={{ disabled: selectedIrsaliyeIds.length === 0, loading: attachIrsaliyelerMutation.isPending }}
+        cancelText="Vazgeç"
+        destroyOnHidden
+        width="min(900px, 95vw)"
+      >
+        <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+          Aşağıda <strong>{hakedis?.sozlesmeler?.firmalar?.unvan}</strong> firmasının henüz herhangi bir hakedişe bağlanmamış irsaliyeleri listeleniyor.
+        </Text>
+        <Table
+          size="small"
+          loading={irsaliyelerLoading}
+          dataSource={acikIrsaliyeler}
+          rowKey="id"
+          pagination={{ pageSize: 10 }}
+          rowSelection={{
+            selectedRowKeys: selectedIrsaliyeIds,
+            onChange: setSelectedIrsaliyeIds,
+          }}
+          locale={{ emptyText: <Empty description="Bu firmanın açık irsaliyesi bulunmuyor" /> }}
+          columns={[
+            { title: 'İrsaliye No', dataIndex: 'irsaliye_no', key: 'no', render: (v: string) => v || '-', width: 130 },
+            {
+              title: 'Teslim Tarihi',
+              dataIndex: 'teslim_tarihi',
+              key: 'tarih',
+              render: (d: string) => dayjs(d).format('DD.MM.YYYY'),
+              width: 120,
+            },
+            { title: 'Teslim Alan', dataIndex: 'teslim_alan', key: 'teslim_alan', render: (v: string) => v || '-' },
+            {
+              title: 'Kalemler',
+              key: 'kalemler',
+              render: (_: unknown, r: any) => (
+                <Space size="small" wrap>
+                  {r.irsaliye_kalemleri?.map((k: any) => (
+                    <Tag key={k.id}>
+                      {k.malzeme_adi} — {k.miktar} {k.birim}
+                    </Tag>
+                  ))}
+                </Space>
+              )
+            },
+          ]}
+        />
+      </Modal>
 
       <Modal
         title="Sözleşmeden İş Kalemi Ekle"

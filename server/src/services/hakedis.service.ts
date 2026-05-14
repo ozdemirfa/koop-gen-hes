@@ -63,12 +63,100 @@ export const hakedisService = {
   async getById(id: string) {
     const { data, error } = await supabaseAdmin
       .from('hakedisler')
-      .select('*, sozlesmeler(sozlesme_no, konu, teminat_orani, stopaj_orani, firmalar(unvan)), hakedis_kalemleri(*, sozlesme_is_kalemleri(poz_no, tanim, birim, miktar, kdv_orani))')
+      .select('*, sozlesmeler(sozlesme_no, konu, teminat_orani, stopaj_orani, firma_id, firmalar(unvan)), hakedis_kalemleri(*, sozlesme_is_kalemleri(poz_no, tanim, birim, miktar, kdv_orani)), irsaliyeler!irsaliyeler_hakedis_id_fkey(id, irsaliye_no, teslim_tarihi, teslim_alan, notlar, irsaliye_kalemleri(id, malzeme_adi, birim, miktar))')
       .eq('id', id)
       .single()
 
     if (error) throw ApiError.notFound('Hakediş bulunamadı')
     return data
+  },
+
+  // ===== İRSALİYE BAĞLAMA (Alternatif A: Manuel Toplu Seçim) =====
+  // Bir hakediş taslağına açık irsaliye'leri toplu ata. Sadece taslakta çalışır;
+  // hedef irsaliye'lerin tamamı boşta (hakedis_id IS NULL) ve aynı firmaya ait olmalı.
+  async attachIrsaliyeler(hakedisId: string, irsaliyeIds: string[]) {
+    if (!Array.isArray(irsaliyeIds) || irsaliyeIds.length === 0) {
+      throw ApiError.badRequest('İrsaliye seçimi yapılmadı')
+    }
+
+    // Hakediş + bağlı sözleşmenin firma_id'sini çek
+    const { data: hakedis, error: hErr } = await supabaseAdmin
+      .from('hakedisler')
+      .select('id, durum, sozlesmeler(firma_id)')
+      .eq('id', hakedisId)
+      .single()
+
+    if (hErr || !hakedis) throw ApiError.notFound('Hakediş bulunamadı')
+    if (hakedis.durum !== 'taslak') {
+      throw ApiError.badRequest('İrsaliye sadece taslak durumdaki hakedişe eklenebilir')
+    }
+
+    const sozlesme = Array.isArray(hakedis.sozlesmeler) ? hakedis.sozlesmeler[0] : hakedis.sozlesmeler
+    const hakedisFirmaId = (sozlesme as any)?.firma_id
+    if (!hakedisFirmaId) throw ApiError.badRequest('Hakediş sözleşmesinin firma bilgisi bulunamadı')
+
+    // Hedef irsaliye'leri çek; aynı firmaya ait ve boşta olduklarını doğrula
+    const { data: irsaliyeler, error: iErr } = await supabaseAdmin
+      .from('irsaliyeler')
+      .select('id, firma_id, hakedis_id')
+      .in('id', irsaliyeIds)
+
+    if (iErr) throw iErr
+    if (!irsaliyeler || irsaliyeler.length !== irsaliyeIds.length) {
+      throw ApiError.badRequest('Seçilen irsaliyelerden bazıları bulunamadı')
+    }
+
+    const wrongFirma = irsaliyeler.find(i => i.firma_id !== hakedisFirmaId)
+    if (wrongFirma) {
+      throw ApiError.badRequest('Seçilen irsaliyelerin tamamı hakediş ile aynı firmaya ait olmalı')
+    }
+    const alreadyAttached = irsaliyeler.find(i => i.hakedis_id !== null)
+    if (alreadyAttached) {
+      throw ApiError.conflict('Seçilen irsaliyelerden biri zaten başka bir hakedişe bağlı')
+    }
+
+    const { error: uErr } = await supabaseAdmin
+      .from('irsaliyeler')
+      .update({ hakedis_id: hakedisId })
+      .in('id', irsaliyeIds)
+
+    if (uErr) throw uErr
+
+    return this.getById(hakedisId)
+  },
+
+  async detachIrsaliye(hakedisId: string, irsaliyeId: string) {
+    // Sadece bağlı olduğu hakediş taslaktaysa serbest bırakılabilir.
+    const { data: hakedis, error: hErr } = await supabaseAdmin
+      .from('hakedisler')
+      .select('id, durum')
+      .eq('id', hakedisId)
+      .single()
+
+    if (hErr || !hakedis) throw ApiError.notFound('Hakediş bulunamadı')
+    if (hakedis.durum !== 'taslak') {
+      throw ApiError.badRequest('İrsaliye bağı sadece taslak hakedişten kaldırılabilir')
+    }
+
+    const { data: irsaliye, error: iErr } = await supabaseAdmin
+      .from('irsaliyeler')
+      .select('id, hakedis_id')
+      .eq('id', irsaliyeId)
+      .single()
+
+    if (iErr || !irsaliye) throw ApiError.notFound('İrsaliye bulunamadı')
+    if (irsaliye.hakedis_id !== hakedisId) {
+      throw ApiError.badRequest('İrsaliye bu hakedişe bağlı değil')
+    }
+
+    const { error: uErr } = await supabaseAdmin
+      .from('irsaliyeler')
+      .update({ hakedis_id: null })
+      .eq('id', irsaliyeId)
+
+    if (uErr) throw uErr
+
+    return this.getById(hakedisId)
   },
 
   async create(body: Record<string, any>) {

@@ -187,7 +187,7 @@ export const MalzemeTeslimListPage: React.FC = () => {
     {
       title: 'Hakediş No',
       key: 'hakedis',
-      render: (_: any, r: Irsaliye) => r.hakedisler ? <Tag color="blue">#{r.hakedisler.hakedis_no}</Tag> : <Tag color="default">Bekliyor</Tag>,
+      render: (_: any, r: Irsaliye) => r.hakedisler ? <Tag color="blue">#{r.hakedisler.hakedis_no}</Tag> : <Tag color="green">Açık</Tag>,
     },
     {
       title: 'Kalem Sayısı',
