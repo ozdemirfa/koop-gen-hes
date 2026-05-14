@@ -44,6 +44,14 @@ export const cariPaymentSchema = z.object({
   vade_tarihi: z.string().optional().nullable(),
   banka: z.string().optional().nullable(),
   sube: z.string().optional().nullable(),
+  // 2026-05-15 hotfix: Frontend "Teminat İadesi" checkbox sinyali. Backend bu boolean'ı
+  // kaynak_tipi='teminat' string'ine map'liyor (cariHesap.service.ts:_createPaymentNormal).
+  // Bu yaklaşım TASK-BE-08 SEC-014 mass-assignment koruması ile uyumlu:
+  // kaynak_tipi/kaynak_id alanları client'tan ham olarak kabul edilmez; sadece bilinen
+  // bir boolean sinyali whitelist'lenmiş bir enum değerine çevrilir.
+  // Önceki bug: client `kaynak_tipi: 'teminat'` gönderiyordu ama Zod schema'da tanımlı
+  // olmadığı için strip ediliyor, DB'ye NULL ulaşıyor, trigger ateşlenmiyordu.
+  is_teminat: z.boolean().optional(),
 }).superRefine((data, ctx) => {
   // iade_odeme gerçek bir para hareketi olmalı — kasa/banka/çek/kart geçer, 'cari' değil
   if (data.islem_turu === 'iade_odeme' && data.odeme_turu === 'cari') {

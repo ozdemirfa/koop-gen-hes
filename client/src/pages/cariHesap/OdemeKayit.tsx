@@ -91,12 +91,17 @@ export const OdemeKayit: React.FC = () => {
   // Ödeme Kaydı Mutation
   const saveMutation = useMutation({
     mutationFn: async (values: any) => {
+      // 2026-05-15 hotfix: Önceki versiyon `kaynak_tipi` raw string olarak gönderiyordu;
+      // ancak server'daki cariPaymentSchema bu alanı whitelist'lemediği için Zod payload'tan
+      // strip ediyordu (mass-assignment koruması, TASK-BE-08 SEC-014). Sonuç olarak DB'ye
+      // kaynak_tipi=NULL kaydedildi, teminat trigger'ı ateşlenmedi.
+      // Artık client `is_teminat` boolean'unu olduğu gibi gönderir; server tarafında
+      // service katmanı bunu kaynak_tipi='teminat' string'ine map'ler.
       const payload = {
         ...values,
         proje_id: activeProject?.id,
         tarih: values.tarih.format('YYYY-MM-DD'),
         vade_tarihi: values.vade_tarihi ? values.vade_tarihi.format('YYYY-MM-DD') : undefined,
-        kaynak_tipi: values.is_teminat ? 'teminat' : undefined
       }
       return await api.post('/cari-hareketler/payment', payload)
     },
