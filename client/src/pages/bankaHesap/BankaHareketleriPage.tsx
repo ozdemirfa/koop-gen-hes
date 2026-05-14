@@ -19,7 +19,7 @@ interface BankaHareketi {
   eslesti: boolean
   firma_id?: string
   banka_hesaplari?: { banka_adi: string }
-  cari_hareketler?: { firmalar: { unvan: string } }
+  cari_hareketler?: { cari_hesaplar?: { firmalar?: { unvan: string } } } | Array<{ cari_hesaplar?: { firmalar?: { unvan: string } } }>
 }
 
 export const BankaHareketleriPage: React.FC = () => {
@@ -62,8 +62,8 @@ export const BankaHareketleriPage: React.FC = () => {
       title: 'İlgili Firma',
       key: 'firma',
       render: (_: any, r: any) => {
-        const cari = Array.isArray(r.cari_hareketler) ? r.cari_hareketler[0] : r.cari_hareketler;
-        return cari?.firmalar?.unvan || '-'
+        const cari = Array.isArray(r.cari_hareketler) ? r.cari_hareketler[0] : r.cari_hareketler
+        return cari?.cari_hesaplar?.firmalar?.unvan || '-'
       }
     },
     { title: 'Açıklama', dataIndex: 'aciklama', key: 'aciklama' },
