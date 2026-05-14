@@ -68,24 +68,18 @@ export const firmaService = {
         const { data: hakedisler } = await hakedisQuery
         toplamKdvli = hakedisler?.reduce((sum, h) => sum + Number(h.hakedis_toplam || (Number(h.ara_toplam || 0) + Number(h.kdv_tutar || 0))), 0) || 0
         
-        // 3. Birikmiş Teminat (Yeni Tablodan)
-        // Hakedişlerden yapılan toplam kesintiler bu tabloda trigger ile güncelleniyor.
-        // Buradan iadeler düşülmüş HALİNİ alıyoruz: Kesinti (birikmis_teminatlar tablosu) - İade (cari_hareketler alacak)
-        let odenenTeminatlar = 0
-        hareketler?.forEach((h: any) => {
-          if (h.kaynak_tipi === 'teminat' && (h.islem_turu === 'giden_odeme' || h.islem_turu === 'odeme')) {
-            odenenTeminatlar += Number(h.alacak || 0)
-          }
-        })
-
+        // 3. Birikmiş Teminat — 20260514000003 migration'ı ile cari_hareketler teminat
+        // iadeleri (kaynak_tipi='teminat' + islem_turu in giden_odeme/odeme) trigger ile
+        // birikmis_teminatlar tablosundan otomatik düşülüyor. Artık tablo değeri NET — runtime
+        // düşümü yok.
         const { data: teminatRecord } = await supabaseAdmin
           .from('birikmis_teminatlar')
           .select('birikmis_teminat')
           .eq('firma_id', firma.id)
-          .eq('proje_id', pId || '') // Proje seçili değilse boş döner, bu beklenen bir durumdur
+          .eq('proje_id', pId || '')
           .maybeSingle()
 
-        birikmisTeminat = Number(teminatRecord?.birikmis_teminat || 0) - odenenTeminatlar
+        birikmisTeminat = Number(teminatRecord?.birikmis_teminat || 0)
         
         // Cari Bakiye = Toplam Ödeme - Hakediş (KDVli)
         // Project Perspective: (+) Fazla ödedik, (-) Borçluyuz
@@ -170,20 +164,11 @@ export const firmaService = {
     if (hErr) throw hErr
 
     let toplamOdemeler = 0
-    let odenenTeminatlar = 0
 
     hareketler?.forEach(h => {
       const netAlacak = Number(h.alacak || 0) - Number(h.borc || 0)
       if (h.islem_turu === 'giden_odeme' || h.islem_turu === 'odeme') {
         toplamOdemeler += netAlacak
-        // REV-FIRMA-01 (2026-05-12): kaynak_tipi='teminat' giden_odeme kayıtları
-        // teminat iadesidir; birikmis_teminatlar tablosu RPC dışı iadelerde
-        // azaltılmadığı için stats'ta cari_hareketler'den iade toplamını ayrıca
-        // düşmek zorundayız (list metodu zaten bu mantığı uyguluyor; getStats
-        // tutarlı olmalı).
-        if (h.kaynak_tipi === 'teminat') {
-          odenenTeminatlar += Number(h.alacak || 0)
-        }
       }
     })
 
@@ -199,15 +184,13 @@ export const firmaService = {
     const toplamMatrah = hakedisler?.reduce((s, h) => s + Number(h.ara_toplam || 0), 0) || 0
     const toplamKdvli = hakedisler?.reduce((s, h) => s + Number(h.hakedis_toplam || (Number(h.ara_toplam || 0) + Number(h.kdv_tutar || 0))), 0) || 0
 
-    // 2. Birikmiş Teminat (Yeni Tablodan) — iade düşülmüş net değer
-    let teminatQuery = supabaseAdmin
+    // 2. Birikmiş Teminat — 20260514000003 migration'ı sonrası tablo değeri net (iadeler
+    // trigger ile düşülmüş). Ek runtime düşümü yok.
+    const { data: teminatlar } = await supabaseAdmin
       .from('birikmis_teminatlar')
       .select('birikmis_teminat')
       .eq('proje_id', projeId)
-
-    const { data: teminatlar } = await teminatQuery
-    const teminatToplam = teminatlar?.reduce((sum, t) => sum + Number(t.birikmis_teminat || 0), 0) || 0
-    const birikmisTeminat = teminatToplam - odenenTeminatlar
+    const birikmisTeminat = teminatlar?.reduce((sum, t) => sum + Number(t.birikmis_teminat || 0), 0) || 0
 
     // Faturalar
     const { data: faturalar, error: fErr } = await supabaseAdmin
@@ -241,17 +224,11 @@ export const firmaService = {
     if (hErr) throw hErr
 
     let toplamOdemeler = 0
-    let odenenTeminatlar = 0
 
     hareketler?.forEach(h => {
       const netAlacak = Number(h.alacak || 0) - Number(h.borc || 0)
       if (h.islem_turu === 'giden_odeme' || h.islem_turu === 'odeme') {
         toplamOdemeler += netAlacak
-        // REV-FIRMA-01: teminat iadelerini ayrıca topla (birikmis_teminatlar tablosu
-        // RPC dışı iadelerde decrement edilmediği için ek düşüm gerekli).
-        if (h.kaynak_tipi === 'teminat') {
-          odenenTeminatlar += Number(h.alacak || 0)
-        }
       }
     })
 
@@ -268,15 +245,13 @@ export const firmaService = {
     const toplamMatrah = hakedisler?.reduce((s, h) => s + Number(h.ara_toplam || 0), 0) || 0
     const toplamKdvli = hakedisler?.reduce((s, h) => s + Number(h.hakedis_toplam || (Number(h.ara_toplam || 0) + Number(h.kdv_tutar || 0))), 0) || 0
 
-    // 3. Birikmiş Teminat — iade düşülmüş net değer
+    // 3. Birikmiş Teminat — 20260514000003 migration'ı sonrası tablo değeri net.
     const { data: teminatlar } = await supabaseAdmin
       .from('birikmis_teminatlar')
       .select('birikmis_teminat')
       .eq('proje_id', projeId)
       .eq('firma_id', firmaId)
-
-    const teminatToplam = teminatlar?.reduce((sum, t) => sum + Number(t.birikmis_teminat || 0), 0) || 0
-    const birikmisTeminat = teminatToplam - odenenTeminatlar
+    const birikmisTeminat = teminatlar?.reduce((sum, t) => sum + Number(t.birikmis_teminat || 0), 0) || 0
 
     // 3. Firma özelinde faturalar
     const { data: faturalar, error: fErr } = await supabaseAdmin
