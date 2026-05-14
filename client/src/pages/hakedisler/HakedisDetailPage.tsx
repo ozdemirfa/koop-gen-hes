@@ -241,19 +241,29 @@ export const HakedisDetailPage: React.FC = () => {
   }, [id, hakedis?.hakedis_no])
 
   const actions = useMemo(() => {
-    // LayoutContext'in stable setter'ı sadece (type, key) shallow karşılaştırması yapıyor;
-    // hakedis async yüklendiğinde dış <Space>'in tipi/keyi değişmediği için Kaydet/Onayla
-    // butonları header'a sızmıyor. Burada görsel içeriği etkileyen state'leri fingerprint'e
-    // dönüştürüp key'e koyuyoruz; böylece her gerçek içerik değişiminde header güncellenir.
+    // UX kuralı: 3 mutate butonu da her zaman görünür; izinler `disabled` prop'u ile
+    // yönetilir. Taslakta Kaydet + Onayla aktif, Geri Al pasif; onaylandıda Kaydet +
+    // Onayla pasif, Geri Al aktif. Bu sayede kullanıcı durum farkındalığı kazanır ve
+    // header'ın yapısı durumdan bağımsız sabit kalır.
+    //
+    // LayoutContext.setHeaderActionsStable hâlâ (type + key) shallow check yaptığı için,
+    // disabled prop değişimi tek başına stale render'ı tetiklemiyor. Bu nedenle dış
+    // <Space>'in key'i, butonların disabled hesabını etkileyen tüm state'lerden türetilir.
+    const canSave = isTaslak && editableKalemler.length > 0 && !saveMutation.isPending && !approveMutation.isPending
+    const canApprove = isTaslak && !saveMutation.isPending && !approveMutation.isPending
+    const canUnapprove = hakedis?.durum === 'onaylandi' && !unapproveMutation.isPending
+
     const stateKey = [
       hakedis?.durum ?? 'loading',
-      isTaslak ? 'edit' : 'view',
+      canSave ? 'cs' : '',
+      canApprove ? 'ca' : '',
+      canUnapprove ? 'cu' : '',
       hasChanges ? 'dirty' : 'clean',
-      editableKalemler.length === 0 ? 'empty' : 'filled',
       saveMutation.isPending ? 'saving' : '',
       approveMutation.isPending ? 'approving' : '',
       unapproveMutation.isPending ? 'unapproving' : '',
     ].filter(Boolean).join('|')
+
     return (
     <Space key={`hakedis-actions-${stateKey}`}>
       <Button
@@ -267,53 +277,51 @@ export const HakedisDetailPage: React.FC = () => {
       >
         PDF İndir
       </Button>
-      {isTaslak && (
-        <Space>
-          <Button
-            type="primary"
-            icon={<SaveOutlined />}
-            onClick={() => saveMutation.mutate()}
-            loading={saveMutation.isPending}
-            disabled={editableKalemler.length === 0}
-          >
-            Kaydet
-          </Button>
-          <Popconfirm
-            title="Hakediş onayla"
-            description={hasChanges ? "Hakediş önce kaydedilecek, sonra onaylanacaktır. Onaylıyor musunuz?" : "Hakediş onaylanacak ve cari hareket oluşturulacak. Onaylıyor musunuz?"}
-            onConfirm={() => approveMutation.mutate()}
-            okText="Onayla"
-            cancelText="Vazgeç"
-          >
-            <Button
-              icon={<CheckOutlined />}
-              loading={approveMutation.isPending || saveMutation.isPending}
-              style={{ backgroundColor: '#52c41a', borderColor: '#52c41a', color: '#fff' }}
-            >
-              Onayla
-            </Button>
-          </Popconfirm>
-        </Space>
-      )}
-      {hakedis?.durum === 'onaylandi' && (
-        <Popconfirm
-          title="Hakediş onayı iptal edilecek ve cari hareketi silinecek. Emin misiniz?"
-          onConfirm={() => unapproveMutation.mutate()}
-          okText="Evet"
-          cancelText="Hayır"
+      <Button
+        type="primary"
+        icon={<SaveOutlined />}
+        onClick={() => saveMutation.mutate()}
+        loading={saveMutation.isPending}
+        disabled={!canSave}
+      >
+        Kaydet
+      </Button>
+      <Popconfirm
+        title="Hakediş onayla"
+        description={hasChanges ? "Hakediş önce kaydedilecek, sonra onaylanacaktır. Onaylıyor musunuz?" : "Hakediş onaylanacak ve cari hareket oluşturulacak. Onaylıyor musunuz?"}
+        onConfirm={() => approveMutation.mutate()}
+        okText="Onayla"
+        cancelText="Vazgeç"
+        disabled={!canApprove}
+      >
+        <Button
+          icon={<CheckOutlined />}
+          loading={approveMutation.isPending || saveMutation.isPending}
+          disabled={!canApprove}
+          style={canApprove ? { backgroundColor: '#52c41a', borderColor: '#52c41a', color: '#fff' } : undefined}
         >
-          <Button
-            icon={<RollbackOutlined />}
-            loading={unapproveMutation.isPending}
-            danger
-          >
-            Onaydan Geri Al
-          </Button>
-        </Popconfirm>
-      )}
+          Onayla
+        </Button>
+      </Popconfirm>
+      <Popconfirm
+        title="Hakediş onayı iptal edilecek ve cari hareketi silinecek. Emin misiniz?"
+        onConfirm={() => unapproveMutation.mutate()}
+        okText="Evet"
+        cancelText="Hayır"
+        disabled={!canUnapprove}
+      >
+        <Button
+          icon={<RollbackOutlined />}
+          loading={unapproveMutation.isPending}
+          disabled={!canUnapprove}
+          danger={canUnapprove}
+        >
+          Onaydan Geri Al
+        </Button>
+      </Popconfirm>
     </Space>
     )
-  }, [navigate, handlePdfDownload, isTaslak, hakedis?.durum, hasChanges, editableKalemler.length, saveMutation.isPending, approveMutation.isPending, unapproveMutation.isPending, saveMutation.mutate, approveMutation.mutate, unapproveMutation.mutate])
+  }, [navigate, handlePdfDownload, isTaslak, hakedis?.durum, hasChanges, editableKalemler.length, saveMutation, approveMutation, unapproveMutation])
 
   usePageSettings(hakedis ? `Hakediş #${hakedis.hakedis_no}` : 'Hakediş Detayı', actions)
 
