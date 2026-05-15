@@ -238,7 +238,7 @@ export const AylikRaporPage: React.FC = () => {
           items={[
             {
               key: 'aidat',
-              label: `Aidat Tahsilatları (${rapor?.aidat_tahsilat?.length || 0})`,
+              label: `Tahsilatlar (${rapor?.aidat_tahsilat?.length || 0})`,
               children: (
                 <Table
                   dataSource={rapor?.aidat_tahsilat || []}
