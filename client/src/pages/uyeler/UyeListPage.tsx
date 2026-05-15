@@ -12,6 +12,7 @@ import { StrictConfirmDelete } from '../../components/common/StrictConfirmDelete
 import { ErrorState } from '../../components/common/ErrorState'
 import { EmptyState } from '../../components/common/EmptyState'
 import { HeaderActionsToolbar } from '../../components/common/HeaderActionsToolbar'
+import { HeaderSearchPortal } from '../../components/common/HeaderSearchPortal'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { useProject } from '../../contexts/ProjectContext'
 
@@ -37,7 +38,10 @@ export const UyeListPage: React.FC = () => {
   const [filterDurum, setFilterDurum] = useState<string | undefined>(undefined)
   const [filterBlok, setFilterBlok] = useState<string | undefined>(undefined)
   const [filterDaire, setFilterDaire] = useState<string | undefined>(undefined)
-  const debouncedSearch = useDebounce(search, 300)
+  // 2026-05-15 UX: 300ms çok agresif — her harfte query tetikleyip loading state
+  // kullanıcının yazımını "duraklatma" hissi veriyordu. 1000ms ile yazma akışı bitince
+  // bir kez arama yapılır (FirmaListPage ile tutarlı — PR #33).
+  const debouncedSearch = useDebounce(search, 1000)
   const { message: messageApi } = App.useApp()
 
   const { data: bloklar } = useQuery({
@@ -82,6 +86,16 @@ export const UyeListPage: React.FC = () => {
   // Header action'lar HeaderActionsToolbar ile sarmalandı.
   // Mobile (<768px): "Yeni Üye" inline + Drawer içinde Search+3 Select.
   // Desktop (>=768px): hepsi inline (mevcut davranış).
+  //
+  // Sprint 20260515-uye-list-search-keystroke-remount (FirmaListPage PR #30/#33/#35 paritesi):
+  //   Search Input artık <HeaderSearchPortal> ile sayfa-sahipli (page-owned) bir
+  //   subtree'de render ediliyor — LayoutContext'in shallow (type + key) eşitlik
+  //   bailout zincirinin dışında. Aynı zincir nedeniyle header'a secondary olarak
+  //   konulan controlled Input'lar (a) ya donuk kalır (stateKey'de search yoksa),
+  //   (b) ya da her keystroke'ta toolbar'ı unmount edip Input'u remount eder
+  //   (stateKey'de search varsa → focus kaybı, ilk karakterden sonra yazılamama).
+  //   Portal yaklaşımı her iki sorunu da çözer: search state'i sayfa subtree'sinde
+  //   reconcile edilir, header re-mount zincirine girmez.
   const activeFilterCount = useMemo(() => {
     let count = 0
     if (search) count++
@@ -97,18 +111,9 @@ export const UyeListPage: React.FC = () => {
     </Button>
   ), [navigate])
 
+  // secondaryActions — search HARİÇ (search portal ile page-owned subtree'de).
   const secondaryActions = useMemo(() => (
     <>
-      <Input
-        placeholder="Ara..."
-        prefix={<SearchOutlined />}
-        allowClear
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        style={{ width: 200 }}
-        autoComplete="off"
-        size="small"
-      />
       <Select
         placeholder="Durum"
         value={filterDurum}
@@ -146,16 +151,25 @@ export const UyeListPage: React.FC = () => {
         <Select.Option value="atanmamis">Atanmamış</Select.Option>
       </Select>
     </>
-  ), [search, filterDurum, filterBlok, filterDaire, bloklar])
+  ), [filterDurum, filterBlok, filterDaire, bloklar])
 
-  const actions = useMemo(() => (
-    <HeaderActionsToolbar
-      primary={primaryAction}
-      secondary={secondaryActions}
-      filterCount={activeFilterCount}
-      drawerTitle="Üye Filtreleri"
-    />
-  ), [primaryAction, secondaryActions, activeFilterCount])
+  const actions = useMemo(() => {
+    // stateKey SADECE discrete (Select) state'ler + filterCount'u içerir.
+    // search ham metni key zincirinden ÇIKARILDI — keystroke'ta toolbar
+    // remount olmaz. Search'ın badge count'a etkisi `activeFilterCount`
+    // üzerinden zaten yansıyor (search var/yok → count 0↔1 değişimi).
+    // Pattern: FirmaListPage (PR #35).
+    const stateKey = [filterDurum || 'none', filterBlok || 'none', filterDaire || 'none', `f${activeFilterCount}`].join('|')
+    return (
+      <HeaderActionsToolbar
+        key={`uye-list-${stateKey}`}
+        primary={primaryAction}
+        secondary={secondaryActions}
+        filterCount={activeFilterCount}
+        drawerTitle="Üye Filtreleri"
+      />
+    )
+  }, [primaryAction, secondaryActions, activeFilterCount, filterDurum, filterBlok, filterDaire])
 
   usePageSettings('Üye Yönetimi', actions)
 
@@ -229,6 +243,24 @@ export const UyeListPage: React.FC = () => {
 
   return (
     <div className="animate-in fade-in duration-500">
+      {/*
+        Header'a portal'lanan search input — bkz. HeaderSearchPortal jsdoc.
+        Render ağacı bu sayfa subtree'sinde olduğu için search state değişimleri
+        Input'u unmount etmez (focus + controlled value korunur). DOM'da
+        AdminLayout'un #admin-header-search-slot div'i içinde görünür.
+      */}
+      <HeaderSearchPortal>
+        <Input
+          placeholder="Üye ara..."
+          prefix={<SearchOutlined />}
+          allowClear
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ width: 200 }}
+          autoComplete="off"
+          size="small"
+        />
+      </HeaderSearchPortal>
       {!activeProject ? (
         <EmptyState description="Lütfen önce yukarıdan bir proje seçin" />
       ) : (
