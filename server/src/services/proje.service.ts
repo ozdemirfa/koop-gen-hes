@@ -52,45 +52,87 @@ export const projeService = {
   },
 
   async importSerefiye(projeId: string, buffer: Buffer) {
-    const records = parse(buffer, {
-      columns: true,
-      skip_empty_lines: true,
-      trim: true
-    })
+    // Toleranslı parse: PR #40 ile export'a eklenen "Proje Adı:" başlığı,
+    // Excel'in TR locale'de comma → semicolon'a çevirmesi ve Excel'in eklediği
+    // placeholder "Column1;Column2;..." satırı gibi gerçek-dünya artifact'larıyla
+    // başa çıkar. Strateji: daire_no kelimesini içeren satırı header olarak bul,
+    // öncesini at; delimiter'ı header satırından otomatik tespit et.
+
+    const text = buffer.toString('utf8').replace(/^﻿/, '')
+    const rawLines = text.split(/\r?\n/)
+
+    const headerIdx = rawLines.findIndex(l => /\bdaire_no\b/i.test(l))
+    if (headerIdx === -1) {
+      throw ApiError.badRequest('CSV içinde "daire_no" başlığı bulunamadı. Dosya formatını kontrol edin.')
+    }
+
+    const headerLine = rawLines[headerIdx]
+    // Header'da hangi ayraç çoğunluksa onu seç. Tek alanlı bozuk header için fallback comma.
+    const semiCount = (headerLine.match(/;/g) || []).length
+    const commaCount = (headerLine.match(/,/g) || []).length
+    const delimiter = semiCount > commaCount ? ';' : ','
+
+    const csvSlice = rawLines.slice(headerIdx).join('\n')
+
+    let records: any[]
+    try {
+      records = parse(csvSlice, {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true,
+        delimiter,
+        relax_column_count: true
+      })
+    } catch (err: any) {
+      logger.error('Serefiye CSV parse hatası:', err.message)
+      throw ApiError.badRequest(`CSV ayrıştırma hatası: ${err.message}`)
+    }
+
+    // TR ondalık (virgül) → ABD ondalık (nokta) — parseFloat("1,05") JS'te 1 döner.
+    const toFloat = (v: any): number => {
+      if (v === null || v === undefined || v === '') return NaN
+      const s = String(v).trim().replace(',', '.')
+      return parseFloat(s)
+    }
 
     const updates = records.map((r: any) => {
-      // Temel validasyon ve tip dönüşümü
       const daire_no = String(r.daire_no || '').trim()
       if (!daire_no) return null
 
+      const m2Val = toFloat(r.m2)
+      const oranVal = toFloat(r.serefiye_orani)
+      const katVal = r.kat ? parseInt(String(r.kat).trim(), 10) : NaN
+
       return {
         daire_no,
-        kat: r.kat ? parseInt(r.kat) : null,
+        kat: Number.isFinite(katVal) ? katVal : null,
         yon: r.yon ? String(r.yon).substring(0, 50) : null,
-        m2: !isNaN(parseFloat(r.m2)) ? parseFloat(r.m2) : null,
+        m2: Number.isFinite(m2Val) ? m2Val : null,
         oda_sayisi: r.oda_sayisi ? String(r.oda_sayisi).substring(0, 20) : null,
-        serefiye_orani: !isNaN(parseFloat(r.serefiye_orani)) ? parseFloat(r.serefiye_orani) : 1.0
+        serefiye_orani: Number.isFinite(oranVal) ? oranVal : 1.0
       }
     }).filter(Boolean)
 
     let updatedCount = 0
+    let failedCount = 0
     for (const update of updates) {
       if (!update) continue
-      
+
       const { error } = await supabaseAdmin
         .from('serefiye_tablosu')
         .update(update)
         .eq('proje_id', projeId)
         .eq('daire_no', update.daire_no)
-      
+
       if (error) {
+        failedCount++
         logger.error(`CSV Import hatası (Daire: ${update.daire_no}):`, error.message)
       } else {
         updatedCount++
       }
     }
 
-    return { updated: updatedCount, total: updates.length }
+    return { updated: updatedCount, failed: failedCount, total: updates.length }
   },
 
   async list() {
