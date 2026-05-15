@@ -149,11 +149,16 @@ export const SerefiyePage: React.FC = () => {
     const formData = new FormData()
     formData.append('file', file)
     try {
-      await api.post(`/projeler/${projeId}/serefiye/import`, formData)
-      messageApi.success('CSV başarıyla yüklendi')
+      const { data } = await api.post(`/projeler/${projeId}/serefiye/import`, formData)
+      const { updated = 0, failed = 0, total = 0 } = data?.data || {}
+      if (failed > 0) {
+        messageApi.warning(`${updated}/${total} daire güncellendi · ${failed} satır başarısız (sunucu log'unda detay)`)
+      } else {
+        messageApi.success(`${updated} daire güncellendi`)
+      }
       queryClient.invalidateQueries({ queryKey: ['serefiye-list', projeId] })
-    } catch {
-      messageApi.error('CSV yüklenirken hata oluştu')
+    } catch (err) {
+      messageApi.error(getErrorMessage(err))
     }
     return false
   }
