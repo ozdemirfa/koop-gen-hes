@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Button, Modal, Form, InputNumber, Select, message, Card, Typography, Tag, Space, DatePicker, Input, Row, Col, Statistic, App, Popconfirm, Tooltip } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, CheckCircleOutlined, CalculatorOutlined, HistoryOutlined, WalletOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, DollarCircleOutlined, CalculatorOutlined, HistoryOutlined, WalletOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api from '../lib/api'
@@ -167,7 +167,7 @@ export const Aidatlar: React.FC = () => {
       if (filterHasDaire === 'atanmis') params.has_daire = 'true'
       if (filterHasDaire === 'atanmamis') params.has_daire = 'false'
       if (debouncedUyeAdi) params.uye_adi = debouncedUyeAdi
-      
+
       const { data } = await api.get('/aidatlar', { params })
       return data
     },
@@ -187,7 +187,7 @@ export const Aidatlar: React.FC = () => {
       if (filterHasDaire === 'atanmis') params.has_daire = 'true'
       if (filterHasDaire === 'atanmamis') params.has_daire = 'false'
       if (debouncedUyeAdi) params.uye_adi = debouncedUyeAdi
-      
+
       const { data } = await api.get('/aidatlar/ozet', { params })
       return data.data
     },
@@ -486,7 +486,7 @@ export const Aidatlar: React.FC = () => {
     {
       title: 'Daire',
       key: 'daire',
-      width: 100,
+      width: 60,
       render: (_: unknown, r: Aidat) =>
         r.serefiye_tablosu ? r.serefiye_tablosu.daire_no : '-',
     },
@@ -495,11 +495,11 @@ export const Aidatlar: React.FC = () => {
       key: 'uye',
       render: (_: unknown, r: Aidat) => r.ad ? `${r.ad} ${r.soyad}` : <Text type="secondary">Üye yok</Text>,
     },
-    { 
-      title: 'Dönem', 
-      key: 'donem', 
+    {
+      title: 'Dönem',
+      key: 'donem',
       responsive: ['sm'] as const,
-      render: (_: unknown, r: Aidat) => `${r.ay}/${r.yil}` 
+      render: (_: unknown, r: Aidat) => `${r.ay}/${r.yil}`
     },
     {
       title: 'Ana Borç',
@@ -538,8 +538,8 @@ export const Aidatlar: React.FC = () => {
                       okButtonProps={{ danger: true }}
                       disabled={Number(r.dinamik_odenen_tutar || 0) > 0}
                     >
-                      <Button 
-                        size="small" 
+                      <Button
+                        size="small"
                         type="primary"
                         danger
                         loading={toggleInterestMutation.isPending && toggleInterestMutation.variables?.id === r.id}
@@ -552,13 +552,13 @@ export const Aidatlar: React.FC = () => {
                   </div>
                 </Tooltip>
               ) : (
-                <Button 
-                  size="small" 
+                <Button
+                  size="small"
                   onClick={() => toggleInterestMutation.mutate({ id: r.id, active: true })}
                   loading={toggleInterestMutation.isPending && toggleInterestMutation.variables?.id === r.id}
                   disabled={!r.ad}
-                  style={{ 
-                    fontSize: '11px', 
+                  style={{
+                    fontSize: '11px',
                     height: '24px',
                     color: '#fa8c16',
                     borderColor: '#fa8c16'
@@ -628,7 +628,9 @@ export const Aidatlar: React.FC = () => {
           <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(r)} disabled={r.durum === 'borclandi'} />
           {r.durum === 'plan' && (
             <Popconfirm title="Tüm aktif üyelere borç yansıtılacak. Emin misiniz?" onConfirm={() => chargeMutation.mutate(r.id)}>
-              <Button size="small" type="primary" icon={<CheckCircleOutlined />} loading={chargeMutation.isPending}>Borçlandır</Button>
+              <Tooltip title="Aidat Borçlandır">
+                <Button size="small" type="primary" icon={<DollarCircleOutlined />} loading={chargeMutation.isPending} />
+              </Tooltip>
             </Popconfirm>
           )}
         </Space>
@@ -642,41 +644,41 @@ export const Aidatlar: React.FC = () => {
         <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
           <Col xs={12} sm={12} lg={6}>
             <Card variant="borderless" className="stat-card shadow-sm" size="small">
-              <Statistic 
-                title="Toplam Tahakkuk" 
-                value={ozet?.toplam_aidat || 0} 
-                formatter={(v) => trMoneyFormatter(v as number)} 
-                styles={{ content: { fontWeight: 700, fontSize: 'clamp(16px, 4vw, 20px)' } }} 
+              <Statistic
+                title="Toplam Tahakkuk"
+                value={ozet?.toplam_aidat || 0}
+                formatter={(v) => trMoneyFormatter(v as number)}
+                styles={{ content: { fontWeight: 700, fontSize: 'clamp(16px, 4vw, 20px)' } }}
               />
             </Card>
           </Col>
           <Col xs={12} sm={12} lg={6}>
             <Card variant="borderless" className="stat-card shadow-sm" size="small">
-              <Statistic 
-                title="Toplam Tahsilat" 
-                value={ozet?.toplam_tahsilat || 0} 
-                formatter={(v) => trMoneyFormatter(v as number)} 
-                styles={{ content: { color: '#3f8600', fontWeight: 700, fontSize: 'clamp(16px, 4vw, 20px)' } }} 
+              <Statistic
+                title="Toplam Tahsilat"
+                value={ozet?.toplam_tahsilat || 0}
+                formatter={(v) => trMoneyFormatter(v as number)}
+                styles={{ content: { color: '#3f8600', fontWeight: 700, fontSize: 'clamp(16px, 4vw, 20px)' } }}
               />
             </Card>
           </Col>
           <Col xs={12} sm={12} lg={6}>
             <Card variant="borderless" className="stat-card shadow-sm" size="small">
-              <Statistic 
-                title="Geciken Aidat" 
-                value={ozet?.geciken || 0} 
-                formatter={(v) => trMoneyFormatter(v as number)} 
-                styles={{ content: { color: '#cf1322', fontWeight: 700, fontSize: 'clamp(16px, 4vw, 20px)' } }} 
+              <Statistic
+                title="Geciken Aidat"
+                value={ozet?.geciken || 0}
+                formatter={(v) => trMoneyFormatter(v as number)}
+                styles={{ content: { color: '#cf1322', fontWeight: 700, fontSize: 'clamp(16px, 4vw, 20px)' } }}
               />
             </Card>
           </Col>
           <Col xs={12} sm={12} lg={6}>
             <Card variant="borderless" className="stat-card shadow-sm" size="small" style={{ background: '#fff7e6' }}>
-              <Statistic 
-                title="Bekleyen Aidat" 
-                value={ozet?.bekleyen || 0} 
-                formatter={(v) => trMoneyFormatter(v as number)} 
-                styles={{ content: { color: '#d46b08', fontWeight: 700, fontSize: 'clamp(16px, 4vw, 20px)' } }} 
+              <Statistic
+                title="Bekleyen Aidat"
+                value={ozet?.bekleyen || 0}
+                formatter={(v) => trMoneyFormatter(v as number)}
+                styles={{ content: { color: '#d46b08', fontWeight: 700, fontSize: 'clamp(16px, 4vw, 20px)' } }}
               />
             </Card>
           </Col>
