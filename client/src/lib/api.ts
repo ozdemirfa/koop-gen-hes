@@ -3,7 +3,11 @@ import { supabase } from './supabase'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
-  headers: { 'Content-Type': 'application/json' },
+  // Content-Type'ı global vermiyoruz: axios'un default transformRequest'i
+  // plain object → application/json, FormData → multipart/form-data (browser
+  // boundary'yi otomatik ekler) ataması yapar. Global JSON header FormData
+  // upload'larında body'yi JSON.stringify edip File'ları kaybediyordu
+  // (server `{file: {}}` görüyor).
 })
 
 // Her istekte Supabase session token'ını ve aktif proje ID'sini ekle
@@ -32,7 +36,14 @@ api.interceptors.request.use(async (config) => {
         config.params = { ...config.params, proje_id: activeProjectId }
       }
     } else if (config.method === 'post' || config.method === 'put' || config.method === 'patch') {
-      if (typeof config.data === 'object' && !config.data?.proje_id && !config.data?.projeId) {
+      // FormData/Blob/File body'lerine dokunma: spread işlemi enumerable
+      // own property bulamaz ve içeriği siler. Bu tip body'lerde proje_id
+      // gerekiyorsa caller formData.append('proje_id', ...) ile eklesin.
+      const isMultipart =
+        config.data instanceof FormData ||
+        config.data instanceof Blob ||
+        config.data instanceof File
+      if (!isMultipart && typeof config.data === 'object' && config.data !== null && !config.data?.proje_id && !config.data?.projeId) {
         config.data = { ...config.data, proje_id: activeProjectId }
       }
     }
