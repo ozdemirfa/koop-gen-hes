@@ -4,6 +4,7 @@ import { DownloadOutlined, TeamOutlined, DollarOutlined, ClockCircleOutlined } f
 import { useQuery } from '@tanstack/react-query'
 import api from '../../lib/api'
 import { usePageSettings } from '../../contexts/LayoutContext'
+import { useProject } from '../../contexts/ProjectContext'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { LoadingState } from '../../components/common/LoadingState'
 import { ErrorState } from '../../components/common/ErrorState'
@@ -17,7 +18,8 @@ import dayjs from 'dayjs'
 const { Text } = Typography
 
 export const UyeBorcRaporPage: React.FC = () => {
-  const activeProjectId = localStorage.getItem('activeProjectId')
+  const { activeProject } = useProject()
+  const activeProjectId = activeProject?.id ?? null
 
   const { data: list, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['uye-borc-listesi', activeProjectId],
@@ -47,7 +49,7 @@ export const UyeBorcRaporPage: React.FC = () => {
           r.ortalama_gecikme_gun || 0,
         ]),
       },
-    ])
+    ], { projectName: activeProject?.proje_adi })
   }
 
   // LayoutContext fingerprint key — buton list değişiminde stale kalmasın

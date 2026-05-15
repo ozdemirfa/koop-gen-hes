@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { usePageSettings } from '../../contexts/LayoutContext'
+import { useProject } from '../../contexts/ProjectContext'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { LoadingState } from '../../components/common/LoadingState'
 import { ErrorState } from '../../components/common/ErrorState'
@@ -14,7 +15,8 @@ import { downloadCsv } from '../../lib/csvExport'
 
 export const AylikRaporPage: React.FC = () => {
   const [targetDate, setTargetDate] = useState(dayjs())
-  const activeProjectId = localStorage.getItem('activeProjectId')
+  const { activeProject } = useProject()
+  const activeProjectId = activeProject?.id ?? null
 
   const { data: rapor, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['aylik-rapor', targetDate.year(), targetDate.month() + 1, activeProjectId],
@@ -92,7 +94,7 @@ export const AylikRaporPage: React.FC = () => {
           r.borc || 0,
         ]),
       },
-    ])
+    ], { projectName: activeProject?.proje_adi })
   }
 
   const gelirColumns = [

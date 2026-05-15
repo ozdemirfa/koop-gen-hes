@@ -11,6 +11,7 @@ import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { HeaderActionsToolbar } from '../../components/common/HeaderActionsToolbar'
 import { trMoneyFormatter, trNumberParser } from '../../lib/format'
+import { downloadCsv } from '../../lib/csvExport'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { useProject } from '../../contexts/ProjectContext'
 
@@ -184,19 +185,15 @@ export const CariEkstrePage: React.FC = () => {
       h.odeme_turu ? (ODEME_TURU_LABELS[h.odeme_turu] || h.odeme_turu) : '',
       h.aciklama || '',
       h.belge_no || '',
-      h.borc.toString().replace(/\./g, ','),
-      h.alacak.toString().replace(/\./g, ',')
+      h.borc,
+      h.alacak,
     ])
 
-    const csvContent = "\uFEFF" + [headers, ...rows].map(e => e.join(";")).join("\n")
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement("a")
-    link.setAttribute("href", url)
-    link.setAttribute("download", `cari_ekstre_${dayjs().format('YYYYMMDD')}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    downloadCsv(
+      `cari_ekstre_${dayjs().format('YYYYMMDD')}`,
+      [{ headers, rows }],
+      { projectName: activeProject?.proje_adi }
+    )
   }
 
   // OC-06 (sprint 20260511-ui-responsive-sprint extension):
