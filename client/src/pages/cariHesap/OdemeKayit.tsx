@@ -49,11 +49,18 @@ export const OdemeKayit: React.FC = () => {
   }, [islemTuru, form])
 
   // filterCariTuru değişiminde de teminat'ı sıfırla (firma → üye geçişinde).
+  // 2026-05-15: Firma cari için 'iade_odeme' ve 'uyelik_baslangic' anlamsız (her ikisi de
+  // üye-bağlamlı işlem türleri). Kullanıcı önce üye seçip bu türlerden birini seçtikten
+  // sonra filter'ı firma'ya çevirirse, islem_turu'nü sıfırla — aksi halde Select disabled
+  // bir option'ı taşımaya devam eder ve form invalid kalır.
   useEffect(() => {
     if (filterCariTuru !== 'firma') {
       form.setFieldValue('is_teminat', false)
     }
-  }, [filterCariTuru, form])
+    if (filterCariTuru === 'firma' && (islemTuru === 'iade_odeme' || islemTuru === 'uyelik_baslangic')) {
+      form.setFieldValue('islem_turu', 'giden_odeme')
+    }
+  }, [filterCariTuru, islemTuru, form])
 
   // Cari Hesaplar (Üyeler + Firmalar) Fetch
   const { data: accounts, isLoading: accountsLoading } = useQuery({
@@ -232,6 +239,11 @@ export const OdemeKayit: React.FC = () => {
                 label="İşlem Türü"
                 rules={[{ required: true }]}
               >
+                {/* 2026-05-15: Firma cari için 'iade_odeme' (Üyelik Bedeli İadesi) ve
+                    'uyelik_baslangic' (Üye Başlangıç Bedeli) seçenekleri anlamsız — her ikisi
+                    de tanım gereği üye-bağlamlı işlemler. Filter='firma' iken bu iki Option'ı
+                    hiç render etme (UX olarak en temiz: kullanıcı disabled bir item
+                    görmek yerine sadece geçerli seçenekleri görür). */}
                 <Select className="w-full">
                   <Option value="giden_odeme">
                     <Space><MoneyCollectOutlined className="text-red-500" /> Giden Ödeme (Ödeme Yapıldı)</Space>
@@ -239,12 +251,16 @@ export const OdemeKayit: React.FC = () => {
                   <Option value="gelen_odeme">
                     <Space><MoneyCollectOutlined className="text-green-500" /> Gelen Ödeme (Tahsilat Yapıldı)</Space>
                   </Option>
-                  <Option value="iade_odeme">
-                    <Space><RollbackOutlined className="text-blue-500" /> Üyelik Bedeli İadesi</Space>
-                  </Option>
-                  <Option value="uyelik_baslangic">
-                    <Space><UserAddOutlined className="text-orange-500" /> Üyelik Başlangıç Bedeli</Space>
-                  </Option>
+                  {filterCariTuru !== 'firma' && (
+                    <Option value="iade_odeme">
+                      <Space><RollbackOutlined className="text-blue-500" /> Üyelik Bedeli İadesi</Space>
+                    </Option>
+                  )}
+                  {filterCariTuru !== 'firma' && (
+                    <Option value="uyelik_baslangic">
+                      <Space><UserAddOutlined className="text-orange-500" /> Üyelik Başlangıç Bedeli</Space>
+                    </Option>
+                  )}
                 </Select>
               </Form.Item>
             </Col>
