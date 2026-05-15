@@ -21,17 +21,25 @@ interface ProjeIsKalemi {
   durum: 'planli' | 'devam_ediyor' | 'tamamlandi' | 'iptal'
   notlar?: string
   yillik_plan_toplami?: number
+  yil_toplamlari?: Record<string, number>
 }
 
 interface Props {
   projeId: string
   data: ProjeIsKalemi[]
   yil?: number
+  /**
+   * Proje için yıllık plan oluşturulmuş yıllar (artan sıralı).
+   * Verildiğinde tablo, her yıl için ayrı bir sütun gösterir (multi-year mode).
+   * Boş/undefined ise eski tek-yıl davranışı korunur.
+   */
+  planYillari?: number[]
 }
 
 const BIRIMLER = ['m2', 'm3', 'mt', 'adet', 'ton', 'kg', 'litre', 'set', 'gun', 'saat', 'ls']
 
-export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data, yil }) => {
+export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data, yil, planYillari }) => {
+  const currentYear = new Date().getFullYear()
   const queryClient = useQueryClient()
   const [modalOpen, setModalOpen] = useState(false)
   const [editingKalem, setEditingKalem] = useState<ProjeIsKalemi | null>(null)
@@ -113,17 +121,64 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data, yil }) => {
     onError: (err) => messageApi.error(getErrorMessage(err))
   })
 
-  const columns = [
-    { title: 'Sıra No', dataIndex: 'sira_no', key: 'sira_no', width: 80, sorter: (a: any, b: any) => a.sira_no - b.sira_no },
-    { 
-      title: 'Poz / Tanım', 
-      key: 'tanim', 
+  // Çoklu-yıl modu: planYillari verildiyse her yıl için ayrı sütun.
+  // Aksi halde geriye uyumlu tek-yıl davranışı (yillik_plan_toplami).
+  const useMultiYear = Array.isArray(planYillari) && planYillari.length > 0
+
+  const yilSutunlari = useMultiYear
+    ? planYillari!.map((y) => ({
+        title: (
+          <span>
+            {y}{' '}
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              Plan (₺)
+            </Text>
+          </span>
+        ),
+        key: `plan_${y}`,
+        width: 130,
+        align: 'right' as const,
+        // Mevcut yıl sütununu hafif vurgula (subtle highlight)
+        onCell: () =>
+          y === currentYear ? { style: { background: '#f6ffed' } } : {},
+        onHeaderCell: () =>
+          y === currentYear ? { style: { background: '#f6ffed', fontWeight: 600 } } : {},
+        render: (_: any, r: any) => {
+          const v = r.yil_toplamlari?.[String(y)]
+          return v != null && v !== 0 ? trMoneyFormatter(v) : '-'
+        },
+      }))
+    : [
+        {
+          title: yil ? `${yil} Yıllık Plan (₺)` : 'Yıllık Plan (₺)',
+          dataIndex: 'yillik_plan_toplami',
+          key: 'yillik_plan_toplami',
+          width: 140,
+          align: 'right' as const,
+          render: (v: number | undefined) => (v != null ? trMoneyFormatter(v) : '-'),
+        },
+      ]
+
+  const columns: any[] = [
+    {
+      title: 'Sıra No',
+      dataIndex: 'sira_no',
+      key: 'sira_no',
+      width: 80,
+      fixed: useMultiYear ? ('left' as const) : undefined,
+      sorter: (a: any, b: any) => a.sira_no - b.sira_no,
+    },
+    {
+      title: 'Poz / Tanım',
+      key: 'tanim',
+      fixed: useMultiYear ? ('left' as const) : undefined,
+      width: useMultiYear ? 240 : undefined,
       render: (_: any, r: any) => (
         <Space orientation="vertical" size={0}>
           <Text strong style={{ fontSize: '12px' }}>{r.kalem_kodu}</Text>
           <Text>{r.tanim}</Text>
         </Space>
-      )
+      ),
     },
     { title: 'Birim', dataIndex: 'birim', key: 'birim', width: 80 },
     { title: 'Miktar', dataIndex: 'miktar', key: 'miktar', width: 100, align: 'right' as const, render: (v: number) => trNumberFormatter(v) },
@@ -135,37 +190,47 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data, yil }) => {
       align: 'right' as const,
       render: (v: number) => trMoneyFormatter(v)
     },
-    {
-      title: yil ? `${yil} Yıllık Plan (₺)` : 'Yıllık Plan (₺)',
-      dataIndex: 'yillik_plan_toplami',
-      key: 'yillik_plan_toplami',
-      width: 140,
-      align: 'right' as const,
-      render: (v: number | undefined) => (v != null ? trMoneyFormatter(v) : '-'),
-    },
+    ...yilSutunlari,
     {
       title: 'İşlem',
       key: 'action',
       width: 80,
+      fixed: useMultiYear ? ('right' as const) : undefined,
       render: (_: any, r: any) => (
         <Space orientation="horizontal">
-          <Button 
-            type="text" 
-            size="small" 
-            icon={<EditOutlined />} 
+          <Button
+            type="text"
+            size="small"
+            icon={<EditOutlined />}
             onClick={() => {
               setEditingKalem(r)
               setIsBudgetManual(false)
               setModalOpen(true)
-            }} 
+            }}
           />
           <Popconfirm title="Bu kalemi silmek istediğinize emin misiniz?" onConfirm={() => deleteMutation.mutate(r.id)}>
             <Button type="text" size="small" danger icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
-      )
-    }
+      ),
+    },
   ]
+
+  // Multi-year modda kolon sayısı artar → yatay scroll gerekebilir
+  const tableScroll = useMultiYear
+    ? { x: 600 + planYillari!.length * 130 + 240 }
+    : undefined
+
+  // Her yıl için toplam (footer satırı) — multi-year modda görünür
+  const yilToplamlari = useMultiYear
+    ? planYillari!.reduce<Record<number, number>>((acc, y) => {
+        acc[y] = flatList.reduce(
+          (sum, r) => sum + (Number(r.yil_toplamlari?.[String(y)]) || 0),
+          0
+        )
+        return acc
+      }, {})
+    : null
 
   const handleValuesChange = (changedValues: any, allValues: any) => {
     // Değerleri sayıya çevir (null/undefined ise 0 kabul et)
@@ -228,6 +293,46 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data, yil }) => {
         size="small"
         pagination={false}
         loading={deleteMutation.isPending}
+        scroll={tableScroll}
+        summary={
+          useMultiYear && flatList.length > 0
+            ? () => (
+                <Table.Summary fixed>
+                  <Table.Summary.Row style={{ background: '#fafafa', fontWeight: 600 }}>
+                    {/* Sıra No (boş) */}
+                    <Table.Summary.Cell index={0} />
+                    {/* Poz / Tanım (etiket) */}
+                    <Table.Summary.Cell index={1}>Toplam</Table.Summary.Cell>
+                    {/* Birim (boş) */}
+                    <Table.Summary.Cell index={2} />
+                    {/* Miktar (boş) */}
+                    <Table.Summary.Cell index={3} />
+                    {/* Bütçe Tutarı toplamı */}
+                    <Table.Summary.Cell index={4} align="right">
+                      {trMoneyFormatter(
+                        flatList.reduce((s, r) => s + (Number(r.butce_tutari) || 0), 0)
+                      )}
+                    </Table.Summary.Cell>
+                    {planYillari!.map((y, i) => (
+                      <Table.Summary.Cell
+                        key={`sum_${y}`}
+                        index={5 + i}
+                        align="right"
+                      >
+                        <span style={y === currentYear ? { background: '#f6ffed' } : undefined}>
+                          {yilToplamlari![y]
+                            ? trMoneyFormatter(yilToplamlari![y])
+                            : '-'}
+                        </span>
+                      </Table.Summary.Cell>
+                    ))}
+                    {/* İşlem (boş) */}
+                    <Table.Summary.Cell index={5 + planYillari!.length} />
+                  </Table.Summary.Row>
+                </Table.Summary>
+              )
+            : undefined
+        }
       />
 
       <Modal

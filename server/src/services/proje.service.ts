@@ -113,30 +113,61 @@ export const projeService = {
 
     if (error) throw ApiError.notFound('Proje bulunamadı')
 
-    // Aktif yılın yıllık plan toplamlarını her iş kalemine virtual alan olarak ekle
-    if (opts.yil && data && Array.isArray(data.proje_is_kalemleri) && data.proje_is_kalemleri.length > 0) {
-      const kalemIds = data.proje_is_kalemleri.map((k: any) => k.id)
-      const { data: planRows, error: planErr } = await supabaseAdmin
-        .from('yillik_plan_kalemleri')
-        .select('proje_is_kalemi_id, planlanan_tutar, yillik_harcama_planlari!inner(yil, proje_id)')
-        .in('proje_is_kalemi_id', kalemIds)
-        .eq('yillik_harcama_planlari.yil', opts.yil)
-        .eq('yillik_harcama_planlari.proje_id', id)
-
-      if (planErr) throw planErr
-
-      const totals = new Map<string, number>()
-      for (const row of planRows ?? []) {
-        const kid = (row as any).proje_is_kalemi_id as string
-        const tutar = Number((row as any).planlanan_tutar) || 0
-        totals.set(kid, (totals.get(kid) || 0) + tutar)
-      }
-
-      data.proje_is_kalemleri = data.proje_is_kalemleri.map((k: any) => ({
-        ...k,
-        yillik_plan_toplami: totals.get(k.id) ?? 0,
-      }))
+    if (!data || !Array.isArray(data.proje_is_kalemleri) || data.proje_is_kalemleri.length === 0) {
+      return data
     }
+
+    const kalemIds = data.proje_is_kalemleri.map((k: any) => k.id)
+
+    // Tüm yıllar için plan toplamlarını tek sorguda topluyoruz. Frontend hem
+    // tek-yıl (geriye uyumlu yillik_plan_toplami) hem çoklu-yıl (matrix) görünümü
+    // için aynı payload'u kullanabilsin diye yil filtresini server-side
+    // uygulamak yerine post-filter ediyoruz. Bir projenin yıl sayısı tipik
+    // olarak 1-5 arası — yük ihmal edilebilir.
+    const { data: planRows, error: planErr } = await supabaseAdmin
+      .from('yillik_plan_kalemleri')
+      .select('proje_is_kalemi_id, planlanan_tutar, yillik_harcama_planlari!inner(yil, proje_id)')
+      .in('proje_is_kalemi_id', kalemIds)
+      .eq('yillik_harcama_planlari.proje_id', id)
+
+    if (planErr) throw planErr
+
+    // Yıl → kalem_id → tutar matrisi
+    const byYil = new Map<number, Map<string, number>>()
+    const yilSet = new Set<number>()
+    for (const row of planRows ?? []) {
+      const kid = (row as any).proje_is_kalemi_id as string
+      const yil = Number((row as any).yillik_harcama_planlari?.yil)
+      if (!Number.isFinite(yil)) continue
+      yilSet.add(yil)
+      const tutar = Number((row as any).planlanan_tutar) || 0
+      if (!byYil.has(yil)) byYil.set(yil, new Map())
+      const bucket = byYil.get(yil)!
+      bucket.set(kid, (bucket.get(kid) || 0) + tutar)
+    }
+
+    // Yıllık plan yılları (sıralı, çoklu-yıl sütunları için)
+    const yillar = Array.from(yilSet).sort((a, b) => a - b)
+
+    // Her kaleme yil_toplamlari (matrix) ve geriye uyumlu yillik_plan_toplami ekle
+    const aktifYil = opts.yil
+    data.proje_is_kalemleri = data.proje_is_kalemleri.map((k: any) => {
+      const yilToplamlari: Record<string, number> = {}
+      for (const y of yillar) {
+        yilToplamlari[String(y)] = byYil.get(y)?.get(k.id) ?? 0
+      }
+      return {
+        ...k,
+        // Çoklu-yıl matrisi (yeni alan)
+        yil_toplamlari: yilToplamlari,
+        // Geriye uyumlu tek-yıl alanı (yil parametresi verildiyse o yılın değeri,
+        // aksi halde undefined → eski client davranışı kırılmaz)
+        yillik_plan_toplami: aktifYil ? (byYil.get(aktifYil)?.get(k.id) ?? 0) : undefined,
+      }
+    })
+
+    // Proje seviyesinde plan yılları listesi (frontend kolon üretimi için)
+    ;(data as any).yillik_plan_yillari = yillar
 
     return data
   },
