@@ -70,7 +70,7 @@ export const UyeListPage: React.FC = () => {
       if (filterBlok) params.blok_id = filterBlok
       if (filterDaire === 'atanmis') params.has_daire = 'true'
       if (filterDaire === 'atanmamis') params.has_daire = 'false'
-      
+
       const { data } = await api.get('/uyeler', { params })
       return data
     },
@@ -250,7 +250,7 @@ export const UyeListPage: React.FC = () => {
   }
 
   const columns = [
-    { title: 'No', dataIndex: 'uye_no', key: 'uye_no', width: 70 },
+    { title: 'No', dataIndex: 'uye_no', key: 'uye_no', width: 50 },
     {
       title: 'Ad Soyad',
       key: 'ad_soyad',
@@ -260,7 +260,7 @@ export const UyeListPage: React.FC = () => {
     {
       title: 'Daire',
       key: 'daire_kod',
-      width: 80,
+      width: 60,
       render: (_: unknown, r: Uye) => {
         return r.serefiye_tablosu?.daire_no || '-'
       },
@@ -279,31 +279,31 @@ export const UyeListPage: React.FC = () => {
       width: 120,
       render: (_: unknown, record: Uye) => (
         <Space onClick={(e) => e.stopPropagation()} orientation="horizontal" size="small">
-          <Button 
-            icon={<EyeOutlined />} 
-            type="text" 
+          <Button
+            icon={<EyeOutlined />}
+            type="text"
             size="small"
-            onClick={(e) => { 
-              e.stopPropagation(); 
-              navigate(`/uyeler/${record.id}`); 
-            }} 
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/uyeler/${record.id}`);
+            }}
           />
-          <Button 
-            icon={<EditOutlined />} 
-            type="text" 
+          <Button
+            icon={<EditOutlined />}
+            type="text"
             size="small"
-            onClick={(e) => { 
-              e.stopPropagation(); 
-              navigate(`/uyeler/${record.id}/duzenle`); 
-            }} 
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/uyeler/${record.id}/duzenle`);
+            }}
           />
           {record.durum === 'aktif' && (
-             <StrictConfirmDelete 
-               title="Üye pasif yapılacak, emin misiniz?" 
-               confirmText={`${record.ad} ${record.soyad}`}
-               onConfirm={() => deleteMutation.mutate(record.id)} 
-               loading={deleteMutation.isPending}
-             />
+            <StrictConfirmDelete
+              title="Üye pasif yapılacak, emin misiniz?"
+              confirmText={`${record.ad} ${record.soyad}`}
+              onConfirm={() => deleteMutation.mutate(record.id)}
+              loading={deleteMutation.isPending}
+            />
           )}
         </Space>
       ),
