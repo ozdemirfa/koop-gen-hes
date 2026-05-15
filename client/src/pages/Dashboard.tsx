@@ -98,7 +98,7 @@ export const Dashboard: React.FC = () => {
     <div className="animate-in fade-in duration-500">
       {/* PROJE BİLGİLERİ */}
       <Row gutter={[8, 8]} style={{ marginBottom: 8 }}>
-        <Col xs={24} sm={8}>
+        <Col xs={12} sm={8}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
               title={<span style={cardTitleStyle}>Proje Süresi</span>}
@@ -134,7 +134,7 @@ export const Dashboard: React.FC = () => {
 
       {/* TAHSİLAT */}
       <Row gutter={[8, 8]} style={{ marginBottom: 8 }}>
-        <Col xs={24} sm={8}>
+        <Col xs={12} sm={8}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
               title={<span style={cardTitleStyle}>Toplam Tahsilat</span>}
@@ -174,7 +174,7 @@ export const Dashboard: React.FC = () => {
 
       {/* GİDER */}
       <Row gutter={[8, 8]} style={{ marginBottom: 8 }}>
-        <Col xs={24} sm={8}>
+        <Col xs={12} sm={8}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
               title={<span style={cardTitleStyle}>Tahakkuk Eden Gider</span>}
@@ -214,7 +214,7 @@ export const Dashboard: React.FC = () => {
 
       {/* CARİ HESAP */}
       <Row gutter={[8, 8]} style={{ marginBottom: 8 }}>
-        <Col xs={24} sm={8}>
+        <Col xs={12} sm={8}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
               title={<span style={cardTitleStyle}>Toplam Cari Ödeme</span>}
@@ -262,7 +262,7 @@ export const Dashboard: React.FC = () => {
 
       {/* LİKİDİTE */}
       <Row gutter={[8, 8]} style={{ marginBottom: 8 }}>
-        <Col xs={24} sm={8}>
+        <Col xs={12} sm={8}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
               title={<span style={cardTitleStyle}>Bankalar Toplamı</span>}

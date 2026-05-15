@@ -198,6 +198,22 @@ body {
     font-size: 14px;
     margin-right: 8px;
   }
+  /*
+   * Pano kartları ≤575px'de 2-kolon (xs=12) yerleşiminde — gövde padding'ini
+   * daraltıp, başlık taşmasını engelle: yatay alan dar olduğundan içerik
+   * kart genişliğine sığsın.
+   */
+  .stat-card .ant-card-body {
+    padding: 10px 12px;
+  }
+  .stat-card .ant-statistic-title {
+    margin-bottom: 2px;
+    white-space: normal;
+    line-height: 1.25;
+  }
+  .stat-card .ant-statistic-content {
+    line-height: 1.2;
+  }
 }
 
 /*
