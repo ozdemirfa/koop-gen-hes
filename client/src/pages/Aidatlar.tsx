@@ -268,7 +268,9 @@ export const Aidatlar: React.FC = () => {
   }
 
   // Desktop'ta inline filter satırı; mobile'da Drawer içinde tek button trigger.
-  const listFilterControls = (
+  // useMemo zorunlu: bu JSX usePageSettings → setHeaderActions'a geçiliyor;
+  // referans değişmezse LayoutContext strict-ref-check (44ac886) re-render loop'u önler.
+  const listFilterControls = useMemo(() => (
     <Space orientation="horizontal" size="small" wrap>
       <Input
         placeholder="Üye Ara"
@@ -337,10 +339,12 @@ export const Aidatlar: React.FC = () => {
         <Select.Option value="atanmamis">Atanmamış</Select.Option>
       </Select>
     </Space>
-  )
+  ), [filterUyeAdi, filterYil, filterAy, filterDurum, filterBlokId, filterHasDaire, yearOptions, bloklar])
 
   // Mobile filter Drawer içeriği — daha geniş kolonlar, vertical layout
-  const listFilterControlsVertical = (
+  // useMemo zorunlu: bu JSX usePageSettings → setHeaderActions'a geçiliyor;
+  // referans değişmezse LayoutContext strict-ref-check (44ac886) re-render loop'u önler.
+  const listFilterControlsVertical = useMemo(() => (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       <Input
         placeholder="Üye Ara"
@@ -417,7 +421,7 @@ export const Aidatlar: React.FC = () => {
         </Button>
       )}
     </Space>
-  )
+  ), [filterUyeAdi, filterYil, filterAy, filterDurum, filterBlokId, filterHasDaire, yearOptions, bloklar, activeListFilterCount])
 
   // OC-07: Aidat Listesi header — HeaderActionsToolbar
   // (Aidat Listesi sayfasında primary CTA yok; tüm filter'lar secondary).
