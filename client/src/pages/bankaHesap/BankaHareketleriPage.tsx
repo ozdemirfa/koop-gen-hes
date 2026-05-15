@@ -10,6 +10,11 @@ import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { usePageSettings } from '../../contexts/LayoutContext'
 
+interface CariHesapRef {
+  cari_turu?: 'uye' | 'firma'
+  cari_adi?: string
+}
+
 interface BankaHareketi {
   id: string
   tarih: string
@@ -19,7 +24,7 @@ interface BankaHareketi {
   eslesti: boolean
   firma_id?: string
   banka_hesaplari?: { banka_adi: string }
-  cari_hareketler?: { cari_hesaplar?: { firmalar?: { unvan: string } } } | Array<{ cari_hesaplar?: { firmalar?: { unvan: string } } }>
+  cari_hareketler?: { cari_hesaplar?: CariHesapRef } | Array<{ cari_hesaplar?: CariHesapRef }>
 }
 
 export const BankaHareketleriPage: React.FC = () => {
@@ -59,11 +64,16 @@ export const BankaHareketleriPage: React.FC = () => {
       render: (d: string) => dayjs(d).format('DD.MM.YYYY'),
     },
     {
-      title: 'İlgili Firma',
-      key: 'firma',
+      // 2026-05-15: "İlgili Firma" -> "İlgili Cari". Değer "Firma - <ad>" veya "Üye - <ad>"
+      // şeklinde tür-prefix'li gösterilir; cari_hesaplar.cari_turu + cari_adi backend join'inden gelir.
+      title: 'İlgili Cari',
+      key: 'cari',
       render: (_: any, r: any) => {
         const cari = Array.isArray(r.cari_hareketler) ? r.cari_hareketler[0] : r.cari_hareketler
-        return cari?.cari_hesaplar?.firmalar?.unvan || '-'
+        const ch = cari?.cari_hesaplar
+        if (!ch?.cari_adi) return '-'
+        const prefix = ch.cari_turu === 'firma' ? 'Firma' : ch.cari_turu === 'uye' ? 'Üye' : null
+        return prefix ? `${prefix} - ${ch.cari_adi}` : ch.cari_adi
       }
     },
     { title: 'Açıklama', dataIndex: 'aciklama', key: 'aciklama' },

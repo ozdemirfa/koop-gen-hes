@@ -68,11 +68,13 @@ export const bankaHesapService = {
 
   async listHareketler(query: Record<string, any>) {
     // 20260421000001_cari_hesap_revizyon_faz1.sql cari_hareketler.firma_id'yi drop edip
-    // cari_hesap_id'ye çevirdi. Bu yüzden firma'ya cari_hesaplar.firma_id üzerinden
-    // erişiyoruz; aksi halde PostgREST relationship çözemiyor ve PGRST200 fırlatıyordu.
+    // cari_hesap_id'ye çevirdi. cari_hesaplar tablosunda cari_turu ('uye'|'firma') ve
+    // cari_adi (insan tarafından okunabilir isim) zaten tutuluyor — frontend "İlgili Cari"
+    // etiketinde "Firma - <ad>" / "Üye - <ad>" prefix'i için bu iki kolon yeterli; ek
+    // firmalar/uyeler tablo join'ine gerek yok.
     let q = supabaseAdmin
       .from('banka_hareketleri')
-      .select('*, banka_hesaplari!inner(banka_adi, proje_id), cari_hareketler!banka_hareket_id(cari_hesaplar(firmalar(unvan)))')
+      .select('*, banka_hesaplari!inner(banka_adi, proje_id), cari_hareketler!banka_hareket_id(cari_hesaplar(cari_turu, cari_adi))')
 
     // Filtreleme: banka_hesap_id varsa ona göre, yoksa proje_id varsa banka_hesaplari üzerinden filtrele
     if (query.banka_hesap_id) {
