@@ -5,11 +5,23 @@ import logger from '../utils/logger'
 
 export const projeService = {
   async exportSerefiye(projeId: string) {
-    const { data, error } = await supabaseAdmin
+    // Tüm CSV çıktılarında "Proje Adı:" başlığı standart — server-side blob
+    // endpoint'i de bu standardı uygular (frontend tarafındaki rapor CSV'leri
+    // ile tutarlı çıktı). Proje adı ek bir round-trip ile çekiliyor; tablo
+    // küçük olduğu için maliyet ihmal edilebilir.
+    const projePromise = supabaseAdmin
+      .from('projeler')
+      .select('proje_adi')
+      .eq('id', projeId)
+      .maybeSingle()
+
+    const dataPromise = supabaseAdmin
       .from('serefiye_tablosu')
       .select('daire_no, kat, yon, m2, oda_sayisi, serefiye_orani')
       .eq('proje_id', projeId)
       .order('daire_sira_no', { ascending: true })
+
+    const [{ data: projeRow }, { data, error }] = await Promise.all([projePromise, dataPromise])
 
     if (error) throw error
 
@@ -23,7 +35,20 @@ export const projeService = {
       r.serefiye_orani
     ])
 
-    return [header.join(','), ...rows.map(row => row.join(','))].join('\n')
+    const lines: string[] = []
+    const projeAdi = projeRow?.proje_adi?.trim()
+    if (projeAdi) {
+      // Proje Adı satırı: frontend csvExport.ts ile aynı biçim (tek satır + boş satır).
+      // serefiye CSV'si virgül-ayraçlı, frontend rapor CSV'leri ise noktalı-virgül kullanır;
+      // başlık virgül içermediği için her iki format için de güvenli.
+      lines.push(`Proje Adı: ${projeAdi}`)
+      lines.push('')
+    }
+    lines.push(header.join(','))
+    rows.forEach(row => lines.push(row.join(',')))
+
+    // BOM korunuyor: Excel TR karakter uyumu için.
+    return '﻿' + lines.join('\n')
   },
 
   async importSerefiye(projeId: string, buffer: Buffer) {
