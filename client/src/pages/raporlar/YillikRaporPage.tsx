@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { usePageSettings } from '../../contexts/LayoutContext'
+import { useProject } from '../../contexts/ProjectContext'
 import { LoadingState } from '../../components/common/LoadingState'
 import { ErrorState } from '../../components/common/ErrorState'
 import { DataTable } from '../../components/common/DataTable'
@@ -16,7 +17,8 @@ const AY_ETIKETLERI = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', '
 
 export const YillikRaporPage: React.FC = () => {
   const [targetYear, setTargetYear] = useState(dayjs())
-  const activeProjectId = localStorage.getItem('activeProjectId')
+  const { activeProject } = useProject()
+  const activeProjectId = activeProject?.id ?? null
 
   const actions = useMemo(() => (
     <DatePicker
@@ -68,7 +70,7 @@ export const YillikRaporPage: React.FC = () => {
           ]
         }),
       },
-    ])
+    ], { projectName: activeProject?.proje_adi })
   }
 
   const { data: rapor, isLoading, isError, error, refetch } = useQuery({

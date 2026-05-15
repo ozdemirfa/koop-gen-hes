@@ -14,6 +14,14 @@ export interface CsvSection {
   rows: CsvCellValue[][]
 }
 
+export interface CsvBuildOptions {
+  /**
+   * Çıktının ilk satırına `Proje Adı: <projectName>` formatında bir başlık ekler
+   * ve sonrasına boş satır bırakır. Boş/whitespace değerler atlanır.
+   */
+  projectName?: string | null
+}
+
 const escapeCell = (v: CsvCellValue): string => {
   if (v === null || v === undefined) return ''
   let s = typeof v === 'number' ? v.toString().replace(/\./g, ',') : String(v)
@@ -24,8 +32,14 @@ const escapeCell = (v: CsvCellValue): string => {
   return s
 }
 
-export function buildCsv(sections: CsvSection[]): string {
+export function buildCsv(sections: CsvSection[], options?: CsvBuildOptions): string {
   const lines: string[] = []
+  const projectName = options?.projectName?.trim()
+  if (projectName) {
+    // Proje bağlamı her CSV çıktısının en üstünde yer alır (tek satır + boş satır).
+    lines.push(escapeCell(`Proje Adı: ${projectName}`))
+    lines.push('')
+  }
   sections.forEach((section, idx) => {
     if (idx > 0) lines.push('')
     if (section.title) {
@@ -39,8 +53,8 @@ export function buildCsv(sections: CsvSection[]): string {
   return '﻿' + lines.join('\r\n')
 }
 
-export function downloadCsv(filename: string, sections: CsvSection[]) {
-  const csv = buildCsv(sections)
+export function downloadCsv(filename: string, sections: CsvSection[], options?: CsvBuildOptions) {
+  const csv = buildCsv(sections, options)
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')

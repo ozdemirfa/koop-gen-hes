@@ -8,6 +8,7 @@ import api from '../../lib/api'
 import { getErrorMessage } from '../../lib/apiError'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { usePageSettings } from '../../contexts/LayoutContext'
+import { useProject } from '../../contexts/ProjectContext'
 import { trNumberFormatter, trNumberParser, trMoneyFormatter } from '../../lib/format'
 import { downloadCsv } from '../../lib/csvExport'
 
@@ -63,6 +64,7 @@ export const HakedisDetailPage: React.FC = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { message } = App.useApp()
+  const { activeProject } = useProject()
   const [editableKalemler, setEditableKalemler] = useState<EditableKalem[]>([])
   const [hasChanges, setHasChanges] = useState(false)
   const [addModalOpen, setAddModalOpen] = useState(false)
@@ -329,8 +331,8 @@ export const HakedisDetailPage: React.FC = () => {
           (i.irsaliye_kalemleri || []).map((k: any) => `${k.malzeme_adi} ${k.miktar} ${k.birim}`).join(' | '),
         ]),
       }] : []),
-    ])
-  }, [hakedis, id, editableKalemler, hakedisToplam, teminatOrani, teminatKesintisi, stopajOrani, stopajKesintisi, digerKesintiler, netTutar])
+    ], { projectName: activeProject?.proje_adi })
+  }, [hakedis, id, editableKalemler, hakedisToplam, teminatOrani, teminatKesintisi, stopajOrani, stopajKesintisi, digerKesintiler, netTutar, activeProject?.proje_adi])
 
   const actions = useMemo(() => {
     // UX kuralı: 3 mutate butonu da her zaman görünür; izinler `disabled` prop'u ile

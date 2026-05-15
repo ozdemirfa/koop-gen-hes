@@ -62,7 +62,7 @@ export const MizanPage: React.FC = () => {
           r.bakiye > 0 ? 'ALACAK BAKİYESİ (A)' : (r.bakiye < 0 ? 'BORÇ BAKİYESİ (B)' : 'DENK'),
         ]),
       },
-    ])
+    ], { projectName: activeProject?.proje_adi })
   }
 
   const actions = useMemo(() => {
