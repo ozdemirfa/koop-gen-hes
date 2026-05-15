@@ -23,8 +23,8 @@ export const AylikRaporPage: React.FC = () => {
     queryFn: async () => {
       if (!activeProjectId) return null
       const { data } = await api.get(`/raporlar/aylik-rapor`, {
-        params: { 
-          yil: targetDate.year(), 
+        params: {
+          yil: targetDate.year(),
           ay: targetDate.month() + 1,
           proje_id: activeProjectId
         }
@@ -55,7 +55,7 @@ export const AylikRaporPage: React.FC = () => {
         title: `Aylık Mali Rapor — ${dayjs().year(yil).month(ay - 1).format('MMMM YYYY')}`,
         headers: ['Metrik', 'Tutar (TL)'],
         rows: [
-          ['Toplam Aidat Tahsilatı', rapor.toplam_aidat_tahsilat || 0],
+          ['Toplam Tahsilat', rapor.toplam_aidat_tahsilat || 0],
           ['Diğer Gelirler', rapor.toplam_gelir || 0],
           ['Toplam Giderler', rapor.toplam_gider || 0],
           ['Yaklaşan: Bu Ay (T)', rapor.yaklasan_odemeler?.t || 0],
@@ -64,7 +64,7 @@ export const AylikRaporPage: React.FC = () => {
         ],
       },
       {
-        title: 'Aidat Tahsilatları',
+        title: 'Tahsilatlar',
         headers: ['Tarih', 'Üye', 'Ödeme Yöntemi', 'Tutar (TL)'],
         rows: (rapor.aidat_tahsilat || []).map((r: any) => [
           dayjs(r.tarih).format('DD.MM.YYYY'),
@@ -106,14 +106,14 @@ export const AylikRaporPage: React.FC = () => {
 
   const giderColumns = [
     { title: 'Tarih', dataIndex: 'tarih', key: 'tarih', render: (t: string) => dayjs(t).format('DD.MM.YYYY') },
-    { 
-      title: 'Tür', 
-      key: 'tip', 
+    {
+      title: 'Tür',
+      key: 'tip',
       render: (_: any, r: any) => (
         <Tag color={r.islem_turu === 'hakedis' ? 'blue' : 'orange'}>
           {r.islem_turu === 'hakedis' ? 'Hakediş' : (r.islem_turu === 'fatura' ? 'Fatura' : 'Gider')}
         </Tag>
-      ) 
+      )
     },
     { title: 'Cari/Firma', dataIndex: ['cari_hesaplar', 'cari_adi'], key: 'cari' },
     { title: 'Açıklama', dataIndex: 'aciklama', key: 'aciklama' },
@@ -154,7 +154,7 @@ export const AylikRaporPage: React.FC = () => {
         <Col span={8}>
           <Card variant="borderless" size="small" className="stat-card shadow-sm">
             <Statistic
-              title="Toplam Aidat Tahsilatı"
+              title="Toplam Tahsilat"
               value={rapor?.toplam_aidat_tahsilat || 0}
               prefix={<DollarOutlined />}
               suffix="TL"
@@ -238,7 +238,7 @@ export const AylikRaporPage: React.FC = () => {
           items={[
             {
               key: 'aidat',
-              label: `Aidat Tahsilatları (${rapor?.aidat_tahsilat?.length || 0})`,
+              label: `Tahsilatlar (${rapor?.aidat_tahsilat?.length || 0})`,
               children: (
                 <Table
                   dataSource={rapor?.aidat_tahsilat || []}
