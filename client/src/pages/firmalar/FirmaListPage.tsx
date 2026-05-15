@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { Button, Form, Input, Select, Space, Switch, Tag, Modal, message, Row, Col, Statistic, Card, Typography } from 'antd'
+import { Button, Form, Input, Select, Space, Switch, Tag, Modal, message, Row, Col, Statistic, Card, Typography, Grid } from 'antd'
+
+const { useBreakpoint } = Grid
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, EditOutlined, EyeOutlined, SearchOutlined } from '@ant-design/icons'
@@ -33,6 +35,10 @@ interface Firma {
 export const FirmaListPage: React.FC = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const screens = useBreakpoint()
+  // SSR-safe: ilk render screens={} → desktop varsay. Header search slot gear
+  // ile çakıştığı için mobile'da Drawer'a taşınır.
+  const isMobile = screens.md === false
   const [search, setSearch] = useState('')
   const [filterTip, setFilterTip] = useState<string | undefined>(undefined)
   const [filterAktif, setFilterAktif] = useState<string | undefined>('true')
@@ -109,6 +115,55 @@ export const FirmaListPage: React.FC = () => {
     </>
   ), [filterTip, filterAktif])
 
+  // Mobile Drawer içeriği — search Input dahil, vertical layout.
+  // Header'daki search slot mobile'da gear ile çakıştığından (UyeListPage ile
+  // aynı bug class) search Input Drawer'a taşınır. Aynı `search` state'ine
+  // bağlı; aynı anda sadece bir Input mount oluyor (isMobile branch).
+  const secondaryMobileActions = useMemo(() => (
+    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Input
+        placeholder="Firma ara..."
+        prefix={<SearchOutlined />}
+        allowClear
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        autoComplete="off"
+      />
+      <Select
+        placeholder="Tip"
+        value={filterTip}
+        onChange={setFilterTip}
+        allowClear
+        style={{ width: '100%' }}
+      >
+        <Select.Option value="yuklenici">Yüklenici</Select.Option>
+        <Select.Option value="tedarikci">Tedarikçi</Select.Option>
+      </Select>
+      <Select
+        placeholder="Durum"
+        value={filterAktif}
+        onChange={setFilterAktif}
+        allowClear
+        style={{ width: '100%' }}
+      >
+        <Select.Option value="true">Aktif</Select.Option>
+        <Select.Option value="false">Pasif</Select.Option>
+      </Select>
+      {activeFilterCount > 0 && (
+        <Button
+          block
+          onClick={() => {
+            setSearch('')
+            setFilterTip(undefined)
+            setFilterAktif('true')
+          }}
+        >
+          Filtreleri Temizle
+        </Button>
+      )}
+    </Space>
+  ), [search, filterTip, filterAktif, activeFilterCount])
+
   const headerActions = useMemo(() => {
     // stateKey artık SADECE discrete (Select) state'ler + filterCount'u içerir.
     // search ham metni key zincirinden ÇIKARILDI — keystroke'ta toolbar
@@ -122,11 +177,12 @@ export const FirmaListPage: React.FC = () => {
         key={`firma-list-${stateKey}`}
         primary={primaryAction}
         secondary={secondaryActions}
+        secondaryMobile={secondaryMobileActions}
         filterCount={activeFilterCount}
         drawerTitle="Firma Filtreleri"
       />
     )
-  }, [primaryAction, secondaryActions, activeFilterCount, filterTip, filterAktif])
+  }, [primaryAction, secondaryActions, secondaryMobileActions, activeFilterCount, filterTip, filterAktif])
 
   usePageSettings('Firma Listesi', headerActions)
 
@@ -285,22 +341,25 @@ export const FirmaListPage: React.FC = () => {
   return (
     <div className="animate-in fade-in duration-500">
       {/*
-        Header'a portal'lanan search input — bkz. HeaderSearchPortal jsdoc.
-        Render ağacı bu sayfa subtree'sinde olduğu için search state değişimleri
-        Input'u unmount etmez (focus + controlled value korunur). DOM'da
-        AdminLayout'un #admin-header-search-slot div'i içinde görünür.
+        Desktop: Header'a portal'lanan search input — bkz. HeaderSearchPortal jsdoc.
+        Mobile (<768px): Portal hiç render edilmez; search Input HeaderActionsToolbar
+        Drawer'ı (secondaryMobile) içinde sunulur. Gerekçe: 220px header search slot
+        mobile'da sağdaki settings gear (40x40) ile çakışıyordu. Aynı state'e bağlı
+        Drawer içindeki Input keystroke davranışında portal'a ihtiyaç duymaz.
       */}
-      <HeaderSearchPortal>
-        <Input
-          placeholder="Firma ara..."
-          prefix={<SearchOutlined />}
-          allowClear
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{ width: 220 }}
-          size="small"
-        />
-      </HeaderSearchPortal>
+      {!isMobile && (
+        <HeaderSearchPortal>
+          <Input
+            placeholder="Firma ara..."
+            prefix={<SearchOutlined />}
+            allowClear
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ width: 220 }}
+            size="small"
+          />
+        </HeaderSearchPortal>
+      )}
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} lg={4}>
           <Card variant="borderless" className="stat-card shadow-sm" size="small">

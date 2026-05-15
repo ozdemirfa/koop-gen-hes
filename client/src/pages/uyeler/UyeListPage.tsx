@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from 'react'
-import { Button, Input, Select, Space, Tag, App } from 'antd'
+import { Button, Input, Select, Space, Tag, App, Grid } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, EditOutlined, SearchOutlined, EyeOutlined } from '@ant-design/icons'
+
+const { useBreakpoint } = Grid
 import api from '../../lib/api'
 import { getErrorMessage } from '../../lib/apiError'
 import { useDebounce } from '../../hooks/useDebounce'
@@ -34,6 +36,10 @@ export const UyeListPage: React.FC = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { activeProject } = useProject()
+  const screens = useBreakpoint()
+  // SSR-safe: ilk render screens={} → !md false değil undefined; desktop varsay.
+  // Header'da gear ile çakışmaması için search Input mobile'da Drawer'a taşınır.
+  const isMobile = screens.md === false
   const [search, setSearch] = useState('')
   const [filterDurum, setFilterDurum] = useState<string | undefined>(undefined)
   const [filterBlok, setFilterBlok] = useState<string | undefined>(undefined)
@@ -153,6 +159,68 @@ export const UyeListPage: React.FC = () => {
     </>
   ), [filterDurum, filterBlok, filterDaire, bloklar])
 
+  // Mobile Drawer içeriği — search Input dahil, vertical layout.
+  // Header'daki search slot mobile'da render edilmiyor (gear ile çakışmasın);
+  // search aynı state'e bağlı bir ikinci Input olarak Drawer'da sunulur.
+  const secondaryMobileActions = useMemo(() => (
+    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Input
+        placeholder="Üye ara..."
+        prefix={<SearchOutlined />}
+        allowClear
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        autoComplete="off"
+      />
+      <Select
+        placeholder="Durum"
+        value={filterDurum}
+        onChange={setFilterDurum}
+        allowClear
+        style={{ width: '100%' }}
+      >
+        <Select.Option value="aktif">Aktif</Select.Option>
+        <Select.Option value="pasif">Pasif</Select.Option>
+        <Select.Option value="ihrac">İhraç</Select.Option>
+        <Select.Option value="istifa">İstifa</Select.Option>
+      </Select>
+      <Select
+        placeholder="Blok"
+        value={filterBlok}
+        onChange={setFilterBlok}
+        allowClear
+        style={{ width: '100%' }}
+      >
+        {bloklar?.map((b) => (
+          <Select.Option key={b.id} value={b.id}>{b.blok_adi}</Select.Option>
+        ))}
+      </Select>
+      <Select
+        placeholder="Daire"
+        value={filterDaire}
+        onChange={setFilterDaire}
+        allowClear
+        style={{ width: '100%' }}
+      >
+        <Select.Option value="atanmis">Atanmış</Select.Option>
+        <Select.Option value="atanmamis">Atanmamış</Select.Option>
+      </Select>
+      {activeFilterCount > 0 && (
+        <Button
+          block
+          onClick={() => {
+            setSearch('')
+            setFilterDurum(undefined)
+            setFilterBlok(undefined)
+            setFilterDaire(undefined)
+          }}
+        >
+          Filtreleri Temizle
+        </Button>
+      )}
+    </Space>
+  ), [search, filterDurum, filterBlok, filterDaire, bloklar, activeFilterCount])
+
   const actions = useMemo(() => {
     // stateKey SADECE discrete (Select) state'ler + filterCount'u içerir.
     // search ham metni key zincirinden ÇIKARILDI — keystroke'ta toolbar
@@ -165,11 +233,12 @@ export const UyeListPage: React.FC = () => {
         key={`uye-list-${stateKey}`}
         primary={primaryAction}
         secondary={secondaryActions}
+        secondaryMobile={secondaryMobileActions}
         filterCount={activeFilterCount}
         drawerTitle="Üye Filtreleri"
       />
     )
-  }, [primaryAction, secondaryActions, activeFilterCount, filterDurum, filterBlok, filterDaire])
+  }, [primaryAction, secondaryActions, secondaryMobileActions, activeFilterCount, filterDurum, filterBlok, filterDaire])
 
   usePageSettings('Üye Yönetimi', actions)
 
@@ -244,23 +313,28 @@ export const UyeListPage: React.FC = () => {
   return (
     <div className="animate-in fade-in duration-500">
       {/*
-        Header'a portal'lanan search input — bkz. HeaderSearchPortal jsdoc.
-        Render ağacı bu sayfa subtree'sinde olduğu için search state değişimleri
-        Input'u unmount etmez (focus + controlled value korunur). DOM'da
-        AdminLayout'un #admin-header-search-slot div'i içinde görünür.
+        Desktop: Header'a portal'lanan search input — bkz. HeaderSearchPortal jsdoc.
+        Mobile (<768px): Portal hiç render edilmez; search Input HeaderActionsToolbar
+        Drawer'ı (secondaryMobile) içinde sunulur. Gerekçe: 200px header search slot
+        mobile'da sağdaki settings gear (40x40) ile çakışıyordu (admin-header sticky,
+        flex layout). Portal'ı koşullu render ederek slot boş kalır, gear tek başına
+        sağda durur. Aynı `search` state'ine bağlı Drawer içindeki Input keystroke
+        davranışında portal'a ihtiyaç duymaz; HeaderActionsToolbar key sabit kalır.
       */}
-      <HeaderSearchPortal>
-        <Input
-          placeholder="Üye ara..."
-          prefix={<SearchOutlined />}
-          allowClear
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{ width: 200 }}
-          autoComplete="off"
-          size="small"
-        />
-      </HeaderSearchPortal>
+      {!isMobile && (
+        <HeaderSearchPortal>
+          <Input
+            placeholder="Üye ara..."
+            prefix={<SearchOutlined />}
+            allowClear
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ width: 200 }}
+            autoComplete="off"
+            size="small"
+          />
+        </HeaderSearchPortal>
+      )}
       {!activeProject ? (
         <EmptyState description="Lütfen önce yukarıdan bir proje seçin" />
       ) : (
