@@ -288,7 +288,7 @@ export const CariEkstrePage: React.FC = () => {
       title: 'Tarih',
       dataIndex: 'tarih',
       key: 'tarih',
-      width: 100,
+      width: 85,
       render: (d: string) => <span className="text-slate-600 font-medium">{dayjs(d).format('DD.MM.YYYY')}</span>,
     },
     {
@@ -303,7 +303,7 @@ export const CariEkstrePage: React.FC = () => {
     {
       title: 'İşlem',
       key: 'islem_odeme',
-      width: 140,
+      width: 115,
       render: (_: any, r: CariHareket) => {
         const typeInfo = ISLEM_TURU_LABELS[r.islem_turu] || { label: r.islem_turu, color: 'default' }
         const isHakedis = r.islem_turu === 'hakedis';
@@ -345,7 +345,7 @@ export const CariEkstrePage: React.FC = () => {
       title: 'Borç',
       dataIndex: 'borc',
       key: 'borc',
-      width: 110,
+      width: 140,
       align: 'right' as const,
       render: (v: number) => v > 0 ? (
         <span style={{ color: '#cf1322', fontWeight: 500 }}><MoneyDisplay amount={v} /></span>

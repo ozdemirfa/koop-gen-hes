@@ -130,14 +130,17 @@ export const FirmaDetailPage: React.FC = () => {
 
   // --- Column Definitions ---
 
+  // xs (<576px) için kolon stratejisi: kritik bilgi (No, Konu, Toplam Tutar, İşlem)
+  // her zaman görünür; oran (Teminat/Stopaj) md+, tarih sm+ breakpoint'inde.
   const sozlesmeColumns = [
-    { title: 'Sözleşme No', dataIndex: 'sozlesme_no', key: 'sozlesme_no', width: 130 },
-    { title: 'Konu', dataIndex: 'konu', key: 'konu' },
+    { title: 'Sözleşme No', dataIndex: 'sozlesme_no', key: 'sozlesme_no', width: 90 },
+    { title: 'Konu', dataIndex: 'konu', key: 'konu', ellipsis: true },
     {
       title: 'Toplam Tutar',
       dataIndex: 'toplam_tutar',
       key: 'toplam_tutar',
       align: 'right' as const,
+      width: 130,
       render: (v: number) => <MoneyDisplay amount={v} />,
     },
     {
@@ -145,7 +148,8 @@ export const FirmaDetailPage: React.FC = () => {
       dataIndex: 'teminat_orani',
       key: 'teminat_orani',
       align: 'right' as const,
-      width: 90,
+      width: 80,
+      responsive: ['md'] as ('md')[],
       render: (v: number) => `%${v}`,
     },
     {
@@ -153,12 +157,15 @@ export const FirmaDetailPage: React.FC = () => {
       dataIndex: 'stopaj_orani',
       key: 'stopaj_orani',
       align: 'right' as const,
-      width: 90,
+      width: 80,
+      responsive: ['md'] as ('md')[],
       render: (v: number) => `%${v}`,
     },
     {
       title: 'Tarih',
       key: 'tarih',
+      width: 180,
+      responsive: ['sm'] as ('sm')[],
       render: (_: unknown, r: Sozlesme) => {
         const start = r.baslangic_tarihi ? dayjs(r.baslangic_tarihi).format('DD.MM.YYYY') : '-'
         const end = r.bitis_tarihi ? dayjs(r.bitis_tarihi).format('DD.MM.YYYY') : '-'
@@ -168,12 +175,14 @@ export const FirmaDetailPage: React.FC = () => {
     {
       title: 'İşlem',
       key: 'action',
-      width: 80,
+      width: 60,
+      fixed: 'right' as const,
       render: (_: unknown, r: Sozlesme) => (
         <Tooltip title="Sözleşmeyi Görüntüle">
           <Button
             icon={<FileTextOutlined />}
             type="text"
+            size="small"
             onClick={() => navigate(`/sozlesmeler/${r.id}`)}
           />
         </Tooltip>
@@ -181,14 +190,17 @@ export const FirmaDetailPage: React.FC = () => {
     },
   ]
 
+  // xs (<576px) görünür: No, Net Ödeme, Durum, İşlem.
+  // sm+: Dönem, Matrah eklenir. md+: Onay Tarihi, Hakediş Toplamı (KDVli).
+  // lg+: Teminat, Stopaj.
   const hakedisColumns = [
     { title: 'No', dataIndex: 'hakedis_no', key: 'no', width: 60 },
-    { title: 'Dönem', key: 'donem', width: 90, render: (_: any, r: any) => r.donem_ay ? `${r.donem_ay}/${r.donem_yil}` : dayjs(r.donem_baslangic).format('MM/YYYY') },
-    { title: 'Onay Tarihi', dataIndex: 'onay_tarihi', key: 'onay_tarihi', width: 110, render: (d: string) => d ? dayjs(d).format('DD.MM.YYYY') : '-' },
-    { title: 'Matrah', key: 'brut', align: 'right' as const, width: 130, render: (_: any, r: any) => <MoneyDisplay amount={r.ara_toplam || r.brut_tutar || 0} /> },
-    { title: 'Hakediş Toplamı (KDVli)', key: 'kdvli', align: 'right' as const, width: 150, render: (_: any, r: any) => <MoneyDisplay amount={r.hakedis_toplam || (Number(r.ara_toplam || r.brut_tutar || 0) + Number(r.kdv_tutar || 0))} /> },
-    { title: 'Teminat', dataIndex: 'teminat_kesintisi', key: 'teminat', align: 'right' as const, width: 110, render: (v: number) => <MoneyDisplay amount={v} colored /> },
-    { title: 'Stopaj', dataIndex: 'stopaj_kesintisi', key: 'stopaj', align: 'right' as const, width: 110, render: (v: number) => <MoneyDisplay amount={v} colored /> },
+    { title: 'Dönem', key: 'donem', width: 90, responsive: ['sm'] as ('sm')[], render: (_: any, r: any) => r.donem_ay ? `${r.donem_ay}/${r.donem_yil}` : dayjs(r.donem_baslangic).format('MM/YYYY') },
+    { title: 'Onay Tarihi', dataIndex: 'onay_tarihi', key: 'onay_tarihi', width: 110, responsive: ['md'] as ('md')[], render: (d: string) => d ? dayjs(d).format('DD.MM.YYYY') : '-' },
+    { title: 'Matrah', key: 'brut', align: 'right' as const, width: 130, responsive: ['sm'] as ('sm')[], render: (_: any, r: any) => <MoneyDisplay amount={r.ara_toplam || r.brut_tutar || 0} /> },
+    { title: 'Hakediş Toplamı (KDVli)', key: 'kdvli', align: 'right' as const, width: 150, responsive: ['md'] as ('md')[], render: (_: any, r: any) => <MoneyDisplay amount={r.hakedis_toplam || (Number(r.ara_toplam || r.brut_tutar || 0) + Number(r.kdv_tutar || 0))} /> },
+    { title: 'Teminat', dataIndex: 'teminat_kesintisi', key: 'teminat', align: 'right' as const, width: 110, responsive: ['lg'] as ('lg')[], render: (v: number) => <MoneyDisplay amount={v} colored /> },
+    { title: 'Stopaj', dataIndex: 'stopaj_kesintisi', key: 'stopaj', align: 'right' as const, width: 110, responsive: ['lg'] as ('lg')[], render: (v: number) => <MoneyDisplay amount={v} colored /> },
     { title: 'Net Ödeme', dataIndex: 'net_tutar', key: 'net', align: 'right' as const, width: 130, render: (v: number) => <MoneyDisplay amount={v} /> },
     { title: 'Durum', dataIndex: 'durum', key: 'durum', width: 100, render: (d: string) => <Tag color={durumRenk[d] || 'default'}>{d.toUpperCase()}</Tag> },
     { 
@@ -246,12 +258,14 @@ export const FirmaDetailPage: React.FC = () => {
     },
   ]
 
+  // xs (<576px) görünür: Tarih, İşlem Türü, Bakiye.
+  // sm+: Borç, Alacak. md+: Açıklama.
   const cariColumns = [
-    { title: 'Tarih', dataIndex: 'tarih', key: 'tarih', width: 110, render: (d: string) => dayjs(d).format('DD.MM.YYYY') },
+    { title: 'Tarih', dataIndex: 'tarih', key: 'tarih', width: 100, render: (d: string) => dayjs(d).format('DD.MM.YYYY') },
     {
       title: 'İşlem Türü',
       key: 'islem_turu',
-      width: 150,
+      width: 130,
       render: (_: any, r: any) => {
         // Hakediş satırı mı ve bu hakedişe bağlı ödeme var mı kontrol et
         const isHakedis = r.islem_turu === 'hakedis';
@@ -287,10 +301,10 @@ export const FirmaDetailPage: React.FC = () => {
         )
       },
     },
-    { title: 'Açıklama', dataIndex: 'aciklama', key: 'aciklama' },
-    { title: 'Borç', dataIndex: 'borc', key: 'borc', width: 130, align: 'right' as const, render: (v: number) => (v && v > 0) ? <span style={{ color: '#cf1322' }}><MoneyDisplay amount={v} /></span> : '-' },
-    { title: 'Alacak', dataIndex: 'alacak', key: 'alacak', width: 130, align: 'right' as const, render: (v: number) => (v && v > 0) ? <span style={{ color: '#3f8600' }}><MoneyDisplay amount={v} /></span> : '-' },
-    { title: 'Bakiye', dataIndex: 'bakiye', key: 'bakiye', width: 130, align: 'right' as const, render: (v: number) => <MoneyDisplay amount={v} colored /> },
+    { title: 'Açıklama', dataIndex: 'aciklama', key: 'aciklama', responsive: ['md'] as ('md')[], ellipsis: true },
+    { title: 'Borç', dataIndex: 'borc', key: 'borc', width: 110, align: 'right' as const, responsive: ['sm'] as ('sm')[], render: (v: number) => (v && v > 0) ? <span style={{ color: '#cf1322' }}><MoneyDisplay amount={v} /></span> : '-' },
+    { title: 'Alacak', dataIndex: 'alacak', key: 'alacak', width: 110, align: 'right' as const, responsive: ['sm'] as ('sm')[], render: (v: number) => (v && v > 0) ? <span style={{ color: '#3f8600' }}><MoneyDisplay amount={v} /></span> : '-' },
+    { title: 'Bakiye', dataIndex: 'bakiye', key: 'bakiye', width: 110, align: 'right' as const, render: (v: number) => <MoneyDisplay amount={v} colored /> },
   ]
 
   // --- Calculations ---
@@ -467,7 +481,7 @@ export const FirmaDetailPage: React.FC = () => {
                       Yeni Sözleşme
                     </Button>
                   </div>
-                  <Table columns={sozlesmeColumns} dataSource={sozlesmeler} rowKey="id" loading={sozlesmeLoading} pagination={false} size="small" />
+                  <Table columns={sozlesmeColumns} dataSource={sozlesmeler} rowKey="id" loading={sozlesmeLoading} pagination={false} size="small" scroll={{ x: 'max-content' }} />
                 </div>
               ),
             },
@@ -476,7 +490,7 @@ export const FirmaDetailPage: React.FC = () => {
               label: <Space><FileSearchOutlined />Hakedişler ({hakedisler?.length || 0})</Space>,
               children: (
                 <div style={{ paddingTop: 16 }}>
-                  <Table columns={hakedisColumns} dataSource={hakedisler} rowKey="id" loading={hakedisLoading} size="small" />
+                  <Table columns={hakedisColumns} dataSource={hakedisler} rowKey="id" loading={hakedisLoading} size="small" scroll={{ x: 'max-content' }} />
                 </div>
               ),
             },
@@ -494,7 +508,7 @@ export const FirmaDetailPage: React.FC = () => {
               label: <Space><DollarOutlined />Cari Ekstre</Space>,
               children: (
                 <div style={{ paddingTop: 16 }}>
-                  <Table columns={cariColumns} dataSource={cumulativeCariData} rowKey="id" loading={cariLoading} pagination={false} size="small" />
+                  <Table columns={cariColumns} dataSource={cumulativeCariData} rowKey="id" loading={cariLoading} pagination={false} size="small" scroll={{ x: 'max-content' }} />
                 </div>
               ),
             },
