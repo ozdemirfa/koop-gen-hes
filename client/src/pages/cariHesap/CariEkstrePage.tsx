@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { Card, Space, Select, DatePicker, Statistic, Row, Col, Tag, Button, message, Typography, Badge, Popconfirm } from 'antd'
 import { DownloadOutlined, AuditOutlined, RollbackOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -171,12 +171,17 @@ export const CariEkstrePage: React.FC = () => {
     enabled: !!activeProject?.id
   })
 
-  const exportToCSV = () => {
+  // useCallback zorunlu: bu fonksiyon primaryAction useMemo'nun dep'inde
+  // (`[exportToCSV]`). Memoize edilmezse her render'da yeni ref doğar →
+  // primaryAction useMemo invalidate → actions useMemo invalidate →
+  // usePageSettings/setHeaderActions sonsuz döngüye girer (React error #185,
+  // c850ea8 + 44ac886 ile aynı pattern).
+  const exportToCSV = useCallback(() => {
     if (!hareketler || hareketler.length === 0) {
       message.warning('Dışa aktarılacak veri bulunamadı')
       return
     }
-    
+
     const headers = ['Tarih', 'Cari Hesap', 'İşlem Türü', 'Ödeme Türü', 'Açıklama', 'Belge No', 'Borç', 'Alacak']
     const rows = hareketler.map(h => [
       dayjs(h.tarih).format('DD.MM.YYYY'),
@@ -194,7 +199,7 @@ export const CariEkstrePage: React.FC = () => {
       [{ headers, rows }],
       { projectName: activeProject?.proje_adi }
     )
-  }
+  }, [hareketler, activeProject?.proje_adi])
 
   // OC-06 (sprint 20260511-ui-responsive-sprint extension):
   // HeaderActionsToolbar — primary=CSV İndir, secondary=Firma Select + RangePicker
