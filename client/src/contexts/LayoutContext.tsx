@@ -16,35 +16,21 @@ export const LayoutProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [headerActions, setHeaderActions] = useState<React.ReactNode | null>(null)
   const [headerRightActions, setHeaderRightActions] = useState<React.ReactNode | null>(null)
 
-  // Use stable setters that only update if the value is truly different
-  // For strings it's easy. For React nodes, we do a basic comparison.
+  // Stable setters: only short-circuit on strict reference equality. The previous
+  // type+key heuristic blocked legitimate prop updates whenever the wrapper element
+  // type matched (e.g. <Space> with a Select whose value changed), leaving stale
+  // children mounted in the header. Loop prevention is the caller's responsibility
+  // and is handled by usePageSettings via its ref-based dedupe below.
   const setTitleStable = useCallback((newTitle: string) => {
     setTitle(prev => prev === newTitle ? prev : newTitle)
   }, [])
 
   const setHeaderActionsStable = useCallback((actions: React.ReactNode | null) => {
-    setHeaderActions(prev => {
-      if (prev === actions) return prev
-      // Basic check for React elements to avoid some infinite loops
-      if (React.isValidElement(prev) && React.isValidElement(actions)) {
-        if (prev.type === actions.type && prev.key === actions.key) {
-          return prev
-        }
-      }
-      return actions
-    })
+    setHeaderActions(prev => (prev === actions ? prev : actions))
   }, [])
 
   const setHeaderRightActionsStable = useCallback((actions: React.ReactNode | null) => {
-    setHeaderRightActions(prev => {
-      if (prev === actions) return prev
-      if (React.isValidElement(prev) && React.isValidElement(actions)) {
-        if (prev.type === actions.type && prev.key === actions.key) {
-          return prev
-        }
-      }
-      return actions
-    })
+    setHeaderRightActions(prev => (prev === actions ? prev : actions))
   }, [])
 
   const value = useMemo(() => ({
