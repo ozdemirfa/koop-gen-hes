@@ -145,17 +145,28 @@ export const projeService = {
     // Global admin tüm projeleri görür. Diğer kullanıcılar sadece üye oldukları
     // projeleri görür — service-role RLS bypass ettiği için üyelik filtresi
     // burada uygulanır (defense-in-depth: RLS de aynı kontrolü yapar).
+    let roleByProje = new Map<string, 'admin' | 'staff' | 'viewer'>()
     if (!opts.isAdmin && opts.userId) {
-      const allowed = await getAllowedProjeIds(opts.userId)
-      if (allowed.length === 0) {
+      const { data: memberships } = await supabaseAdmin
+        .from('proje_uyelikleri')
+        .select('proje_id, rol')
+        .eq('user_id', opts.userId)
+      const rows = memberships ?? []
+      if (rows.length === 0) {
         return []
       }
-      q = q.in('id', allowed)
+      roleByProje = new Map(rows.map((r: { proje_id: string; rol: string }) => [r.proje_id, r.rol as 'admin' | 'staff' | 'viewer']))
+      q = q.in('id', Array.from(roleByProje.keys()))
     }
 
     const { data, error } = await q
     if (error) throw error
-    return data
+
+    // Her projeye kullanıcının rolünü ekle — frontend gating için.
+    return (data ?? []).map((p: any) => ({
+      ...p,
+      current_user_role: opts.isAdmin ? 'admin' : roleByProje.get(p.id) ?? null,
+    }))
   },
 
   async getById(id: string, opts: { yil?: number } = {}) {

@@ -27,11 +27,26 @@ import projelerRoutes from './projeler.routes'
 import dashboardRoutes from './dashboard.routes'
 import raporlarRoutes from './raporlar.routes'
 import ceklerRoutes from './cekler.routes'
+import adminRoutes from './admin.routes'
+import projeUyelikleriRoutes from './projeUyelikleri.routes'
 
 const router = Router()
 
 // Tüm API route'ları auth middleware ile korunuyor
 router.use(authMiddleware)
+
+// === AUTH (Self) ===
+// GET /api/auth/me — frontend AuthContext'in global rol bilgisini almak için.
+router.get('/auth/me', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      id: req.user?.id,
+      email: req.user?.email,
+      role: req.userRole ?? null,
+    },
+  })
+})
 
 // === SETTINGS (Integrated) ===
 router.get('/settings/birimler', getBirimler)
@@ -53,9 +68,13 @@ router.use('/faturalar', faturalarRoutes)
 router.use('/cari-hareketler', cariHesapRoutes)
 router.use('/banka', bankaHesapRoutes)
 router.use('/malzeme-teslimleri', malzemeTeslimRoutes)
+// Proje üyelik alt-route'u projeler ana router'ından önce mount edilmeli; aksi
+// halde `/projeler/:id` catch-all önce eşleşir.
+router.use('/projeler/:projeId/uyeler', projeUyelikleriRoutes)
 router.use('/projeler', projelerRoutes)
 router.use('/dashboard', dashboardRoutes)
 router.use('/raporlar', raporlarRoutes)
 router.use('/cekler', ceklerRoutes)
+router.use('/admin', adminRoutes)
 
 export default router
