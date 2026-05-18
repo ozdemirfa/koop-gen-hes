@@ -15,6 +15,8 @@ router.post('/:id/undo-closure', requireRole('admin'), cariHesapController.undoC
 router.post('/hakedis/:id/undo-closure', requireRole('admin'), cariHesapController.undoHakedisClosure)
 // A3 (sprint 20260511-uye-tahsilat-firma-revisions): aidat satırı bazında toplu undo.
 router.post('/aidat/:aidatId/undo-closure', requireRole('admin'), cariHesapController.undoAidatClosure)
+// Başlangıç bedeli tahakkuk bazında toplu undo (UyeDetailPage virtual row).
+router.post('/baslangic-bedeli/:tahakkukId/undo-closure', requireRole('admin'), cariHesapController.undoBaslangicBedeliClosure)
 // B1+B2+B3 (sprint 20260511-uye-tahsilat-firma-revisions): tahsilat satırı düzenle/sil
 // (kilit kontrolü servis katmanında 409 ile döner).
 router.patch('/:id', requireRole('staff'), cariHesapController.updateCariHareket)
