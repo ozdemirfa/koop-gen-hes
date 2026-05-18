@@ -1,19 +1,22 @@
 import { supabaseAdmin } from '../config/supabase'
 import { ApiError } from '../utils/ApiError'
 import { parsePagination, toSupabaseRange, paginationMeta } from '../utils/pagination'
+import { requireProjeId } from '../utils/projectGuard'
 
 export const malzemeTeslimService = {
   async list(query: Record<string, any>) {
     const pagination = parsePagination(query)
     const { from, to } = toSupabaseRange(pagination)
 
+    const projeId = requireProjeId(query.proje_id)
+
     let q = supabaseAdmin
       .from('irsaliyeler')
       .select('*, firmalar(unvan), hakedisler!irsaliyeler_hakedis_id_fkey(hakedis_no), irsaliye_kalemleri(*)', { count: 'exact' })
+      .eq('proje_id', projeId)
 
     if (query.firma_id) q = q.eq('firma_id', query.firma_id)
     if (query.sozlesme_id) q = q.eq('sozlesme_id', query.sozlesme_id)
-    if (query.proje_id) q = q.eq('proje_id', query.proje_id)
     if (query.baslangic_tarihi) q = q.gte('teslim_tarihi', query.baslangic_tarihi)
     if (query.bitis_tarihi) q = q.lte('teslim_tarihi', query.bitis_tarihi)
 

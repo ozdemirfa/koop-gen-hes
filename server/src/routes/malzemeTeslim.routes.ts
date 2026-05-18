@@ -1,18 +1,16 @@
 import { Router } from 'express'
 import { validate } from '../middleware/validate'
-import { requireRole } from '../middleware/requireRole'
+import { requireProjectAccess } from '../middleware/requireProjectAccess'
 import { irsaliyeSchema, updateIrsaliyeSchema } from '../schemas/malzemeTeslim.schema'
 import * as malzemeTeslimController from '../controllers/malzemeTeslim.controller'
 
 const router = Router()
 
-router.get('/', malzemeTeslimController.getMalzemeTeslim)
-router.get('/:id', malzemeTeslimController.getMalzemeTeslimById)
+router.get('/', requireProjectAccess('viewer'), malzemeTeslimController.getMalzemeTeslim)
+router.get('/:id', requireProjectAccess('viewer'), malzemeTeslimController.getMalzemeTeslimById)
 
-router.use(requireRole('staff'))
-
-router.post('/', validate({ body: irsaliyeSchema }), malzemeTeslimController.createMalzemeTeslim)
-router.put('/:id', validate({ body: updateIrsaliyeSchema }), malzemeTeslimController.updateMalzemeTeslim)
-router.delete('/:id', malzemeTeslimController.deleteMalzemeTeslim)
+router.post('/', requireProjectAccess('staff'), validate({ body: irsaliyeSchema }), malzemeTeslimController.createMalzemeTeslim)
+router.put('/:id', requireProjectAccess('staff'), validate({ body: updateIrsaliyeSchema }), malzemeTeslimController.updateMalzemeTeslim)
+router.delete('/:id', requireProjectAccess('staff'), malzemeTeslimController.deleteMalzemeTeslim)
 
 export default router

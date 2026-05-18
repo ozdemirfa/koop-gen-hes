@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '../config/supabase'
 import { ApiError } from '../utils/ApiError'
 import { parsePagination, toSupabaseRange, paginationMeta } from '../utils/pagination'
+import { requireProjeId } from '../utils/projectGuard'
 import logger from '../utils/logger'
 
 export const hakedisService = {
@@ -8,18 +9,14 @@ export const hakedisService = {
     const pagination = parsePagination(query)
     const { from, to } = toSupabaseRange(pagination)
 
+    const projeId = requireProjeId(query.proje_id)
     logger.debug('Hakediş listesi sorgulanıyor:', query)
 
     let q = supabaseAdmin
       .from('hakedisler')
       .select('*, sozlesmeler(sozlesme_no, konu, firma_id, firmalar(unvan))', { count: 'exact' })
+      .eq('proje_id', projeId)
 
-    // 1. Proje Filtresi
-    if (query.proje_id) {
-      q = q.eq('proje_id', query.proje_id)
-    }
-    
-    // 2. Sözleşme Filtresi
     if (query.sozlesme_id) {
       q = q.eq('sozlesme_id', query.sozlesme_id)
     }

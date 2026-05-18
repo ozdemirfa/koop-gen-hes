@@ -1,10 +1,12 @@
 import { supabaseAdmin } from '../config/supabase'
+import { requireProjeId } from '../utils/projectGuard'
 import logger from '../utils/logger'
 
 export const raporService = {
   async dashboardOzet(projeId: string) {
+    const proje = requireProjeId(projeId)
     const { data, error } = await supabaseAdmin.rpc('fn_dashboard_ozet', {
-      p_proje_id: projeId
+      p_proje_id: proje
     });
 
     if (error) {
@@ -16,8 +18,9 @@ export const raporService = {
   },
 
   async aidatDurumu(projeId: string) {
+    const proje = requireProjeId(projeId)
     const { data, error } = await supabaseAdmin.rpc('fn_aidat_durum_ozet', {
-      p_proje_id: projeId
+      p_proje_id: proje
     });
 
     if (error) throw error;
@@ -27,8 +30,9 @@ export const raporService = {
   },
 
   async getMizan(projeId: string) {
+    const proje = requireProjeId(projeId)
     const { data, error } = await supabaseAdmin
-      .rpc('get_cari_mizan', { p_proje_id: projeId });
+      .rpc('get_cari_mizan', { p_proje_id: proje });
 
     if (error) throw error;
 
@@ -43,6 +47,7 @@ export const raporService = {
   },
 
   async uyeBorcListesi(projeId: string) {
+    const proje = requireProjeId(projeId)
     // 2026-05-15: aidat_detaylari view'ından durum='gecikti' satırları çek; üye
     // bazında geciken borç toplamı, max gecikme günü, ortalama gecikme günü hesapla.
     // Kullanıcı isteğine göre: borçlu üye no, ad soyad, daire blok & no, geciken borç,
@@ -50,7 +55,7 @@ export const raporService = {
     const { data: aidatlar, error } = await supabaseAdmin
       .from('aidat_detaylari')
       .select('uye_id, uye_no, ad, soyad, daire_no, blok_adi, kalan_borc, gecikme_gun_sayisi, durum, son_odeme_tarihi')
-      .eq('proje_id', projeId)
+      .eq('proje_id', proje)
       .eq('durum', 'gecikti')
 
     if (error) throw error
@@ -116,12 +121,10 @@ export const raporService = {
   },
 
   async aylikRapor(yil: number, ay: number, projeId: string) {
-    if (!projeId || projeId === 'undefined') {
-      throw new Error('Proje ID zorunludur');
-    }
+    const proje = requireProjeId(projeId)
 
     const { data, error } = await supabaseAdmin.rpc('fn_aylik_rapor_detay', {
-      p_proje_id: projeId,
+      p_proje_id: proje,
       p_yil: yil,
       p_ay: ay
     });
@@ -148,8 +151,9 @@ export const raporService = {
   },
 
   async yillikRapor(yil: number, projeId: string) {
+    const proje = requireProjeId(projeId)
     const { data, error } = await supabaseAdmin.rpc('fn_yillik_rapor_ozet', {
-      p_proje_id: projeId,
+      p_proje_id: proje,
       p_yil: yil
     });
 
@@ -164,7 +168,7 @@ export const raporService = {
     const { data: aidatlar } = await supabaseAdmin
       .from('aidat_detaylari')
       .select('ay, durum, kalan_borc, gecikme_gun_sayisi')
-      .eq('proje_id', projeId)
+      .eq('proje_id', proje)
       .eq('yil', yil)
       .eq('durum', 'gecikti')
 
@@ -196,10 +200,11 @@ export const raporService = {
   },
 
   async hakedisOzet(projeId: string) {
+    const proje = requireProjeId(projeId)
     const { data, error } = await supabaseAdmin
       .from('hakedisler')
       .select('durum, ara_toplam, hakedis_toplam, net_tutar, sozlesmeler(sozlesme_no, firmalar(unvan))')
-      .eq('proje_id', projeId)
+      .eq('proje_id', proje)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
