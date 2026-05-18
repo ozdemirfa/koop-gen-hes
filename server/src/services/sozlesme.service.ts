@@ -1,17 +1,20 @@
 import { supabaseAdmin } from '../config/supabase'
 import { ApiError } from '../utils/ApiError'
 import { parsePagination, toSupabaseRange, paginationMeta } from '../utils/pagination'
+import { requireProjeId } from '../utils/projectGuard'
 
 export const sozlesmeService = {
   async list(query: Record<string, any>) {
     const pagination = parsePagination(query)
     const { from, to } = toSupabaseRange(pagination)
 
+    const projeId = requireProjeId(query.proje_id)
+
     let q = supabaseAdmin
       .from('sozlesmeler')
       .select('*, firmalar(unvan, firma_tipi)', { count: 'exact' })
+      .eq('proje_id', projeId)
 
-    if (query.proje_id) q = q.eq('proje_id', query.proje_id)
     if (query.firma_id) q = q.eq('firma_id', query.firma_id)
 
     const { data, error, count } = await q

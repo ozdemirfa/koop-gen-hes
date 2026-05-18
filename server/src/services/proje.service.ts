@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../config/supabase'
 import { ApiError } from '../utils/ApiError'
+import { getAllowedProjeIds } from '../utils/projectGuard'
 import { parse } from 'csv-parse/sync'
 import logger from '../utils/logger'
 
@@ -135,12 +136,24 @@ export const projeService = {
     return { updated: updatedCount, failed: failedCount, total: updates.length }
   },
 
-  async list() {
-    const { data, error } = await supabaseAdmin
+  async list(opts: { userId?: string; isAdmin?: boolean } = {}) {
+    let q = supabaseAdmin
       .from('projeler')
       .select('*')
       .order('created_at', { ascending: false })
 
+    // Global admin tüm projeleri görür. Diğer kullanıcılar sadece üye oldukları
+    // projeleri görür — service-role RLS bypass ettiği için üyelik filtresi
+    // burada uygulanır (defense-in-depth: RLS de aynı kontrolü yapar).
+    if (!opts.isAdmin && opts.userId) {
+      const allowed = await getAllowedProjeIds(opts.userId)
+      if (allowed.length === 0) {
+        return []
+      }
+      q = q.in('id', allowed)
+    }
+
+    const { data, error } = await q
     if (error) throw error
     return data
   },

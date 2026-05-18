@@ -1,16 +1,15 @@
-// Integration smoke test for RBAC (Sprint H/I)
+// Integration smoke test for RBAC (Sprint H/I) + Project Isolation (Faz 1)
 //
 // Mock'lı yaklaşım: gerçek Supabase Auth ve service-role çağrılarını mock'layıp
 // supertest ile Express app üzerinden HTTP-level isteği test eder. Three users
 // (anon, staff, admin) × kritik endpoint kategorileri:
-//   - admin-only mutate (POST /api/faturalar)
-//   - staff+ mutate (POST /api/cekler)
-//   - read-only (GET /api/dashboard/ozet — anon yine 401, herhangi bir role 200/200-luk).
+//   - admin-only mutate (DELETE /api/faturalar/:id — silme global admin'e ait)
+//   - staff+ mutate (POST /api/cekler — proje düzenleyici/admin)
+//   - read-only (GET /api/dashboard/ozet — viewer+).
 //
 // authMiddleware tamamen mock'lanır; gerçek token doğrulaması yapılmaz. Test başında
 // `currentUser` set edilir, mock middleware o user'ı req'e koyar (veya yoksa 401).
-// Controller'ların DB tarafındaki davranışı mock'lanmadığı için 500 dönebilir;
-// test sadece "RBAC kararı doğru mu" sorgusunu yanıtlar (401/403 bekleniyorsa kontrol).
+// `projectAccessCache` mock'lanır — currentUser.projectRole ile davranış kontrol edilir.
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import request from 'supertest'
@@ -19,6 +18,7 @@ interface TestUser {
   id: string
   email?: string
   role: 'admin' | 'staff' | null
+  projectRole?: 'admin' | 'staff' | 'viewer' | null
 }
 
 let currentUser: TestUser | null = null
@@ -26,7 +26,11 @@ let currentUser: TestUser | null = null
 vi.mock('../../src/middleware/auth', async () => {
   const { ApiError } = await import('../../src/utils/ApiError')
   return {
-    authMiddleware: (req: { user?: { id: string; email?: string }; userRole?: 'admin' | 'staff' | null }, _res: unknown, next: (err?: unknown) => void) => {
+    authMiddleware: (
+      req: { user?: { id: string; email?: string }; userRole?: 'admin' | 'staff' | null },
+      _res: unknown,
+      next: (err?: unknown) => void
+    ) => {
       if (!currentUser) {
         next(ApiError.unauthorized('Bearer token gerekli'))
         return
@@ -38,9 +42,12 @@ vi.mock('../../src/middleware/auth', async () => {
   }
 })
 
-// supabaseAdmin'i de mock'layalım — controller'lar import sırasında veya runtime'da
-// supabase client'a dokunabilir; test'imiz HTTP-level olduğu için from() çağrılarına
-// boş array dönüp controller'ın validation/error path'i çalışsın yeterli.
+vi.mock('../../src/middleware/projectAccessCache', () => ({
+  getProjectRole: vi.fn(async () => currentUser?.projectRole ?? null),
+  clearProjectAccessCache: vi.fn(),
+}))
+
+// supabaseAdmin generic chainable mock — bkz. Sprint #I test altyapısı
 vi.mock('../../src/config/supabase', () => {
   const builder: Record<string, unknown> = {}
   const chain = () => builder
@@ -72,86 +79,98 @@ vi.mock('../../src/config/supabase', () => {
   }
 })
 
-// app default export — listen test ortamında atlanır (NODE_ENV=test).
 import app from '../../src/index'
 
-describe('RBAC integration smoke', () => {
+const PROJE_ID = '11111111-1111-1111-1111-111111111111'
+
+describe('RBAC + project isolation integration smoke', () => {
   beforeEach(() => {
     currentUser = null
   })
 
-  describe('POST /api/faturalar (admin-only)', () => {
+  describe('DELETE /api/faturalar/:id (global admin only)', () => {
     it('anon → 401', async () => {
-      const res = await request(app).post('/api/faturalar').send({})
+      const res = await request(app).delete('/api/faturalar/abc').query({ proje_id: PROJE_ID })
       expect(res.status).toBe(401)
     })
 
-    it('staff → 403', async () => {
-      currentUser = { id: 'u-staff', role: 'staff' }
-      const res = await request(app).post('/api/faturalar').send({})
+    it('global staff (no project) → 403', async () => {
+      currentUser = { id: 'u-staff', role: 'staff', projectRole: 'staff' }
+      const res = await request(app).delete('/api/faturalar/abc').query({ proje_id: PROJE_ID })
       expect(res.status).toBe(403)
     })
 
-    it('admin → not 401/403 (downstream validation/server hatası kabul)', async () => {
+    it('global admin → not 401/403 (downstream validation/server hatası kabul)', async () => {
       currentUser = { id: 'u-admin', role: 'admin' }
-      const res = await request(app).post('/api/faturalar').send({})
-      // Admin RBAC'ı geçti; validation 400 veya DB mock 500 dönebilir, ama RBAC reddi yok
+      const res = await request(app).delete('/api/faturalar/abc').query({ proje_id: PROJE_ID })
       expect(res.status).not.toBe(401)
       expect(res.status).not.toBe(403)
-    })
-
-    it('null role → 403 (auth ok ama user_roles kaydı yok)', async () => {
-      currentUser = { id: 'u-orphan', role: null }
-      const res = await request(app).post('/api/faturalar').send({})
-      expect(res.status).toBe(403)
     })
   })
 
-  describe('POST /api/cekler (staff+, hierarchical)', () => {
+  describe('POST /api/cekler (project staff+ erişimi)', () => {
     it('anon → 401', async () => {
-      const res = await request(app).post('/api/cekler').send({})
+      const res = await request(app).post('/api/cekler').send({ proje_id: PROJE_ID })
       expect(res.status).toBe(401)
     })
 
-    it('staff → not 401/403', async () => {
-      currentUser = { id: 'u-staff', role: 'staff' }
-      const res = await request(app).post('/api/cekler').send({})
-      expect(res.status).not.toBe(401)
-      expect(res.status).not.toBe(403)
-    })
-
-    it('admin → not 401/403 (hierarchical: admin satisfies staff requirement)', async () => {
-      currentUser = { id: 'u-admin', role: 'admin' }
-      const res = await request(app).post('/api/cekler').send({})
-      expect(res.status).not.toBe(401)
-      expect(res.status).not.toBe(403)
-    })
-
-    it('null role → 403', async () => {
-      currentUser = { id: 'u-orphan', role: null }
-      const res = await request(app).post('/api/cekler').send({})
+    it('proje viewer (read-only) → 403', async () => {
+      currentUser = { id: 'u-viewer', role: 'staff', projectRole: 'viewer' }
+      const res = await request(app).post('/api/cekler').send({ proje_id: PROJE_ID })
       expect(res.status).toBe(403)
+    })
+
+    it('proje staff → not 401/403', async () => {
+      currentUser = { id: 'u-staff', role: 'staff', projectRole: 'staff' }
+      const res = await request(app).post('/api/cekler').send({ proje_id: PROJE_ID })
+      expect(res.status).not.toBe(401)
+      expect(res.status).not.toBe(403)
+    })
+
+    it('global admin → not 401/403 (admin tüm projelere erişir)', async () => {
+      currentUser = { id: 'u-admin', role: 'admin' }
+      const res = await request(app).post('/api/cekler').send({ proje_id: PROJE_ID })
+      expect(res.status).not.toBe(401)
+      expect(res.status).not.toBe(403)
+    })
+
+    it('member değil → 403', async () => {
+      currentUser = { id: 'u-orphan', role: 'staff', projectRole: null }
+      const res = await request(app).post('/api/cekler').send({ proje_id: PROJE_ID })
+      expect(res.status).toBe(403)
+    })
+
+    it('eksik proje_id → 400', async () => {
+      currentUser = { id: 'u-staff', role: 'staff', projectRole: 'staff' }
+      const res = await request(app).post('/api/cekler').send({})
+      expect(res.status).toBe(400)
     })
   })
 
-  describe('GET /api/dashboard/ozet (read-only, auth yeterli)', () => {
+  describe('GET /api/dashboard/ozet (proje viewer+ yeterli)', () => {
     it('anon → 401', async () => {
-      const res = await request(app).get('/api/dashboard/ozet')
+      const res = await request(app).get('/api/dashboard/ozet').query({ proje_id: PROJE_ID })
       expect(res.status).toBe(401)
     })
 
-    it('staff → not 401/403', async () => {
-      currentUser = { id: 'u-staff', role: 'staff' }
-      const res = await request(app).get('/api/dashboard/ozet')
+    it('proje viewer → not 401/403', async () => {
+      currentUser = { id: 'u-viewer', role: 'staff', projectRole: 'viewer' }
+      const res = await request(app).get('/api/dashboard/ozet').query({ proje_id: PROJE_ID })
       expect(res.status).not.toBe(401)
       expect(res.status).not.toBe(403)
     })
 
-    it('null role → not 401/403 (read endpoint role kontrolü yapmaz)', async () => {
-      currentUser = { id: 'u-orphan', role: null }
-      const res = await request(app).get('/api/dashboard/ozet')
+    it('proje staff → not 401/403', async () => {
+      currentUser = { id: 'u-staff', role: 'staff', projectRole: 'staff' }
+      const res = await request(app).get('/api/dashboard/ozet').query({ proje_id: PROJE_ID })
       expect(res.status).not.toBe(401)
       expect(res.status).not.toBe(403)
+    })
+
+    it('eksik proje_id → 400', async () => {
+      currentUser = { id: 'u-staff', role: 'staff', projectRole: 'staff' }
+      const res = await request(app).get('/api/dashboard/ozet')
+      expect(res.status).toBe(400)
     })
   })
 

@@ -1,14 +1,17 @@
 import { supabaseAdmin } from '../config/supabase'
 import { ApiError } from '../utils/ApiError'
+import { requireProjeId } from '../utils/projectGuard'
 
 export const cekService = {
   async list(query: Record<string, any>) {
+    const projeId = requireProjeId(query.proje_id)
+
     let q = supabaseAdmin
       .from('cekler')
       .select('*, firmalar(unvan), projeler(proje_adi)')
+      .eq('proje_id', projeId)
 
     if (query.firma_id) q = q.eq('firma_id', query.firma_id)
-    if (query.proje_id) q = q.eq('proje_id', query.proje_id)
 
     // Filtreleme mantığı
     const today = new Date().toISOString().split('T')[0]

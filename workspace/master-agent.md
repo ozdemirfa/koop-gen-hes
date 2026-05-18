@@ -570,3 +570,50 @@ Sprint session: `workspace/sessions/20260511-open-backlog-sprint/`
 ## Durum
 
 Tamamlandı. **6/6 task kapatıldı.** Server 57 PASS (50→57), client tsc + build clean, 4 commit push'lu. Production'a aktif (Vercel + Render auto-deploy). Manuel adımlar: `SUPABASE_JWT_SECRET` set'i (opsiyonel performance kazanım) ve Playwright `aria-invalid` lokal run.
+
+---
+
+# SPRINT: Proje Kapsam İzolasyonu + Kullanıcı/Üyelik Yönetimi (2026-05-18)
+
+## Bağlam
+
+Bugün finansal veri (banka hesapları, kasa, nakit, firma cari, üye cari) `proje_id` ile etiketli ama uygulama katmanında izolasyon tutarsız: bazı service'ler `requireProjeId()` ile zorluyor, çoğunluk opsiyonel; backend `supabaseAdmin` ile RLS bypass ediyor; `GET /projeler` her kullanıcıya tüm projeleri döndürüyor; üyelik yönetimi için UI yok. Sprint G `proje_uyelikleri` tablosunu + RLS'i kurmuştu, ama backend o tabloyu okumuyor.
+
+Hedef:
+1. **Backend tek doğruluk kaynağı** — her proje-kapsamlı istek için kullanıcının üye (veya global admin) olduğu doğrulanır. Eksik `proje_id` → 400.
+2. **Per-proje 2 rol UI** — Görüntüleyici (viewer, salt okunur) / Düzenleyici (staff, CRUD). Global admin override.
+3. **Yönetim UI'sı** — global admin kullanıcı davet edebilir (Supabase admin API + magic link), her projeye üye atayabilir.
+4. **Frontend gating** — `usePermissions` hook, viewer modunda buton/form disable.
+
+Sprint 3 faza bölünmüş: (1) Backend hardening, (2) admin/üyelik API + davet, (3) frontend rol bilinci + admin sayfaları.
+
+## Görevler
+
+### Faz 1: Backend Project Isolation Hardening
+- [ ] `server/src/middleware/requireProjectAccess.ts` + `projectAccessCache.ts` (5dk TTL) — proje_id zorunlu, üyelik kontrolü, viewer/staff guard.
+- [ ] `server/src/types/express.d.ts` — `projectRole?` augmentation.
+- [ ] 12 service'te `requireProjeId()` standardizasyonu (bankaHesap, aidat, fatura, hakedis, cek, uye, sozlesme, serefiye, dashboard, rapor, malzemeTeslim, irsaliye).
+- [ ] 13 route dosyasında `requireProjectAccess` apply (GET viewer, POST/PUT/DELETE staff).
+- [ ] `proje.service.ts:list` üyelik filtresi (admin tümü, diğerleri `getAllowedProjeIds`).
+- [ ] `getById` route'una `requireProjectAccess('viewer')`.
+- [ ] Unit + integration testler.
+
+### Faz 2: Kullanıcı/Üyelik API + Davet
+- [ ] `admin.routes.ts` — `GET/POST /api/admin/users`, `PATCH /:id/role`, `DELETE /:id`.
+- [ ] `projeUyelikleri.routes.ts` — `GET/POST /api/projeler/:projeId/uyeler`, `PATCH/DELETE /:userId`.
+- [ ] `auth.admin.inviteUserByEmail` ile davet akışı.
+- [ ] `supabase/migrations/20260518000001_audit_proje_uyelikleri.sql` — üyelik değişikliği audit trigger.
+- [ ] Cache invalidation hook'ları.
+- [ ] Test coverage.
+
+### Faz 3: Frontend Rol Bilinci + UI Gating + Admin Sayfaları
+- [ ] `AuthContext` `userRole` field + `GET /api/auth/me` endpoint.
+- [ ] `ProjectContext` `activeProjectRole` field; `/projeler` response'una `current_user_role`.
+- [ ] `usePermissions()` hook + `ProtectedRoute requireRole` prop + `ForbiddenPage`.
+- [ ] 16 sayfa dosyasında "Yeni X" / "Düzenle" / "Sil" gating.
+- [ ] `KullaniciYonetimiPage` (`/admin/kullanicilar`) + `ProjeUyelikleriPage` (`/admin/projeler/:projeId/uyeler`).
+- [ ] `SifreBelirlePage` (`/sifre-belirle`) — davet token ile şifre belirleme.
+- [ ] Menü güncelleme: viewer rozeti, admin menü item.
+
+## Durum
+Devam ediyor — Faz 1 aktif.
