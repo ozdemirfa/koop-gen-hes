@@ -589,22 +589,22 @@ Sprint 3 faza bölünmüş: (1) Backend hardening, (2) admin/üyelik API + davet
 
 ## Görevler
 
-### Faz 1: Backend Project Isolation Hardening
-- [ ] `server/src/middleware/requireProjectAccess.ts` + `projectAccessCache.ts` (5dk TTL) — proje_id zorunlu, üyelik kontrolü, viewer/staff guard.
-- [ ] `server/src/types/express.d.ts` — `projectRole?` augmentation.
-- [ ] 12 service'te `requireProjeId()` standardizasyonu (bankaHesap, aidat, fatura, hakedis, cek, uye, sozlesme, serefiye, dashboard, rapor, malzemeTeslim, irsaliye).
-- [ ] 13 route dosyasında `requireProjectAccess` apply (GET viewer, POST/PUT/DELETE staff).
-- [ ] `proje.service.ts:list` üyelik filtresi (admin tümü, diğerleri `getAllowedProjeIds`).
-- [ ] `getById` route'una `requireProjectAccess('viewer')`.
-- [ ] Unit + integration testler.
+### Faz 1: Backend Project Isolation Hardening (PR #55)
+- [x] `server/src/middleware/requireProjectAccess.ts` + `projectAccessCache.ts` (5dk TTL).
+- [x] `server/src/types/express.d.ts` — `projectRole?` augmentation.
+- [x] 12 service'te `requireProjeId()` standardizasyonu.
+- [x] 13 route dosyasında `requireProjectAccess` apply.
+- [x] `proje.service.list` üyelik filtresi + `current_user_role` field.
+- [x] Unit + integration testler. **96/96 yeşil.**
 
-### Faz 2: Kullanıcı/Üyelik API + Davet
-- [ ] `admin.routes.ts` — `GET/POST /api/admin/users`, `PATCH /:id/role`, `DELETE /:id`.
-- [ ] `projeUyelikleri.routes.ts` — `GET/POST /api/projeler/:projeId/uyeler`, `PATCH/DELETE /:userId`.
-- [ ] `auth.admin.inviteUserByEmail` ile davet akışı.
-- [ ] `supabase/migrations/20260518000001_audit_proje_uyelikleri.sql` — üyelik değişikliği audit trigger.
-- [ ] Cache invalidation hook'ları.
-- [ ] Test coverage.
+### Faz 2: Kullanıcı/Üyelik API + Davet (PR #56)
+- [x] `admin.routes.ts` — `GET/POST /api/admin/users`, `PATCH /:id/role`, `DELETE /:id`.
+- [x] `projeUyelikleri.routes.ts` — `GET/POST /api/projeler/:projeId/uyeler`, `PATCH/DELETE /:userId`, `GET /me`.
+- [x] `auth.admin.inviteUserByEmail` ile davet akışı (`APP_PUBLIC_URL/sifre-belirle` redirect).
+- [x] `GET /api/auth/me` — frontend AuthContext için global rol.
+- [x] `supabase/migrations/20260519000001_audit_proje_uyelikleri.sql` — üyelik audit trigger.
+- [x] Cache invalidation: `clearRoleCache(userId)` + `clearProjectAccessCache(userId, projeId)` üyelik mutation'larında.
+- [x] Test coverage: `adminUsers.smoke` 12 + `projeUyelikleri.smoke` 12. Toplam **120/120 yeşil.**
 
 ### Faz 3: Frontend Rol Bilinci + UI Gating + Admin Sayfaları
 - [ ] `AuthContext` `userRole` field + `GET /api/auth/me` endpoint.
@@ -616,4 +616,4 @@ Sprint 3 faza bölünmüş: (1) Backend hardening, (2) admin/üyelik API + davet
 - [ ] Menü güncelleme: viewer rozeti, admin menü item.
 
 ## Durum
-Devam ediyor — Faz 1 aktif.
+Faz 1 (PR #55) ve Faz 2 (PR #56) gönderildi. Faz 3 (frontend) sırada.
