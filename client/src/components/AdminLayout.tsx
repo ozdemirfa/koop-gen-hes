@@ -28,6 +28,10 @@ const { useBreakpoint } = Grid
 // `getMenuItems(isGlobalAdmin)` — admin'e "Kullanıcı Yönetimi" item ekler.
 // Statik array yerine factory function: usePermissions reaktivitesi.
 const getMenuItems = (isGlobalAdmin: boolean): any[] => [
+  // 2026-05-20: "İnşaat Projeleri" → "Proje Listesi", menünün ilk sırası
+  // (proje aktif değilse diğer sayfalar 403 alabiliyor; kullanıcı önce proje
+  // seçimi/yönetimi yapsın).
+  { key: '/projeler', icon: <ProjectOutlined />, label: 'Proje Listesi' },
   { key: '/', icon: <BankOutlined />, label: 'Pano' },
   { key: '/uyeler', icon: <UserOutlined />, label: 'Üye Yönetimi' },
   {
@@ -63,7 +67,6 @@ const getMenuItems = (isGlobalAdmin: boolean): any[] => [
     ],
   },
   { key: '/fatura-irsaliye', icon: <TruckOutlined />, label: 'Malzeme Teslimat' },
-  { key: '/projeler', icon: <ProjectOutlined />, label: 'İnşaat Projeleri' },
   {
     key: 'raporlar-group',
     icon: <PieChartOutlined />,
