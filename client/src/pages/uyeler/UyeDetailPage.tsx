@@ -17,6 +17,7 @@ import { BaslangicBedeliTahakkukModal } from './components/BaslangicBedeliTahakk
 
 import { trMoneyFormatter } from '../../lib/format'
 import { useIsTouchDevice } from '../../hooks/useIsTouchDevice'
+import { usePermissions } from '../../hooks/usePermissions'
 
 
 interface AidatOdeme {
@@ -44,6 +45,7 @@ export const UyeDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { canEdit } = usePermissions()
   const [faizModalOpen, setFaizModalOpen] = useState(false)
   const [baslangicModalOpen, setBaslangicModalOpen] = useState(false)
   const { message: messageApi } = App.useApp()
@@ -380,14 +382,16 @@ export const UyeDetailPage: React.FC = () => {
             okText="Evet, Geri Al"
             cancelText="Vazgeç"
             okButtonProps={{ danger: true }}
+            disabled={!canEdit}
           >
             <Button
               type="text"
               size="small"
               danger
+              disabled={!canEdit}
               icon={<RollbackOutlined />}
               loading={undoAidatMutation.isPending && undoAidatMutation.variables === r.id}
-              title="Kapama Geri Al"
+              title={!canEdit ? 'Yetki yok' : 'Kapama Geri Al'}
               aria-label="Aidat kapamayı geri al"
             />
           </Popconfirm>
@@ -464,14 +468,16 @@ export const UyeDetailPage: React.FC = () => {
             onConfirm={() => undoMatchMutation.mutate(r.id)}
             okText="Evet, Kaldır"
             cancelText="Vazgeç"
+            disabled={!canEdit}
           >
             <Button
               type="text"
               size="small"
               danger
+              disabled={!canEdit}
               icon={<RollbackOutlined />}
               loading={undoMatchMutation.isPending && undoMatchMutation.variables === r.id}
-              title="Eşleşmeyi Geri Al"
+              title={!canEdit ? 'Yetki yok' : 'Eşleşmeyi Geri Al'}
             />
           </Popconfirm>
         );
@@ -537,14 +543,16 @@ export const UyeDetailPage: React.FC = () => {
               icon={<AuditOutlined />}
               onClick={() => matchMutation.mutate()}
               loading={matchMutation.isPending}
-              title="Mevcut eşleşmemiş ödemeleri borçlarla FIFO kuralına göre kapatır"
+              disabled={!canEdit}
+              title={!canEdit ? 'Yetki yok' : 'Mevcut eşleşmemiş ödemeleri borçlarla FIFO kuralına göre kapatır'}
             >
               Hesap Kapatma (FIFO)
             </Button>
             <Button
               icon={<UserAddOutlined />}
               onClick={() => setBaslangicModalOpen(true)}
-              title="Üyelik başlangıç bedeli için cari hesaba tahakkuk (alacak) kaydı açar"
+              disabled={!canEdit}
+              title={!canEdit ? 'Yetki yok' : 'Üyelik başlangıç bedeli için cari hesaba tahakkuk (alacak) kaydı açar'}
             >
               Başlangıç Bedeli Tahakkuk
             </Button>
@@ -554,6 +562,8 @@ export const UyeDetailPage: React.FC = () => {
               danger
               icon={<PercentageOutlined />}
               onClick={() => setFaizModalOpen(true)}
+              disabled={!canEdit}
+              title={!canEdit ? 'Yetki yok' : undefined}
             >
               Üye Faiz Borç İşle
             </Button>

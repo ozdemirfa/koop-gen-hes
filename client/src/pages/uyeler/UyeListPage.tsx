@@ -17,6 +17,7 @@ import { HeaderActionsToolbar } from '../../components/common/HeaderActionsToolb
 import { HeaderSearchPortal } from '../../components/common/HeaderSearchPortal'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { useProject } from '../../contexts/ProjectContext'
+import { usePermissions } from '../../hooks/usePermissions'
 
 interface Uye {
   id: string
@@ -36,6 +37,7 @@ export const UyeListPage: React.FC = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { activeProject } = useProject()
+  const { canEdit } = usePermissions()
   const screens = useBreakpoint()
   // SSR-safe: ilk render screens={} → !md false değil undefined; desktop varsay.
   // Header'da gear ile çakışmaması için search Input mobile'da Drawer'a taşınır.
@@ -112,10 +114,17 @@ export const UyeListPage: React.FC = () => {
   }, [search, filterDurum, filterBlok, filterDaire])
 
   const primaryAction = useMemo(() => (
-    <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/uyeler/yeni')} size="small">
+    <Button
+      type="primary"
+      icon={<PlusOutlined />}
+      onClick={() => navigate('/uyeler/yeni')}
+      size="small"
+      disabled={!canEdit}
+      title={!canEdit ? 'Yetki yok (sadece görüntüleme)' : undefined}
+    >
       Yeni Üye
     </Button>
-  ), [navigate])
+  ), [navigate, canEdit])
 
   // secondaryActions — search HARİÇ (search portal ile page-owned subtree'de).
   const secondaryActions = useMemo(() => (
@@ -292,12 +301,14 @@ export const UyeListPage: React.FC = () => {
             icon={<EditOutlined />}
             type="text"
             size="small"
+            disabled={!canEdit}
+            title={!canEdit ? 'Yetki yok' : 'Düzenle'}
             onClick={(e) => {
               e.stopPropagation();
               navigate(`/uyeler/${record.id}/duzenle`);
             }}
           />
-          {record.durum === 'aktif' && (
+          {record.durum === 'aktif' && canEdit && (
             <StrictConfirmDelete
               title="Üye pasif yapılacak, emin misiniz?"
               confirmText={`${record.ad} ${record.soyad}`}

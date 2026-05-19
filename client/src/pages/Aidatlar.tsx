@@ -11,6 +11,7 @@ import { DataTable } from '../components/common/DataTable'
 import { HeaderActionsToolbar } from '../components/common/HeaderActionsToolbar'
 import { usePageSettings } from '../contexts/LayoutContext'
 import { useProject } from '../contexts/ProjectContext'
+import { usePermissions } from '../hooks/usePermissions'
 import { trNumberFormatter, trNumberParser, formatMoney, trMoneyFormatter } from '../lib/format'
 import { LoadingState } from '../components/common/LoadingState'
 import { ErrorState } from '../components/common/ErrorState'
@@ -86,6 +87,7 @@ export const Aidatlar: React.FC = () => {
 
   const queryClient = useQueryClient()
   const { activeProject } = useProject()
+  const { canEdit } = usePermissions()
   const { message: messageApi } = App.useApp()
 
   // OC-07 (sprint 20260511-ui-responsive-sprint extension):
@@ -442,7 +444,8 @@ export const Aidatlar: React.FC = () => {
         type="primary"
         icon={<PlusOutlined />}
         onClick={handleAdd}
-        disabled={!activeProject}
+        disabled={!activeProject || !canEdit}
+        title={!canEdit ? 'Yetki yok' : undefined}
         size="small"
       >
         Yeni
@@ -456,7 +459,7 @@ export const Aidatlar: React.FC = () => {
         Yıllık Plan
       </Button>
     </Space>
-  ), [activeProject, navigate])
+  ), [activeProject, navigate, canEdit])
 
   const tanimSecondary = useMemo(() => (
     <Select
@@ -625,8 +628,14 @@ export const Aidatlar: React.FC = () => {
       key: 'action',
       render: (_: any, r: AidatTanimi) => (
         <Space orientation="horizontal">
-          <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(r)} disabled={r.durum === 'borclandi'} />
-          {r.durum === 'plan' && (
+          <Button
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleEdit(r)}
+            disabled={r.durum === 'borclandi' || !canEdit}
+            title={!canEdit ? 'Yetki yok' : undefined}
+          />
+          {r.durum === 'plan' && canEdit && (
             <Popconfirm title="Tüm aktif üyelere borç yansıtılacak. Emin misiniz?" onConfirm={() => chargeMutation.mutate(r.id)}>
               <Tooltip title="Aidat Borçlandır">
                 <Button size="small" type="primary" icon={<DollarCircleOutlined />} loading={chargeMutation.isPending} />

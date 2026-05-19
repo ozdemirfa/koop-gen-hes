@@ -9,6 +9,7 @@ import api from '../../lib/api'
 import { getErrorMessage } from '../../lib/apiError'
 import { useDebounce } from '../../hooks/useDebounce'
 import { usePageSettings } from '../../contexts/LayoutContext'
+import { usePermissions } from '../../hooks/usePermissions'
 import { formatIBAN, formatIBANInput, getIBANRaw, trMoneyFormatter, formatPhone, getPhoneRaw } from '../../lib/format'
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
@@ -35,6 +36,7 @@ interface Firma {
 export const FirmaListPage: React.FC = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { canEdit } = usePermissions()
   const screens = useBreakpoint()
   // SSR-safe: ilk render screens={} → desktop varsay. Header search slot gear
   // ile çakıştığı için mobile'da Drawer'a taşınır.
@@ -83,10 +85,17 @@ export const FirmaListPage: React.FC = () => {
   }, [search, filterTip, filterAktif])
 
   const primaryAction = useMemo(() => (
-    <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
+    <Button
+      type="primary"
+      size="small"
+      icon={<PlusOutlined />}
+      onClick={() => setIsModalOpen(true)}
+      disabled={!canEdit}
+      title={!canEdit ? 'Yetki yok' : undefined}
+    >
       Yeni Firma
     </Button>
-  ), [])
+  ), [canEdit])
 
   const secondaryActions = useMemo(() => (
     <>
@@ -325,13 +334,15 @@ export const FirmaListPage: React.FC = () => {
               navigate(`/firmalar/${record.id}`)
             }} 
           />
-          <Button 
-            icon={<EditOutlined />} 
-            type="text" 
+          <Button
+            icon={<EditOutlined />}
+            type="text"
+            disabled={!canEdit}
+            title={!canEdit ? 'Yetki yok' : 'Düzenle'}
             onClick={(e) => {
               e.stopPropagation()
               openEdit(record)
-            }} 
+            }}
           />
         </Space>
       ),

@@ -13,6 +13,7 @@ import { ErrorState } from '../../components/common/ErrorState'
 import { trNumberFormatter, trNumberParser } from '../../lib/format'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { useProject } from '../../contexts/ProjectContext'
+import { usePermissions } from '../../hooks/usePermissions'
 
 const { Text } = Typography
 
@@ -53,6 +54,7 @@ export const ProjeListPage: React.FC = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { refreshProjects } = useProject()
+  const { isGlobalAdmin } = usePermissions()
   const [modalOpen, setModalOpen] = useState(false)
   const [editingProje, setEditingProje] = useState<Proje | null>(null)
   const [form] = Form.useForm()
@@ -103,6 +105,8 @@ export const ProjeListPage: React.FC = () => {
       type="primary"
       icon={<PlusOutlined />}
       data-testid="add-new-project"
+      disabled={!isGlobalAdmin}
+      title={!isGlobalAdmin ? 'Yeni proje sadece global admin tarafından oluşturulabilir' : undefined}
       onClick={() => {
         setModalOpen(true)
         setEditingProje(null)
@@ -119,7 +123,7 @@ export const ProjeListPage: React.FC = () => {
     >
       Yeni Proje
     </Button>
-  ), [form])
+  ), [form, isGlobalAdmin])
 
   usePageSettings('İnşaat Projeleri', headerActions)
 
@@ -163,6 +167,8 @@ export const ProjeListPage: React.FC = () => {
                 <Button
                   type="primary"
                   icon={<PlusOutlined />}
+                  disabled={!isGlobalAdmin}
+                  title={!isGlobalAdmin ? 'Yeni proje sadece global admin tarafından oluşturulabilir' : undefined}
                   onClick={() => { setEditingProje(null); form.resetFields(); setModalOpen(true) }}
                 >
                   İlk Projeyi Oluştur
@@ -180,11 +186,13 @@ export const ProjeListPage: React.FC = () => {
                 style={{ cursor: 'default' }}
                 data-testid={`project-card-${p.id}`}
                 actions={[
-                  <Button 
-                    type="text" 
+                  <Button
+                    type="text"
                     size="small"
                     key="edit"
                     icon={<EditOutlined />}
+                    disabled={!isGlobalAdmin}
+                    title={!isGlobalAdmin ? 'Yetki yok' : 'Düzenle'}
                     data-testid={`edit-project-${p.id}`}
                     onClick={(e) => {
                       e.stopPropagation()

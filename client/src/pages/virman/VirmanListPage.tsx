@@ -11,6 +11,7 @@ import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { PageHeader } from '../../components/common/PageHeader'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { useProject } from '../../contexts/ProjectContext'
+import { usePermissions } from '../../hooks/usePermissions'
 import { VirmanFormModal } from './VirmanFormModal'
 
 const { RangePicker } = DatePicker
@@ -37,6 +38,7 @@ const VIRMAN_TIPI_META: Record<string, { label: string; color: string }> = {
 
 export const VirmanListPage: React.FC = () => {
   const { activeProject } = useProject()
+  const { canEdit } = usePermissions()
   const { message } = App.useApp()
   const queryClient = useQueryClient()
 
@@ -149,13 +151,15 @@ export const VirmanListPage: React.FC = () => {
             okText="Evet, Sil"
             cancelText="Vazgeç"
             okButtonProps={{ danger: true }}
+            disabled={!canEdit}
           >
-            <Tooltip title="Virmanı sil">
+            <Tooltip title={!canEdit ? 'Yetki yok' : 'Virmanı sil'}>
               <Button
                 type="text"
                 size="small"
                 danger
                 icon={<DeleteOutlined />}
+                disabled={!canEdit}
                 loading={deleteMutation.isPending && deleteMutation.variables === r.id}
                 aria-label="Virmanı sil"
               />
@@ -164,7 +168,7 @@ export const VirmanListPage: React.FC = () => {
         ),
       },
     ],
-    [deleteMutation],
+    [deleteMutation, canEdit],
   )
 
   if (isError) {
@@ -181,7 +185,13 @@ export const VirmanListPage: React.FC = () => {
             <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
               Yenile
             </Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setFormOpen(true)}>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setFormOpen(true)}
+              disabled={!canEdit}
+              title={!canEdit ? 'Yetki yok' : undefined}
+            >
               Yeni Virman
             </Button>
           </Space>

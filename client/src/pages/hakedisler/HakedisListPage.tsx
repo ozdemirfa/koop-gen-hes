@@ -12,6 +12,7 @@ import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { HeaderActionsToolbar } from '../../components/common/HeaderActionsToolbar'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { useProject } from '../../contexts/ProjectContext'
+import { usePermissions } from '../../hooks/usePermissions'
 import { trNumberFormatter, trNumberParser } from '../../lib/format'
 
 interface Hakedis {
@@ -49,6 +50,7 @@ export const HakedisListPage: React.FC = () => {
   const queryClient = useQueryClient()
   const { message } = App.useApp()
   const { activeProject } = useProject()
+  const { canEdit } = usePermissions()
   const [filterDurum, setFilterDurum] = useState<string | undefined>(undefined)
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [selectedFirmaId, setSelectedFirmaId] = useState<string | null>(null)
@@ -59,10 +61,17 @@ export const HakedisListPage: React.FC = () => {
   const activeFilterCount = filterDurum ? 1 : 0
 
   const primaryAction = React.useMemo(() => (
-    <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
+    <Button
+      size="small"
+      type="primary"
+      icon={<PlusOutlined />}
+      onClick={() => setCreateModalOpen(true)}
+      disabled={!canEdit}
+      title={!canEdit ? 'Yetki yok' : undefined}
+    >
       Yeni Hakediş
     </Button>
-  ), [])
+  ), [canEdit])
 
   const secondaryActions = React.useMemo(() => (
     <Select
