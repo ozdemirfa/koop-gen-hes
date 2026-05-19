@@ -6,6 +6,7 @@ import { useSearchParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { getErrorMessage } from '../../lib/apiError'
+import { groupCariParcalari } from '../../lib/groupCariParcalari'
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
@@ -146,14 +147,26 @@ export const CariEkstrePage: React.FC = () => {
     enabled: !!activeProject?.id
   })
 
-  // Fatura dışı işlemleri filtrele
+  // Fatura dışı işlemleri filtrele + FIFO parça grouping (US-3, sprint 20260519).
+  // Cari ekstre muhasebe görünümü olduğundan `exclude_tahakkuk` GÖNDERİLMEZ (US-2):
+  // tahakkuk + tahsilat satırları aynı tabloda görünür. Grouping anahtarına
+  // `cari_hesap_id` dahil edilir — farklı cari'lere giden parçalar birleşmez.
   const hareketler = useMemo(() => {
     if (!rawHareketler) return []
-    return rawHareketler.filter(h => 
-      h.islem_turu === 'hakedis' || 
-      h.islem_turu === 'giden_odeme' || 
+    const filtered = rawHareketler.filter(h =>
+      h.islem_turu === 'hakedis' ||
+      h.islem_turu === 'giden_odeme' ||
       h.islem_turu === 'odeme'
     )
+    return groupCariParcalari(filtered, [
+      'tarih',
+      'odeme_turu',
+      'banka_hesap_id',
+      'belge_no',
+      'aciklama',
+      'islem_turu',
+      'cari_hesap_id',
+    ])
   }, [rawHareketler])
 
   // Birikmiş Teminat ve Hakediş Detayları Sorgusu

@@ -100,6 +100,19 @@ export const cariHesapService = {
     if (query.baslangic_tarihi) q = q.gte('tarih', query.baslangic_tarihi)
     if (query.bitis_tarihi) q = q.lte('tarih', query.bitis_tarihi)
 
+    // Sprint 20260519-para-hareketleri-improvements / US-1:
+    // `exclude_tahakkuk=true` ise "para hareketleri" görünümünden üyelik başlangıç
+    // tahakkuk satırlarını (`islem_turu='uyelik_baslangic' AND alacak > 0`) dışla.
+    // CariEkstrePage (muhasebe görünümü) bu param'ı yollamaz → default davranış değişmez (US-4).
+    //
+    // PostgREST `.or()` De Morgan negation: NOT(A AND B) = NOT A OR NOT B → satırı
+    // koru eğer "islem_turu != uyelik_baslangic" VEYA "alacak null/sıfır".
+    // `alacak.is.null` branch'i defansif — schema NOT NULL DEFAULT 0 olsa bile
+    // beklenmedik NULL durumunda backward compat satırı korunur.
+    if (query.exclude_tahakkuk === true || query.exclude_tahakkuk === 'true') {
+      q = q.or('islem_turu.neq.uyelik_baslangic,alacak.is.null,alacak.eq.0')
+    }
+
     const { data, error } = await q.order('tarih', { ascending: true })
     if (error) throw error
     return data ?? []
