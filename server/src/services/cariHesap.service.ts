@@ -399,6 +399,24 @@ export const cariHesapService = {
     return data;
   },
 
+  // Başlangıç bedeli tahakkuku bazında toplu undo. fn_undo_aidat_closure muadili,
+  // kaynak_tipi='baslangic_bedeli' filtresi kullanır. Bug: UyeDetailPage Aidat Hesapları
+  // tab'inde başlangıç bedeli virtual row'unun "Geri Al" butonu aidat endpoint'ine
+  // bb-<uuid> formatlı id yolluyordu → 400; bu endpoint doğru semantiği sağlar.
+  async undoBaslangicBedeliClosure(tahakkukId: string, actorId?: string) {
+    const { data, error } = await supabaseAdmin.rpc('fn_undo_baslangic_bedeli_closure', {
+      p_tahakkuk_id: tahakkukId,
+      p_actor_id: actorId ?? null,
+    });
+
+    if (error) throw error;
+    if (data && data.success === false) {
+      throw new ApiError(400, data.message);
+    }
+
+    return data;
+  },
+
   async performFifoClosure(projeId: string, actorId?: string) {
     try {
       const { data, error } = await supabaseAdmin.rpc('fn_match_project_payments_fifo', {

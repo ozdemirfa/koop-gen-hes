@@ -74,6 +74,15 @@ export const undoAidatClosure = catchAsync(
   }
 )
 
+// Başlangıç bedeli tahakkuk bazında toplu undo (UyeDetailPage virtual row için).
+export const undoBaslangicBedeliClosure = catchAsync(
+  async (req: AuthRequest<{ tahakkukId: string }>, res: Response) => {
+    const { tahakkukId } = req.params
+    const data = await cariHesapService.undoBaslangicBedeliClosure(tahakkukId, req.user?.id)
+    res.json(data)
+  }
+)
+
 // B2 (sprint 20260511-uye-tahsilat-firma-revisions): tahsilat satırı düzenle.
 export const updateCariHareket = catchAsync(
   async (req: AuthRequest<{ id: string }, unknown, Record<string, unknown>>, res: Response) => {

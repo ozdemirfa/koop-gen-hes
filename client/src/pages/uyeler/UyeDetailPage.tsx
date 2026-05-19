@@ -74,13 +74,21 @@ export const UyeDetailPage: React.FC = () => {
   })
 
   // A3 (sprint 20260511-uye-tahsilat-firma-revisions): aidat satırı bazında toplu undo.
+  // Başlangıç bedeli virtual row'unun id'si `bb-<cari_hareket_id>` formatında olduğu
+  // için (UI gerçek aidatlarla aynı tabloda göstermek için prefix ekliyor); undo
+  // çağrısı bu prefix'i ayıklayıp doğru endpoint'e yönlendirir.
   const undoAidatMutation = useMutation({
     mutationFn: async (aidatId: string) => {
+      if (aidatId.startsWith('bb-')) {
+        const tahakkukId = aidatId.slice(3)
+        const { data } = await api.post(`/cari-hareketler/baslangic-bedeli/${tahakkukId}/undo-closure`)
+        return data
+      }
       const { data } = await api.post(`/cari-hareketler/aidat/${aidatId}/undo-closure`)
       return data
     },
     onSuccess: (resp: any) => {
-      messageApi.success(resp?.message || 'Aidat kapama başarıyla geri alındı')
+      messageApi.success(resp?.message || 'Kapama başarıyla geri alındı')
       invalidateAllPaymentCaches()
     },
     onError: (err) => messageApi.error(getErrorMessage(err, 'Kapama iptal edilemedi'))
