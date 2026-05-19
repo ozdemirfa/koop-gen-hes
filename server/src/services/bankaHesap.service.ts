@@ -10,41 +10,25 @@ export const bankaHesapService = {
     // burası defense in depth.
     const projeId = requireProjeId(query.proje_id)
 
-    const q = supabaseAdmin
-      .from('banka_hesaplari')
-      .select('*')
-      .eq('proje_id', projeId)
+    // Sprint 20260520-perf / PR2: N+1 fix.
+    // Önceki versiyon her hesap için ayrı `banka_hareketleri` SELECT atıyordu
+    // (Promise.all içinde N+1). Tek RPC ile DB tarafında GROUP BY + SUM yapılır.
+    // RPC: `fn_banka_hesaplari_with_bakiye(p_proje_id UUID)` →
+    //      `id, proje_id, banka_adi, ..., bakiye` (tek round-trip).
+    const { data, error } = await supabaseAdmin.rpc('fn_banka_hesaplari_with_bakiye', {
+      p_proje_id: projeId,
+    })
 
-    const { data, error } = await q.order('banka_adi')
+    if (error) {
+      logger.error('fn_banka_hesaplari_with_bakiye RPC hatası', { error, projeId })
+      throw error
+    }
 
-    if (error) throw error
-
-    // Bakiyeleri hesapla
-    const updatedData = await Promise.all((data || []).map(async (hesap) => {
-      let bakiye = 0
-      try {
-        const { data: hareketler, error: hError } = await supabaseAdmin
-          .from('banka_hareketleri')
-          .select('tutar, islem_tipi')
-          .eq('banka_hesap_id', hesap.id)
-        
-        if (hError) throw hError
-
-        hareketler?.forEach(h => {
-          const tutar = Number(h.tutar || 0)
-          if (h.islem_tipi === 'gelir') {
-            bakiye += tutar
-          } else if (h.islem_tipi === 'gider') {
-            bakiye -= tutar
-          }
-        })
-      } catch (err) {
-        logger.error('Bakiye hesaplama hatası', { err, hesapId: hesap.id })
-      }
-      return { ...hesap, bakiye }
+    // RPC NUMERIC bakiye döndürüyor → JS Number'a çevirelim (frontend Number bekliyor).
+    return (data ?? []).map((row: any) => ({
+      ...row,
+      bakiye: Number(row.bakiye ?? 0),
     }))
-
-    return updatedData
   },
 
   async createHesap(body: Record<string, any>) {
