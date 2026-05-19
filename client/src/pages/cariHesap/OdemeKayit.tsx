@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { App, Card, Form, Select, InputNumber, DatePicker, Input, Button, Space, Row, Col, Divider, Typography, Badge, Checkbox, Radio, Alert } from 'antd'
-import { SaveOutlined, ClearOutlined, BankOutlined, MoneyCollectOutlined, AuditOutlined, RollbackOutlined, UserAddOutlined } from '@ant-design/icons'
+import { SaveOutlined, ClearOutlined, BankOutlined, MoneyCollectOutlined, AuditOutlined, RollbackOutlined, UserAddOutlined, PlusOutlined } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
@@ -15,6 +16,7 @@ const { Option } = Select
 const { TextArea } = Input
 
 export const OdemeKayit: React.FC = () => {
+  const navigate = useNavigate()
   const [form] = Form.useForm()
   const { activeProject } = useProject()
   const { canEdit } = usePermissions()
@@ -96,6 +98,13 @@ export const OdemeKayit: React.FC = () => {
       return data.data as { id: string; banka_adi: string; hesap_no?: string; bakiye?: number }[]
     },
   })
+
+  // 2026-05-20: Banka hesabı tanımlı değilse "Banka (EFT/Havale)" seçeneği
+  // anlamsız — backend cariPaymentSchema banka_hesap_id'siz banka kaydını
+  // reddediyor (defense-in-depth). Kullanıcı sıkışmasın diye opt'ı disable +
+  // banka seçilince alert + "Banka Hesabı Tanımla" CTA göster.
+  const noBankAccounts = !bankalarLoading && (bankaHesaplari?.length ?? 0) === 0
+  const showBankaAlert = odemeTuru === 'banka' && noBankAccounts
 
   // Ödeme Kaydı Mutation
   const saveMutation = useMutation({
@@ -279,7 +288,9 @@ export const OdemeKayit: React.FC = () => {
               >
                 <Select className="w-full">
                   <Option value="nakit">Nakit</Option>
-                  <Option value="banka">Banka (EFT/Havale)</Option>
+                  <Option value="banka" disabled={noBankAccounts}>
+                    Banka (EFT/Havale){noBankAccounts ? ' — banka hesabı tanımsız' : ''}
+                  </Option>
                   <Option value="kredi_karti">Kredi Kartı</Option>
                   <Option value="cek">Çek</Option>
                   {islemTuru === 'uyelik_baslangic' && (
@@ -341,28 +352,52 @@ export const OdemeKayit: React.FC = () => {
 
           {/* Dinamik Alanlar: Banka (REV-PAY-09: uyelik_baslangic + banka da geçerli) */}
           {odemeTuru === 'banka' && (
-            <Row gutter={24}>
-              <Col span={24}>
-                <Form.Item
-                  name="banka_hesap_id"
-                  label="Şirket Banka Hesabı"
-                  rules={[{ required: true, message: 'Lütfen işlem yapılan banka hesabını seçin' }]}
-                >
-                  <Select
-                    placeholder="İşlemin yapıldığı banka hesabını seçin"
-                    loading={bankalarLoading}
-                    className="w-full"
-                    suffixIcon={<BankOutlined />}
-                  >
-                    {bankaHesaplari?.map(b => (
-                      <Option key={b.id} value={b.id}>
-                        {b.banka_adi} {b.hesap_no ? `(${b.hesap_no})` : ''} - {formatMoney(b.bakiye)} TL
-                      </Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              </Col>
-            </Row>
+            <>
+              {showBankaAlert && (
+                <Alert
+                  type="warning"
+                  showIcon
+                  style={{ marginBottom: 16 }}
+                  message="Banka hesabı tanımlı değil"
+                  description="Banka ödemesi kaydedilebilmesi için en az bir banka hesabı tanımlanmış olmalıdır. Banka Hesapları sayfasından bir hesap ekleyin."
+                  action={
+                    <Button
+                      type="primary"
+                      size="small"
+                      icon={<PlusOutlined />}
+                      onClick={() => navigate('/banka-hesaplari')}
+                    >
+                      Banka Hesabı Tanımla
+                    </Button>
+                  }
+                />
+              )}
+              {!noBankAccounts && (
+                <Row gutter={24}>
+                  <Col span={24}>
+                    <Form.Item
+                      name="banka_hesap_id"
+                      label="Şirket Banka Hesabı"
+                      rules={[{ required: true, message: 'Lütfen işlem yapılan banka hesabını seçin' }]}
+                      tooltip="Banka ödemesinde işlemin yapıldığı şirket banka hesabı zorunludur — paranın hangi hesaba girdiği/çıktığı izlenebilsin diye."
+                    >
+                      <Select
+                        placeholder="İşlemin yapıldığı banka hesabını seçin"
+                        loading={bankalarLoading}
+                        className="w-full"
+                        suffixIcon={<BankOutlined />}
+                      >
+                        {bankaHesaplari?.map(b => (
+                          <Option key={b.id} value={b.id}>
+                            {b.banka_adi} {b.hesap_no ? `(${b.hesap_no})` : ''} - {formatMoney(b.bakiye)} TL
+                          </Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                  </Col>
+                </Row>
+              )}
+            </>
           )}
 
           {/* Dinamik Alanlar: Çek */}
