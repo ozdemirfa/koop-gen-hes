@@ -11,6 +11,7 @@ import { ErrorState } from '../../components/common/ErrorState'
 import { ConfirmDelete } from '../../components/common/ConfirmDelete'
 import { HeaderActionsToolbar } from '../../components/common/HeaderActionsToolbar'
 import { useDebounce } from '../../hooks/useDebounce'
+import { usePermissions } from '../../hooks/usePermissions'
 
 const { Text } = Typography
 
@@ -39,6 +40,7 @@ const BIRIMLER = ['Adet', 'Metre', 'Kg', 'm2', 'm3', 'Ton', 'Litre', 'Set']
 
 export const MalzemeTeslimListPage: React.FC = () => {
   const queryClient = useQueryClient()
+  const { canEdit } = usePermissions()
   const { message: messageApi } = App.useApp()
   const [modalOpen, setModalOpen] = useState(false)
   const [editingIrsaliye, setEditingIrsaliye] = useState<Irsaliye | null>(null)
@@ -117,7 +119,8 @@ export const MalzemeTeslimListPage: React.FC = () => {
       size="small"
       type="primary"
       icon={<PlusOutlined />}
-      disabled={!activeProjectId}
+      disabled={!activeProjectId || !canEdit}
+      title={!canEdit ? 'Yetki yok' : undefined}
       onClick={() => {
         setEditingIrsaliye(null)
         form.resetFields()
@@ -130,7 +133,7 @@ export const MalzemeTeslimListPage: React.FC = () => {
     >
       Yeni İrsaliye
     </Button>
-  ), [form, activeProjectId])
+  ), [form, activeProjectId, canEdit])
 
   const secondaryActions = useMemo(() => (
     <>
@@ -206,6 +209,8 @@ export const MalzemeTeslimListPage: React.FC = () => {
             icon={<EditOutlined />}
             size="small"
             className="action-btn-edit"
+            disabled={!canEdit}
+            title={!canEdit ? 'Yetki yok' : 'Düzenle'}
             onClick={() => {
               setEditingIrsaliye(r)
               form.setFieldsValue({
@@ -216,7 +221,7 @@ export const MalzemeTeslimListPage: React.FC = () => {
               setModalOpen(true)
             }}
           />
-          <ConfirmDelete onConfirm={() => deleteMutation.mutate(r.id)} />
+          {canEdit && <ConfirmDelete onConfirm={() => deleteMutation.mutate(r.id)} />}
         </Space>
       ),
     },

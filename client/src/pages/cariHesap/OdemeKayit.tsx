@@ -7,6 +7,7 @@ import api from '../../lib/api'
 import { getErrorMessage } from '../../lib/apiError'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { useProject } from '../../contexts/ProjectContext'
+import { usePermissions } from '../../hooks/usePermissions'
 import { trMoneyFormatter, trNumberParser, formatMoney } from '../../lib/format'
 import { EmptyState } from '../../components/common/EmptyState'
 
@@ -16,6 +17,7 @@ const { TextArea } = Input
 export const OdemeKayit: React.FC = () => {
   const [form] = Form.useForm()
   const { activeProject } = useProject()
+  const { canEdit } = usePermissions()
   const queryClient = useQueryClient()
   const { message } = App.useApp()
   const [filterCariTuru, setFilterCariTuru] = useState<'uye' | 'firma'>('uye')
@@ -438,6 +440,8 @@ export const OdemeKayit: React.FC = () => {
                     loading={saveMutation.isPending}
                     htmlType="submit"
                     className="bg-blue-600"
+                    disabled={!canEdit}
+                    title={!canEdit ? 'Yetki yok' : undefined}
                   >
                     İşlemi Kaydet
                   </Button>

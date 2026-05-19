@@ -9,6 +9,7 @@ import { getErrorMessage } from '../../lib/apiError'
 import { PageHeader } from '../../components/common/PageHeader'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { formatIBAN, getIBANRaw, trMoneyFormatter, formatPhone } from '../../lib/format'
+import { usePermissions } from '../../hooks/usePermissions'
 
 interface Sozlesme {
   id: string
@@ -34,6 +35,7 @@ export const FirmaDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { canEdit } = usePermissions()
   const { message: messageApi } = App.useApp()
   const activeProjectId = localStorage.getItem('activeProjectId')
 
@@ -213,7 +215,7 @@ export const FirmaDetailPage: React.FC = () => {
           <Tooltip title="Görüntüle">
             <Button icon={<FileSearchOutlined />} type="text" size="small" onClick={() => navigate(`/hakedisler/${r.id}`)} />
           </Tooltip>
-          {r.durum === 'taslak' && (
+          {r.durum === 'taslak' && canEdit && (
             <Tooltip title="Düzenle">
               <Button icon={<EditOutlined />} type="text" size="small" onClick={() => navigate(`/hakedisler/${r.id}?edit=true`)} />
             </Tooltip>
@@ -477,7 +479,13 @@ export const FirmaDetailPage: React.FC = () => {
               children: (
                 <div style={{ paddingTop: 16 }}>
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-                    <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate(`/sozlesmeler/yeni?firma_id=${id}`)}>
+                    <Button
+                      type="primary"
+                      icon={<PlusOutlined />}
+                      disabled={!canEdit}
+                      title={!canEdit ? 'Yetki yok' : undefined}
+                      onClick={() => navigate(`/sozlesmeler/yeni?firma_id=${id}`)}
+                    >
                       Yeni Sözleşme
                     </Button>
                   </div>

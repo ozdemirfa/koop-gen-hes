@@ -7,6 +7,7 @@ import api from '../../lib/api'
 import { getErrorMessage } from '../../lib/apiError'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { useProject } from '../../contexts/ProjectContext'
+import { usePermissions } from '../../hooks/usePermissions'
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
 import { formatIBAN, formatIBANInput, getIBANRaw, formatMoney } from '../../lib/format'
@@ -29,6 +30,7 @@ export const BankaHesapListPage: React.FC = () => {
   const [form] = Form.useForm()
 
   const { activeProject } = useProject()
+  const { canEdit } = usePermissions()
   const { data: hesaplar, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['banka-hesaplari', activeProject?.id],
     queryFn: async () => {
@@ -73,7 +75,8 @@ export const BankaHesapListPage: React.FC = () => {
     <Button
       type="primary"
       icon={<PlusOutlined />}
-      disabled={!activeProject}
+      disabled={!activeProject || !canEdit}
+      title={!canEdit ? 'Yetki yok' : undefined}
       onClick={() => {
         setEditingHesap(null)
         form.resetFields()
@@ -83,7 +86,7 @@ export const BankaHesapListPage: React.FC = () => {
     >
       Yeni Hesap
     </Button>
-  ), [form, activeProject])
+  ), [form, activeProject, canEdit])
 
   usePageSettings('Banka Hesapları', actions)
 
@@ -136,9 +139,10 @@ export const BankaHesapListPage: React.FC = () => {
               size="small"
             />
           </Tooltip>
-          <Tooltip title="Düzenle">
+          <Tooltip title={!canEdit ? 'Yetki yok' : 'Düzenle'}>
             <Button
               icon={<EditOutlined />}
+              disabled={!canEdit}
               onClick={(e) => {
                 e.stopPropagation()
                 setEditingHesap(r)

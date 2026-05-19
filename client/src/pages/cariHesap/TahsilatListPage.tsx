@@ -28,6 +28,7 @@ import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { PageHeader } from '../../components/common/PageHeader'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { useProject } from '../../contexts/ProjectContext'
+import { usePermissions } from '../../hooks/usePermissions'
 import { useIsTouchDevice } from '../../hooks/useIsTouchDevice'
 
 const { RangePicker } = DatePicker
@@ -70,6 +71,7 @@ interface TahsilatRow {
 
 export const TahsilatListPage: React.FC = () => {
   const { activeProject } = useProject()
+  const { canEdit } = usePermissions()
   const { message: messageApi } = App.useApp()
   const queryClient = useQueryClient()
   const isTouchDevice = useIsTouchDevice()
@@ -264,6 +266,7 @@ export const TahsilatListPage: React.FC = () => {
                   size="small"
                   icon={<EditOutlined />}
                   onClick={() => openEdit(r)}
+                  disabled={!canEdit}
                   aria-label="Tahsilatı düzenle"
                   // B3: kilitli satırlarda tutar/yöntem alanları zaten backend tarafında
                   // bloklanır; düzenle ile sadece metadata değişebilir.
@@ -276,11 +279,13 @@ export const TahsilatListPage: React.FC = () => {
                 okText="Evet, Sil"
                 cancelText="Vazgeç"
                 okButtonProps={{ danger: true }}
-                disabled={locked}
+                disabled={locked || !canEdit}
               >
                 <Tooltip
                   title={
-                    locked
+                    !canEdit
+                      ? 'Yetki yok'
+                      : locked
                       ? 'Önce hesap kapamayı geri alın'
                       : 'Sil'
                   }
@@ -290,7 +295,7 @@ export const TahsilatListPage: React.FC = () => {
                     size="small"
                     danger
                     icon={<DeleteOutlined />}
-                    disabled={locked}
+                    disabled={locked || !canEdit}
                     loading={deleteMutation.isPending && deleteMutation.variables === r.id}
                     aria-label="Tahsilatı sil"
                   />
@@ -301,7 +306,7 @@ export const TahsilatListPage: React.FC = () => {
         },
       },
     ],
-    [deleteMutation, isTouchDevice, openEdit],
+    [deleteMutation, isTouchDevice, openEdit, canEdit],
   )
 
   if (isError) {

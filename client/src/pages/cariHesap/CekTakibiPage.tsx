@@ -10,6 +10,7 @@ import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { useProject } from '../../contexts/ProjectContext'
+import { usePermissions } from '../../hooks/usePermissions'
 import { trMoneyFormatter, trNumberParser } from '../../lib/format'
 
 interface Cek {
@@ -31,6 +32,7 @@ interface Cek {
 export const CekTakibiPage: React.FC = () => {
   const queryClient = useQueryClient()
   const { activeProject } = useProject()
+  const { canEdit } = usePermissions()
   const [modalOpen, setModalOpen] = useState(false)
   const [payModalOpen, setPayModalOpen] = useState(false)
   const [editingCek, setEditingCek] = useState<Cek | null>(null)
@@ -45,6 +47,8 @@ export const CekTakibiPage: React.FC = () => {
       type="primary"
       icon={<PlusOutlined />}
       style={{ color: '#ffffff' }}
+      disabled={!canEdit}
+      title={!canEdit ? 'Yetki yok' : undefined}
       onClick={() => {
         setEditingCek(null)
         form.resetFields()
@@ -56,7 +60,7 @@ export const CekTakibiPage: React.FC = () => {
     >
       Yeni Çek Kaydı
     </Button>
-  ), [form, activeProject])
+  ), [form, activeProject, canEdit])
 
   usePageSettings('Çek Takibi', headerActions)
 
@@ -159,13 +163,19 @@ export const CekTakibiPage: React.FC = () => {
       width: 150,
       render: (_: any, r: Cek) => (
         <Space>
-          <Button icon={<EditOutlined />} size="small" onClick={() => { setEditingCek(r); form.setFieldsValue({ ...r, vade_tarihi: dayjs(r.vade_tarihi), keside_tarihi: r.keside_tarihi ? dayjs(r.keside_tarihi) : null }); setModalOpen(true) }} />
-          {r.durum === 'beklemede' && (
+          <Button
+            icon={<EditOutlined />}
+            size="small"
+            disabled={!canEdit}
+            title={!canEdit ? 'Yetki yok' : 'Düzenle'}
+            onClick={() => { setEditingCek(r); form.setFieldsValue({ ...r, vade_tarihi: dayjs(r.vade_tarihi), keside_tarihi: r.keside_tarihi ? dayjs(r.keside_tarihi) : null }); setModalOpen(true) }}
+          />
+          {r.durum === 'beklemede' && canEdit && (
             <>
-              <Button 
-                size="small" 
-                type="primary" 
-                ghost 
+              <Button
+                size="small"
+                type="primary"
+                ghost
                 onClick={() => {
                   setPayingCek(r)
                   payForm.resetFields()

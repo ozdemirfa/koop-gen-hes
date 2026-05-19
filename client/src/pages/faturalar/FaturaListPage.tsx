@@ -15,6 +15,7 @@ import { ConfirmDelete } from '../../components/common/ConfirmDelete'
 import { HeaderActionsToolbar } from '../../components/common/HeaderActionsToolbar'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { useProject } from '../../contexts/ProjectContext'
+import { usePermissions } from '../../hooks/usePermissions'
 import { trMoneyFormatter, trNumberParser } from '../../lib/format'
 
 const { Text } = Typography
@@ -51,6 +52,7 @@ export const FaturaListPage: React.FC = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { activeProject } = useProject()
+  const { canEdit } = usePermissions()
   const [filterTip, setFilterTip] = useState<string | undefined>(undefined)
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
@@ -86,7 +88,8 @@ export const FaturaListPage: React.FC = () => {
       size="small"
       type="primary"
       icon={<PlusOutlined />}
-      disabled={!activeProject}
+      disabled={!activeProject || !canEdit}
+      title={!canEdit ? 'Yetki yok' : undefined}
       onClick={() => {
         setEditingFatura(null);
         form.resetFields();
@@ -98,7 +101,7 @@ export const FaturaListPage: React.FC = () => {
     >
       Yeni Fatura
     </Button>
-  ), [form, activeProject])
+  ), [form, activeProject, canEdit])
 
   const secondaryActions = useMemo(() => (
     <>
@@ -265,9 +268,11 @@ export const FaturaListPage: React.FC = () => {
       width: 120,
       render: (_: unknown, r: Fatura) => (
         <Space>
-          <Button 
-            size="small" 
-            icon={<EditOutlined />} 
+          <Button
+            size="small"
+            icon={<EditOutlined />}
+            disabled={!canEdit}
+            title={!canEdit ? 'Yetki yok' : 'Düzenle'}
             onClick={() => {
               setEditingFatura(r)
               form.setFieldsValue({
@@ -279,7 +284,7 @@ export const FaturaListPage: React.FC = () => {
               setModalOpen(true)
             }}
           />
-          <ConfirmDelete size="small" onConfirm={() => deleteMutation.mutate(r.id)} />
+          {canEdit && <ConfirmDelete size="small" onConfirm={() => deleteMutation.mutate(r.id)} />}
         </Space>
       ),
     },
