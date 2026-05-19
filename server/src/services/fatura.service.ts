@@ -1,18 +1,21 @@
 import { supabaseAdmin } from '../config/supabase'
 import { ApiError } from '../utils/ApiError'
 import { parsePagination, toSupabaseRange, paginationMeta } from '../utils/pagination'
+import { requireProjeId } from '../utils/projectGuard'
 
 export const faturaService = {
   async list(query: Record<string, any>) {
     const pagination = parsePagination(query)
     const { from, to } = toSupabaseRange(pagination)
 
+    const projeId = requireProjeId(query.proje_id)
+
     let q = supabaseAdmin
       .from('faturalar')
       .select('*, firmalar(unvan), fatura_kalemleri(*)', { count: 'exact' })
+      .eq('proje_id', projeId)
 
     if (query.firma_id) q = q.eq('firma_id', query.firma_id)
-    if (query.proje_id) q = q.eq('proje_id', query.proje_id)
     if (query.fatura_tipi) q = q.eq('fatura_tipi', query.fatura_tipi)
     if (query.baslangic_tarihi) q = q.gte('fatura_tarihi', query.baslangic_tarihi)
     if (query.bitis_tarihi) q = q.lte('fatura_tarihi', query.bitis_tarihi)

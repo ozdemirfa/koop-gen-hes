@@ -2,6 +2,7 @@ import { supabaseAdmin } from '../config/supabase'
 import { ApiError } from '../utils/ApiError'
 import { parsePagination, toSupabaseRange, paginationMeta } from '../utils/pagination'
 import { makeAidatSonOdemeTarihi } from '../utils/formatters'
+import { requireProjeId } from '../utils/projectGuard'
 import logger from '../utils/logger'
 import { cariHesapService } from './cariHesap.service'
 
@@ -28,16 +29,15 @@ export interface AidatSummary {
 
 export const aidatTanimiService = {
   async list(query?: Record<string, any>) {
+    const projeId = requireProjeId(query?.proje_id)
+
     let q = supabaseAdmin
       .from('aidat_tanimlari')
       .select('*')
+      .eq('proje_id', projeId)
       .order('yil', { ascending: true })
       .order('ay', { ascending: true })
 
-    if (query?.proje_id) {
-      q = q.eq('proje_id', query.proje_id)
-    }
-    
     if (query?.yil) {
       q = q.eq('yil', parseInt(query.yil))
     }
@@ -235,11 +235,13 @@ export const aidatService = {
     const pagination = parsePagination(query)
     const { from, to } = toSupabaseRange(pagination)
 
+    const projeId = requireProjeId(query.proje_id)
+
     let q = supabaseAdmin
       .from('aidat_detaylari')
       .select('*', { count: 'exact' })
+      .eq('proje_id', projeId)
 
-    if (query.proje_id) q = q.eq('proje_id', query.proje_id)
     if (query.uye_id) q = q.eq('uye_id', query.uye_id)
     if (query.durum) q = q.eq('durum', String(query.durum))
     if (query.blok_id) q = q.eq('filter_blok_id', query.blok_id)
@@ -397,8 +399,9 @@ export const aidatService = {
   },
 
   async getSummary(query: Record<string, any>): Promise<AidatSummary> {
-    const { proje_id, yil, ay, durum, blok_id, has_daire } = query
-    
+    const { yil, ay, durum, blok_id, has_daire } = query
+    const proje_id = requireProjeId(query.proje_id)
+
     // Güvenlik: Eğer gecikme oranı 0 ise (yanlışlıkla veya varsayılan), bunu 5% yap (Trigger engelini aşmak için RPC veya direkt SQL denenebilir)
     // Bu aşamada direkt SQL deniyoruz, trigger hatası verirse RPC eklenebilir.
     try {
@@ -412,7 +415,7 @@ export const aidatService = {
     if (rpcError) logger.error('Gecikme faizi hesaplama hatası (RPC):', rpcError)
 
     // PostgreSQL üzerinden filtreli aggregation yap
-    const { data, error } = await supabaseAdmin.rpc('get_aidat_summary_v4', { 
+    const { data, error } = await supabaseAdmin.rpc('get_aidat_summary_v4', {
       p_proje_id: proje_id,
       p_yil: yil ? parseInt(yil) : null,
       p_ay: ay ? parseInt(ay) : null,
@@ -431,8 +434,8 @@ export const aidatService = {
   },
 
   async calculateLateFees(query: Record<string, any>) {
-    const { proje_id } = query
-    
+    const proje_id = requireProjeId(query.proje_id)
+
     // Gecikme oranı 0 ise 5% yap
     try {
       await supabaseAdmin.from('aidat_tanimlari').update({ gecikme_faiz_orani: 5 }).eq('gecikme_faiz_orani', 0).eq('proje_id', proje_id)

@@ -40,6 +40,14 @@ vi.mock('../../src/middleware/auth', async () => {
   }
 })
 
+// Faz 1 sonrası: cari-hareketler/payment artık requireProjectAccess('staff') ile
+// korunuyor. Test'in happy path'i için cache'i staff dönecek şekilde mock'la.
+// null role → cache de null döner → 403 fallback test edilebilir.
+vi.mock('../../src/middleware/projectAccessCache', () => ({
+  getProjectRole: vi.fn(async () => (currentUser?.role ? 'staff' : null)),
+  clearProjectAccessCache: vi.fn(),
+}))
+
 // supabaseAdmin mock — RPC happy path: fn_create_payment_atomic başarılı obj döner.
 // from() builder default chain — controller _createPaymentNormal path'i sadece RPC
 // kullandığı için from() ile ilgilenmiyoruz (cek path olmadığı için).

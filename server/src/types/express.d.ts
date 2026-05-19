@@ -15,6 +15,7 @@ declare global {
         email?: string
       }
       userRole?: 'admin' | 'staff' | null
+      projectRole?: 'admin' | 'staff' | 'viewer' | null
     }
   }
 }

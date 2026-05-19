@@ -4,8 +4,11 @@ import { projeService } from '../services/proje.service'
 import { catchAsync } from '../utils/catchAsync'
 import { supabaseAdmin } from '../config/supabase'
 
-export const getProjeler = catchAsync(async (_req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await projeService.list()
+export const getProjeler = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const data = await projeService.list({
+    userId: req.user?.id,
+    isAdmin: req.userRole === 'admin',
+  })
   res.json({ success: true, data })
 })
 

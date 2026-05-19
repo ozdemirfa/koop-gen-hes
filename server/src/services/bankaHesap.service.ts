@@ -1,14 +1,19 @@
 import { supabaseAdmin } from '../config/supabase'
 import { ApiError } from '../utils/ApiError'
+import { requireProjeId } from '../utils/projectGuard'
 import logger from '../utils/logger'
 
 export const bankaHesapService = {
   async listHesaplar(query: Record<string, any> = {}) {
-    let q = supabaseAdmin
+    // proje_id zorunlu — service-role RLS bypass ettiğinden filtre olmadan tüm
+    // projelerin banka hesabı sızar. Route middleware aynı kontrolü yapıyor;
+    // burası defense in depth.
+    const projeId = requireProjeId(query.proje_id)
+
+    const q = supabaseAdmin
       .from('banka_hesaplari')
       .select('*')
-
-    if (query.proje_id) q = q.eq('proje_id', query.proje_id)
+      .eq('proje_id', projeId)
 
     const { data, error } = await q.order('banka_adi')
 
@@ -72,15 +77,15 @@ export const bankaHesapService = {
     // cari_adi (insan tarafından okunabilir isim) zaten tutuluyor — frontend "İlgili Cari"
     // etiketinde "Firma - <ad>" / "Üye - <ad>" prefix'i için bu iki kolon yeterli; ek
     // firmalar/uyeler tablo join'ine gerek yok.
+    const projeId = requireProjeId(query.proje_id)
+
     let q = supabaseAdmin
       .from('banka_hareketleri')
       .select('*, banka_hesaplari!inner(banka_adi, proje_id), cari_hareketler!banka_hareket_id(cari_hesaplar(cari_turu, cari_adi))')
+      .eq('banka_hesaplari.proje_id', projeId)
 
-    // Filtreleme: banka_hesap_id varsa ona göre, yoksa proje_id varsa banka_hesaplari üzerinden filtrele
     if (query.banka_hesap_id) {
       q = q.eq('banka_hesap_id', query.banka_hesap_id)
-    } else if (query.proje_id) {
-      q = q.eq('banka_hesaplari.proje_id', query.proje_id)
     }
 
     if (query.eslesti !== undefined) q = q.eq('eslesti', query.eslesti === 'true')
