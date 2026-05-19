@@ -1,10 +1,10 @@
 import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { ConfigProvider, App as AntdApp, Spin } from 'antd'
+import { ConfigProvider, App as AntdApp } from 'antd'
 import trTR from 'antd/locale/tr_TR'
 
-import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { AuthProvider } from './contexts/AuthContext'
 import { ProjectProvider } from './contexts/ProjectContext'
 import { LayoutProvider } from './contexts/LayoutContext'
 import { AdminLayout } from './components/AdminLayout'
@@ -28,6 +28,8 @@ import { TahsilatListPage } from './pages/cariHesap/TahsilatListPage'
 import { BankaHesapListPage } from './pages/bankaHesap/BankaHesapListPage'
 import { BankaHareketleriPage } from './pages/bankaHesap/BankaHareketleriPage'
 import { VirmanListPage } from './pages/virman/VirmanListPage'
+import { ForbiddenPage } from './pages/ForbiddenPage'
+import { ProtectedRoute } from './components/common/ProtectedRoute'
 import { MalzemeTeslimListPage } from './pages/malzemeTeslim/MalzemeTeslimListPage'
 import { ProjeListPage } from './pages/projeler/ProjeListPage'
 import { ProjeDetailPage } from './pages/projeler/ProjeDetailPage'
@@ -53,19 +55,6 @@ const queryClient = new QueryClient({
     },
   },
 })
-
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { session, loading } = useAuth()
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-        <Spin size="large" />
-      </div>
-    )
-  }
-  if (!session) return <Navigate to="/login" replace />
-  return <>{children}</>
-}
 
 const App: React.FC = () => {
   return (
@@ -124,6 +113,7 @@ const App: React.FC = () => {
                   <Router>
                     <Routes>
                       <Route path="/login" element={<Login />} />
+                      <Route path="/forbidden" element={<ForbiddenPage />} />
                       <Route path="/" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
                         <Route index element={<Dashboard />} />
                         <Route path="uyeler" element={<UyeListPage />} />
