@@ -2,12 +2,17 @@ import { Router } from 'express'
 import { validate } from '../middleware/validate'
 import { requireRole } from '../middleware/requireRole'
 import { requireProjectAccess } from '../middleware/requireProjectAccess'
-import { cariHareketSchema, cariPaymentSchema } from '../schemas/cariHesap.schema'
+import { cariHareketSchema, cariPaymentSchema, cariHareketListQuerySchema } from '../schemas/cariHesap.schema'
 import * as cariHesapController from '../controllers/cariHesap.controller'
 
 const router = Router()
 
-router.get('/', requireProjectAccess('viewer'), cariHesapController.getCariHareketler)
+router.get(
+  '/',
+  requireProjectAccess('viewer'),
+  validate({ query: cariHareketListQuerySchema }),
+  cariHesapController.getCariHareketler,
+)
 router.get('/accounts', requireProjectAccess('viewer'), cariHesapController.getCariHesaplar)
 router.post('/', requireProjectAccess('staff'), validate({ body: cariHareketSchema }), cariHesapController.createCariHareket)
 router.post('/payment', requireProjectAccess('staff'), validate({ body: cariPaymentSchema }), cariHesapController.createPayment)

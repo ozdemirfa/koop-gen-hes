@@ -21,6 +21,7 @@ import dayjs from 'dayjs'
 
 import api from '../../lib/api'
 import { getErrorMessage } from '../../lib/apiError'
+import { groupCariParcalari } from '../../lib/groupCariParcalari'
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
@@ -86,7 +87,7 @@ export const TahsilatListPage: React.FC = () => {
 
   // Liste sorgusu — islem_turu_in CSV ile birden fazla tip
   const {
-    data: rows,
+    data: rawRows,
     isLoading,
     isError,
     error,
@@ -99,6 +100,10 @@ export const TahsilatListPage: React.FC = () => {
         proje_id: activeProject.id,
         // Filter listesi: tahsilat + ödeme + iade + başlangıç (cari hareketin "ödeme" tarafı)
         islem_turu_in: islemFilter || 'gelen_odeme,giden_odeme,iade_odeme,uyelik_baslangic',
+        // Sprint 20260519-para-hareketleri-improvements / US-1: üyelik başlangıç
+        // tahakkuk satırlarını (`islem_turu='uyelik_baslangic' AND alacak > 0`) gizle.
+        // Para hareketleri görünümünde yalnızca borc>0 (tahsilat) tarafı görünmeli.
+        exclude_tahakkuk: 'true',
       }
       if (dates[0]) params.baslangic_tarihi = dates[0]!.format('YYYY-MM-DD')
       if (dates[1]) params.bitis_tarihi = dates[1]!.format('YYYY-MM-DD')
@@ -107,6 +112,11 @@ export const TahsilatListPage: React.FC = () => {
     },
     enabled: !!activeProject?.id,
   })
+
+  // Sprint 20260519-para-hareketleri-improvements / US-3: FIFO ile parçalanmış
+  // tahsilatları (aynı tarih/odeme_turu/banka_hesap_id/belge_no/aciklama/islem_turu)
+  // tek satıra konsolide et. UyeDetailPage Ödemeler tab REV-PAY-14 pattern'iyle aynı.
+  const rows = useMemo(() => groupCariParcalari(rawRows ?? []), [rawRows])
 
   // B1 + B3: silme mutasyonu
   const deleteMutation = useMutation({

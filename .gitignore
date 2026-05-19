@@ -35,3 +35,6 @@ playwright-report/
 .claude/
 revision*.md
 split_migrations.js
+
+# Pipeline artifacts (master-agent workspace)
+workspace/

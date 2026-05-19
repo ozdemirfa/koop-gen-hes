@@ -80,3 +80,19 @@ export const cariPaymentSchema = z.object({
     })
   }
 })
+
+// Sprint 20260519-para-hareketleri-improvements / US-1 + US-4:
+// `GET /cari-hareketler` query schema. Tek opsiyonel alan `exclude_tahakkuk`;
+// `true` ise list path'i Supabase tarafında üyelik başlangıç tahakkuk satırlarını
+// dışlar (`islem_turu='uyelik_baslangic' AND alacak > 0`).
+//
+// Schema loose mode (`.passthrough()`) — list path'i çeşitli filtre alanları kabul
+// ediyor (proje_id, uye_id, eslesmemis, islem_turu_in, …) ve bu sprintte bunların
+// hepsini whitelist'lemek kapsam dışı (backward compat / US-4). Bu schema sadece
+// yeni alanı whitelist'ler + coerce eder.
+export const cariHareketListQuerySchema = z
+  .object({
+    exclude_tahakkuk: z.coerce.boolean().optional(),
+  })
+  .passthrough()
+
