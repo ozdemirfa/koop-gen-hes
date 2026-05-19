@@ -27,6 +27,7 @@ import { OdemeKayit } from './pages/cariHesap/OdemeKayit'
 import { TahsilatListPage } from './pages/cariHesap/TahsilatListPage'
 import { BankaHesapListPage } from './pages/bankaHesap/BankaHesapListPage'
 import { BankaHareketleriPage } from './pages/bankaHesap/BankaHareketleriPage'
+import { VirmanListPage } from './pages/virman/VirmanListPage'
 import { MalzemeTeslimListPage } from './pages/malzemeTeslim/MalzemeTeslimListPage'
 import { ProjeListPage } from './pages/projeler/ProjeListPage'
 import { ProjeDetailPage } from './pages/projeler/ProjeDetailPage'
@@ -147,6 +148,7 @@ const App: React.FC = () => {
                         <Route path="cek-takibi" element={<CekTakibiPage />} />
                         <Route path="banka-hesaplari" element={<BankaHesapListPage />} />
                         <Route path="banka-hesaplari/:id/hareketler" element={<BankaHareketleriPage />} />
+                        <Route path="virmanlar" element={<VirmanListPage />} />
                         <Route path="fatura-irsaliye" element={<MalzemeTeslimListPage />} />
                         <Route path="projeler" element={<ProjeListPage />} />
                         <Route path="projeler/:id" element={<ProjeDetailPage />} />

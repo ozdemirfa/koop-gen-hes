@@ -29,6 +29,7 @@ import raporlarRoutes from './raporlar.routes'
 import ceklerRoutes from './cekler.routes'
 import adminRoutes from './admin.routes'
 import projeUyelikleriRoutes from './projeUyelikleri.routes'
+import virmanRoutes from './virman.routes'
 
 const router = Router()
 
@@ -76,5 +77,6 @@ router.use('/dashboard', dashboardRoutes)
 router.use('/raporlar', raporlarRoutes)
 router.use('/cekler', ceklerRoutes)
 router.use('/admin', adminRoutes)
+router.use('/virmanlar', virmanRoutes)
 
 export default router
