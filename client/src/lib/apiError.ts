@@ -22,7 +22,11 @@ export interface ApiErrorResponse {
  */
 export function getErrorMessage(err: unknown, fallback = 'Hata oluştu'): string {
   if (err && typeof err === 'object') {
-    const e = err as Partial<ApiErrorResponse> & { message?: string }
+    const e = err as Partial<ApiErrorResponse> & {
+      message?: string
+      response?: { status?: number }
+      status?: number
+    }
 
     // 1. Backend details array varsa ve gerçek alan-bazlı mesaj içeriyorsa onu kullan
     if (Array.isArray(e.details) && e.details.length > 0) {
@@ -42,7 +46,17 @@ export function getErrorMessage(err: unknown, fallback = 'Hata oluştu'): string
       if (first?.message) return first.message
     }
 
-    if (typeof e.error === 'string' && e.error) return e.error
+    if (typeof e.error === 'string' && e.error) {
+      // Sprint 20260520-perf: 403 generic mesajları için friendly çeviri.
+      const status = e.response?.status ?? e.status
+      if (status === 403 || /forbidden|yetki|yasak/i.test(e.error)) {
+        return 'Bu işlem için yetkiniz yok. Proje yöneticisiyle iletişime geçin.'
+      }
+      if (status === 401 || /unauthorized|bearer/i.test(e.error)) {
+        return 'Oturumunuzun süresi dolmuş. Lütfen tekrar giriş yapın.'
+      }
+      return e.error
+    }
     if (typeof e.message === 'string' && e.message) return e.message
   }
   return fallback

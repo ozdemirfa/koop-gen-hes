@@ -189,8 +189,8 @@ export const VirmanListPage: React.FC = () => {
               type="primary"
               icon={<PlusOutlined />}
               onClick={() => setFormOpen(true)}
-              disabled={!canEdit}
-              title={!canEdit ? 'Yetki yok' : undefined}
+              disabled={!canEdit || !activeProject}
+              title={!canEdit ? 'Yetki yok' : !activeProject ? 'Önce bir proje seçin' : undefined}
             >
               Yeni Virman
             </Button>
