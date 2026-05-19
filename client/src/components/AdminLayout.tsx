@@ -53,6 +53,7 @@ const menuItems = [
       { key: '/banka-hesaplari', label: 'Banka Hesapları' },
       { key: '/cari-hesaplar/odeme-kayit', label: 'Ödeme/Tahsilat Kaydı' },
       { key: '/cari-hesaplar/tahsilatlar', label: 'Para Hareketleri' },
+      { key: '/virmanlar', label: 'Virmanlar' },
       { key: '/cek-takibi', label: 'Çek Takibi' },
     ],
   },
