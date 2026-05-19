@@ -50,13 +50,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [])
 
   useEffect(() => {
+    // Sprint 20260520-perf hotfix: setLoading(false) ASLA `await
+    // fetchUserRole(...)` arkasında bloklanmamalı. /api/auth/me yavaş veya hang
+    // ederse ProtectedRoute sonsuza dek <Spin /> gösterir → prod sayfa açılmıyor
+    // bug'ı. Session resolve olur olmaz loading=false; role fetch fire-and-forget.
     supabase.auth
       .getSession()
-      .then(async ({ data: { session } }) => {
+      .then(({ data: { session } }) => {
         setSession(session)
         setUser(session?.user ?? null)
-        await fetchUserRole(session)
         setLoading(false)
+        // Fire-and-forget — role daha sonra gelir, UI engellenmez.
+        fetchUserRole(session)
       })
       .catch(() => {
         setLoading(false)
@@ -64,11 +69,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
-      await fetchUserRole(session)
       setLoading(false)
+      fetchUserRole(session)
     })
 
     return () => subscription.unsubscribe()
@@ -83,7 +88,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (data.session) {
           setSession(data.session)
           setUser(data.session.user)
-          await fetchUserRole(data.session)
+          // Login → loading=false hemen, role arkadan gelir.
+          fetchUserRole(data.session)
         }
         setLoading(false)
         return { error: null }
