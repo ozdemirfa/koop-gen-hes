@@ -3,6 +3,11 @@ import { supabase } from './supabase'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
+  // Sprint 20260520-perf hotfix: 30s timeout. Render free tier cold start
+  // ~30-60s sürebilir → API bloklayıcı bir await zincirine düşerse UI sonsuza
+  // dek <Spin /> gösterir. 30s sonra abort + sessizce reject (caller catch'le
+  // veya AuthContext fire-and-forget ile yutsun).
+  timeout: 30_000,
   // Content-Type'ı global vermiyoruz: axios'un default transformRequest'i
   // plain object → application/json, FormData → multipart/form-data (browser
   // boundary'yi otomatik ekler) ataması yapar. Global JSON header FormData
