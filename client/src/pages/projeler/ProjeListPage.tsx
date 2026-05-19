@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Button, Modal, Form, Input, Space, Tag, DatePicker, Card, Row, Col, Select, InputNumber, Divider, Typography, App } from 'antd'
-import { PlusOutlined, EditOutlined, EyeOutlined, ProjectOutlined, DeleteOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, EyeOutlined, ProjectOutlined, DeleteOutlined, TeamOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
@@ -199,8 +199,8 @@ export const ProjeListPage: React.FC = () => {
                       openEditModal(p)
                     }}
                   />,
-                  <div 
-                    key="view" 
+                  <div
+                    key="view"
                     style={{ color: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', cursor: 'pointer' }}
                     data-testid={`view-project-${p.id}`}
                     onClick={(e) => {
@@ -210,6 +210,21 @@ export const ProjeListPage: React.FC = () => {
                   >
                     <EyeOutlined />
                   </div>,
+                  ...(isGlobalAdmin
+                    ? [
+                        <div
+                          key="uyeler"
+                          style={{ color: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', cursor: 'pointer' }}
+                          title="Üyelikleri Yönet"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            navigate(`/admin/projeler/${p.id}/uyeler`)
+                          }}
+                        >
+                          <TeamOutlined />
+                        </div>,
+                      ]
+                    : []),
                 ]}
                 title={
                   <div 

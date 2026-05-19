@@ -12,17 +12,22 @@ import {
   WalletOutlined,
   SettingOutlined,
   MenuOutlined,
+  TeamOutlined,
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useProject } from '../contexts/ProjectContext'
 import { useLayout } from '../contexts/LayoutContext'
+import { usePermissions } from '../hooks/usePermissions'
 import logo from '../assets/logo.png'
 
 const { Header, Sider, Content } = Layout
 const { useBreakpoint } = Grid
 
-const menuItems = [
+// Sprint 20260520-frontend-role-awareness (Faz 3c):
+// `getMenuItems(isGlobalAdmin)` — admin'e "Kullanıcı Yönetimi" item ekler.
+// Statik array yerine factory function: usePermissions reaktivitesi.
+const getMenuItems = (isGlobalAdmin: boolean): any[] => [
   { key: '/', icon: <BankOutlined />, label: 'Pano' },
   { key: '/uyeler', icon: <UserOutlined />, label: 'Üye Yönetimi' },
   {
@@ -70,6 +75,15 @@ const menuItems = [
       { key: '/raporlar/mizan', label: 'Genel Mizan' },
     ],
   },
+  ...(isGlobalAdmin
+    ? [
+        {
+          key: '/admin/kullanicilar',
+          icon: <TeamOutlined />,
+          label: 'Kullanıcı Yönetimi',
+        },
+      ]
+    : []),
 ]
 
 // Separate component for the Sider content to avoid re-renders when header context changes
@@ -81,7 +95,8 @@ const SiderContent: React.FC<{
   onOpenChange: (keys: string[]) => void
   onNavigate: (key: string) => void
   activeProject: any
-}> = React.memo(({ collapsed, isMobile, selectedKey, openKeys, onOpenChange, onNavigate, activeProject }) => (
+  menuItems: any[]
+}> = React.memo(({ collapsed, isMobile, selectedKey, openKeys, onOpenChange, onNavigate, activeProject, menuItems }) => (
   <>
     <div style={{ padding: '24px 8px', borderBottom: '1px solid #e2e8f0', flexShrink: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
@@ -283,6 +298,11 @@ export const AdminLayout: React.FC = () => {
   const location = useLocation()
   const { activeProject } = useProject()
   const { signOut } = useAuth()
+  const { isGlobalAdmin } = usePermissions()
+
+  // Sprint 20260520-frontend-role-awareness (Faz 3c): admin sadece kendi
+  // menü öğelerini görsün. useMemo + isGlobalAdmin reaktivitesi.
+  const menuItems = useMemo(() => getMenuItems(isGlobalAdmin), [isGlobalAdmin])
 
   // Find the matching menu key and its parent group safely
   const { selectedKey, parentKey } = useMemo(() => {
@@ -293,7 +313,7 @@ export const AdminLayout: React.FC = () => {
 
     for (const item of menuItems) {
       if (item.children) {
-        const child = item.children.find(c => c.key === pathname);
+        const child = item.children.find((c: any) => c.key === pathname);
         if (child) {
           currentSelectedKey = child.key;
           currentParentKey = item.key;
@@ -327,7 +347,7 @@ export const AdminLayout: React.FC = () => {
     }
 
     return { selectedKey: currentSelectedKey, parentKey: currentParentKey };
-  }, [location.pathname]);
+  }, [location.pathname, menuItems]);
 
   // Sync openKeys when selection changes
   useEffect(() => {
@@ -351,7 +371,7 @@ export const AdminLayout: React.FC = () => {
     if (isMobile) {
       setCollapsed(true);
     }
-  }, [navigate, isMobile]);
+  }, [navigate, isMobile, menuItems]);
 
   const handleOpenChange = useCallback((keys: string[]) => {
     const latestOpenKey = keys.find(key => openKeys.indexOf(key) === -1);
@@ -383,7 +403,8 @@ export const AdminLayout: React.FC = () => {
     openKeys,
     onOpenChange: handleOpenChange,
     onNavigate: handleNavigation,
-    activeProject
+    activeProject,
+    menuItems,
   }
 
   return (

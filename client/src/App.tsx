@@ -29,6 +29,9 @@ import { BankaHesapListPage } from './pages/bankaHesap/BankaHesapListPage'
 import { BankaHareketleriPage } from './pages/bankaHesap/BankaHareketleriPage'
 import { VirmanListPage } from './pages/virman/VirmanListPage'
 import { ForbiddenPage } from './pages/ForbiddenPage'
+import { SifreBelirlePage } from './pages/SifreBelirlePage'
+import { KullaniciYonetimiPage } from './pages/admin/KullaniciYonetimiPage'
+import { ProjeUyelikleriPage } from './pages/admin/ProjeUyelikleriPage'
 import { ProtectedRoute } from './components/common/ProtectedRoute'
 import { MalzemeTeslimListPage } from './pages/malzemeTeslim/MalzemeTeslimListPage'
 import { ProjeListPage } from './pages/projeler/ProjeListPage'
@@ -114,6 +117,7 @@ const App: React.FC = () => {
                     <Routes>
                       <Route path="/login" element={<Login />} />
                       <Route path="/forbidden" element={<ForbiddenPage />} />
+                      <Route path="/sifre-belirle" element={<SifreBelirlePage />} />
                       <Route path="/" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
                         <Route index element={<Dashboard />} />
                         <Route path="uyeler" element={<UyeListPage />} />
@@ -152,6 +156,22 @@ const App: React.FC = () => {
                         <Route path="ayarlar/pozlar" element={<PozListPage />} />
                         <Route path="ayarlar/parametreler" element={<ParametersPage />} />
                         <Route path="ayarlar/sifre-degistir" element={<SifreDegistirPage />} />
+                        <Route
+                          path="admin/kullanicilar"
+                          element={
+                            <ProtectedRoute requireRole="admin">
+                              <KullaniciYonetimiPage />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="admin/projeler/:projeId/uyeler"
+                          element={
+                            <ProtectedRoute requireRole="admin">
+                              <ProjeUyelikleriPage />
+                            </ProtectedRoute>
+                          }
+                        />
                       </Route>
                     </Routes>
                   </Router>
