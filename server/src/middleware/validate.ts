@@ -14,7 +14,16 @@ export function validate(schemas: ValidateSchemas) {
         req.body = schemas.body.parse(req.body)
       }
       if (schemas.query) {
-        (req as any).query = schemas.query.parse(req.query)
+        // Express 5'te `req.query` getter-only — direct atama strict mode'da
+        // TypeError firlatir. Express 5 getter'i `configurable: true` ile
+        // tanimlandigi icin Object.defineProperty ile data property'e cevrilebilir.
+        const parsed = schemas.query.parse(req.query)
+        Object.defineProperty(req, 'query', {
+          value: parsed,
+          writable: true,
+          configurable: true,
+          enumerable: true,
+        })
       }
       if (schemas.params) {
         (req as any).params = schemas.params.parse(req.params)
