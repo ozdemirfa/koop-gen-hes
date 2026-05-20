@@ -72,62 +72,98 @@ export const adminService = {
   },
 
   /**
-   * Davet — Supabase admin API ile magic-link gönderir; ardından user_roles ve
-   * proje_uyelikleri kayıtlarını oluşturur.
+   * Davet — proje-bazlı yeni akış (PR-D, 2026-05-20).
    *
-   * Yeni auth.users insert'i `trg_default_user_role` trigger'ı ile otomatik
-   * staff rolü kazandırır; globalRole=admin verilirse manuel upsert eklenir.
+   * Sprint role-system-modernization (PR-D):
+   *   - Payload artık tek proje + tek projectRole ile sınırlı.
+   *     { email, projeId, projectRole: 'manager' | 'user' }
+   *   - Owner ataması bu akışla yapılamaz (her projede tek owner; controller
+   *     schema'sı 'owner' değerini reddediyor).
+   *   - Global rol ataması yok. trg_default_user_role trigger'ı varsa eski
+   *     `user_roles.staff` insert'i hâlâ olabilir; bu PR'da o davranış
+   *     değişmiyor (PR-E veya legacy cleanup ile temizlenir).
+   *
+   * Davet zaten varolan bir kullanıcıyı çağırırsa Supabase
+   * `inviteUserByEmail` 'User already registered' hatası döner. Bu durumda
+   * service mevcut user'ı id ile bulup proje üyeliğini upsert eder
+   * (idempotent davet — kullanıcı zaten kayıtlıysa yeni magic-link
+   * göndermek yerine sadece üyelik atanır).
    */
-  async inviteUser(body: { email: string; globalRole: GlobalRole; projectAssignments: ProjectAssignment[] }) {
+  async inviteUser(body: { email: string; projeId: string; projectRole: 'manager' | 'user' }) {
     const redirectTo = APP_PUBLIC_URL ? `${APP_PUBLIC_URL.replace(/\/$/, '')}/sifre-belirle` : undefined
 
-    const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(body.email, redirectTo ? { redirectTo } : undefined)
+    const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+      body.email,
+      redirectTo ? { redirectTo } : undefined,
+    )
+
+    let userId: string | null = null
+    let invited = true
 
     if (error) {
-      logger.error('[ADMIN] inviteUserByEmail error', { err: error, email: body.email })
-      throw ApiError.badRequest(`Davet gönderilemedi: ${error.message}`)
-    }
-    if (!data?.user) {
-      throw ApiError.internal('Supabase davet sonrası user objesi dönmedi')
-    }
-
-    const userId = data.user.id
-
-    // Global rol — trigger 'staff' atar; admin istenirse upsert
-    if (body.globalRole === 'admin') {
-      const { error: roleErr } = await supabaseAdmin
-        .from('user_roles')
-        .upsert({ user_id: userId, role: 'admin' }, { onConflict: 'user_id,role' })
-      if (roleErr) {
-        logger.error('[ADMIN] global role upsert failed', { err: roleErr, userId })
+      // 'User already registered' veya benzeri — mevcut kullanıcıyı id ile bul
+      const message = (error.message ?? '').toLowerCase()
+      if (
+        message.includes('already') ||
+        message.includes('registered') ||
+        message.includes('exists')
+      ) {
+        const { data: existing, error: lookupErr } = await supabaseAdmin.auth.admin.listUsers({
+          perPage: 1000,
+        })
+        if (lookupErr) {
+          logger.error('[ADMIN] invite fallback listUsers failed', { err: lookupErr, email: body.email })
+          throw ApiError.internal('Davet sırasında kullanıcı aramada hata')
+        }
+        const found = existing?.users?.find((u) => u.email?.toLowerCase() === body.email.toLowerCase())
+        if (!found) {
+          logger.error('[ADMIN] inviteUserByEmail error (no fallback match)', { err: error, email: body.email })
+          throw ApiError.badRequest(`Davet gönderilemedi: ${error.message}`)
+        }
+        userId = found.id
+        invited = false
       } else {
-        clearRoleCache(userId)
+        logger.error('[ADMIN] inviteUserByEmail error', { err: error, email: body.email })
+        throw ApiError.badRequest(`Davet gönderilemedi: ${error.message}`)
       }
+    } else {
+      if (!data?.user) {
+        throw ApiError.internal('Supabase davet sonrası user objesi dönmedi')
+      }
+      userId = data.user.id
     }
 
-    // Proje üyeliklerini ekle
-    if (body.projectAssignments.length > 0) {
-      const rows = body.projectAssignments.map((a) => ({
-        user_id: userId,
-        proje_id: a.proje_id,
-        rol: a.rol,
-      }))
-      const { error: memErr } = await supabaseAdmin
-        .from('proje_uyelikleri')
-        .upsert(rows, { onConflict: 'user_id,proje_id' })
-      if (memErr) {
-        logger.error('[ADMIN] proje_uyelikleri upsert failed', { err: memErr, userId, rows })
-      } else {
-        clearProjectAccessCache(userId)
-      }
+    if (!userId) {
+      throw ApiError.internal('Davet sonrası user id bulunamadı')
     }
 
-    logger.info(`[ADMIN] User invited: ${body.email} (${userId}) globalRole=${body.globalRole}, projects=${body.projectAssignments.length}`)
+    // Proje üyeliğini upsert et (manager veya user)
+    const { error: memErr } = await supabaseAdmin
+      .from('proje_uyelikleri')
+      .upsert(
+        { user_id: userId, proje_id: body.projeId, rol: body.projectRole },
+        { onConflict: 'user_id,proje_id' },
+      )
+    if (memErr) {
+      logger.error('[ADMIN] proje_uyelikleri upsert failed', {
+        err: memErr,
+        userId,
+        projeId: body.projeId,
+        rol: body.projectRole,
+      })
+      throw ApiError.internal('Proje üyeliği oluşturulamadı')
+    }
+    clearProjectAccessCache(userId, body.projeId)
+
+    logger.info(
+      `[ADMIN] User invited: ${body.email} (${userId}) → proje=${body.projeId}, rol=${body.projectRole}, newMagicLink=${invited}`,
+    )
     return {
       id: userId,
       email: body.email,
-      global_role: body.globalRole,
-      proje_sayisi: body.projectAssignments.length,
+      proje_id: body.projeId,
+      project_role: body.projectRole,
+      invited,
     }
   },
 

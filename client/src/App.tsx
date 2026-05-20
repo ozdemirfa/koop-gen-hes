@@ -31,7 +31,6 @@ import { VirmanListPage } from './pages/virman/VirmanListPage'
 import { ForbiddenPage } from './pages/ForbiddenPage'
 import { SifreBelirlePage } from './pages/SifreBelirlePage'
 import { KullaniciYonetimiPage } from './pages/admin/KullaniciYonetimiPage'
-import { ProjeUyelikleriPage } from './pages/admin/ProjeUyelikleriPage'
 import { ProtectedRoute } from './components/common/ProtectedRoute'
 import { MalzemeTeslimListPage } from './pages/malzemeTeslim/MalzemeTeslimListPage'
 import { ProjeListPage } from './pages/projeler/ProjeListPage'
@@ -164,23 +163,18 @@ const App: React.FC = () => {
                         <Route path="ayarlar/parametreler" element={<ParametersPage />} />
                         <Route path="ayarlar/sifre-degistir" element={<SifreDegistirPage />} />
                         {/*
-                          Kullanıcı Yönetimi: artık proje-kapsamlı; manager+
-                          erişim. PR-D ile sayfa içeriği proje üyelik yönetimine
-                          yeniden mimari olacak.
+                          Sprint role-system-modernization (PR-D, 2026-05-20):
+                          Kullanıcı Yönetimi proje-kapsamlı tek sayfada
+                          birleştirildi. /admin/projeler/:projeId/uyeler
+                          rotası kaldırıldı — aktif proje ProjectContext'ten
+                          okunur; aktif proje değişince queryKey otomatik
+                          invalidate eder.
                         */}
                         <Route
                           path="admin/kullanicilar"
                           element={
                             <ProtectedRoute requireRole="manager">
                               <KullaniciYonetimiPage />
-                            </ProtectedRoute>
-                          }
-                        />
-                        <Route
-                          path="admin/projeler/:projeId/uyeler"
-                          element={
-                            <ProtectedRoute requireRole="manager">
-                              <ProjeUyelikleriPage />
                             </ProtectedRoute>
                           }
                         />
