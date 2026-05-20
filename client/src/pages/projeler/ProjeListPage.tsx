@@ -53,7 +53,7 @@ const durumEtiketleri: Record<string, string> = {
 export const ProjeListPage: React.FC = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { refreshProjects } = useProject()
+  const { refreshProjects, setActiveProject } = useProject()
   // Sprint role-system-modernization (PR-C):
   //   - "Yeni Proje" oluşturma: hâlâ legacy global admin'e ait. PR-D ile
   //     birlikte yeniden değerlendirilecek (kooperatif başkanı/owner senaryosu).
@@ -223,7 +223,11 @@ export const ProjeListPage: React.FC = () => {
                           title="Üyelikleri Yönet"
                           onClick={(e) => {
                             e.stopPropagation()
-                            navigate(`/admin/projeler/${p.id}/uyeler`)
+                            // Sprint role-system-modernization (PR-D):
+                            // Kullanıcı Yönetimi artık aktif projeye göre çalışır;
+                            // önce projeyi aktif et, sonra sayfaya git.
+                            setActiveProject(p as any)
+                            navigate('/admin/kullanicilar')
                           }}
                         >
                           <TeamOutlined />
