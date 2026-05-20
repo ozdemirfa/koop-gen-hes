@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Card, Form, Input, Button, App, Typography } from 'antd'
-import { Navigate } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getErrorMessage } from '../lib/apiError'
 import logo from '../assets/logo.png'
@@ -53,11 +53,16 @@ export const Login: React.FC = () => {
             <Input.Password size="large" placeholder="Şifre" />
           </Form.Item>
 
-          <Form.Item>
+          <Form.Item style={{ marginBottom: 12 }}>
             <Button type="primary" htmlType="submit" size="large" block loading={loading}>
               Giriş Yap
             </Button>
           </Form.Item>
+
+          {/* PR-E (2026-05-20): e-mail tabanlı self şifre reset akışı */}
+          <div style={{ textAlign: 'center' }}>
+            <Link to="/auth/sifremi-unuttum">Şifremi Unuttum</Link>
+          </div>
         </Form>
       </Card>
     </div>
