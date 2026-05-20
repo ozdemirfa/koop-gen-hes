@@ -20,7 +20,13 @@ vi.mock('../../src/utils/logger', () => ({
   default: { error: vi.fn(), info: vi.fn(), debug: vi.fn(), warn: vi.fn() },
 }))
 
-import { getProjectRole, clearProjectAccessCache } from '../../src/middleware/projectAccessCache'
+import {
+  getProjectRole,
+  clearProjectAccessCache,
+  normalizeProjectRole,
+  roleSatisfies,
+  ROLE_RANK,
+} from '../../src/middleware/projectAccessCache'
 
 const USER_ID = 'user-1'
 const PROJE_ID = '11111111-1111-1111-1111-111111111111'
@@ -95,6 +101,65 @@ describe('projectAccessCache', () => {
     await getProjectRole(USER_ID, PROJE_ID)
     await getProjectRole(USER_ID, OTHER_PROJE_ID)
     expect(maybeSingleMock).toHaveBeenCalledTimes(4)
+  })
+
+  // Sprint role-system-modernization (PR-B) — yeni helper'lar
+
+  describe('normalizeProjectRole', () => {
+    it('yeni rolleri kendisi olarak döner', () => {
+      expect(normalizeProjectRole('owner')).toBe('owner')
+      expect(normalizeProjectRole('manager')).toBe('manager')
+      expect(normalizeProjectRole('user')).toBe('user')
+    })
+
+    it('legacy "admin" → owner', () => {
+      expect(normalizeProjectRole('admin')).toBe('owner')
+    })
+
+    it('legacy "staff" → manager', () => {
+      expect(normalizeProjectRole('staff')).toBe('manager')
+    })
+
+    it('legacy "viewer" → user', () => {
+      expect(normalizeProjectRole('viewer')).toBe('user')
+    })
+
+    it('null → null', () => {
+      expect(normalizeProjectRole(null)).toBeNull()
+    })
+  })
+
+  describe('roleSatisfies (hiyerarşik)', () => {
+    it('owner her seviyeyi karşılar', () => {
+      expect(roleSatisfies('owner', 'user')).toBe(true)
+      expect(roleSatisfies('owner', 'manager')).toBe(true)
+      expect(roleSatisfies('owner', 'owner')).toBe(true)
+    })
+
+    it('manager user ve manager karşılar; owner karşılamaz', () => {
+      expect(roleSatisfies('manager', 'user')).toBe(true)
+      expect(roleSatisfies('manager', 'manager')).toBe(true)
+      expect(roleSatisfies('manager', 'owner')).toBe(false)
+    })
+
+    it('user yalnızca user karşılar', () => {
+      expect(roleSatisfies('user', 'user')).toBe(true)
+      expect(roleSatisfies('user', 'manager')).toBe(false)
+      expect(roleSatisfies('user', 'owner')).toBe(false)
+    })
+
+    it('null hiçbir seviyeyi karşılamaz', () => {
+      expect(roleSatisfies(null, 'user')).toBe(false)
+      expect(roleSatisfies(null, 'manager')).toBe(false)
+      expect(roleSatisfies(null, 'owner')).toBe(false)
+    })
+  })
+
+  describe('ROLE_RANK', () => {
+    it('owner > manager > user', () => {
+      expect(ROLE_RANK.owner).toBeGreaterThan(ROLE_RANK.manager)
+      expect(ROLE_RANK.manager).toBeGreaterThan(ROLE_RANK.user)
+    })
   })
 
   it('clearProjectAccessCache() with no args wipes all entries', async () => {

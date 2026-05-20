@@ -6,10 +6,12 @@ import * as virmanController from '../controllers/virman.controller'
 
 const router = Router()
 
-// Sprint 20260520-virman-feature:
-// GET viewer, mutate staff (proje izolasyon middleware'i proje_id zorunlu kılar).
-router.get('/', requireProjectAccess('viewer'), virmanController.listVirmanlar)
-router.post('/', requireProjectAccess('staff'), validate({ body: virmanCreateSchema }), virmanController.createVirman)
-router.delete('/:id', requireProjectAccess('staff'), virmanController.deleteVirman)
+// Sprint role-system-modernization (PR-B): 3-rol permission matrix
+//   GET    → user    (her üye okur)
+//   POST   → user    (form girişi user'a açık)
+//   DELETE → manager (yıkıcı işlem)
+router.get('/', requireProjectAccess('user'), virmanController.listVirmanlar)
+router.post('/', requireProjectAccess('user'), validate({ body: virmanCreateSchema }), virmanController.createVirman)
+router.delete('/:id', requireProjectAccess('manager'), virmanController.deleteVirman)
 
 export default router

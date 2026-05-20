@@ -15,7 +15,13 @@ declare global {
         email?: string
       }
       userRole?: 'admin' | 'staff' | null
-      projectRole?: 'admin' | 'staff' | 'viewer' | null
+      /**
+       * Sprint role-system-modernization (PR-B): yeni model owner/manager/user.
+       * Legacy değerler (admin/staff/viewer) geriye uyumluluk için tip union'da
+       * kalır — eski cache entry'ler veya migrate edilmemiş test fixture'lar
+       * için. Faz 3'te (PR-D sonrası) legacy değerler kaldırılacak.
+       */
+      projectRole?: 'owner' | 'manager' | 'user' | 'admin' | 'staff' | 'viewer' | null
     }
   }
 }

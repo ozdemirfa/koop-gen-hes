@@ -1,17 +1,23 @@
 import { Router } from 'express'
 import { validate } from '../middleware/validate'
-import { requireRole } from '../middleware/requireRole'
 import { createFirmaSchema, updateFirmaSchema } from '../schemas/firma.schema'
 import * as firmaController from '../controllers/firma.controller'
 
 const router = Router()
 
+// Firma master-data global ölçekli (tüm projeler paylaşır). PR-B kapsamında
+// `requireRole('staff')` guard'ı kaldırılıyor — yeni 3-rol modeli proje-bazlı,
+// global rol kavramı kalkıyor (faz 3'te user_roles tablosu DROP edilecek).
+// Erişim: authenticated → herhangi bir kullanıcı CRUD yapabilir.
+// Master-data düzenlemesi proje seviyesinde kısıtlanmadığı için bu PR'da
+// gating'i frontend tarafına bırakıyoruz (Settings sayfası manager+ gating
+// uygulayacak — PR-C). Backend tarafı authMiddleware (parent router) zaten yeterli.
 router.get('/', firmaController.getFirmalar)
 router.get('/stats', firmaController.getStats)
 router.get('/:id/stats', firmaController.getFirmaStats)
 router.get('/:id', firmaController.getFirmaById)
-router.post('/', requireRole('staff'), validate({ body: createFirmaSchema }), firmaController.createFirma)
-router.put('/:id', requireRole('staff'), validate({ body: updateFirmaSchema }), firmaController.updateFirma)
+router.post('/', validate({ body: createFirmaSchema }), firmaController.createFirma)
+router.put('/:id', validate({ body: updateFirmaSchema }), firmaController.updateFirma)
 router.get('/:id/cari-ekstre', firmaController.getCariEkstre)
 
 export default router

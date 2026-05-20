@@ -238,15 +238,27 @@ export const projeService = {
     return data
   },
 
-  async create(body: Record<string, any>) {
+  async create(body: Record<string, any>, actorId?: string) {
     const { bloklar, ...projeData } = body
-    
+
     // Aynı isimde birden fazla blok gönderilmiş mi kontrol et
     if (bloklar && bloklar.length > 0) {
       const names = bloklar.map((b: any) => b.blok_adi)
       if (new Set(names).size !== names.length) {
         throw ApiError.badRequest('Aynı isimde birden fazla blok ekleyemezsiniz.')
       }
+    }
+
+    // Sprint role-system-modernization (PR-B): projeler.owner_user_id NOT NULL.
+    // Service-role bypass'da auth.uid() NULL → BEFORE INSERT trigger
+    // owner_user_id'yi dolduramaz; backend explicit aktör ID'sini yazmalı.
+    // (AFTER INSERT trigger yine owner üyeliğini idempotent şekilde ekler.)
+    if (actorId && !projeData.owner_user_id) {
+      projeData.owner_user_id = actorId
+    }
+
+    if (!projeData.owner_user_id) {
+      throw ApiError.badRequest('Proje sahibi (owner) belirlenemedi — oturum bilgisi eksik')
     }
 
     const { data: proje, error: projeError } = await supabaseAdmin

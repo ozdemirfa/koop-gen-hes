@@ -1,9 +1,20 @@
 import { z } from 'zod'
 
+/**
+ * Sprint role-system-modernization (PR-B):
+ *   Yeni rol modeli: owner / manager / user.
+ *   Davet ve atama akışları yeni model değerlerini kabul eder. Legacy
+ *   admin/staff/viewer değerleri tip union'da geriye uyumluluk için tutulur
+ *   (frontend henüz revize edilmediği sürece bozulmadan kabul edilirler;
+ *   faz 3'te schema'dan çıkarılacaklar).
+ */
+export const PROJECT_ROLE_VALUES = ['owner', 'manager', 'user', 'admin', 'staff', 'viewer'] as const
+export type ProjectRoleSchemaValue = (typeof PROJECT_ROLE_VALUES)[number]
+
 const projectAssignmentSchema = z.object({
   proje_id: z.string().uuid('Geçerli bir proje ID gereklidir'),
-  rol: z.enum(['admin', 'staff', 'viewer'], {
-    message: 'rol değeri admin/staff/viewer olmalıdır',
+  rol: z.enum(PROJECT_ROLE_VALUES, {
+    message: 'rol değeri owner/manager/user olmalıdır (legacy: admin/staff/viewer)',
   }),
 })
 
@@ -22,12 +33,12 @@ export const updateGlobalRoleSchema = z.object({
   }),
 })
 
-// Per-project membership
+// Per-project membership — PR-B sonrası default 'user'.
 export const upsertProjeUyeligiSchema = z.object({
   user_id: z.string().uuid('Geçerli bir kullanıcı ID gereklidir'),
-  rol: z.enum(['admin', 'staff', 'viewer']).default('staff'),
+  rol: z.enum(PROJECT_ROLE_VALUES).default('user'),
 })
 
 export const updateProjeUyeligiRoluSchema = z.object({
-  rol: z.enum(['admin', 'staff', 'viewer']),
+  rol: z.enum(PROJECT_ROLE_VALUES),
 })

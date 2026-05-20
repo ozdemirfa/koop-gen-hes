@@ -42,10 +42,18 @@ vi.mock('../../src/middleware/auth', async () => {
   }
 })
 
-vi.mock('../../src/middleware/projectAccessCache', () => ({
-  getProjectRole: vi.fn(async () => currentUser?.projectRole ?? null),
-  clearProjectAccessCache: vi.fn(),
-}))
+// Sprint role-system-modernization (PR-B): partial mock — yeni helper'ları
+// (normalizeProjectRole, roleSatisfies) korumak için importOriginal kullan.
+vi.mock('../../src/middleware/projectAccessCache', async () => {
+  const actual = await vi.importActual<typeof import('../../src/middleware/projectAccessCache')>(
+    '../../src/middleware/projectAccessCache',
+  )
+  return {
+    ...actual,
+    getProjectRole: vi.fn(async () => currentUser?.projectRole ?? null),
+    clearProjectAccessCache: vi.fn(),
+  }
+})
 
 // supabaseAdmin generic chainable mock — bkz. Sprint #I test altyapısı
 vi.mock('../../src/config/supabase', () => {
@@ -88,19 +96,31 @@ describe('RBAC + project isolation integration smoke', () => {
     currentUser = null
   })
 
-  describe('DELETE /api/faturalar/:id (global admin only)', () => {
+  describe('DELETE /api/faturalar/:id (manager+ proje yetkisi)', () => {
+    // Sprint role-system-modernization (PR-B): DELETE artık proje-bazlı manager+
+    // gerektirir (eski "global admin only" kuralı kalktı — global rol kavramı
+    // faz 3'te tamamen kaldırılacak; PR-B sonrasında global admin hâlâ owner
+    // seviyesinde tüm projelere erişebilir geriye uyumluluk için).
     it('anon → 401', async () => {
       const res = await request(app).delete('/api/faturalar/abc').query({ proje_id: PROJE_ID })
       expect(res.status).toBe(401)
     })
 
-    it('global staff (no project) → 403', async () => {
-      currentUser = { id: 'u-staff', role: 'staff', projectRole: 'staff' }
+    it('proje user (legacy viewer) → 403 (manager+ gerekir)', async () => {
+      currentUser = { id: 'u-user', role: 'staff', projectRole: 'viewer' }
       const res = await request(app).delete('/api/faturalar/abc').query({ proje_id: PROJE_ID })
       expect(res.status).toBe(403)
     })
 
-    it('global admin → not 401/403 (downstream validation/server hatası kabul)', async () => {
+    it('proje manager (legacy staff) → not 401/403', async () => {
+      // PR-B normalize: legacy 'staff' → manager seviyesinde DELETE yetkisi.
+      currentUser = { id: 'u-staff', role: 'staff', projectRole: 'staff' }
+      const res = await request(app).delete('/api/faturalar/abc').query({ proje_id: PROJE_ID })
+      expect(res.status).not.toBe(401)
+      expect(res.status).not.toBe(403)
+    })
+
+    it('global admin → not 401/403 (legacy owner fallback)', async () => {
       currentUser = { id: 'u-admin', role: 'admin' }
       const res = await request(app).delete('/api/faturalar/abc').query({ proje_id: PROJE_ID })
       expect(res.status).not.toBe(401)
@@ -108,19 +128,22 @@ describe('RBAC + project isolation integration smoke', () => {
     })
   })
 
-  describe('POST /api/cekler (project staff+ erişimi)', () => {
+  describe('POST /api/cekler (proje user+ erişimi — form girişi)', () => {
+    // PR-B: form girişi user'a açık; viewer (legacy alias → user) artık POST yapabilir.
     it('anon → 401', async () => {
       const res = await request(app).post('/api/cekler').send({ proje_id: PROJE_ID })
       expect(res.status).toBe(401)
     })
 
-    it('proje viewer (read-only) → 403', async () => {
+    it('proje user (legacy viewer) → not 401/403 (form girişi user level)', async () => {
       currentUser = { id: 'u-viewer', role: 'staff', projectRole: 'viewer' }
       const res = await request(app).post('/api/cekler').send({ proje_id: PROJE_ID })
-      expect(res.status).toBe(403)
+      // Auth/yetki geçer; downstream schema validation veya server hatası kabul edilir.
+      expect(res.status).not.toBe(401)
+      expect(res.status).not.toBe(403)
     })
 
-    it('proje staff → not 401/403', async () => {
+    it('proje staff (legacy manager) → not 401/403', async () => {
       currentUser = { id: 'u-staff', role: 'staff', projectRole: 'staff' }
       const res = await request(app).post('/api/cekler').send({ proje_id: PROJE_ID })
       expect(res.status).not.toBe(401)

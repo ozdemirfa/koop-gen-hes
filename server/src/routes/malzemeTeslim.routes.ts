@@ -6,11 +6,14 @@ import * as malzemeTeslimController from '../controllers/malzemeTeslim.controlle
 
 const router = Router()
 
-router.get('/', requireProjectAccess('viewer'), malzemeTeslimController.getMalzemeTeslim)
-router.get('/:id', requireProjectAccess('viewer'), malzemeTeslimController.getMalzemeTeslimById)
+// Sprint role-system-modernization (PR-B):
+//   GET/POST/PUT → user
+//   DELETE       → manager
+router.get('/', requireProjectAccess('user'), malzemeTeslimController.getMalzemeTeslim)
+router.get('/:id', requireProjectAccess('user'), malzemeTeslimController.getMalzemeTeslimById)
 
-router.post('/', requireProjectAccess('staff'), validate({ body: irsaliyeSchema }), malzemeTeslimController.createMalzemeTeslim)
-router.put('/:id', requireProjectAccess('staff'), validate({ body: updateIrsaliyeSchema }), malzemeTeslimController.updateMalzemeTeslim)
-router.delete('/:id', requireProjectAccess('staff'), malzemeTeslimController.deleteMalzemeTeslim)
+router.post('/', requireProjectAccess('user'), validate({ body: irsaliyeSchema }), malzemeTeslimController.createMalzemeTeslim)
+router.put('/:id', requireProjectAccess('user'), validate({ body: updateIrsaliyeSchema }), malzemeTeslimController.updateMalzemeTeslim)
+router.delete('/:id', requireProjectAccess('manager'), malzemeTeslimController.deleteMalzemeTeslim)
 
 export default router

@@ -1,59 +1,47 @@
 import { Router } from 'express'
 import { validate } from '../middleware/validate'
-import { requireRole } from '../middleware/requireRole'
 import { requireProjectAccess } from '../middleware/requireProjectAccess'
 import { createAidatTanimiSchema, updateAidatTanimiSchema, aidatOdemeSchema, yillikPlanSchema } from '../schemas/aidat.schema'
 import * as aidatController from '../controllers/aidat.controller'
 
 const router = Router()
 
+// Sprint role-system-modernization (PR-B):
+//   GET                          → user
+//   POST/PUT (form girişi)       → user
+//   DELETE                       → manager
+//   borclandir (manuel charge)   → manager (parametre/finans etki)
+//   execute-charging (toplu)     → manager
+//   bulk-charge-interest         → manager
+//   toggle-faiz                  → manager (finansal manipülasyon)
+
 // === AİDAT TANIMLARI ===
 
-// POST /api/aidatlar/tanimlar/:id/borclandir
-router.post('/tanimlar/:id/borclandir', requireProjectAccess('staff'), aidatController.chargeTanim)
+// POST /api/aidatlar/tanimlar/:id/borclandir — manuel borçlandırma → manager
+router.post('/tanimlar/:id/borclandir', requireProjectAccess('manager'), aidatController.chargeTanim)
 
-// GET /api/aidatlar/tanimlar
-router.get('/tanimlar', requireProjectAccess('viewer'), aidatController.getAidatTanimlari)
+router.get('/tanimlar', requireProjectAccess('user'), aidatController.getAidatTanimlari)
+router.post('/tanimlar', requireProjectAccess('user'), validate({ body: createAidatTanimiSchema }), aidatController.createAidatTanimi)
+router.post('/yillik-plan', requireProjectAccess('user'), validate({ body: yillikPlanSchema }), aidatController.createYillikPlan)
+router.put('/tanimlar/:id', requireProjectAccess('user'), validate({ body: updateAidatTanimiSchema }), aidatController.updateAidatTanimi)
+router.delete('/tanimlar/:id', requireProjectAccess('manager'), aidatController.deleteAidatTanimi)
 
-// POST /api/aidatlar/tanimlar
-router.post('/tanimlar', requireProjectAccess('staff'), validate({ body: createAidatTanimiSchema }), aidatController.createAidatTanimi)
-
-// POST /api/aidatlar/yillik-plan
-router.post('/yillik-plan', requireProjectAccess('staff'), validate({ body: yillikPlanSchema }), aidatController.createYillikPlan)
-
-// PUT /api/aidatlar/tanimlar/:id
-router.put('/tanimlar/:id', requireProjectAccess('staff'), validate({ body: updateAidatTanimiSchema }), aidatController.updateAidatTanimi)
-
-// DELETE /api/aidatlar/tanimlar/:id
-router.delete('/tanimlar/:id', requireProjectAccess('staff'), aidatController.deleteAidatTanimi)
-
-// POST /api/aidatlar/execute-charging — toplu borçlandırma; global admin only
-router.post('/execute-charging', requireRole('admin'), requireProjectAccess('viewer'), aidatController.executeCharging)
-
-// POST /api/aidatlar/bulk-charge-interest — toplu faiz tahakkuk; global admin only
-router.post('/bulk-charge-interest', requireRole('admin'), requireProjectAccess('viewer'), aidatController.bulkChargeInterest)
+// Toplu borçlandırma + toplu faiz — manager+
+router.post('/execute-charging', requireProjectAccess('manager'), aidatController.executeCharging)
+router.post('/bulk-charge-interest', requireProjectAccess('manager'), aidatController.bulkChargeInterest)
 
 // === AİDATLAR ===
 
-// GET /api/aidatlar/ozet (Must be before /:id)
-router.get('/ozet', requireProjectAccess('viewer'), aidatController.getAidatOzet)
+router.get('/ozet', requireProjectAccess('user'), aidatController.getAidatOzet)
+router.post('/gecikme-hesapla', requireProjectAccess('user'), aidatController.calculateLateFees)
 
-// POST /api/aidatlar/gecikme-hesapla (Tüm proje için)
-router.post('/gecikme-hesapla', requireProjectAccess('staff'), aidatController.calculateLateFees)
+router.get('/', requireProjectAccess('user'), aidatController.getAidatlar)
+router.get('/:id', requireProjectAccess('user'), aidatController.getAidatById)
 
-// GET /api/aidatlar
-router.get('/', requireProjectAccess('viewer'), aidatController.getAidatlar)
+router.post('/:id/odeme', requireProjectAccess('user'), validate({ body: aidatOdemeSchema }), aidatController.recordPayment)
+router.post('/:id/gecikme-hesapla', requireProjectAccess('user'), aidatController.calculateSingleLateFee)
 
-// GET /api/aidatlar/:id (proje_id query'den gelir; aksi halde middleware 400 döner)
-router.get('/:id', requireProjectAccess('viewer'), aidatController.getAidatById)
-
-// POST /api/aidatlar/:id/odeme
-router.post('/:id/odeme', requireProjectAccess('staff'), validate({ body: aidatOdemeSchema }), aidatController.recordPayment)
-
-// POST /api/aidatlar/:id/gecikme-hesapla (Tek bir aidat için)
-router.post('/:id/gecikme-hesapla', requireProjectAccess('staff'), aidatController.calculateSingleLateFee)
-
-// POST /api/aidatlar/:id/toggle-faiz (Faiz Ekle/Sil) — finansal manipülasyon; global admin only
-router.post('/:id/toggle-faiz', requireRole('admin'), requireProjectAccess('viewer'), aidatController.toggleInterest)
+// Toggle faiz — finansal manipülasyon; manager+
+router.post('/:id/toggle-faiz', requireProjectAccess('manager'), aidatController.toggleInterest)
 
 export default router

@@ -38,10 +38,18 @@ vi.mock('../../src/middleware/auth', async () => {
   }
 })
 
-vi.mock('../../src/middleware/projectAccessCache', () => ({
-  getProjectRole: vi.fn(async () => currentUser?.projectRole ?? null),
-  clearProjectAccessCache: vi.fn(),
-}))
+// Sprint role-system-modernization (PR-B): partial mock — yeni helper'ları
+// (normalizeProjectRole, roleSatisfies) korumak için importOriginal kullan.
+vi.mock('../../src/middleware/projectAccessCache', async () => {
+  const actual = await vi.importActual<typeof import('../../src/middleware/projectAccessCache')>(
+    '../../src/middleware/projectAccessCache',
+  )
+  return {
+    ...actual,
+    getProjectRole: vi.fn(async () => currentUser?.projectRole ?? null),
+    clearProjectAccessCache: vi.fn(),
+  }
+})
 
 vi.mock('../../src/middleware/roleCache', () => ({
   getUserRole: vi.fn(async () => currentUser?.role ?? null),
@@ -94,11 +102,13 @@ describe('Project membership smoke', () => {
       expect(res.status).toBe(401)
     })
 
-    it('global admin → 200 ve rol=admin', async () => {
+    it('global admin → 200 ve rol=owner (legacy admin → owner mapping)', async () => {
+      // Sprint role-system-modernization (PR-B): /me endpoint global admin için
+      // 'admin' yerine 'owner' döner (faz 3'te bu fallback de kaldırılacak).
       currentUser = { id: 'u-admin', role: 'admin' }
       const res = await request(app).get(`/api/projeler/${PROJE_ID}/uyeler/me`)
       expect(res.status).toBe(200)
-      expect(res.body.data.rol).toBe('admin')
+      expect(res.body.data.rol).toBe('owner')
     })
 
     it('staff (proje üyesi) → 200 ve DB rolü', async () => {
@@ -142,12 +152,24 @@ describe('Project membership smoke', () => {
       expect(res.status).toBe(400)
     })
 
-    it('admin valid → 201', async () => {
+    it('admin valid → 201 (yeni rol: user)', async () => {
+      // PR-B sonrasında service assertNewRole ile staff/viewer/admin reddediyor.
+      currentUser = { id: 'u-admin', role: 'admin' }
+      const res = await request(app)
+        .post(`/api/projeler/${PROJE_ID}/uyeler`)
+        .send({ user_id: TARGET_USER_ID, rol: 'user' })
+      expect(res.status).toBe(201)
+    })
+
+    it('admin legacy rol="staff" → 400 (yeni model reddi)', async () => {
+      // PR-B sonrasında atama akışlarında yalnızca owner/manager/user kabul edilir;
+      // legacy değerler frontend tarafından temizlenecek (PR-C).
       currentUser = { id: 'u-admin', role: 'admin' }
       const res = await request(app)
         .post(`/api/projeler/${PROJE_ID}/uyeler`)
         .send({ user_id: TARGET_USER_ID, rol: 'staff' })
-      expect(res.status).toBe(201)
+      // Service-level assertNewRole 400 fırlatır
+      expect(res.status).toBe(400)
     })
   })
 
@@ -156,15 +178,15 @@ describe('Project membership smoke', () => {
       currentUser = { id: 'u-staff', role: 'staff' }
       const res = await request(app)
         .patch(`/api/projeler/${PROJE_ID}/uyeler/${TARGET_USER_ID}`)
-        .send({ rol: 'viewer' })
+        .send({ rol: 'user' })
       expect(res.status).toBe(403)
     })
 
-    it('admin valid → 200', async () => {
+    it('admin valid (yeni rol: user) → 200', async () => {
       currentUser = { id: 'u-admin', role: 'admin' }
       const res = await request(app)
         .patch(`/api/projeler/${PROJE_ID}/uyeler/${TARGET_USER_ID}`)
-        .send({ rol: 'viewer' })
+        .send({ rol: 'user' })
       expect(res.status).toBe(200)
     })
   })
