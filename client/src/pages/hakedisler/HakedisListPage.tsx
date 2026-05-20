@@ -50,7 +50,7 @@ export const HakedisListPage: React.FC = () => {
   const queryClient = useQueryClient()
   const { message } = App.useApp()
   const { activeProject } = useProject()
-  const { canEdit } = usePermissions()
+  const { canEdit, canDelete } = usePermissions()
   const [filterDurum, setFilterDurum] = useState<string | undefined>(undefined)
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [selectedFirmaId, setSelectedFirmaId] = useState<string | null>(null)
@@ -244,7 +244,7 @@ export const HakedisListPage: React.FC = () => {
       render: (_: unknown, r: Hakedis) => (
         <Space>
           <Button icon={<EyeOutlined />} type="text" onClick={() => navigate(`/hakedisler/${r.id}`)} />
-          {r.durum === 'onaylandi' && (
+          {r.durum === 'onaylandi' && canDelete && (
             <Popconfirm
               title="Hakediş onayı iptal edilecek ve cari hareketi silinecek. Emin misiniz?"
               onConfirm={() => unapproveMutation.mutate(r.id)}
@@ -252,10 +252,10 @@ export const HakedisListPage: React.FC = () => {
               cancelText="Hayır"
             >
               <Tooltip title="Onay İptal (Revizyona Aç)">
-                <Button 
-                  icon={<RollbackOutlined />} 
-                  type="text" 
-                  danger 
+                <Button
+                  icon={<RollbackOutlined />}
+                  type="text"
+                  danger
                   loading={unapproveMutation.isPending}
                 />
               </Tooltip>

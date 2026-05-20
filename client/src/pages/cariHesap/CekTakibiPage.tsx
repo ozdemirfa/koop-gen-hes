@@ -32,7 +32,7 @@ interface Cek {
 export const CekTakibiPage: React.FC = () => {
   const queryClient = useQueryClient()
   const { activeProject } = useProject()
-  const { canEdit } = usePermissions()
+  const { canEdit, canDelete } = usePermissions()
   const [modalOpen, setModalOpen] = useState(false)
   const [payModalOpen, setPayModalOpen] = useState(false)
   const [editingCek, setEditingCek] = useState<Cek | null>(null)
@@ -171,21 +171,28 @@ export const CekTakibiPage: React.FC = () => {
             onClick={() => { setEditingCek(r); form.setFieldsValue({ ...r, vade_tarihi: dayjs(r.vade_tarihi), keside_tarihi: r.keside_tarihi ? dayjs(r.keside_tarihi) : null }); setModalOpen(true) }}
           />
           {r.durum === 'beklemede' && canEdit && (
-            <>
-              <Button
-                size="small"
-                type="primary"
-                ghost
-                onClick={() => {
-                  setPayingCek(r)
-                  payForm.resetFields()
-                  setPayModalOpen(true)
-                }}
-              >
-                Çek Öde
-              </Button>
-              <Button icon={<CloseCircleOutlined />} size="small" danger ghost onClick={() => updateDurumMutation.mutate({ id: r.id, durum: 'iptal' })} />
-            </>
+            <Button
+              size="small"
+              type="primary"
+              ghost
+              onClick={() => {
+                setPayingCek(r)
+                payForm.resetFields()
+                setPayModalOpen(true)
+              }}
+            >
+              Çek Öde
+            </Button>
+          )}
+          {r.durum === 'beklemede' && canDelete && (
+            <Button
+              icon={<CloseCircleOutlined />}
+              size="small"
+              danger
+              ghost
+              title="Çeki iptal et (manager+)"
+              onClick={() => updateDurumMutation.mutate({ id: r.id, durum: 'iptal' })}
+            />
           )}
         </Space>
       ),

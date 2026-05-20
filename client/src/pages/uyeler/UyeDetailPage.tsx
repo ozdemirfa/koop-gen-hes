@@ -45,7 +45,7 @@ export const UyeDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { canEdit } = usePermissions()
+  const { canEdit, canDelete } = usePermissions()
   const [faizModalOpen, setFaizModalOpen] = useState(false)
   const [baslangicModalOpen, setBaslangicModalOpen] = useState(false)
   const { message: messageApi } = App.useApp()
@@ -382,16 +382,16 @@ export const UyeDetailPage: React.FC = () => {
             okText="Evet, Geri Al"
             cancelText="Vazgeç"
             okButtonProps={{ danger: true }}
-            disabled={!canEdit}
+            disabled={!canDelete}
           >
             <Button
               type="text"
               size="small"
               danger
-              disabled={!canEdit}
+              disabled={!canDelete}
               icon={<RollbackOutlined />}
               loading={undoAidatMutation.isPending && undoAidatMutation.variables === r.id}
-              title={!canEdit ? 'Yetki yok' : 'Kapama Geri Al'}
+              title={!canDelete ? 'Yetki yok (manager+ gerekli)' : 'Kapama Geri Al'}
               aria-label="Aidat kapamayı geri al"
             />
           </Popconfirm>
@@ -468,16 +468,16 @@ export const UyeDetailPage: React.FC = () => {
             onConfirm={() => undoMatchMutation.mutate(r.id)}
             okText="Evet, Kaldır"
             cancelText="Vazgeç"
-            disabled={!canEdit}
+            disabled={!canDelete}
           >
             <Button
               type="text"
               size="small"
               danger
-              disabled={!canEdit}
+              disabled={!canDelete}
               icon={<RollbackOutlined />}
               loading={undoMatchMutation.isPending && undoMatchMutation.variables === r.id}
-              title={!canEdit ? 'Yetki yok' : 'Eşleşmeyi Geri Al'}
+              title={!canDelete ? 'Yetki yok (manager+ gerekli)' : 'Eşleşmeyi Geri Al'}
             />
           </Popconfirm>
         );

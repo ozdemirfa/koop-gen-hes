@@ -4,18 +4,26 @@ import { Spin } from 'antd'
 import { useAuth } from '../../contexts/AuthContext'
 import { usePermissions } from '../../hooks/usePermissions'
 
-// Sprint 20260520-frontend-role-awareness (Faz 3a):
-// Route guard — session + opsiyonel rol kontrolü. `requireRole='admin'` (global admin)
-// veya `requireRole='staff'` (proje staff+) ile sayfa erişimi kısıtlanır.
+// Sprint role-system-modernization (PR-C, 2026-05-20):
+// Route guard — session + opsiyonel rol kontrolü.
+//
+// `requireRole` (yeni model):
+//   - 'user'    → en az 'user' rolü (aslında üyelik) — `canView`
+//   - 'manager' → manager+ — `canManageUsers` / `isManager`
+//   - 'owner'   → sadece owner
+//
+// Legacy aliases (geriye uyumluluk — PR-D sonrası kaldırılacak):
+//   - 'admin'   → 'manager' olarak normalize edilir
+//                 (eski global admin kontrolü → şimdi proje manager+)
+//   - 'staff'   → 'user' (eski staff = düzenleyebilen üye)
 //
 // Davranış:
 //   - loading → spinner
-//   - session yok → /login redirect
-//   - requireRole='admin' + global admin değil → /forbidden
-//   - requireRole='staff' + canEdit=false → /forbidden
-//   - else → children render
+//   - session yok → /login
+//   - rol yetmiyorsa → /forbidden
+//   - else → children
 
-type RequireRole = 'admin' | 'staff'
+type RequireRole = 'admin' | 'staff' | 'owner' | 'manager' | 'user'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
@@ -24,7 +32,7 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireRole }) => {
   const { session, loading } = useAuth()
-  const { isGlobalAdmin, canEdit } = usePermissions()
+  const { isOwner, isManager, canEdit } = usePermissions()
 
   if (loading) {
     return (
@@ -36,11 +44,25 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requir
 
   if (!session) return <Navigate to="/login" replace />
 
-  if (requireRole === 'admin' && !isGlobalAdmin) {
+  if (!requireRole) return <>{children}</>
+
+  // Legacy aliasing
+  const normalized: 'owner' | 'manager' | 'user' =
+    requireRole === 'owner'
+      ? 'owner'
+      : requireRole === 'admin' || requireRole === 'manager'
+        ? 'manager'
+        : 'user' // 'staff' | 'user'
+
+  if (normalized === 'owner' && !isOwner) {
     return <Navigate to="/forbidden" replace />
   }
 
-  if (requireRole === 'staff' && !canEdit) {
+  if (normalized === 'manager' && !isManager) {
+    return <Navigate to="/forbidden" replace />
+  }
+
+  if (normalized === 'user' && !canEdit) {
     return <Navigate to="/forbidden" replace />
   }
 

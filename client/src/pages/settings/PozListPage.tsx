@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Button, Modal, Form, Input, Space, Select, App } from 'antd'
+import { Button, Modal, Form, Input, Space, Select, App, Typography } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
@@ -7,6 +7,7 @@ import { getErrorMessage } from '../../lib/apiError'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { ConfirmDelete } from '../../components/common/ConfirmDelete'
 import { DataTable } from '../../components/common/DataTable'
+import { usePermissions } from '../../hooks/usePermissions'
 
 interface Poz {
   id: string
@@ -22,6 +23,8 @@ export const PozListPage: React.FC = () => {
   const [form] = Form.useForm()
   const queryClient = useQueryClient()
   const { message: messageApi } = App.useApp()
+  // Sprint role-system-modernization (PR-C): Parametre sayfaları manager+ gating
+  const { isManager } = usePermissions()
 
   usePageSettings('Pozlar')
 
@@ -104,13 +107,23 @@ export const PozListPage: React.FC = () => {
       width: 120,
       render: (_: any, record: Poz) => (
         <Space>
-          <Button icon={<EditOutlined />} type="text" onClick={() => handleEdit(record)} />
-          <ConfirmDelete
-            title="Pozu silmek istediğinize emin misiniz?"
-            onConfirm={() => deleteMutation.mutate(record.id)}
-          >
-            <Button icon={<DeleteOutlined />} type="text" danger />
-          </ConfirmDelete>
+          <Button
+            icon={<EditOutlined />}
+            type="text"
+            onClick={() => handleEdit(record)}
+            disabled={!isManager}
+            title={!isManager ? 'Yetki yok (manager+ gerekli)' : undefined}
+          />
+          {isManager ? (
+            <ConfirmDelete
+              title="Pozu silmek istediğinize emin misiniz?"
+              onConfirm={() => deleteMutation.mutate(record.id)}
+            >
+              <Button icon={<DeleteOutlined />} type="text" danger />
+            </ConfirmDelete>
+          ) : (
+            <Button icon={<DeleteOutlined />} type="text" danger disabled title="Yetki yok (manager+ gerekli)" />
+          )}
         </Space>
       )
     }
@@ -118,14 +131,21 @@ export const PozListPage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-start' }}>
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Button
           type="primary"
           icon={<PlusOutlined />}
           onClick={() => setModalVisible(true)}
+          disabled={!isManager}
+          title={!isManager ? 'Yetki yok (manager+ gerekli)' : undefined}
         >
           Yeni Poz Ekle
         </Button>
+        {!isManager && (
+          <Typography.Text type="secondary">
+            Poz tanımlarını yalnızca proje yöneticileri (manager+) değiştirebilir.
+          </Typography.Text>
+        )}
       </div>
 
       <DataTable
@@ -146,10 +166,10 @@ export const PozListPage: React.FC = () => {
         destroyOnHidden
         width="min(520px, 95vw)"
       >
-        <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)} validateTrigger={["onBlur", "onChange"]}>
-          <Form.Item 
-            name="poz_no" 
-            label="Poz No" 
+        <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)} validateTrigger={["onBlur", "onChange"]} disabled={!isManager}>
+          <Form.Item
+            name="poz_no"
+            label="Poz No"
             rules={[
               { required: true, message: 'Poz no zorunlu' },
               { max: 11, message: 'En fazla 11 karakter olabilir' }

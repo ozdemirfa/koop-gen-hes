@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
 import { Card, Table, Button, Modal, Form, InputNumber, App, Typography, Tag, Space } from 'antd'
-import { EditOutlined, SaveOutlined } from '@ant-design/icons'
+import { EditOutlined } from '@ant-design/icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getErrorMessage } from '../../lib/apiError'
 import { usePageSettings } from '../../contexts/LayoutContext'
+import { usePermissions } from '../../hooks/usePermissions'
 
 const { Text, Paragraph } = Typography
 
@@ -21,6 +22,8 @@ export const ParametersPage: React.FC = () => {
   const [editModalVisible, setEditModalOpen] = useState(false)
   const [editingParam, setEditingParam] = useState<SystemParameter | null>(null)
   const [form] = Form.useForm()
+  // Sprint role-system-modernization (PR-C): Sistem parametreleri yalnızca manager+
+  const { isManager } = usePermissions()
 
   usePageSettings('Sistem Parametreleri')
 
@@ -111,10 +114,12 @@ export const ParametersPage: React.FC = () => {
       width: '10%',
       align: 'right' as const,
       render: (_: any, record: SystemParameter) => (
-        <Button 
-          type="text" 
-          icon={<EditOutlined />} 
+        <Button
+          type="text"
+          icon={<EditOutlined />}
           onClick={() => handleEdit(record)}
+          disabled={!isManager}
+          title={!isManager ? 'Yetki yok (manager+ gerekli)' : undefined}
         >
           Düzenle
         </Button>

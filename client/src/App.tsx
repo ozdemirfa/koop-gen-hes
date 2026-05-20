@@ -152,14 +152,26 @@ const App: React.FC = () => {
                         <Route path="raporlar/yillik" element={<YillikRaporPage />} />
                         <Route path="raporlar/uye-borc" element={<UyeBorcRaporPage />} />
                         <Route path="raporlar/mizan" element={<MizanPage />} />
+                        {/*
+                          Sprint role-system-modernization (PR-C):
+                          Parametre/ayar sayfaları — kullanıcı görebilir ancak
+                          değiştirme butonları sayfada manager+ gating ile
+                          korunuyor (ileride route-level guard'a alınabilir).
+                          Şifre değiştir tüm üyelere açık.
+                        */}
                         <Route path="ayarlar/birimler" element={<BirimListPage />} />
                         <Route path="ayarlar/pozlar" element={<PozListPage />} />
                         <Route path="ayarlar/parametreler" element={<ParametersPage />} />
                         <Route path="ayarlar/sifre-degistir" element={<SifreDegistirPage />} />
+                        {/*
+                          Kullanıcı Yönetimi: artık proje-kapsamlı; manager+
+                          erişim. PR-D ile sayfa içeriği proje üyelik yönetimine
+                          yeniden mimari olacak.
+                        */}
                         <Route
                           path="admin/kullanicilar"
                           element={
-                            <ProtectedRoute requireRole="admin">
+                            <ProtectedRoute requireRole="manager">
                               <KullaniciYonetimiPage />
                             </ProtectedRoute>
                           }
@@ -167,7 +179,7 @@ const App: React.FC = () => {
                         <Route
                           path="admin/projeler/:projeId/uyeler"
                           element={
-                            <ProtectedRoute requireRole="admin">
+                            <ProtectedRoute requireRole="manager">
                               <ProjeUyelikleriPage />
                             </ProtectedRoute>
                           }

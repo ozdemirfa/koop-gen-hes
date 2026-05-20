@@ -40,7 +40,7 @@ const BIRIMLER = ['Adet', 'Metre', 'Kg', 'm2', 'm3', 'Ton', 'Litre', 'Set']
 
 export const MalzemeTeslimListPage: React.FC = () => {
   const queryClient = useQueryClient()
-  const { canEdit } = usePermissions()
+  const { canEdit, canDelete } = usePermissions()
   const { message: messageApi } = App.useApp()
   const [modalOpen, setModalOpen] = useState(false)
   const [editingIrsaliye, setEditingIrsaliye] = useState<Irsaliye | null>(null)
@@ -221,7 +221,7 @@ export const MalzemeTeslimListPage: React.FC = () => {
               setModalOpen(true)
             }}
           />
-          {canEdit && <ConfirmDelete onConfirm={() => deleteMutation.mutate(r.id)} />}
+          {canDelete && <ConfirmDelete onConfirm={() => deleteMutation.mutate(r.id)} />}
         </Space>
       ),
     },
