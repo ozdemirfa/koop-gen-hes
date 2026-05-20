@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { validate } from '../middleware/validate'
-import { requireRole } from '../middleware/requireRole'
+import { requireProjectAccess } from '../middleware/requireProjectAccess'
 import { upsertProjeUyeligiSchema, updateProjeUyeligiRoluSchema } from '../schemas/admin.schema'
 import * as projeUyelikController from '../controllers/projeUyelik.controller'
 
@@ -8,18 +8,28 @@ import * as projeUyelikController from '../controllers/projeUyelik.controller'
 // projeler.routes.ts ile çakışmaması için ayrı bir router olarak tutuluyor;
 // routes/index.ts içinde `router.use('/projeler/:projeId/uyeler', ...)` ile
 // mount edilir. Express `mergeParams` ile :projeId çocuk router'a yansır.
+//
+// Sprint role-system-modernization (PR-B):
+//   GET /:projeId/uyeler/me  → herhangi bir üye (kendi rolünü okur)
+//   list/upsert/patch/delete → owner only (proje sahibi üyelik yönetimi)
+//
+// Legacy global admin requireRole('admin') guard'ı kaldırıldı; yerine
+// proje-bazlı requireProjectAccess('owner') kullanılır. requireProjectAccess
+// içindeki legacy fallback global admin'i hâlâ owner olarak kabul eder
+// (faz 3'te kaldırılacak).
 const router = Router({ mergeParams: true })
 
-// GET /:projeId/uyeler/me — viewer+ ile kendi rolünü gör. Membership UI dışı
-// frontend rol bilinci için kullanılır; admin endpoint değil.
-router.get('/me', projeUyelikController.getMyRole)
+// GET /:projeId/uyeler/me — herhangi bir proje üyesi kendi rolünü görebilir.
+router.get('/me', requireProjectAccess('user'), projeUyelikController.getMyRole)
 
-// Aşağıdaki tüm endpoint'ler global admin yetkisi gerektirir.
-router.use(requireRole('admin'))
-
-router.get('/', projeUyelikController.listMembers)
-router.post('/', validate({ body: upsertProjeUyeligiSchema }), projeUyelikController.upsertMember)
-router.patch('/:userId', validate({ body: updateProjeUyeligiRoluSchema }), projeUyelikController.updateMemberRole)
-router.delete('/:userId', projeUyelikController.removeMember)
+router.get('/', requireProjectAccess('owner'), projeUyelikController.listMembers)
+router.post('/', requireProjectAccess('owner'), validate({ body: upsertProjeUyeligiSchema }), projeUyelikController.upsertMember)
+router.patch(
+  '/:userId',
+  requireProjectAccess('owner'),
+  validate({ body: updateProjeUyeligiRoluSchema }),
+  projeUyelikController.updateMemberRole,
+)
+router.delete('/:userId', requireProjectAccess('owner'), projeUyelikController.removeMember)
 
 export default router

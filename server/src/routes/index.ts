@@ -1,6 +1,5 @@
 import { Router } from 'express'
 import { authMiddleware } from '../middleware/auth'
-import { requireRole } from '../middleware/requireRole'
 import { validate } from '../middleware/validate'
 import { birimSchema, pozSchema } from '../schemas/settings.schema'
 import {
@@ -50,13 +49,17 @@ router.get('/auth/me', (req, res) => {
 })
 
 // === SETTINGS (Integrated) ===
+// Sprint role-system-modernization (PR-B): Birim/poz master-data global ölçekli;
+// proje-bazlı 3-rol modeline taşınmıyor. Backend tarafında authMiddleware
+// yeterli; manager+ gating frontend tarafında uygulanır (Settings sayfası
+// PR-C'de role guard ile sınırlandırılacak).
 router.get('/settings/birimler', getBirimler)
-router.post('/settings/birimler', requireRole('admin'), validate({ body: birimSchema }), createBirim)
-router.delete('/settings/birimler/:id', requireRole('admin'), deleteBirim)
+router.post('/settings/birimler', validate({ body: birimSchema }), createBirim)
+router.delete('/settings/birimler/:id', deleteBirim)
 router.get('/settings/pozlar', getPozlar)
-router.post('/settings/pozlar', requireRole('admin'), validate({ body: pozSchema }), createPoz)
-router.put('/settings/pozlar/:id', requireRole('admin'), validate({ body: pozSchema.partial() }), updatePoz)
-router.delete('/settings/pozlar/:id', requireRole('admin'), deletePoz)
+router.post('/settings/pozlar', validate({ body: pozSchema }), createPoz)
+router.put('/settings/pozlar/:id', validate({ body: pozSchema.partial() }), updatePoz)
+router.delete('/settings/pozlar/:id', deletePoz)
 
 // Modül route'ları
 router.use('/uyeler', uyelerRoutes)

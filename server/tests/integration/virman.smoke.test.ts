@@ -38,10 +38,19 @@ vi.mock('../../src/middleware/auth', async () => {
   }
 })
 
-vi.mock('../../src/middleware/projectAccessCache', () => ({
-  getProjectRole: vi.fn(async () => currentUser?.projectRole ?? null),
-  clearProjectAccessCache: vi.fn(),
-}))
+// Sprint role-system-modernization (PR-B): projectAccessCache yeni helper'lar
+// (normalizeProjectRole, roleSatisfies, ROLE_RANK) export ediyor; partial mock
+// için importOriginal kullan.
+vi.mock('../../src/middleware/projectAccessCache', async () => {
+  const actual = await vi.importActual<typeof import('../../src/middleware/projectAccessCache')>(
+    '../../src/middleware/projectAccessCache',
+  )
+  return {
+    ...actual,
+    getProjectRole: vi.fn(async () => currentUser?.projectRole ?? null),
+    clearProjectAccessCache: vi.fn(),
+  }
+})
 
 vi.mock('../../src/middleware/roleCache', () => ({
   getUserRole: vi.fn(async () => currentUser?.role ?? null),
@@ -132,8 +141,25 @@ describe('Virman smoke', () => {
   })
 
   describe('POST /api/virmanlar', () => {
-    it('viewer → 403 (staff+ gerekli)', async () => {
+    // PR-B: POST → user level. Legacy 'viewer' → 'user' normalize edilir; viewer
+    // artık virman ekleyebilir. (Eski beklenti 403'tü; yeni davranış 201.)
+    it('viewer (legacy → user) happy path → 201', async () => {
       currentUser = { id: 'u-viewer', role: 'staff', projectRole: 'viewer' }
+      const res = await request(app)
+        .post('/api/virmanlar')
+        .send({
+          proje_id: PROJE_ID,
+          virman_tipi: 'banka_banka',
+          kaynak_hesap_id: KAYNAK_HESAP,
+          hedef_hesap_id: HEDEF_HESAP,
+          tutar: 1500,
+          tarih: '2026-05-20',
+        })
+      expect(res.status).toBe(201)
+    })
+
+    it('proje üyesi olmayan → 403', async () => {
+      currentUser = { id: 'u-orphan', role: 'staff', projectRole: null }
       const res = await request(app)
         .post('/api/virmanlar')
         .send({
@@ -225,21 +251,23 @@ describe('Virman smoke', () => {
     })
   })
 
-  describe('DELETE /api/virmanlar/:id', () => {
-    it('viewer → 403', async () => {
+  describe('DELETE /api/virmanlar/:id (manager+ — yıkıcı)', () => {
+    // PR-B: DELETE artık manager+ gerektirir. Legacy 'viewer' → user → 403;
+    // legacy 'staff' → manager → geçer.
+    it('viewer (user level) → 403', async () => {
       currentUser = { id: 'u-viewer', role: 'staff', projectRole: 'viewer' }
       const res = await request(app).delete(`/api/virmanlar/${VIRMAN_ID}?proje_id=${PROJE_ID}`)
       expect(res.status).toBe(403)
     })
 
-    it('staff + var olmayan id → 404', async () => {
+    it('staff (legacy → manager) + var olmayan id → 404', async () => {
       currentUser = { id: 'u-staff', role: 'staff', projectRole: 'staff' }
       virmanIdInDb = null
       const res = await request(app).delete(`/api/virmanlar/${VIRMAN_ID}?proje_id=${PROJE_ID}`)
       expect(res.status).toBe(404)
     })
 
-    it('staff + farklı proje virmanı → 404 (defense in depth)', async () => {
+    it('manager + farklı proje virmanı → 404 (defense in depth)', async () => {
       currentUser = { id: 'u-staff', role: 'staff', projectRole: 'staff' }
       virmanIdInDb = VIRMAN_ID
       virmanProjeIdInDb = 'a9999999-9999-4999-a999-999999999999'
@@ -247,7 +275,7 @@ describe('Virman smoke', () => {
       expect(res.status).toBe(404)
     })
 
-    it('staff + same proje → 200', async () => {
+    it('manager + same proje → 200', async () => {
       currentUser = { id: 'u-staff', role: 'staff', projectRole: 'staff' }
       virmanIdInDb = VIRMAN_ID
       virmanProjeIdInDb = PROJE_ID

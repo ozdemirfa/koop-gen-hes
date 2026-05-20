@@ -39,10 +39,17 @@ vi.mock('../../src/middleware/auth', async () => {
   }
 })
 
-vi.mock('../../src/middleware/projectAccessCache', () => ({
-  getProjectRole: vi.fn(async () => currentUser?.projectRole ?? null),
-  clearProjectAccessCache: vi.fn(),
-}))
+// Sprint role-system-modernization (PR-B): partial mock.
+vi.mock('../../src/middleware/projectAccessCache', async () => {
+  const actual = await vi.importActual<typeof import('../../src/middleware/projectAccessCache')>(
+    '../../src/middleware/projectAccessCache',
+  )
+  return {
+    ...actual,
+    getProjectRole: vi.fn(async () => currentUser?.projectRole ?? null),
+    clearProjectAccessCache: vi.fn(),
+  }
+})
 
 // projectGuard.getAllowedProjeIds'i mock'la — proje listesi filtre testi için
 vi.mock('../../src/utils/projectGuard', async () => {
@@ -132,9 +139,21 @@ describe('Project isolation smoke', () => {
       expect(res.status).not.toBe(403)
     })
 
-    it('POST /api/faturalar (viewer) → 403 (düzenleyici yetkisi gerekir)', async () => {
+    it('POST /api/faturalar (viewer → user) → not 401/403 (form girişi user level)', async () => {
+      // Sprint role-system-modernization (PR-B): viewer legacy alias → user'a
+      // normalize edilir; user fatura girişi yapabilir. Yıkıcı işlem (DELETE)
+      // hâlâ manager+ gerektirir (ayrı test).
       currentUser = { id: 'u-viewer', role: 'staff', projectRole: 'viewer' }
       const res = await request(app).post('/api/faturalar').send({ proje_id: PROJE_ID })
+      expect(res.status).not.toBe(401)
+      expect(res.status).not.toBe(403)
+    })
+
+    it('DELETE /api/faturalar (viewer → user) → 403 (DELETE manager+ gerektirir)', async () => {
+      currentUser = { id: 'u-viewer', role: 'staff', projectRole: 'viewer' }
+      const res = await request(app)
+        .delete('/api/faturalar/abc')
+        .query({ proje_id: PROJE_ID })
       expect(res.status).toBe(403)
     })
 

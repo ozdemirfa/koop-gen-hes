@@ -36,10 +36,17 @@ vi.mock('../../src/middleware/auth', async () => {
   }
 })
 
-vi.mock('../../src/middleware/projectAccessCache', () => ({
-  getProjectRole: vi.fn(async () => currentUser?.projectRole ?? null),
-  clearProjectAccessCache: vi.fn(),
-}))
+// Sprint role-system-modernization (PR-B): partial mock.
+vi.mock('../../src/middleware/projectAccessCache', async () => {
+  const actual = await vi.importActual<typeof import('../../src/middleware/projectAccessCache')>(
+    '../../src/middleware/projectAccessCache',
+  )
+  return {
+    ...actual,
+    getProjectRole: vi.fn(async () => currentUser?.projectRole ?? null),
+    clearProjectAccessCache: vi.fn(),
+  }
+})
 
 vi.mock('../../src/config/supabase', () => {
   const builder: Record<string, unknown> = {}

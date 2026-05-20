@@ -7,7 +7,9 @@ import logger from '../utils/logger'
 // Sprint 20260520-perf hotfix: davet akışında frontend "Yok" seçimi null/undefined
 // yolluyor. Service null'ı sessizce kabul eder (trigger 'staff' atar default).
 export type GlobalRole = 'admin' | 'staff' | null | undefined
-export type ProjectRole = 'admin' | 'staff' | 'viewer'
+// Sprint role-system-modernization (PR-B): yeni model owner/manager/user.
+// Legacy değerler tip union'da kalır (frontend henüz revize edilmedi).
+export type ProjectRole = 'owner' | 'manager' | 'user' | 'admin' | 'staff' | 'viewer'
 
 interface ProjectAssignment {
   proje_id: string

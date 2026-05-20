@@ -4,7 +4,9 @@ import * as dashboardController from '../controllers/dashboard.controller'
 
 const router = Router()
 
-router.get('/ozet', requireProjectAccess('viewer'), dashboardController.getOzet)
-router.get('/aidat-durumu', requireProjectAccess('viewer'), dashboardController.getAidatDurumu)
+// Sprint role-system-modernization (PR-B):
+//   GET → user (her üye dashboard görür)
+router.get('/ozet', requireProjectAccess('user'), dashboardController.getOzet)
+router.get('/aidat-durumu', requireProjectAccess('user'), dashboardController.getAidatDurumu)
 
 export default router

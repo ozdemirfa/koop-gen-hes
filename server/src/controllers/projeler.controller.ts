@@ -21,7 +21,11 @@ export const getProjeById = catchAsync(async (req: AuthRequest<any, any, any, an
 })
 
 export const createProje = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await projeService.create(req.body)
+  // Sprint role-system-modernization (PR-B): owner_user_id zorunlu — service-role
+  // bypass altında auth.uid() NULL döndüğünden trigger atayamıyor; aktör ID'sini
+  // controller seviyesinde geçiriyoruz. AFTER INSERT trigger yine üyelik kaydını
+  // idempotent şekilde ekler.
+  const data = await projeService.create(req.body, req.user?.id)
   res.status(201).json({ success: true, data })
 })
 

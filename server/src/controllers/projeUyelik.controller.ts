@@ -10,10 +10,13 @@ export const listMembers = catchAsync(async (req: AuthRequest, res: Response) =>
 })
 
 export const upsertMember = catchAsync(async (req: AuthRequest, res: Response) => {
+  // Sprint role-system-modernization (PR-B): callerId service'e geçirilir →
+  // service "kendi rolünü değiştiremezsin" ve "owner'a dokunamazsın" kurallarını uygular.
   const data = await projeUyelikService.upsertMember(
     req.params.projeId,
     req.body.user_id,
-    req.body.rol
+    req.body.rol,
+    { callerId: req.user?.id },
   )
   res.status(201).json({ success: true, data })
 })
@@ -22,22 +25,28 @@ export const updateMemberRole = catchAsync(async (req: AuthRequest, res: Respons
   const data = await projeUyelikService.upsertMember(
     req.params.projeId,
     req.params.userId,
-    req.body.rol
+    req.body.rol,
+    { callerId: req.user?.id },
   )
   res.json({ success: true, data })
 })
 
 export const removeMember = catchAsync(async (req: AuthRequest, res: Response) => {
-  const data = await projeUyelikService.removeMember(req.params.projeId, req.params.userId)
+  const data = await projeUyelikService.removeMember(
+    req.params.projeId,
+    req.params.userId,
+    { callerId: req.user?.id },
+  )
   res.json({ success: true, data })
 })
 
 export const getMyRole = catchAsync(async (req: AuthRequest, res: Response) => {
   if (!req.user?.id) throw ApiError.unauthorized()
 
-  // Global admin tüm projelere admin yetkisiyle sahip
+  // Legacy: Global admin tüm projelere owner seviyesinde erişebilir.
+  // Faz 3'te (user_roles DROP edilince) bu fallback kaldırılacak.
   if (req.userRole === 'admin') {
-    res.json({ success: true, data: { rol: 'admin' } })
+    res.json({ success: true, data: { rol: 'owner' } })
     return
   }
 
