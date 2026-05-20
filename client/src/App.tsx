@@ -30,6 +30,8 @@ import { BankaHareketleriPage } from './pages/bankaHesap/BankaHareketleriPage'
 import { VirmanListPage } from './pages/virman/VirmanListPage'
 import { ForbiddenPage } from './pages/ForbiddenPage'
 import { SifreBelirlePage } from './pages/SifreBelirlePage'
+import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage'
+import { ResetPasswordPage } from './pages/auth/ResetPasswordPage'
 import { KullaniciYonetimiPage } from './pages/admin/KullaniciYonetimiPage'
 import { ProtectedRoute } from './components/common/ProtectedRoute'
 import { MalzemeTeslimListPage } from './pages/malzemeTeslim/MalzemeTeslimListPage'
@@ -117,6 +119,15 @@ const App: React.FC = () => {
                       <Route path="/login" element={<Login />} />
                       <Route path="/forbidden" element={<ForbiddenPage />} />
                       <Route path="/sifre-belirle" element={<SifreBelirlePage />} />
+                      {/*
+                        Sprint role-system-modernization (PR-E, 2026-05-20):
+                        E-mail tabanlı self şifre reset akışı. Her iki sayfa
+                        da public — login öncesi erişilebilir, ProtectedRoute
+                        dışında tutulur. ResetPasswordPage Supabase recovery
+                        token'ını URL hash fragment'tan parse eder.
+                      */}
+                      <Route path="/auth/sifremi-unuttum" element={<ForgotPasswordPage />} />
+                      <Route path="/auth/sifre-sifirla" element={<ResetPasswordPage />} />
                       <Route path="/" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
                         <Route index element={<Dashboard />} />
                         <Route path="uyeler" element={<UyeListPage />} />
