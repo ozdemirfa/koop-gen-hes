@@ -54,7 +54,12 @@ export const ProjeListPage: React.FC = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { refreshProjects } = useProject()
-  const { isGlobalAdmin } = usePermissions()
+  // Sprint role-system-modernization (PR-C):
+  //   - "Yeni Proje" oluşturma: hâlâ legacy global admin'e ait. PR-D ile
+  //     birlikte yeniden değerlendirilecek (kooperatif başkanı/owner senaryosu).
+  //   - Proje düzenleme (edit) + üyelik yönetimi: artık proje yöneticileri
+  //     (owner + manager) da yapabilir — `isManager`.
+  const { isLegacyGlobalAdmin, isManager, canManageUsers } = usePermissions()
   const [modalOpen, setModalOpen] = useState(false)
   const [editingProje, setEditingProje] = useState<Proje | null>(null)
   const [form] = Form.useForm()
@@ -105,8 +110,8 @@ export const ProjeListPage: React.FC = () => {
       type="primary"
       icon={<PlusOutlined />}
       data-testid="add-new-project"
-      disabled={!isGlobalAdmin}
-      title={!isGlobalAdmin ? 'Yeni proje sadece global admin tarafından oluşturulabilir' : undefined}
+      disabled={!isLegacyGlobalAdmin}
+      title={!isLegacyGlobalAdmin ? 'Yeni proje sadece global admin tarafından oluşturulabilir' : undefined}
       onClick={() => {
         setModalOpen(true)
         setEditingProje(null)
@@ -123,7 +128,7 @@ export const ProjeListPage: React.FC = () => {
     >
       Yeni Proje
     </Button>
-  ), [form, isGlobalAdmin])
+  ), [form, isLegacyGlobalAdmin])
 
   usePageSettings('İnşaat Projeleri', headerActions)
 
@@ -167,8 +172,8 @@ export const ProjeListPage: React.FC = () => {
                 <Button
                   type="primary"
                   icon={<PlusOutlined />}
-                  disabled={!isGlobalAdmin}
-                  title={!isGlobalAdmin ? 'Yeni proje sadece global admin tarafından oluşturulabilir' : undefined}
+                  disabled={!isLegacyGlobalAdmin}
+                  title={!isLegacyGlobalAdmin ? 'Yeni proje sadece global admin tarafından oluşturulabilir' : undefined}
                   onClick={() => { setEditingProje(null); form.resetFields(); setModalOpen(true) }}
                 >
                   İlk Projeyi Oluştur
@@ -191,8 +196,8 @@ export const ProjeListPage: React.FC = () => {
                     size="small"
                     key="edit"
                     icon={<EditOutlined />}
-                    disabled={!isGlobalAdmin}
-                    title={!isGlobalAdmin ? 'Yetki yok' : 'Düzenle'}
+                    disabled={!isManager}
+                    title={!isManager ? 'Yetki yok (manager+ gerekli)' : 'Düzenle'}
                     data-testid={`edit-project-${p.id}`}
                     onClick={(e) => {
                       e.stopPropagation()
@@ -210,7 +215,7 @@ export const ProjeListPage: React.FC = () => {
                   >
                     <EyeOutlined />
                   </div>,
-                  ...(isGlobalAdmin
+                  ...(canManageUsers
                     ? [
                         <div
                           key="uyeler"

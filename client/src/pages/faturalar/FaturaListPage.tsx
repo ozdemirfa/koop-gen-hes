@@ -52,7 +52,7 @@ export const FaturaListPage: React.FC = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { activeProject } = useProject()
-  const { canEdit } = usePermissions()
+  const { canEdit, canDelete } = usePermissions()
   const [filterTip, setFilterTip] = useState<string | undefined>(undefined)
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
@@ -284,7 +284,7 @@ export const FaturaListPage: React.FC = () => {
               setModalOpen(true)
             }}
           />
-          {canEdit && <ConfirmDelete size="small" onConfirm={() => deleteMutation.mutate(r.id)} />}
+          {canDelete && <ConfirmDelete size="small" onConfirm={() => deleteMutation.mutate(r.id)} />}
         </Space>
       ),
     },

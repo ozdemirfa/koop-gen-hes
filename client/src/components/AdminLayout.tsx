@@ -24,10 +24,11 @@ import logo from '../assets/logo.png'
 const { Header, Sider, Content } = Layout
 const { useBreakpoint } = Grid
 
-// Sprint 20260520-frontend-role-awareness (Faz 3c):
-// `getMenuItems(isGlobalAdmin)` — admin'e "Kullanıcı Yönetimi" item ekler.
-// Statik array yerine factory function: usePermissions reaktivitesi.
-const getMenuItems = (isGlobalAdmin: boolean): any[] => [
+// Sprint role-system-modernization (PR-C):
+// `getMenuItems(canManageUsers)` — manager+ rolüne "Kullanıcı Yönetimi" item ekler.
+// PR-B öncesi yalnızca global admin görüyordu; yeni modelde proje yöneticileri
+// (owner + manager) kendi projelerinin üyeliklerini yönetebilir.
+const getMenuItems = (canManageUsers: boolean): any[] => [
   // 2026-05-20: "İnşaat Projeleri" → "Proje Listesi", menünün ilk sırası
   // (proje aktif değilse diğer sayfalar 403 alabiliyor; kullanıcı önce proje
   // seçimi/yönetimi yapsın).
@@ -78,7 +79,7 @@ const getMenuItems = (isGlobalAdmin: boolean): any[] => [
       { key: '/raporlar/mizan', label: 'Genel Mizan' },
     ],
   },
-  ...(isGlobalAdmin
+  ...(canManageUsers
     ? [
         {
           key: '/admin/kullanicilar',
@@ -301,11 +302,12 @@ export const AdminLayout: React.FC = () => {
   const location = useLocation()
   const { activeProject } = useProject()
   const { signOut } = useAuth()
-  const { isGlobalAdmin } = usePermissions()
+  const { canManageUsers } = usePermissions()
 
-  // Sprint 20260520-frontend-role-awareness (Faz 3c): admin sadece kendi
-  // menü öğelerini görsün. useMemo + isGlobalAdmin reaktivitesi.
-  const menuItems = useMemo(() => getMenuItems(isGlobalAdmin), [isGlobalAdmin])
+  // Sprint role-system-modernization (PR-C): manager+ kullanıcılar
+  // "Kullanıcı Yönetimi" menü öğesini görür. useMemo + canManageUsers
+  // reaktivitesi.
+  const menuItems = useMemo(() => getMenuItems(canManageUsers), [canManageUsers])
 
   // Find the matching menu key and its parent group safely
   const { selectedKey, parentKey } = useMemo(() => {

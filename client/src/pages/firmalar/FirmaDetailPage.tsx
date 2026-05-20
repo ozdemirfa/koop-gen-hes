@@ -35,7 +35,7 @@ export const FirmaDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { canEdit } = usePermissions()
+  const { canEdit, canDelete } = usePermissions()
   const { message: messageApi } = App.useApp()
   const activeProjectId = localStorage.getItem('activeProjectId')
 
@@ -220,7 +220,7 @@ export const FirmaDetailPage: React.FC = () => {
               <Button icon={<EditOutlined />} type="text" size="small" onClick={() => navigate(`/hakedisler/${r.id}?edit=true`)} />
             </Tooltip>
           )}
-          {r.durum === 'onaylandi' && (
+          {r.durum === 'onaylandi' && canDelete && (
             <Popconfirm
               title="Hakediş onayı iptal edilecek ve cari hareketi silinecek. Emin misiniz?"
               onConfirm={() => unapproveMutation.mutate(r.id)}
@@ -228,10 +228,10 @@ export const FirmaDetailPage: React.FC = () => {
               cancelText="Hayır"
             >
               <Tooltip title="Onay İptal (Revizyona Aç)">
-                <Button 
-                  icon={<RollbackOutlined />} 
-                  type="text" 
-                  danger 
+                <Button
+                  icon={<RollbackOutlined />}
+                  type="text"
+                  danger
                   size="small"
                   loading={unapproveMutation.isPending && unapproveMutation.variables === r.id}
                 />

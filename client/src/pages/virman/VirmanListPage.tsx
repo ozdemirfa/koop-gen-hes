@@ -38,7 +38,7 @@ const VIRMAN_TIPI_META: Record<string, { label: string; color: string }> = {
 
 export const VirmanListPage: React.FC = () => {
   const { activeProject } = useProject()
-  const { canEdit } = usePermissions()
+  const { canEdit, canDelete } = usePermissions()
   const { message } = App.useApp()
   const queryClient = useQueryClient()
 
@@ -151,15 +151,15 @@ export const VirmanListPage: React.FC = () => {
             okText="Evet, Sil"
             cancelText="Vazgeç"
             okButtonProps={{ danger: true }}
-            disabled={!canEdit}
+            disabled={!canDelete}
           >
-            <Tooltip title={!canEdit ? 'Yetki yok' : 'Virmanı sil'}>
+            <Tooltip title={!canDelete ? 'Yetki yok (manager+ gerekli)' : 'Virmanı sil'}>
               <Button
                 type="text"
                 size="small"
                 danger
                 icon={<DeleteOutlined />}
-                disabled={!canEdit}
+                disabled={!canDelete}
                 loading={deleteMutation.isPending && deleteMutation.variables === r.id}
                 aria-label="Virmanı sil"
               />
@@ -168,7 +168,7 @@ export const VirmanListPage: React.FC = () => {
         ),
       },
     ],
-    [deleteMutation, canEdit],
+    [deleteMutation, canDelete],
   )
 
   if (isError) {

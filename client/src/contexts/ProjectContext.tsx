@@ -2,12 +2,20 @@ import React, { createContext, useContext, useState, useEffect, useMemo } from '
 import api from '../lib/api'
 import { useAuth } from './AuthContext'
 
-// Sprint 20260520-frontend-role-awareness (Faz 3a):
-// Proje listesi response'unda backend Faz 2 (#58) ile eklenmiş `current_user_role`
-// alanı (`admin`/`staff`/`viewer`/null). Bu projeye özgü rol, AuthContext'in global
-// rol'ünün yanına eklenir → usePermissions hook'u bu iki kanalı birleştirir.
+// Sprint role-system-modernization (PR-C):
+// Backend 3-rol modeli (owner > manager > user) frontend'e taşındı.
+// Legacy değerler ('admin'/'staff'/'viewer') tip union'da geriye uyumluluk için
+// kalır ve `usePermissions` içinde normalize edilir. Eski cache + henüz upgrade
+// edilmemiş response'lar (örn. browser memory'deki eski state) için defensive
+// programming.
+//
+// `current_user_role` alanı backend Faz 2 (#58) ile eklendi; PR-A migration
+// sonrası DB'de yalnızca yeni roller (owner/manager/user) saklanıyor — ancak
+// PR-B'deki getProjectRole cache normalize layer'ı eski değerleri tolere ediyor.
 
-export type ProjectRole = 'admin' | 'staff' | 'viewer' | null
+export type NewProjectRole = 'owner' | 'manager' | 'user'
+export type LegacyProjectRole = 'admin' | 'staff' | 'viewer'
+export type ProjectRole = NewProjectRole | LegacyProjectRole | null
 
 interface Project {
   id: string
@@ -88,12 +96,15 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }
 
-  // Aktif projenin rolü = global admin ise 'admin', aksi halde response'taki
-  // `current_user_role`. Backend zaten admin için 'admin' kısayolunu döndürüyor
-  // ama kullanıcı global admin'ken aktif proje değiştiğinde de tutarlı kalsın.
+  // Aktif projenin rolü:
+  //   - Global admin (legacy) → 'owner' (her projede owner gibi davranır;
+  //     PR-D sonrası global admin tamamen kaldırılacak)
+  //   - Aksi halde backend response'taki `current_user_role`
+  // `userRole === 'admin'` legacy bir durumdur; PR-B sonrası user_roles tablosu
+  // ileride boşalacak. Bu dönüşüm geçici köprü.
   const activeProjectRole: ProjectRole = useMemo(() => {
     if (!activeProject) return null
-    if (userRole === 'admin') return 'admin'
+    if (userRole === 'admin') return 'owner'
     return (activeProject.current_user_role ?? null) as ProjectRole
   }, [activeProject, userRole])
 

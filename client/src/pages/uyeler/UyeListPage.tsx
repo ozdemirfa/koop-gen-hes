@@ -37,7 +37,7 @@ export const UyeListPage: React.FC = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { activeProject } = useProject()
-  const { canEdit } = usePermissions()
+  const { canEdit, canDelete } = usePermissions()
   const screens = useBreakpoint()
   // SSR-safe: ilk render screens={} → !md false değil undefined; desktop varsay.
   // Header'da gear ile çakışmaması için search Input mobile'da Drawer'a taşınır.
@@ -308,7 +308,7 @@ export const UyeListPage: React.FC = () => {
               navigate(`/uyeler/${record.id}/duzenle`);
             }}
           />
-          {record.durum === 'aktif' && canEdit && (
+          {record.durum === 'aktif' && canDelete && (
             <StrictConfirmDelete
               title="Üye pasif yapılacak, emin misiniz?"
               confirmText={`${record.ad} ${record.soyad}`}

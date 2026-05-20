@@ -71,7 +71,7 @@ interface TahsilatRow {
 
 export const TahsilatListPage: React.FC = () => {
   const { activeProject } = useProject()
-  const { canEdit } = usePermissions()
+  const { canEdit, canDelete } = usePermissions()
   const { message: messageApi } = App.useApp()
   const queryClient = useQueryClient()
   const isTouchDevice = useIsTouchDevice()
@@ -279,12 +279,12 @@ export const TahsilatListPage: React.FC = () => {
                 okText="Evet, Sil"
                 cancelText="Vazgeç"
                 okButtonProps={{ danger: true }}
-                disabled={locked || !canEdit}
+                disabled={locked || !canDelete}
               >
                 <Tooltip
                   title={
-                    !canEdit
-                      ? 'Yetki yok'
+                    !canDelete
+                      ? 'Yetki yok (manager+ gerekli)'
                       : locked
                       ? 'Önce hesap kapamayı geri alın'
                       : 'Sil'
@@ -295,7 +295,7 @@ export const TahsilatListPage: React.FC = () => {
                     size="small"
                     danger
                     icon={<DeleteOutlined />}
-                    disabled={locked || !canEdit}
+                    disabled={locked || !canDelete}
                     loading={deleteMutation.isPending && deleteMutation.variables === r.id}
                     aria-label="Tahsilatı sil"
                   />
@@ -306,7 +306,7 @@ export const TahsilatListPage: React.FC = () => {
         },
       },
     ],
-    [deleteMutation, isTouchDevice, openEdit, canEdit],
+    [deleteMutation, isTouchDevice, openEdit, canEdit, canDelete],
   )
 
   if (isError) {

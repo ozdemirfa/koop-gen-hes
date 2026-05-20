@@ -9,6 +9,7 @@ import { getErrorMessage } from '../../lib/apiError'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { useProject } from '../../contexts/ProjectContext'
+import { usePermissions } from '../../hooks/usePermissions'
 import { trNumberFormatter, trNumberParser, trMoneyFormatter } from '../../lib/format'
 import { downloadCsv } from '../../lib/csvExport'
 
@@ -65,6 +66,7 @@ export const HakedisDetailPage: React.FC = () => {
   const queryClient = useQueryClient()
   const { message } = App.useApp()
   const { activeProject } = useProject()
+  const { canEdit, canDelete } = usePermissions()
   const [editableKalemler, setEditableKalemler] = useState<EditableKalem[]>([])
   const [hasChanges, setHasChanges] = useState(false)
   const [addModalOpen, setAddModalOpen] = useState(false)
@@ -334,28 +336,51 @@ export const HakedisDetailPage: React.FC = () => {
     ], { projectName: activeProject?.proje_adi })
   }, [hakedis, id, editableKalemler, hakedisToplam, teminatOrani, teminatKesintisi, stopajOrani, stopajKesintisi, digerKesintiler, netTutar, activeProject?.proje_adi])
 
+  // Sprint role-system-modernization (PR-C, 2026-05-20) — React #185 fix:
+  // `actions` useMemo'sunun dependency array'inde mutation **objelerini**
+  // tutmak infinite loop tetikliyordu. `useMutation` her render'da yeni bir
+  // result objesi döndürür (mutate referansı bile stable değildir bazı sürümlerde);
+  // bu sebeple `actions !== lastActions.current` ref-check'i her render'da
+  // true dönüyor → setHeaderActions → re-render → loop → React #185
+  // ("Maximum update depth exceeded").
+  //
+  // Çözüm: dependency array'e yalnızca primitive `isPending` flag'lerini ve
+  // stable mutate fonksiyon referanslarını koy. JSX içinde `.mutate()` çağrısı
+  // closure üzerinden okunur; her render'da fonksiyon kimliği değişse bile
+  // memoize değeri (children + key fingerprint) değişmediği sürece referans
+  // sabit kalır.
+  //
+  // Ayrıca permission gating: PR-C ile `canEdit` (her üye form girişi yapabilir)
+  // ve `canDelete` (manager+ onay-iptal/yıkıcı işlemler) ayrıştırıldı.
+  const isSaving = saveMutation.isPending
+  const isApproving = approveMutation.isPending
+  const isUnapproving = unapproveMutation.isPending
+  const triggerSave = saveMutation.mutate
+  const triggerApprove = approveMutation.mutate
+  const triggerUnapprove = unapproveMutation.mutate
+  const hakedisDurum = hakedis?.durum
+  const hasHakedis = !!hakedis
+  const kalemCount = editableKalemler.length
+
   const actions = useMemo(() => {
-    // UX kuralı: 3 mutate butonu da her zaman görünür; izinler `disabled` prop'u ile
-    // yönetilir. Taslakta Kaydet + Onayla aktif, Geri Al pasif; onaylandıda Kaydet +
-    // Onayla pasif, Geri Al aktif. Bu sayede kullanıcı durum farkındalığı kazanır ve
-    // header'ın yapısı durumdan bağımsız sabit kalır.
-    //
-    // LayoutContext.setHeaderActionsStable hâlâ (type + key) shallow check yaptığı için,
-    // disabled prop değişimi tek başına stale render'ı tetiklemiyor. Bu nedenle dış
-    // <Space>'in key'i, butonların disabled hesabını etkileyen tüm state'lerden türetilir.
-    const canSave = isTaslak && editableKalemler.length > 0 && !saveMutation.isPending && !approveMutation.isPending
-    const canApprove = isTaslak && !saveMutation.isPending && !approveMutation.isPending
-    const canUnapprove = hakedis?.durum === 'onaylandi' && !unapproveMutation.isPending
+    // UX: 3 mutate butonu da her zaman görünür; izinler `disabled` prop'u ile
+    // yönetilir. Taslakta Kaydet + Onayla aktif, Geri Al pasif; onaylandıda
+    // Kaydet + Onayla pasif, Geri Al aktif (manager+).
+    const canSave = isTaslak && kalemCount > 0 && !isSaving && !isApproving && canEdit
+    const canApprove = isTaslak && !isSaving && !isApproving && canEdit
+    const canUnapprove = hakedisDurum === 'onaylandi' && !isUnapproving && canDelete
 
     const stateKey = [
-      hakedis?.durum ?? 'loading',
+      hakedisDurum ?? 'loading',
       canSave ? 'cs' : '',
       canApprove ? 'ca' : '',
       canUnapprove ? 'cu' : '',
       hasChanges ? 'dirty' : 'clean',
-      saveMutation.isPending ? 'saving' : '',
-      approveMutation.isPending ? 'approving' : '',
-      unapproveMutation.isPending ? 'unapproving' : '',
+      isSaving ? 'saving' : '',
+      isApproving ? 'approving' : '',
+      isUnapproving ? 'unapproving' : '',
+      canEdit ? 'e' : '',
+      canDelete ? 'd' : '',
     ].filter(Boolean).join('|')
 
     return (
@@ -368,31 +393,33 @@ export const HakedisDetailPage: React.FC = () => {
       <Button
         icon={<DownloadOutlined />}
         onClick={handleCsvDownload}
-        disabled={!hakedis}
+        disabled={!hasHakedis}
       >
         CSV İndir
       </Button>
       <Button
         type="primary"
         icon={<SaveOutlined />}
-        onClick={() => saveMutation.mutate()}
-        loading={saveMutation.isPending}
+        onClick={() => triggerSave()}
+        loading={isSaving}
         disabled={!canSave}
+        title={!canEdit ? 'Yetki yok' : undefined}
       >
         Kaydet
       </Button>
       <Popconfirm
         title="Hakediş onayla"
         description={hasChanges ? "Hakediş önce kaydedilecek, sonra onaylanacaktır. Onaylıyor musunuz?" : "Hakediş onaylanacak ve cari hareket oluşturulacak. Onaylıyor musunuz?"}
-        onConfirm={() => approveMutation.mutate()}
+        onConfirm={() => triggerApprove()}
         okText="Onayla"
         cancelText="Vazgeç"
         disabled={!canApprove}
       >
         <Button
           icon={<CheckOutlined />}
-          loading={approveMutation.isPending || saveMutation.isPending}
+          loading={isApproving || isSaving}
           disabled={!canApprove}
+          title={!canEdit ? 'Yetki yok' : undefined}
           style={canApprove ? { backgroundColor: '#52c41a', borderColor: '#52c41a', color: '#fff' } : undefined}
         >
           Onayla
@@ -400,23 +427,40 @@ export const HakedisDetailPage: React.FC = () => {
       </Popconfirm>
       <Popconfirm
         title="Hakediş onayı iptal edilecek ve cari hareketi silinecek. Emin misiniz?"
-        onConfirm={() => unapproveMutation.mutate()}
+        onConfirm={() => triggerUnapprove()}
         okText="Evet"
         cancelText="Hayır"
         disabled={!canUnapprove}
       >
         <Button
           icon={<RollbackOutlined />}
-          loading={unapproveMutation.isPending}
+          loading={isUnapproving}
           disabled={!canUnapprove}
           danger={canUnapprove}
+          title={!canDelete ? 'Yetki yok (manager+ gerekli)' : undefined}
         >
           Onaydan Geri Al
         </Button>
       </Popconfirm>
     </Space>
     )
-  }, [navigate, handleCsvDownload, isTaslak, hakedis, hasChanges, editableKalemler.length, saveMutation, approveMutation, unapproveMutation])
+  }, [
+    navigate,
+    handleCsvDownload,
+    isTaslak,
+    hakedisDurum,
+    hasHakedis,
+    hasChanges,
+    kalemCount,
+    isSaving,
+    isApproving,
+    isUnapproving,
+    triggerSave,
+    triggerApprove,
+    triggerUnapprove,
+    canEdit,
+    canDelete,
+  ])
 
   usePageSettings(hakedis ? `Hakediş #${hakedis.hakedis_no}` : 'Hakediş Detayı', actions)
 
