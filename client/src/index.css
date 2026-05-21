@@ -258,7 +258,13 @@ body {
 .admin-header-title .ant-typography {
   font-size: 16px;
 }
+.admin-header-username {
+  max-width: 220px;
+}
 @media (max-width: 767px) {
+  .admin-header-username {
+    display: none;
+  }
   .admin-header {
     padding: 0 12px;
   }
