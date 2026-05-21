@@ -10,15 +10,9 @@ export const listUsers = catchAsync(async (_req: AuthRequest, res: Response) => 
   res.json({ success: true, data })
 })
 
-/**
- * POST /api/admin/users/invite
- * Body: { email, projeId, projectRole: 'manager' | 'user' }
- * Auth: requireProjectAccess('owner') — caller hedef projede owner olmalı.
- */
-export const inviteUser = catchAsync(async (req: AuthRequest, res: Response) => {
-  const data = await adminService.inviteUser(req.body)
-  res.status(201).json({ success: true, data })
-})
+// inviteUser handler kaldırıldı (2026-05-21).
+// Yeni davet akışı: POST /api/projeler/:projeId/invitations
+// (server/src/controllers/invitations.controller.ts)
 
 /**
  * @deprecated PR-D ile global rol değiştirme akışı kaldırıldı.

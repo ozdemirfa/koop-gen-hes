@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { validate } from '../middleware/validate'
 import { requireRole } from '../middleware/requireRole'
 import { requireProjectAccess } from '../middleware/requireProjectAccess'
-import { inviteUserSchema, resetPasswordSchema } from '../schemas/admin.schema'
+import { resetPasswordSchema } from '../schemas/admin.schema'
 import * as adminController from '../controllers/admin.controller'
 
 const router = Router()
@@ -26,15 +26,9 @@ const router = Router()
 router.get('/users', requireRole('admin'), adminController.listUsers)
 router.delete('/users/:id', requireRole('admin'), adminController.deleteUser)
 
-// POST /api/admin/users/invite — proje-bazlı davet
-//   Body: { email, projeId, projectRole: 'manager' | 'user' }
-//   Auth: caller hedef projede owner olmalı.
-router.post(
-  '/users/invite',
-  validate({ body: inviteUserSchema }),
-  requireProjectAccess('owner'),
-  adminController.inviteUser,
-)
+// Eski /users/invite kaldırıldı (2026-05-21).
+// Yeni davet akışı: POST /api/projeler/:projeId/invitations
+// (server/src/routes/invitations.routes.ts)
 
 // POST /api/admin/users/:id/sifre-yenile — owner-only şifre yenileme
 //   Body: { projeId, newPassword? }

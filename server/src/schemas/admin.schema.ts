@@ -17,23 +17,10 @@ export const NEW_PROJECT_ROLE_VALUES = ['owner', 'manager', 'user'] as const
 export const PROJECT_ROLE_VALUES = ['owner', 'manager', 'user', 'admin', 'staff', 'viewer'] as const
 export type ProjectRoleSchemaValue = (typeof PROJECT_ROLE_VALUES)[number]
 
-/**
- * PR-D yeni davet schema'sı:
- *   - email: required
- *   - projeId: required (uuid) — kullanıcıyı hangi projeye davet ettiğimiz
- *   - projectRole: 'manager' | 'user' (owner ataması desteklenmez)
- *
- * `globalRole` ve `projectAssignments` field'ları kabul edilmez (Zod default
- * strict-ish: bilinmeyen alanlar görmezden gelinir, ama yeni şema bunları
- * tanımlamaz; davet yalnızca yeni model akışıyla çalışır).
- */
-export const inviteUserSchema = z.object({
-  email: z.string().email('Geçerli bir e-posta gerekli'),
-  projeId: z.string().uuid('Geçerli bir proje ID gereklidir'),
-  projectRole: z.enum(['manager', 'user'], {
-    message: 'projectRole değeri manager veya user olmalıdır (owner davet ile atanamaz)',
-  }),
-})
+// inviteUserSchema kaldırıldı (2026-05-21).
+// Yeni davet schema'sı: server/src/schemas/invitation.schema.ts
+//   POST /api/projeler/:projeId/invitations
+//   Body: { email, projectRole: 'manager' | 'user' }
 
 /**
  * @deprecated PR-D ile kaldırıldı; global rol artık davet payload'ında yok.

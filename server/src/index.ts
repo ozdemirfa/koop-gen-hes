@@ -7,10 +7,16 @@ import morgan from 'morgan'
 import logger from './utils/logger'
 
 import apiRoutes from './routes/index'
+import publicInvitationsRoutes from './routes/publicInvitations.routes'
 import { errorHandler } from './middleware/errorHandler'
 
 const app = express()
 const port = process.env.PORT || 3001
+
+// Render gibi reverse-proxy arkasında çalışıyoruz; X-Forwarded-For header'ı
+// doğru okunsun ki express-rate-limit (davet endpoint'lerinde) gerçek client
+// IP'sini sayabilsin. Aksi halde tüm trafik proxy IP'siyle gözükür.
+app.set('trust proxy', 1)
 
 app.use(helmet())
 
@@ -71,7 +77,12 @@ app.use(morgan(morganFormat, {
   stream: { write: (msg: string) => logger.info(msg.trim()) },
 }))
 
-// API Routes
+// Public invitation endpoint'leri — authMiddleware'i bypass eder.
+// /api/invitations/by-token/:token + /api/invitations/accept-by-token
+// IP rate-limit middleware (5/dk + 30/saat) içeride uygulanır.
+app.use('/api/invitations', publicInvitationsRoutes)
+
+// API Routes (authMiddleware altında)
 app.use('/api', apiRoutes)
 
 // 404 handler for unmatched routes
