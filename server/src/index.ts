@@ -12,6 +12,11 @@ import { errorHandler } from './middleware/errorHandler'
 const app = express()
 const port = process.env.PORT || 3001
 
+// Render gibi reverse-proxy arkasında çalışıyoruz; X-Forwarded-For header'ı
+// doğru okunsun ki express-rate-limit (davet endpoint'lerinde) gerçek client
+// IP'sini sayabilsin. Aksi halde tüm trafik proxy IP'siyle gözükür.
+app.set('trust proxy', 1)
+
 app.use(helmet())
 
 const allowedOrigins = (process.env.CORS_ORIGINS ?? '')
