@@ -7,12 +7,15 @@ import { z } from 'zod'
 //   nakit_banka  → kaynak null, hedef UUID
 // DB CHECK constraint'leri aynı kuralları zorlar; bu schema erken hata için.
 
+// PR fix/virman-defensive-proje-id: Zod 4'te `.string().uuid()` deprecated edildi;
+// native `z.uuid()` ile değiştir → 4.x sonrası .superRefine ile zincirleme parse
+// davranışındaki olası quirk'leri eler (proje_id 400 bug shortlist).
 export const virmanCreateSchema = z
   .object({
-    proje_id: z.string().uuid('Geçerli proje_id gereklidir'),
+    proje_id: z.uuid('Geçerli proje_id gereklidir'),
     virman_tipi: z.enum(['banka_banka', 'banka_nakit', 'nakit_banka']),
-    kaynak_hesap_id: z.string().uuid().optional().nullable(),
-    hedef_hesap_id: z.string().uuid().optional().nullable(),
+    kaynak_hesap_id: z.uuid().optional().nullable(),
+    hedef_hesap_id: z.uuid().optional().nullable(),
     tutar: z.number().positive('Tutar pozitif olmalı'),
     tarih: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Tarih YYYY-MM-DD formatında olmalı'),
     aciklama: z.string().max(500).optional().nullable(),
