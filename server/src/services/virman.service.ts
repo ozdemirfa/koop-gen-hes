@@ -9,6 +9,11 @@ import logger from '../utils/logger'
 // kaydı tek transaction'da oluşur. Delete CASCADE — banka_hareketleri.virman_id
 // FK ON DELETE CASCADE banka hareketlerini de siler.
 
+// Sprint fix/virman-proje-id-rootcause-sprint: service katmanı defansif UUID
+// validation. Controller'la aynı pattern; bağımsız modülde duplikasyon, ama
+// servis tek başına çağrılırsa (test/integration) yine korunma sağlar.
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export interface VirmanCreateInput {
   proje_id: string
   virman_tipi: 'banka_banka' | 'banka_nakit' | 'nakit_banka'
@@ -44,6 +49,23 @@ export const virmanService = {
     // DB CHECK constraint'leri tipi/NULL kombinasyonunu zorlar; schema seviyesi de
     // erken hata verir → çift güvence.
 
+    // Sprint fix/virman-proje-id-rootcause-sprint:
+    // Service katmanında son bir defansif assertion — controller'dan geçen
+    // input.proje_id'nin gerçekten dolu/uuid olduğunu doğrula. Eğer burada
+    // başarısız olursa controller defansı by-pass edilmiş demektir (örn.
+    // controller hâlâ eski versiyon canlı). errorHandler bu ApiError'u
+    // doğru status code (400) + mesaj ile döner.
+    if (typeof input.proje_id !== 'string' || !UUID_PATTERN.test(input.proje_id)) {
+      logger.error('virman service create: input.proje_id invalid', {
+        input_keys: Object.keys(input ?? {}),
+        proje_id_type: typeof input?.proje_id,
+        proje_id_value: input?.proje_id,
+      })
+      throw ApiError.badRequest('proje_id zorunludur (service-defans)', [
+        { field: 'proje_id', message: 'Servis katmanına geçerli proje_id ulaşmadı' },
+      ])
+    }
+
     // DIAGNOSTIC: virman proje_id bug — remove after fix
     // p_data'yı local değişkene aldık ki RPC çağrısından hemen önce serileştirilecek
     // tam payload'u log'a yansıtabilelim. Controller log'uyla diff: proje_id
@@ -57,8 +79,24 @@ export const virmanService = {
       tarih: input.tarih,
       aciklama: input.aciklama ?? null,
     }
+
+    // Son bir sanity-check: JSON.stringify roundtrip ile proje_id'nin gerçekten
+    // serialized payload'da yer aldığını doğrula. Eğer roundtrip sonrası kayıpsa
+    // supabase-js çağrısına gönderilmeden önce yakala — hipotez:
+    // "supabase-js v2.102 JSONB serialization quirk" şüphesini eler.
+    const serialized = JSON.stringify(pData)
+    if (!serialized.includes('"proje_id"')) {
+      logger.error('virman service: proje_id JSON serialization sonrası kayıp', {
+        pData,
+        serialized,
+      })
+      throw ApiError.internal('Sistem hatası — proje_id serialization (sprint diag)')
+    }
+
     logger.info('DIAGNOSTIC virman create RPC payload', {
       p_data: pData,
+      serialized_length: serialized.length,
+      serialized_has_proje_id: serialized.includes('"proje_id"'),
       proje_id_type: typeof pData.proje_id,
       actor_id: actorId ?? null,
     })
@@ -69,7 +107,19 @@ export const virmanService = {
     })
 
     if (error) {
-      logger.error('Virman create RPC hatası', { error, input })
+      // RPC error'ı production'da "Zorunlu alan eksik: proje_id" şeklinde
+      // 23502 mesajına dönüşüyor. Hata payload'unu zenginleştirelim ki
+      // errorHandler debug details içine pData'yı koyabilsin (production'da
+      // sadece __debug field, NODE_ENV gate'li).
+      logger.error('Virman create RPC hatası', {
+        error,
+        error_code: (error as any)?.code,
+        error_message: (error as any)?.message,
+        error_column: (error as any)?.column,
+        error_hint: (error as any)?.hint,
+        p_data_proje_id: pData.proje_id,
+        input,
+      })
       throw error
     }
     return data as { virman_id: string; gider_hareket_id?: string; gelir_hareket_id?: string }
