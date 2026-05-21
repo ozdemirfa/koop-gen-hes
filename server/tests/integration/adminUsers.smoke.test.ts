@@ -145,80 +145,9 @@ describe('Admin user management smoke (PR-D)', () => {
     })
   })
 
-  describe('POST /api/admin/users/invite (proje-bazlı, owner-only)', () => {
-    const validPayload = {
-      email: 'invite@test.com',
-      projeId: PROJE_ID,
-      projectRole: 'user' as const,
-    }
-
-    it('anon → 401', async () => {
-      const res = await request(app).post('/api/admin/users/invite').send(validPayload)
-      expect(res.status).toBe(401)
-    })
-
-    it('schema: legacy globalRole/projectAssignments payload → 400 (projeId yok)', async () => {
-      currentUser = { id: 'u-admin', role: 'admin' }
-      mockProjectRole = 'owner'
-      const res = await request(app).post('/api/admin/users/invite').send({
-        email: 'invite@test.com',
-        globalRole: 'staff',
-        projectAssignments: [],
-      })
-      expect(res.status).toBe(400)
-    })
-
-    it('schema: invalid email → 400', async () => {
-      currentUser = { id: 'u-admin', role: 'admin' }
-      mockProjectRole = 'owner'
-      const res = await request(app).post('/api/admin/users/invite').send({
-        ...validPayload,
-        email: 'not-an-email',
-      })
-      expect(res.status).toBe(400)
-    })
-
-    it('schema: projectRole owner → 400 (sadece manager/user kabul edilir)', async () => {
-      currentUser = { id: 'u-owner', role: 'staff' }
-      mockProjectRole = 'owner'
-      const res = await request(app).post('/api/admin/users/invite').send({
-        ...validPayload,
-        projectRole: 'owner',
-      })
-      expect(res.status).toBe(400)
-    })
-
-    it('manager → 403 (sadece owner davet edebilir)', async () => {
-      currentUser = { id: 'u-mgr', role: 'staff' }
-      mockProjectRole = 'manager'
-      const res = await request(app).post('/api/admin/users/invite').send(validPayload)
-      expect(res.status).toBe(403)
-    })
-
-    it('user → 403', async () => {
-      currentUser = { id: 'u-usr', role: 'staff' }
-      mockProjectRole = 'user'
-      const res = await request(app).post('/api/admin/users/invite').send(validPayload)
-      expect(res.status).toBe(403)
-    })
-
-    it('owner valid invite → 201', async () => {
-      currentUser = { id: 'u-owner', role: 'staff' }
-      mockProjectRole = 'owner'
-      const res = await request(app).post('/api/admin/users/invite').send(validPayload)
-      expect(res.status).toBe(201)
-      expect(res.body.success).toBe(true)
-      expect(res.body.data.email).toBe(validPayload.email)
-      expect(res.body.data.project_role).toBe('user')
-    })
-
-    it('legacy global admin owner gibi davranır → 201', async () => {
-      currentUser = { id: 'u-admin', role: 'admin' }
-      // global admin requireProjectAccess'te otomatik owner sayılır
-      const res = await request(app).post('/api/admin/users/invite').send(validPayload)
-      expect(res.status).toBe(201)
-    })
-  })
+  // POST /api/admin/users/invite test bloku kaldırıldı (2026-05-21).
+  // Yeni davet akışı: POST /api/projeler/:projeId/invitations
+  // (server/tests/integration/invitations.smoke.test.ts — env-gated smoke).
 
   describe('POST /api/admin/users/:id/sifre-yenile (PR-D, owner-only)', () => {
     const TARGET_USER = 'u-target'
