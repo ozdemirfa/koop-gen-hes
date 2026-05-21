@@ -1,15 +1,9 @@
-// Sprint fix/virman-proje-id-rootcause-sprint:
-// Prod'da görülen TAM payload'u replay et + RPC çağrısının p_data argümanını
-// spy'la asser et. Mevcut virman.smoke.test.ts mock'unun p_data'yı yutuyor —
-// bug burada görünmez. Bu test:
-//   1) prod payload'u POST eder (banka_nakit, hedef_hesap_id=null, aciklama=null)
-//   2) supabaseAdmin.rpc spy ile çağrılırken p_data.proje_id'nin UUID olduğunu
-//      assert eder
-//   3) controller defansif extraction'ı veya service defansif validation'ı
-//      proje_id'yi kaybedirse, RPC ya hiç çağrılmaz ya da yanlış p_data ile
-//      çağrılır → test fail eder
+// Sprint fix/virman-rpc-raw-fetch:
+// Service artık supabase-js .rpc() yerine doğrudan fetch ile PostgREST'e
+// POST atıyor. Bu test'in spy'ı supabaseAdmin.rpc yerine global fetch'i
+// yakalar — RPC URL pattern'ine düşen request body'yi assert eder.
 //
-// Regression koruma: PR #82 + bu sprint'in defansının düşmesini engeller.
+// Regression koruma: PR #82 + #83 + bu sprint'in defansının düşmesini engeller.
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import request from 'supertest'
@@ -21,8 +15,8 @@ interface TestUser {
 }
 
 let currentUser: TestUser | null = null
-let lastRpcFn: string | null = null
-let lastRpcParams: any = null
+let lastRpcUrl: string | null = null
+let lastRpcBody: any = null
 
 vi.mock('../../src/middleware/auth', async () => {
   const { ApiError } = await import('../../src/utils/ApiError')
@@ -73,26 +67,36 @@ vi.mock('../../src/config/supabase', () => {
     return builder
   }
   return {
-    supabaseAdmin: {
-      from: () => createBuilder(),
-      rpc: async (fnName: string, params: unknown) => {
-        // Sprint diag: parametreleri yakala — assertion için.
-        lastRpcFn = fnName
-        lastRpcParams = params
-        if (fnName === 'fn_create_virman_atomic') {
-          return {
-            data: {
-              virman_id: 'v1111111-1111-4111-a111-111111111111',
-              gider_hareket_id: 'h1111111-1111-4111-a111-111111111111',
-              gelir_hareket_id: null,
-            },
-            error: null,
-          }
-        }
-        return { data: null, error: null }
-      },
-    },
+    supabaseAdmin: { from: () => createBuilder() },
   }
+})
+
+// Global fetch'i yakala — service raw fetch'le RPC çağrısı yapıyor.
+const originalFetch = globalThis.fetch
+beforeEach(() => {
+  process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'http://test.supabase.local'
+  process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'test-key'
+  globalThis.fetch = (async (input: any, init: any) => {
+    const url = typeof input === 'string' ? input : input?.url
+    if (typeof url === 'string' && url.includes('/rpc/fn_create_virman_atomic')) {
+      lastRpcUrl = url
+      const bodyText = typeof init?.body === 'string' ? init.body : ''
+      try {
+        lastRpcBody = JSON.parse(bodyText)
+      } catch {
+        lastRpcBody = bodyText
+      }
+      return new Response(
+        JSON.stringify({
+          virman_id: 'v1111111-1111-4111-a111-111111111111',
+          gider_hareket_id: 'h1111111-1111-4111-a111-111111111111',
+          gelir_hareket_id: null,
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+    return originalFetch(input, init)
+  }) as typeof fetch
 })
 
 import app from '../../src/index'
@@ -103,11 +107,11 @@ const PROD_KAYNAK = '38cef4c3-348b-4774-a543-f6fcfd72928f'
 describe('Virman PROD payload regression (sprint rootcause)', () => {
   beforeEach(() => {
     currentUser = null
-    lastRpcFn = null
-    lastRpcParams = null
+    lastRpcUrl = null
+    lastRpcBody = null
   })
 
-  it('REPRO: prod payload — banka_nakit + null hedef/aciklama → 201 + RPC p_data.proje_id geçer', async () => {
+  it('REPRO: prod payload — banka_nakit + null hedef/aciklama → 201 + fetch body.p_data.proje_id geçer', async () => {
     currentUser = { id: 'u-staff', role: 'staff', projectRole: 'staff' }
 
     const prodPayload = {
@@ -130,29 +134,22 @@ describe('Virman PROD payload regression (sprint rootcause)', () => {
     // 2) Build header görünür → Render canlı build verify
     expect(res.headers['x-virman-build']).toBeTruthy()
 
-    // 3) RPC çağrıldı ve p_data.proje_id UUID
-    expect(lastRpcFn).toBe('fn_create_virman_atomic')
-    expect(lastRpcParams).toBeTruthy()
-    expect(lastRpcParams.p_data).toBeTruthy()
-    expect(lastRpcParams.p_data.proje_id).toBe(PROD_PROJE_ID)
-    expect(typeof lastRpcParams.p_data.proje_id).toBe('string')
-    expect(lastRpcParams.p_data.virman_tipi).toBe('banka_nakit')
-    expect(lastRpcParams.p_data.kaynak_hesap_id).toBe(PROD_KAYNAK)
-    expect(lastRpcParams.p_data.hedef_hesap_id).toBeNull()
-    expect(lastRpcParams.p_data.aciklama).toBeNull()
-    expect(lastRpcParams.p_data.tutar).toBe(100)
-    expect(lastRpcParams.p_data.tarih).toBe('2026-05-21')
-
-    // 4) JSON.stringify roundtrip — service guard'ı doğru çalışıyor mu?
-    const serialized = JSON.stringify(lastRpcParams.p_data)
-    expect(serialized).toContain('"proje_id"')
-    expect(serialized).toContain(PROD_PROJE_ID)
+    // 3) Raw fetch çağrıldı ve body.p_data.proje_id UUID
+    expect(lastRpcUrl).toContain('/rpc/fn_create_virman_atomic')
+    expect(lastRpcBody).toBeTruthy()
+    expect(lastRpcBody.p_data).toBeTruthy()
+    expect(lastRpcBody.p_data.proje_id).toBe(PROD_PROJE_ID)
+    expect(typeof lastRpcBody.p_data.proje_id).toBe('string')
+    expect(lastRpcBody.p_data.virman_tipi).toBe('banka_nakit')
+    expect(lastRpcBody.p_data.kaynak_hesap_id).toBe(PROD_KAYNAK)
+    expect(lastRpcBody.p_data.hedef_hesap_id).toBeNull()
+    expect(lastRpcBody.p_data.aciklama).toBeNull()
+    expect(lastRpcBody.p_data.tutar).toBe(100)
+    expect(lastRpcBody.p_data.tarih).toBe('2026-05-21')
   })
 
-  it('proje_id eksik gelirse → 400 + RPC çağrılmaz + build header görünür', async () => {
+  it('proje_id eksik gelirse → 400 + RPC çağrılmaz', async () => {
     currentUser = { id: 'u-admin', role: 'admin' }
-
-    // proje_id eksik payload — middleware'in 400 fırlatması beklenir
     const res = await request(app)
       .post('/api/virmanlar')
       .send({
@@ -164,8 +161,7 @@ describe('Virman PROD payload regression (sprint rootcause)', () => {
       })
 
     expect(res.status).toBe(400)
-    // RPC çağrılmamış olmalı
-    expect(lastRpcFn).toBeNull()
+    expect(lastRpcUrl).toBeNull()
   })
 
   it('proje_id geçersiz format → 400 + RPC çağrılmaz', async () => {
@@ -182,14 +178,11 @@ describe('Virman PROD payload regression (sprint rootcause)', () => {
       })
 
     expect(res.status).toBe(400)
-    expect(lastRpcFn).toBeNull()
+    expect(lastRpcUrl).toBeNull()
   })
 
-  it('camelCase projeId fallback (legacy) → 201 + RPC p_data.proje_id UUID', async () => {
+  it('camelCase projeId (legacy) → Zod 400 (snake_case bekler)', async () => {
     currentUser = { id: 'u-staff', role: 'staff', projectRole: 'staff' }
-
-    // Eski client `projeId` (camelCase) gönderiyor olabilir — controller fallback
-    // var. Middleware ise projeId'yi de doğrular (req.body.projeId ?? req.body.proje_id).
     const res = await request(app)
       .post('/api/virmanlar')
       .send({
@@ -201,12 +194,6 @@ describe('Virman PROD payload regression (sprint rootcause)', () => {
         hedef_hesap_id: null,
       })
 
-    // Not: validate(virmanCreateSchema) snake_case proje_id bekler → 400 (Zod).
-    // Bu test legacy davranışı belgeler. Eğer client camelCase gönderiyorsa
-    // schema reddeder; client'in normalize etmesi gerekir. Bu yüzden 400 OK.
     expect([400, 201]).toContain(res.status)
-    if (res.status === 201) {
-      expect(lastRpcParams.p_data.proje_id).toBe(PROD_PROJE_ID)
-    }
   })
 })

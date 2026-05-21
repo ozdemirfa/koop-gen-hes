@@ -101,28 +101,68 @@ export const virmanService = {
       actor_id: actorId ?? null,
     })
 
-    const { data, error } = await supabaseAdmin.rpc('fn_create_virman_atomic', {
-      p_data: pData,
-      p_actor_id: actorId ?? null,
+    // Sprint fix/virman-rpc-raw-fetch:
+    // PR #83 ile controller + service defansları geçti, JSON.stringify roundtrip
+    // OK, ancak supabase-js `.rpc()` çağrısı PostgREST'e ulaştığında v_proje_id
+    // NULL geliyor. Header `x-virman-build: rootcause-sprint-v3` doğrulandı →
+    // PR #83 production'da live ama hata aynı. Son hipotez: `@supabase/supabase-js`
+    // 2.102.0'ın RPC parametre serileştirmesinde JSONB için bir quirk var.
+    //
+    // Çözüm: supabase-js `.rpc()`'yi atla, doğrudan PostgREST'e `fetch` ile POST
+    // gönder. Bu ya bug'ı çözer (supabase-js sorunu) ya da aynı hata gelir
+    // (server-side / PostgREST / RPC function sorunu — izole edilmiş olur).
+    //
+    // Auth: service-role key hem Authorization Bearer hem `apikey` header'ında.
+    const supabaseUrl = process.env.SUPABASE_URL!
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+    const rpcUrl = `${supabaseUrl}/rest/v1/rpc/fn_create_virman_atomic`
+    const rpcBody = JSON.stringify({ p_data: pData, p_actor_id: actorId ?? null })
+
+    logger.info('DIAGNOSTIC virman RPC raw fetch', {
+      rpc_url: rpcUrl,
+      body_length: rpcBody.length,
+      body_has_proje_id: rpcBody.includes('"proje_id"'),
+      first_120_chars: rpcBody.slice(0, 120),
     })
 
-    if (error) {
-      // RPC error'ı production'da "Zorunlu alan eksik: proje_id" şeklinde
-      // 23502 mesajına dönüşüyor. Hata payload'unu zenginleştirelim ki
-      // errorHandler debug details içine pData'yı koyabilsin (production'da
-      // sadece __debug field, NODE_ENV gate'li).
-      logger.error('Virman create RPC hatası', {
-        error,
-        error_code: (error as any)?.code,
-        error_message: (error as any)?.message,
-        error_column: (error as any)?.column,
-        error_hint: (error as any)?.hint,
+    const rpcResp = await fetch(rpcUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${serviceKey}`,
+        apikey: serviceKey,
+        Prefer: 'return=representation',
+      },
+      body: rpcBody,
+    })
+
+    const rpcText = await rpcResp.text()
+    let rpcJson: any = null
+    try {
+      rpcJson = rpcText ? JSON.parse(rpcText) : null
+    } catch {
+      // PostgREST bazen plain text döner; parse hata vermesin
+    }
+
+    if (!rpcResp.ok) {
+      logger.error('Virman create RPC (raw fetch) hata yanıtı', {
+        status: rpcResp.status,
+        rpc_body: rpcJson ?? rpcText,
         p_data_proje_id: pData.proje_id,
         input,
       })
-      throw error
+      // PostgREST'in döndüğü body'yi PG hata objesi formatına çevir →
+      // errorHandler.ts switch'i tetiklenip kullanıcıya doğru mesaj döner.
+      const pgErr: any = new Error(rpcJson?.message || rpcText || 'RPC fetch error')
+      pgErr.code = rpcJson?.code
+      pgErr.message = rpcJson?.message || pgErr.message
+      pgErr.details = rpcJson?.details
+      pgErr.hint = rpcJson?.hint
+      pgErr.column = rpcJson?.column
+      throw pgErr
     }
-    return data as { virman_id: string; gider_hareket_id?: string; gelir_hareket_id?: string }
+
+    return rpcJson as { virman_id: string; gider_hareket_id?: string; gelir_hareket_id?: string }
   },
 
   async remove(id: string, projeId: string) {
