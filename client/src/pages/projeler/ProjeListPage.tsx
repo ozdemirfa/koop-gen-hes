@@ -1,7 +1,12 @@
 import React, { useState } from 'react'
-import { Button, Modal, Form, Input, Space, Tag, DatePicker, Card, Row, Col, Select, InputNumber, Divider, Typography, App } from 'antd'
+import { Button, Modal, Form, Input, Space, Tag, DatePicker, Card, Row, Col, Select, InputNumber, Divider, Typography, Table, Popconfirm, App } from 'antd'
 import { PlusOutlined, EditOutlined, EyeOutlined, ProjectOutlined, DeleteOutlined, TeamOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import {
+  useMyInvitations,
+  useAcceptMyInvitation,
+  useRejectMyInvitation,
+} from '../../hooks/useMyInvitations'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
@@ -268,6 +273,8 @@ export const ProjeListPage: React.FC = () => {
         )}
       </Row>
 
+      <BekleyenDavetlerSection />
+
       <Modal
         title={editingProje ? 'Proje Düzenle' : 'Yeni Proje'}
         open={modalOpen}
@@ -477,5 +484,77 @@ export const ProjeListPage: React.FC = () => {
         </Form>
       </Modal>
     </div>
+  )
+}
+
+// Kullanıcının pending davetleri — banner ile aynı hook'u kullanır.
+// Spec: docs/superpowers/specs/2026-05-21-invitation-flow-design.md §6.3
+const BekleyenDavetlerSection: React.FC = () => {
+  const { data: invitations, isLoading } = useMyInvitations()
+  const accept = useAcceptMyInvitation()
+  const reject = useRejectMyInvitation()
+
+  if (isLoading || !invitations?.length) return null
+
+  return (
+    <>
+      <Divider style={{ marginTop: 24 }} />
+      <Typography.Title level={4}>
+        Bekleyen Davetler ({invitations.length})
+      </Typography.Title>
+      <Table
+        dataSource={invitations}
+        rowKey="id"
+        pagination={false}
+        columns={[
+          { title: 'Proje Adı', dataIndex: 'proje_adi' },
+          {
+            title: 'Rol',
+            dataIndex: 'invited_role',
+            render: (r: string) => <Tag color="blue">{r}</Tag>,
+          },
+          {
+            title: 'Davet Tarihi',
+            dataIndex: 'created_at',
+            render: (v: string) => new Date(v).toLocaleDateString('tr-TR'),
+          },
+          {
+            title: 'Geçerlilik',
+            dataIndex: 'expires_at',
+            render: (v: string) => new Date(v).toLocaleDateString('tr-TR'),
+          },
+          {
+            title: 'Aksiyon',
+            width: 200,
+            render: (_: unknown, row) => (
+              <Space>
+                <Button
+                  type="primary"
+                  size="small"
+                  loading={accept.isPending && accept.variables === row.id}
+                  onClick={() => accept.mutate(row.id)}
+                >
+                  Kabul Et
+                </Button>
+                <Popconfirm
+                  title="Daveti reddetmek istediğinize emin misiniz?"
+                  onConfirm={() => reject.mutate(row.id)}
+                  okText="Evet, Reddet"
+                  cancelText="Vazgeç"
+                >
+                  <Button
+                    danger
+                    size="small"
+                    loading={reject.isPending && reject.variables === row.id}
+                  >
+                    Reddet
+                  </Button>
+                </Popconfirm>
+              </Space>
+            ),
+          },
+        ]}
+      />
+    </>
   )
 }
