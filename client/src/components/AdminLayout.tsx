@@ -167,6 +167,12 @@ const MainHeader: React.FC<{
   settingsMenu: any
 }> = ({ onToggleCollapsed, settingsMenu }) => {
   const { title, headerActions, headerRightActions } = useLayout()
+  const { user } = useAuth()
+  const displayName =
+    (user?.user_metadata as { full_name?: string; name?: string } | undefined)?.full_name ??
+    (user?.user_metadata as { full_name?: string; name?: string } | undefined)?.name ??
+    user?.email ??
+    ''
 
   return (
     <Header
@@ -272,6 +278,24 @@ const MainHeader: React.FC<{
           <div style={{ display: 'flex', alignItems: 'center' }}>
             {headerRightActions}
           </div>
+        )}
+        {displayName && (
+          <Typography.Text
+            className="admin-header-username"
+            style={{
+              color: '#64748b',
+              fontSize: 13,
+              fontWeight: 500,
+              marginRight: 8,
+              maxWidth: 220,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+            title={displayName}
+          >
+            {displayName}
+          </Typography.Text>
         )}
         <Dropdown menu={settingsMenu} placement="bottomRight" arrow>
           <Button
