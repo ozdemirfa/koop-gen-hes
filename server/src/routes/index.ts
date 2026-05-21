@@ -29,6 +29,8 @@ import ceklerRoutes from './cekler.routes'
 import adminRoutes from './admin.routes'
 import projeUyelikleriRoutes from './projeUyelikleri.routes'
 import virmanRoutes from './virman.routes'
+import invitationsRoutes from './invitations.routes'
+import meInvitationsRoutes from './meInvitations.routes'
 
 const router = Router()
 
@@ -72,14 +74,16 @@ router.use('/faturalar', faturalarRoutes)
 router.use('/cari-hareketler', cariHesapRoutes)
 router.use('/banka', bankaHesapRoutes)
 router.use('/malzeme-teslimleri', malzemeTeslimRoutes)
-// Proje üyelik alt-route'u projeler ana router'ından önce mount edilmeli; aksi
-// halde `/projeler/:id` catch-all önce eşleşir.
+// Proje üyelik + davet alt-route'ları projeler ana router'ından önce mount
+// edilmeli; aksi halde `/projeler/:id` catch-all önce eşleşir.
 router.use('/projeler/:projeId/uyeler', projeUyelikleriRoutes)
+router.use('/projeler/:projeId/invitations', invitationsRoutes)
 router.use('/projeler', projelerRoutes)
 router.use('/dashboard', dashboardRoutes)
 router.use('/raporlar', raporlarRoutes)
 router.use('/cekler', ceklerRoutes)
 router.use('/admin', adminRoutes)
 router.use('/virmanlar', virmanRoutes)
+router.use('/me/invitations', meInvitationsRoutes)
 
 export default router
