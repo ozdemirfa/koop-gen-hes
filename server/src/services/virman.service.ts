@@ -57,12 +57,14 @@ export const virmanService = {
     // doğru status code (400) + mesaj ile döner.
     if (typeof input.proje_id !== 'string' || !UUID_PATTERN.test(input.proje_id)) {
       logger.error('virman service create: input.proje_id invalid', {
+        rpc_path: 'raw-fetch-v4',
         input_keys: Object.keys(input ?? {}),
         proje_id_type: typeof input?.proje_id,
         proje_id_value: input?.proje_id,
       })
       throw ApiError.badRequest('proje_id zorunludur (service-defans)', [
         { field: 'proje_id', message: 'Servis katmanına geçerli proje_id ulaşmadı' },
+        { field: '__rpc_path', message: 'raw-fetch-v4' },
       ])
     }
 
@@ -144,12 +146,31 @@ export const virmanService = {
       // PostgREST bazen plain text döner; parse hata vermesin
     }
 
+    // Sprint fix/virman-deploy-and-rpc-investigation:
+    // Tüm response header'larını dump et — PostgREST/Supabase region/CF-ray gibi
+    // forensic detayları görelim. RPC overload veya routing bug'ı bu header'lardan
+    // ortaya çıkabilir. Hassas bilgi yok; sadece infra metadata.
+    const respHeaders: Record<string, string> = {}
+    rpcResp.headers.forEach((value, key) => {
+      respHeaders[key] = value
+    })
+
     if (!rpcResp.ok) {
       logger.error('Virman create RPC (raw fetch) hata yanıtı', {
+        rpc_path: 'raw-fetch-v4',
         status: rpcResp.status,
-        rpc_body: rpcJson ?? rpcText,
+        status_text: rpcResp.statusText,
+        rpc_body_parsed: rpcJson,
+        rpc_body_raw_text: rpcText,
+        rpc_body_raw_length: rpcText?.length ?? 0,
+        response_headers: respHeaders,
+        request_url: rpcUrl,
+        request_body_sent: rpcBody,
+        request_body_length: rpcBody.length,
         p_data_proje_id: pData.proje_id,
-        input,
+        p_data_keys: Object.keys(pData),
+        input_proje_id: input.proje_id,
+        input_keys: Object.keys(input ?? {}),
       })
       // PostgREST'in döndüğü body'yi PG hata objesi formatına çevir →
       // errorHandler.ts switch'i tetiklenip kullanıcıya doğru mesaj döner.
@@ -161,6 +182,14 @@ export const virmanService = {
       pgErr.column = rpcJson?.column
       throw pgErr
     }
+
+    // Başarı durumunda da minimal logging — raw-fetch yolunun gerçekten kullanıldığını
+    // kanıtlar. Production'a sızıntı yapmadan sadece RPC yol/region bilgisini yaz.
+    logger.info('Virman create RPC (raw fetch) başarılı', {
+      rpc_path: 'raw-fetch-v4',
+      status: rpcResp.status,
+      response_region: respHeaders['x-supabase-region'] ?? respHeaders['cf-ray'] ?? null,
+    })
 
     return rpcJson as { virman_id: string; gider_hareket_id?: string; gelir_hareket_id?: string }
   },

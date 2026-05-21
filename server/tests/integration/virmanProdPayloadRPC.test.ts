@@ -130,9 +130,17 @@ describe('Virman PROD payload regression (sprint rootcause)', () => {
     expect(res.status, `Beklenmedik response: ${JSON.stringify(res.body)}`).toBe(201)
     expect(res.body.success).toBe(true)
     expect(res.body._build).toBeDefined()
+    // Sprint fix/virman-deploy-and-rpc-investigation: response body'de yeni
+    // rpc-path tag'ı da görünmeli → kullanıcı body'den de PR #85+ canlı mı
+    // doğrulayabilir.
+    expect(res.body._rpc_path).toBe('raw-fetch-v4')
 
     // 2) Build header görünür → Render canlı build verify
     expect(res.headers['x-virman-build']).toBeTruthy()
+    // 2b) RPC path header — bu kalifiyer header sadece bu PR ve sonrası canlı
+    //     ise görünür. Kullanıcı response headers'da görmüyorsa Render eski
+    //     build'i serve ediyor demektir.
+    expect(res.headers['x-virman-rpc-path']).toBe('raw-fetch-v4')
 
     // 3) Raw fetch çağrıldı ve body.p_data.proje_id UUID
     expect(lastRpcUrl).toContain('/rpc/fn_create_virman_atomic')

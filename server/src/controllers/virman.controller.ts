@@ -14,10 +14,16 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 // devtools/curl ile hangi build'in canlı olduğunu net görür. Header yoksa
 // Render eski build'i çalıştırıyor demektir.
 const VIRMAN_BUILD_TAG = 'rootcause-sprint-v3'
-export { VIRMAN_BUILD_TAG }
+// Sprint fix/virman-deploy-and-rpc-investigation:
+// PR #85 build header'ı değiştirmediği için kullanıcı raw-fetch yolu canlı mı
+// ayırt edemiyor. Yeni bir tek-kalifiyer header ekliyoruz: bu header response'da
+// görünmüyorsa Render hâlâ PR #83 build'i serve ediyor (raw fetch yolu DEAD).
+const VIRMAN_RPC_PATH = 'raw-fetch-v4'
+export { VIRMAN_BUILD_TAG, VIRMAN_RPC_PATH }
 
 export const listVirmanlar = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   res.setHeader('x-virman-build', VIRMAN_BUILD_TAG)
+  res.setHeader('x-virman-rpc-path', VIRMAN_RPC_PATH)
   const data = await virmanService.list(req.query as Record<string, any>)
   res.json({ success: true, data })
 })
@@ -26,6 +32,8 @@ export const createVirman = catchAsync(async (req: AuthRequest<any, any, any, an
   // Build tag — başarı/hata her durumda response header'a yansır. Tag yoksa
   // Render canlı build'i bu commit'i içermiyor demektir.
   res.setHeader('x-virman-build', VIRMAN_BUILD_TAG)
+  // PR #85 deploy ayırt edici header'ı; her durumda set edilir.
+  res.setHeader('x-virman-rpc-path', VIRMAN_RPC_PATH)
 
   // DIAGNOSTIC: virman proje_id bug — remove after fix
   logger.info('DIAGNOSTIC virman POST controller', {
@@ -54,6 +62,7 @@ export const createVirman = catchAsync(async (req: AuthRequest<any, any, any, an
         message: `Geçerli proje_id gönderilmedi (alındı: ${typeof proje_id_raw}=${JSON.stringify(proje_id_raw)})`,
       },
       { field: '__build', message: VIRMAN_BUILD_TAG },
+      { field: '__rpc_path', message: VIRMAN_RPC_PATH },
     ])
   }
 
@@ -70,7 +79,7 @@ export const createVirman = catchAsync(async (req: AuthRequest<any, any, any, an
   }
 
   const data = await virmanService.create(serviceInput, req.user?.id)
-  res.status(201).json({ success: true, data, _build: VIRMAN_BUILD_TAG })
+  res.status(201).json({ success: true, data, _build: VIRMAN_BUILD_TAG, _rpc_path: VIRMAN_RPC_PATH })
 })
 
 export const deleteVirman = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
