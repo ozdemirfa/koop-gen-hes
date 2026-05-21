@@ -7,14 +7,29 @@ import logger from '../utils/logger'
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+// Sprint fix/virman-proje-id-rootcause-sprint:
+// PR #81 + PR #82 sonrası prod'da 400 devam ediyor. Olası nedenler arasında
+// "Render eski build artifact'i serve ediyor" hipotezi var. Bu tag her response'a
+// (success + error) `x-virman-build` HTTP header olarak yazılır → kullanıcı
+// devtools/curl ile hangi build'in canlı olduğunu net görür. Header yoksa
+// Render eski build'i çalıştırıyor demektir.
+const VIRMAN_BUILD_TAG = 'rootcause-sprint-v3'
+export { VIRMAN_BUILD_TAG }
+
 export const listVirmanlar = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  res.setHeader('x-virman-build', VIRMAN_BUILD_TAG)
   const data = await virmanService.list(req.query as Record<string, any>)
   res.json({ success: true, data })
 })
 
 export const createVirman = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  // Build tag — başarı/hata her durumda response header'a yansır. Tag yoksa
+  // Render canlı build'i bu commit'i içermiyor demektir.
+  res.setHeader('x-virman-build', VIRMAN_BUILD_TAG)
+
   // DIAGNOSTIC: virman proje_id bug — remove after fix
   logger.info('DIAGNOSTIC virman POST controller', {
+    build: VIRMAN_BUILD_TAG,
     body: req.body,
     proje_id: req.body?.proje_id,
     proje_id_type: typeof req.body?.proje_id,
@@ -33,11 +48,12 @@ export const createVirman = catchAsync(async (req: AuthRequest<any, any, any, an
     typeof proje_id_raw === 'string' ? proje_id_raw.trim() : ''
 
   if (!proje_id || !UUID_REGEX.test(proje_id)) {
-    throw ApiError.badRequest('proje_id zorunludur', [
+    throw ApiError.badRequest('proje_id zorunludur (controller-defans)', [
       {
         field: 'proje_id',
-        message: `Geçerli proje_id gönderilmedi (alındı: ${typeof proje_id_raw})`,
+        message: `Geçerli proje_id gönderilmedi (alındı: ${typeof proje_id_raw}=${JSON.stringify(proje_id_raw)})`,
       },
+      { field: '__build', message: VIRMAN_BUILD_TAG },
     ])
   }
 
@@ -54,7 +70,7 @@ export const createVirman = catchAsync(async (req: AuthRequest<any, any, any, an
   }
 
   const data = await virmanService.create(serviceInput, req.user?.id)
-  res.status(201).json({ success: true, data })
+  res.status(201).json({ success: true, data, _build: VIRMAN_BUILD_TAG })
 })
 
 export const deleteVirman = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
