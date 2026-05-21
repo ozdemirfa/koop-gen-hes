@@ -43,16 +43,28 @@ export const virmanService = {
     // RPC çağrısı — atomic transaction (virman + 2 banka_hareketleri).
     // DB CHECK constraint'leri tipi/NULL kombinasyonunu zorlar; schema seviyesi de
     // erken hata verir → çift güvence.
+
+    // DIAGNOSTIC: virman proje_id bug — remove after fix
+    // p_data'yı local değişkene aldık ki RPC çağrısından hemen önce serileştirilecek
+    // tam payload'u log'a yansıtabilelim. Controller log'uyla diff: proje_id
+    // hangi katmanda kayboluyor (Zod parse vs supabase-js serialization)?
+    const pData = {
+      proje_id: input.proje_id,
+      virman_tipi: input.virman_tipi,
+      kaynak_hesap_id: input.kaynak_hesap_id ?? null,
+      hedef_hesap_id: input.hedef_hesap_id ?? null,
+      tutar: input.tutar,
+      tarih: input.tarih,
+      aciklama: input.aciklama ?? null,
+    }
+    logger.info('DIAGNOSTIC virman create RPC payload', {
+      p_data: pData,
+      proje_id_type: typeof pData.proje_id,
+      actor_id: actorId ?? null,
+    })
+
     const { data, error } = await supabaseAdmin.rpc('fn_create_virman_atomic', {
-      p_data: {
-        proje_id: input.proje_id,
-        virman_tipi: input.virman_tipi,
-        kaynak_hesap_id: input.kaynak_hesap_id ?? null,
-        hedef_hesap_id: input.hedef_hesap_id ?? null,
-        tutar: input.tutar,
-        tarih: input.tarih,
-        aciklama: input.aciklama ?? null,
-      },
+      p_data: pData,
       p_actor_id: actorId ?? null,
     })
 
