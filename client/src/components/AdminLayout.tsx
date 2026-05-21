@@ -20,6 +20,7 @@ import { useProject } from '../contexts/ProjectContext'
 import { useLayout } from '../contexts/LayoutContext'
 import { usePermissions } from '../hooks/usePermissions'
 import logo from '../assets/logo.png'
+import { InvitationBanner } from './InvitationBanner'
 
 const { Header, Sider, Content } = Layout
 const { useBreakpoint } = Grid
@@ -475,9 +476,10 @@ export const AdminLayout: React.FC = () => {
           onToggleCollapsed={() => setCollapsed(!collapsed)}
           settingsMenu={settingsMenu}
         />
-        <Content style={{ 
-          margin: '24px', 
-          minHeight: 280, 
+        <InvitationBanner />
+        <Content style={{
+          margin: '24px',
+          minHeight: 280,
           background: 'transparent',
           overflow: 'initial'
         }}>
