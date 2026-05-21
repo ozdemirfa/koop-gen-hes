@@ -29,7 +29,7 @@ import { BankaHesapListPage } from './pages/bankaHesap/BankaHesapListPage'
 import { BankaHareketleriPage } from './pages/bankaHesap/BankaHareketleriPage'
 import { VirmanListPage } from './pages/virman/VirmanListPage'
 import { ForbiddenPage } from './pages/ForbiddenPage'
-import { SifreBelirlePage } from './pages/SifreBelirlePage'
+import { DavetKabulPage } from './pages/auth/DavetKabulPage'
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage'
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage'
 import { KullaniciYonetimiPage } from './pages/admin/KullaniciYonetimiPage'
@@ -118,7 +118,7 @@ const App: React.FC = () => {
                     <Routes>
                       <Route path="/login" element={<Login />} />
                       <Route path="/forbidden" element={<ForbiddenPage />} />
-                      <Route path="/sifre-belirle" element={<SifreBelirlePage />} />
+                      <Route path="/davet-kabul/:token" element={<DavetKabulPage />} />
                       {/*
                         Sprint role-system-modernization (PR-E, 2026-05-20):
                         E-mail tabanlı self şifre reset akışı. Her iki sayfa
