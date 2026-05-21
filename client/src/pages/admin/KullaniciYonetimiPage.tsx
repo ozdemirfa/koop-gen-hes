@@ -14,6 +14,7 @@ import {
   Statistic,
   Switch,
   Table,
+  Tabs,
   Tag,
   Tooltip,
   Typography,
@@ -29,6 +30,8 @@ import {
 } from '@ant-design/icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
+import { invitationsApi } from '../../lib/invitationsApi'
+import type { ProjectInvitation } from '../../types/invitation'
 import { getErrorMessage } from '../../lib/apiError'
 import { ErrorState } from '../../components/common/ErrorState'
 import { PageHeader } from '../../components/common/PageHeader'
@@ -109,28 +112,58 @@ export const KullaniciYonetimiPage: React.FC = () => {
     enabled: !!projeId,
   })
 
+  // Davet listesi sorguları (Bekleyen + Geçmiş sekmeleri)
+  const { data: pendingInvites, isLoading: pendingLoading } = useQuery({
+    queryKey: ['project-invitations', projeId, 'pending'],
+    queryFn: () => invitationsApi.listForProject(projeId!, ['pending']),
+    enabled: !!projeId,
+  })
+
+  const { data: historyInvites, isLoading: historyLoading } = useQuery({
+    queryKey: ['project-invitations', projeId, 'history'],
+    queryFn: () => invitationsApi.listForProject(projeId!, ['accepted', 'rejected', 'expired']),
+    enabled: !!projeId,
+  })
+
+  const cancelInviteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      if (!projeId) throw new Error('Aktif proje yok')
+      await invitationsApi.cancel(projeId, id)
+    },
+    onSuccess: () => {
+      message.success('Davet iptal edildi')
+      queryClient.invalidateQueries({ queryKey: ['project-invitations', projeId] })
+    },
+    onError: (err) => message.error(getErrorMessage(err, 'İptal edilemedi')),
+  })
+
+  // Yeni davet akışı (2026-05-21): POST /api/projeler/:projeId/invitations
+  // Yeni kullanıcı: token + OTP + signup (DavetKabulPage)
+  // Kayıtlı kullanıcı: in-app banner (InvitationBanner)
   const inviteMutation = useMutation({
     mutationFn: async (values: { email: string; projectRole: 'manager' | 'user' }) => {
       if (!projeId) throw new Error('Aktif proje yok')
-      const { data } = await api.post('/admin/users/invite', {
-        email: values.email,
-        projeId,
-        projectRole: values.projectRole,
-      })
-      return data
+      return invitationsApi.create(projeId, values)
     },
     onSuccess: (res) => {
-      const invited = res?.data?.invited
       message.success(
-        invited
-          ? 'Davet e-postası gönderildi ve üye projeye eklendi'
-          : 'Kullanıcı zaten kayıtlı — projeye eklendi (yeni davet e-postası gönderilmedi)',
+        res.isNewUser
+          ? 'Davet e-postası gönderildi. Kullanıcı linki tıklayarak kayıt olacak.'
+          : 'Davet gönderildi. Kullanıcı uygulamadan kabul/red seçecek.',
       )
       queryClient.invalidateQueries({ queryKey: ['proje-uyelikler', projeId] })
+      queryClient.invalidateQueries({ queryKey: ['project-invitations', projeId] })
       setInviteOpen(false)
       inviteForm.resetFields()
     },
-    onError: (err) => message.error(getErrorMessage(err, 'Davet gönderilemedi')),
+    onError: (err: any) => {
+      const status = err?.response?.status
+      if (status === 409) {
+        message.error('Bu e-mail için bekleyen davet var. Önce iptal etmeniz gerekiyor.')
+      } else {
+        message.error(getErrorMessage(err, 'Davet gönderilemedi'))
+      }
+    },
   })
 
   const updateRoleMutation = useMutation({
@@ -351,28 +384,143 @@ export const KullaniciYonetimiPage: React.FC = () => {
       />
 
       <Card>
-        <div style={{ marginBottom: 16, display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-          <Statistic title="Toplam Üye" value={uyeSayisi} />
-          <Statistic
-            title="Owner"
-            value={uyeler?.filter((u) => u.rol === 'owner').length ?? 0}
-          />
-          <Statistic
-            title="Yönetici"
-            value={uyeler?.filter((u) => u.rol === 'manager').length ?? 0}
-          />
-          <Statistic
-            title="Kullanıcı"
-            value={uyeler?.filter((u) => u.rol === 'user').length ?? 0}
-          />
-        </div>
-        <Table
-          columns={columns}
-          dataSource={uyeler}
-          rowKey="user_id"
-          loading={isLoading}
-          pagination={{ pageSize: 50, showSizeChanger: true }}
-          locale={{ emptyText: 'Bu projede henüz üye yok — yukarıdan davet edin' }}
+        <Tabs
+          defaultActiveKey="active"
+          items={[
+            {
+              key: 'active',
+              label: `Aktif Üyeler (${uyeSayisi})`,
+              children: (
+                <>
+                  <div style={{ marginBottom: 16, display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+                    <Statistic title="Toplam Üye" value={uyeSayisi} />
+                    <Statistic
+                      title="Owner"
+                      value={uyeler?.filter((u) => u.rol === 'owner').length ?? 0}
+                    />
+                    <Statistic
+                      title="Yönetici"
+                      value={uyeler?.filter((u) => u.rol === 'manager').length ?? 0}
+                    />
+                    <Statistic
+                      title="Kullanıcı"
+                      value={uyeler?.filter((u) => u.rol === 'user').length ?? 0}
+                    />
+                  </div>
+                  <Table
+                    columns={columns}
+                    dataSource={uyeler}
+                    rowKey="user_id"
+                    loading={isLoading}
+                    pagination={{ pageSize: 50, showSizeChanger: true }}
+                    locale={{ emptyText: 'Bu projede henüz üye yok — yukarıdan davet edin' }}
+                  />
+                </>
+              ),
+            },
+            {
+              key: 'pending',
+              label: `Bekleyen Davetler (${pendingInvites?.length ?? 0})`,
+              children: (
+                <Table<ProjectInvitation>
+                  dataSource={pendingInvites}
+                  rowKey="id"
+                  loading={pendingLoading}
+                  pagination={false}
+                  locale={{ emptyText: 'Bekleyen davet yok' }}
+                  columns={[
+                    { title: 'E-Mail', dataIndex: 'email' },
+                    {
+                      title: 'Rol',
+                      dataIndex: 'invited_role',
+                      render: (r: string) => <Tag color="blue">{r}</Tag>,
+                    },
+                    {
+                      title: 'Davet Tarihi',
+                      dataIndex: 'created_at',
+                      render: (v: string) => new Date(v).toLocaleDateString('tr-TR'),
+                    },
+                    {
+                      title: 'Geçerlilik',
+                      dataIndex: 'expires_at',
+                      render: (v: string) => new Date(v).toLocaleDateString('tr-TR'),
+                    },
+                    { title: 'Deneme', dataIndex: 'attempt_count', width: 80 },
+                    {
+                      title: 'Aksiyon',
+                      width: 120,
+                      render: (_: unknown, row: ProjectInvitation) => (
+                        <Popconfirm
+                          title="Bu daveti iptal etmek istediğinize emin misiniz?"
+                          onConfirm={() => cancelInviteMutation.mutate(row.id)}
+                          okText="Evet, İptal Et"
+                          cancelText="Vazgeç"
+                        >
+                          <Button danger size="small" loading={cancelInviteMutation.isPending}>
+                            İptal
+                          </Button>
+                        </Popconfirm>
+                      ),
+                    },
+                  ]}
+                />
+              ),
+            },
+            {
+              key: 'history',
+              label: 'Geçmiş',
+              children: (
+                <Table<ProjectInvitation>
+                  dataSource={historyInvites}
+                  rowKey="id"
+                  loading={historyLoading}
+                  pagination={{ pageSize: 50 }}
+                  locale={{ emptyText: 'Geçmiş davet yok' }}
+                  columns={[
+                    { title: 'E-Mail', dataIndex: 'email' },
+                    {
+                      title: 'Rol',
+                      dataIndex: 'invited_role',
+                      render: (r: string) => <Tag color="blue">{r}</Tag>,
+                    },
+                    {
+                      title: 'Durum',
+                      dataIndex: 'status',
+                      render: (s: string) => {
+                        const color =
+                          s === 'accepted' ? 'green' : s === 'rejected' ? 'red' : 'default'
+                        return <Tag color={color}>{s}</Tag>
+                      },
+                    },
+                    {
+                      title: 'Davet Tarihi',
+                      dataIndex: 'created_at',
+                      render: (v: string) => new Date(v).toLocaleDateString('tr-TR'),
+                    },
+                    {
+                      title: 'Aksiyon',
+                      width: 140,
+                      render: (_: unknown, row: ProjectInvitation) =>
+                        ['rejected', 'expired'].includes(row.status) ? (
+                          <Button
+                            size="small"
+                            loading={inviteMutation.isPending}
+                            onClick={() =>
+                              inviteMutation.mutate({
+                                email: row.email,
+                                projectRole: row.invited_role,
+                              })
+                            }
+                          >
+                            Tekrar Davet Et
+                          </Button>
+                        ) : null,
+                    },
+                  ]}
+                />
+              ),
+            },
+          ]}
         />
       </Card>
 
