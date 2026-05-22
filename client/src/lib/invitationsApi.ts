@@ -80,6 +80,19 @@ export const invitationsApi = {
     return unwrap<{ ok: true }>(data)
   },
 
+  // ─── Admin — yetkili davet ───────────────────────────────────────────
+  /** POST /admin/invitations/yetkili — global yetkili daveti (proje seçimi yok) */
+  async createYetkiliInvitation(email: string): Promise<{ id: string; email: string; expiresAt: string }> {
+    const { data } = await api.post('/admin/invitations/yetkili', { email })
+    return unwrap<{ id: string; email: string; expiresAt: string }>(data)
+  },
+
+  // ─── Admin — kullanıcı rol yönetimi ─────────────────────────────────
+  /** PATCH /admin/users/:userId/role — global rol ata veya kaldır */
+  async setUserGlobalRole(userId: string, role: 'yetkili' | 'staff' | null): Promise<void> {
+    await api.patch(`/admin/users/${userId}/role`, { role })
+  },
+
   // ─── Public (no auth) ────────────────────────────────────────────────
   async previewByToken(token: string): Promise<InvitationPreview> {
     const { data } = await api.get(`/invitations/by-token/${encodeURIComponent(token)}`)

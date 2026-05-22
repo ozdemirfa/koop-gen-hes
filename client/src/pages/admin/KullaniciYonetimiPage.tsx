@@ -38,6 +38,9 @@ import { PageHeader } from '../../components/common/PageHeader'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { useProject } from '../../contexts/ProjectContext'
 import { usePermissions } from '../../hooks/usePermissions'
+import { useAuth } from '../../contexts/AuthContext'
+import { GLOBAL_ROLE_TR } from '../../lib/roleLabels'
+import { YetkiliInviteModal } from '../../components/YetkiliInviteModal'
 
 /**
  * Sprint role-system-modernization (PR-D, 2026-05-20):
@@ -66,8 +69,9 @@ interface ProjeUye {
   created_at: string
 }
 
+// PR-B: PROJECT_ROLE_TR sözlüğünü referans al
 const ROLE_LABELS: Record<ProjectRole, string> = {
-  owner: 'Owner',
+  owner: 'Yetkili',
   manager: 'Yönetici',
   user: 'Kullanıcı',
 }
@@ -78,17 +82,27 @@ const ROLE_COLORS: Record<ProjectRole, string> = {
   user: 'default',
 }
 
+// Sistem genelindeki kullanıcı (GET /api/admin/users response shape)
+interface SistemKullanici {
+  user_id: string
+  email: string
+  global_role: 'admin' | 'yetkili' | 'staff' | null
+  can_create_projects: boolean
+}
+
 export const KullaniciYonetimiPage: React.FC = () => {
   const queryClient = useQueryClient()
   const { message } = App.useApp()
   const { activeProject } = useProject()
-  const { isOwner } = usePermissions()
+  const { isOwner, isAdmin } = usePermissions()
+  const { user: currentUser } = useAuth()
   const projeId = activeProject?.id
 
   const [inviteOpen, setInviteOpen] = useState(false)
   const [roleEdit, setRoleEdit] = useState<ProjeUye | null>(null)
   const [pwResetTarget, setPwResetTarget] = useState<ProjeUye | null>(null)
   const [pwResetResult, setPwResetResult] = useState<{ email: string; password: string; generated: boolean } | null>(null)
+  const [yetkiliInviteOpen, setYetkiliInviteOpen] = useState(false)
 
   const [inviteForm] = Form.useForm()
   const [roleForm] = Form.useForm()
@@ -123,6 +137,30 @@ export const KullaniciYonetimiPage: React.FC = () => {
     queryKey: ['project-invitations', projeId, 'history'],
     queryFn: () => invitationsApi.listForProject(projeId!, ['accepted', 'rejected', 'expired']),
     enabled: !!projeId,
+  })
+
+  // PR-B: Sistem Kullanıcıları — sadece admin görür
+  const {
+    data: sistemKullanicilar,
+    isLoading: sistemLoading,
+    refetch: refetchSistem,
+  } = useQuery({
+    queryKey: ['admin-users'],
+    queryFn: async () => {
+      const { data } = await api.get('/admin/users')
+      return (data.data ?? data) as SistemKullanici[]
+    },
+    enabled: isAdmin,
+  })
+
+  const setRoleMutation = useMutation({
+    mutationFn: async ({ userId, role }: { userId: string; role: 'yetkili' | 'staff' | null }) =>
+      invitationsApi.setUserGlobalRole(userId, role),
+    onSuccess: () => {
+      message.success('Kullanıcı rolü güncellendi')
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+    },
+    onError: (err) => message.error(getErrorMessage(err, 'Rol güncellenemedi')),
   })
 
   const cancelInviteMutation = useMutation({
@@ -379,6 +417,15 @@ export const KullaniciYonetimiPage: React.FC = () => {
             <Button type="primary" icon={<UserAddOutlined />} onClick={() => setInviteOpen(true)}>
               Üye Davet Et
             </Button>
+            {isAdmin && (
+              <Button
+                icon={<MailOutlined />}
+                data-testid="yetkili-davet-btn"
+                onClick={() => setYetkiliInviteOpen(true)}
+              >
+                Yetkili Davet Et
+              </Button>
+            )}
           </Space>
         }
       />
@@ -387,6 +434,114 @@ export const KullaniciYonetimiPage: React.FC = () => {
         <Tabs
           defaultActiveKey="active"
           items={[
+            // PR-B: Admin'e özel "Sistem Kullanıcıları" sekmesi
+            ...(isAdmin
+              ? [
+                  {
+                    key: 'sistem',
+                    label: 'Sistem Kullanıcıları',
+                    children: (
+                      <Table<SistemKullanici>
+                        dataSource={sistemKullanicilar}
+                        rowKey="user_id"
+                        loading={sistemLoading}
+                        pagination={{ pageSize: 50 }}
+                        locale={{ emptyText: 'Kullanıcı yok' }}
+                        columns={[
+                          {
+                            title: 'E-posta',
+                            dataIndex: 'email',
+                            render: (v: string) => <Typography.Text strong>{v}</Typography.Text>,
+                          },
+                          {
+                            title: 'Global Rol',
+                            dataIndex: 'global_role',
+                            width: 140,
+                            render: (v: SistemKullanici['global_role']) => {
+                              if (!v) return <Tag>Rol Yok</Tag>
+                              const colors: Record<string, string> = { admin: 'red', yetkili: 'gold', staff: 'default' }
+                              return <Tag color={colors[v] ?? 'default'}>{GLOBAL_ROLE_TR[v as keyof typeof GLOBAL_ROLE_TR] ?? v}</Tag>
+                            },
+                          },
+                          {
+                            title: 'Proje Açabilir',
+                            dataIndex: 'can_create_projects',
+                            width: 120,
+                            render: (v: boolean) => (
+                              <Tag color={v ? 'green' : 'default'}>{v ? 'Evet' : 'Hayır'}</Tag>
+                            ),
+                          },
+                          {
+                            title: 'Aksiyon',
+                            key: 'actions',
+                            width: 240,
+                            render: (_: unknown, r: SistemKullanici) => {
+                              const isSelf = r.user_id === currentUser?.id
+                              const isTargetAdmin = r.global_role === 'admin'
+                              const isYetkiliUser = r.global_role === 'yetkili'
+
+                              if (isTargetAdmin) {
+                                return (
+                                  <Tooltip title="Admin rolü sadece DB üzerinden değiştirilebilir">
+                                    <Tag color="red">Admin (değiştirilemez)</Tag>
+                                  </Tooltip>
+                                )
+                              }
+
+                              return (
+                                <Space size={4}>
+                                  {!isYetkiliUser ? (
+                                    <Tooltip title={isSelf ? 'Kendi rolünüzü değiştiremezsiniz' : 'Yetkili yap'}>
+                                      <Button
+                                        size="small"
+                                        type="primary"
+                                        disabled={isSelf || setRoleMutation.isPending}
+                                        loading={
+                                          setRoleMutation.isPending &&
+                                          (setRoleMutation.variables as any)?.userId === r.user_id
+                                        }
+                                        data-testid={`promote-btn-${r.user_id}`}
+                                        onClick={() => setRoleMutation.mutate({ userId: r.user_id, role: 'yetkili' })}
+                                      >
+                                        Yetkili Yap
+                                      </Button>
+                                    </Tooltip>
+                                  ) : (
+                                    <Tooltip title={isSelf ? 'Kendi rolünüzü değiştiremezsiniz' : 'Yetkili yetkisini kaldır'}>
+                                      <Popconfirm
+                                        title="Yetkili yetkisini kaldır"
+                                        description="Bu kullanıcı artık yeni proje açamaz. Mevcut üyelikleri değişmez."
+                                        onConfirm={() => setRoleMutation.mutate({ userId: r.user_id, role: 'staff' })}
+                                        okText="Evet, Kaldır"
+                                        cancelText="Vazgeç"
+                                        okButtonProps={{ danger: true }}
+                                        disabled={isSelf}
+                                      >
+                                        <Button
+                                          size="small"
+                                          danger
+                                          disabled={isSelf}
+                                          loading={
+                                            setRoleMutation.isPending &&
+                                            (setRoleMutation.variables as any)?.userId === r.user_id
+                                          }
+                                          data-testid={`demote-btn-${r.user_id}`}
+                                        >
+                                          Yetkili Yetkisini Kaldır
+                                        </Button>
+                                      </Popconfirm>
+                                    </Tooltip>
+                                  )}
+                                </Space>
+                              )
+                            },
+                          },
+                        ]}
+                      />
+                    ),
+                  },
+                ]
+              : []),
             {
               key: 'active',
               label: `Aktif Üyeler (${uyeSayisi})`,
@@ -508,7 +663,8 @@ export const KullaniciYonetimiPage: React.FC = () => {
                             onClick={() =>
                               inviteMutation.mutate({
                                 email: row.email,
-                                projectRole: row.invited_role,
+                                // yetkili daveti proje bazlı tekrar davet ile uyumsuz — sadece manager/user
+                                projectRole: (row.invited_role === 'yetkili' ? 'user' : row.invited_role) as 'manager' | 'user',
                               })
                             }
                           >
@@ -657,6 +813,14 @@ export const KullaniciYonetimiPage: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* PR-B: Yetkili davet modal — sadece admin */}
+      {isAdmin && (
+        <YetkiliInviteModal
+          open={yetkiliInviteOpen}
+          onClose={() => setYetkiliInviteOpen(false)}
+        />
+      )}
 
       {/* Yenilenmiş şifre gösterim modalı */}
       <Modal

@@ -44,6 +44,12 @@ export interface Permissions {
   isGlobalAdmin: boolean
   isAuthenticated: boolean
 
+  // PR-B: yetkili global rol sistemi
+  /** admin VEYA yetkili → proje oluşturabilir */
+  isAdmin: boolean
+  /** admin VEYA yetkili global rol — proje oluşturma yetkisi */
+  canCreateProjects: boolean
+
   // Yeni model — projeye özgü roller
   projectRole: NewProjectRole | null
   rawProjectRole: ProjectRole
@@ -87,12 +93,15 @@ function normalizeProjectRole(role: ProjectRole): NewProjectRole | null {
 }
 
 export function usePermissions(): Permissions {
-  const { userRole, session } = useAuth()
+  const { userRole, isYetkili, isAdmin, session } = useAuth()
   const { activeProject, activeProjectRole } = useProject()
 
   return useMemo<Permissions>(() => {
     const isLegacyGlobalAdmin = userRole === 'admin'
     const isAuthenticated = !!session
+
+    // PR-B: canCreateProjects → admin VEYA yetkili global rol
+    const canCreateProjects = isYetkili // isYetkili = admin || yetkili
 
     // Global admin (legacy) — her projede owner. PR-D sonrası kaldırılacak.
     const projectRole: NewProjectRole | null = isLegacyGlobalAdmin
@@ -117,6 +126,8 @@ export function usePermissions(): Permissions {
       isLegacyGlobalAdmin,
       isGlobalAdmin: isLegacyGlobalAdmin, // legacy alias
       isAuthenticated,
+      isAdmin,
+      canCreateProjects,
       projectRole,
       rawProjectRole: activeProjectRole,
       isOwner,
@@ -128,5 +139,5 @@ export function usePermissions(): Permissions {
       canManageProject: isManager, // legacy alias
       hasActiveProject: !!activeProject,
     }
-  }, [userRole, session, activeProject, activeProjectRole])
+  }, [userRole, isYetkili, isAdmin, session, activeProject, activeProjectRole])
 }

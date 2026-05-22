@@ -64,7 +64,7 @@ export const ProjeListPage: React.FC = () => {
   //     birlikte yeniden değerlendirilecek (kooperatif başkanı/owner senaryosu).
   //   - Proje düzenleme (edit) + üyelik yönetimi: artık proje yöneticileri
   //     (owner + manager) da yapabilir — `isManager`.
-  const { isLegacyGlobalAdmin, isManager, canManageUsers } = usePermissions()
+  const { canCreateProjects, isManager, canManageUsers } = usePermissions()
   const [modalOpen, setModalOpen] = useState(false)
   const [editingProje, setEditingProje] = useState<Proje | null>(null)
   const [form] = Form.useForm()
@@ -110,30 +110,32 @@ export const ProjeListPage: React.FC = () => {
     },
   })
 
-  const headerActions = React.useMemo(() => (
-    <Button
-      type="primary"
-      icon={<PlusOutlined />}
-      data-testid="add-new-project"
-      disabled={!isLegacyGlobalAdmin}
-      title={!isLegacyGlobalAdmin ? 'Yeni proje sadece global admin tarafından oluşturulabilir' : undefined}
-      onClick={() => {
-        setModalOpen(true)
-        setEditingProje(null)
-        // Küçük bir delay ile formun mount olduğundan emin oluyoruz (forceRender olsa bile garantiye almak iyidir)
-        setTimeout(() => {
-          form.resetFields()
-          form.setFieldsValue({ 
-            durum: 'planli',
-            bloklar: [{ blok_adi: '', toplam_daire: 0, daire_baslangic_no: 1 }] 
-          })
-        }, 0)
-      }}
-      size="middle"
-    >
-      Yeni Proje
-    </Button>
-  ), [form, isLegacyGlobalAdmin])
+  const headerActions = React.useMemo(() => {
+    // PR-B: canCreateProjects → admin VEYA yetkili. Yetkisi yoksa buton gizlenir.
+    if (!canCreateProjects) return null
+    return (
+      <Button
+        type="primary"
+        icon={<PlusOutlined />}
+        data-testid="add-new-project"
+        onClick={() => {
+          setModalOpen(true)
+          setEditingProje(null)
+          // Küçük bir delay ile formun mount olduğundan emin oluyoruz (forceRender olsa bile garantiye almak iyidir)
+          setTimeout(() => {
+            form.resetFields()
+            form.setFieldsValue({
+              durum: 'planli',
+              bloklar: [{ blok_adi: '', toplam_daire: 0, daire_baslangic_no: 1 }]
+            })
+          }, 0)
+        }}
+        size="middle"
+      >
+        Yeni Proje
+      </Button>
+    )
+  }, [form, canCreateProjects])
 
   usePageSettings('İnşaat Projeleri', headerActions)
 
@@ -171,18 +173,23 @@ export const ProjeListPage: React.FC = () => {
         ) : projeler?.length === 0 ? (
           <Col span={24}>
             {/* A4-01 (2026-05-11): action-oriented copy + primary CTA */}
+            {/* PR-B: canCreateProjects → yetkili veya admin. Yetkisi yoksa sadece boş mesaj. */}
             <EmptyState
-              description="Henüz bir projeniz yok. Başlamak için ilk projenizi oluşturun."
+              description={
+                canCreateProjects
+                  ? 'Henüz bir projeniz yok. Başlamak için ilk projenizi oluşturun.'
+                  : 'Henüz bir projeye davet edilmediniz. Proje oluşturmak için yetkili rolü gereklidir.'
+              }
               action={
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  disabled={!isLegacyGlobalAdmin}
-                  title={!isLegacyGlobalAdmin ? 'Yeni proje sadece global admin tarafından oluşturulabilir' : undefined}
-                  onClick={() => { setEditingProje(null); form.resetFields(); setModalOpen(true) }}
-                >
-                  İlk Projeyi Oluştur
-                </Button>
+                canCreateProjects ? (
+                  <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={() => { setEditingProje(null); form.resetFields(); setModalOpen(true) }}
+                  >
+                    İlk Projeyi Oluştur
+                  </Button>
+                ) : undefined
               }
             />
           </Col>
