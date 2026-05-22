@@ -2,7 +2,8 @@ import { Router } from 'express'
 import { validate } from '../middleware/validate'
 import { requireRole } from '../middleware/requireRole'
 import { requireProjectAccess } from '../middleware/requireProjectAccess'
-import { resetPasswordSchema } from '../schemas/admin.schema'
+import { resetPasswordSchema, setUserRoleSchema } from '../schemas/admin.schema'
+import { yetkiliInvitationCreateSchema } from '../schemas/invitation.schema'
 import * as adminController from '../controllers/admin.controller'
 
 const router = Router()
@@ -40,8 +41,26 @@ router.post(
   adminController.resetUserPassword,
 )
 
-// @deprecated — global rol değiştirme PR-D ile kaldırıldı.
-// Geriye uyumluluk için route hâlâ erişilebilir ama controller 410 dönüyor.
-router.patch('/users/:id/role', requireRole('admin'), adminController.updateGlobalRole)
+// Sprint yetkili-role-system (PR-A, 2026-05-22):
+//   PATCH /users/:id/role yeniden aktif — yetkili/staff/null atama akışı.
+//   Body: { role: 'yetkili' | 'staff' | null } — admin reddedilir.
+//   Caller kendi rolünü değiştiremez (controller'da self-check).
+//   PR-D'deki 410 davranışı kaldırıldı.
+router.patch(
+  '/users/:id/role',
+  requireRole('admin'),
+  validate({ body: setUserRoleSchema }),
+  adminController.setUserRole,
+)
+
+// Sprint yetkili-role-system (PR-A): admin yetkili daveti.
+//   Body: { email }
+//   Akış: yeni kullanıcı + token + OTP + mail → kabul edince user_roles=yetkili.
+router.post(
+  '/invitations/yetkili',
+  requireRole('admin'),
+  validate({ body: yetkiliInvitationCreateSchema }),
+  adminController.createYetkiliInvitation,
+)
 
 export default router

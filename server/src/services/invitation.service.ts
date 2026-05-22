@@ -16,6 +16,7 @@ import { ApiError } from '../utils/ApiError'
 import logger from '../utils/logger'
 import { mailer } from './mailer.service'
 import { clearProjectAccessCache } from '../middleware/projectAccessCache'
+import { clearRoleCache } from '../middleware/roleCache'
 import {
   generateInviteToken,
   generateOtpCode,
@@ -35,12 +36,21 @@ interface CreateInvitationInput {
   invitedByName: string
 }
 
+/**
+ * Sprint yetkili-role-system (PR-A): yetkili daveti — proje-bağımsız global rol.
+ */
+interface CreateYetkiliInvitationInput {
+  email: string
+  invitedBy: string
+  invitedByName?: string
+}
+
 interface InvitationRow {
   id: string
-  proje_id: string
+  proje_id: string | null
   email: string
   user_id: string | null
-  invited_role: 'manager' | 'user'
+  invited_role: 'manager' | 'user' | 'yetkili'
   invited_by: string | null
   token: string | null
   otp_hash: string | null
@@ -176,6 +186,95 @@ export const invitationService = {
     }
   },
 
+  /**
+   * Sprint yetkili-role-system (PR-A, 2026-05-22):
+   * Yetkili daveti oluştur. proje_id NULL, invited_role='yetkili'.
+   * Yalnızca yeni kullanıcı akışı (token + OTP) — mevcut kullanıcı için yetkili
+   * promote yolu admin.service.setUserGlobalRole üzerinden.
+   *
+   * Duplicate pending kontrolü: aynı email için açık yetkili daveti varsa 409.
+   */
+  async createYetkiliInvitation(input: CreateYetkiliInvitationInput) {
+    // Mevcut bir kullanıcıya yetkili davet açmıyoruz — admin doğrudan rol atamalı.
+    const existingUser = await findUserByEmail(input.email)
+    if (existingUser) {
+      throw ApiError.conflict(
+        'Kayıtlı kullanıcıya yetkili daveti gönderilemez — global rolü admin tarafından atanmalı',
+      )
+    }
+
+    // Aynı email için pending yetkili daveti var mı?
+    const { data: existing } = await supabaseAdmin
+      .from('invitations')
+      .select('id')
+      .is('proje_id', null)
+      .eq('email', input.email)
+      .eq('invited_role', 'yetkili')
+      .eq('status', 'pending')
+      .maybeSingle()
+    if (existing) {
+      throw ApiError.conflict('Bu e-mail için bekleyen yetkili daveti var')
+    }
+
+    const expiresAt = new Date(Date.now() + TTL_DAYS * 24 * 60 * 60 * 1000)
+    const token = generateInviteToken()
+    const otpPlain = generateOtpCode()
+    const otpHash = await hashOtp(otpPlain)
+
+    const { data: inserted, error: insErr } = await supabaseAdmin
+      .from('invitations')
+      .insert({
+        proje_id: null,
+        email: input.email,
+        user_id: null,
+        invited_role: 'yetkili',
+        invited_by: input.invitedBy,
+        token,
+        otp_hash: otpHash,
+        expires_at: expiresAt.toISOString(),
+      })
+      .select()
+      .single<InvitationRow>()
+    if (insErr || !inserted) {
+      logger.error('[INVITATION] yetkili insert failed', { err: insErr })
+      throw ApiError.internal('Yetkili daveti oluşturulamadı')
+    }
+
+    let mailSent = true
+    let mailError: string | undefined
+    try {
+      await mailer.sendNewUserInvite({
+        to: input.email,
+        // Yetkili davetinde proje yok — "yetkili" rolü için generic başlık.
+        projeAdi: 'Yetkili Daveti',
+        inviterName: input.invitedByName ?? 'Sistem Yöneticisi',
+        // Mailer 'manager' | 'user' bekliyor; UI metni için 'manager' yerine
+        // generic kullanıcıya yetkili dediğimizden user'a iniyoruz (sadece text).
+        // İleride mailer'a 'yetkili' türü eklenebilir.
+        role: 'user',
+        acceptUrl: `${APP_PUBLIC_URL}/davet-kabul/${token}`,
+        otpCode: otpPlain,
+        expiresAt,
+      })
+    } catch (mailErr) {
+      mailSent = false
+      mailError = mailErr instanceof Error ? mailErr.message : 'Mail gönderilemedi'
+      logger.error('[INVITATION] yetkili mail send failed (invitation kept)', { err: mailErr })
+    }
+
+    logger.info(
+      `[INVITATION][audit] admin.yetkili.invited id=${inserted.id} email=${input.email} invitedBy=${input.invitedBy} mailSent=${mailSent}`,
+    )
+
+    return {
+      id: inserted.id,
+      email: inserted.email,
+      expiresAt: inserted.expires_at,
+      mailSent,
+      mailError,
+    }
+  },
+
   async acceptInvitationByToken(token: string, otp: string, password: string) {
     const { data: inv, error: selErr } = await supabaseAdmin
       .from('invitations')
@@ -221,7 +320,7 @@ export const invitationService = {
       throw ApiError.badRequest(`Kod yanlış. ${remaining} deneme hakkınız kaldı`)
     }
 
-    // OTP doğru → kullanıcı yarat ve üyelik aç
+    // OTP doğru → kullanıcı yarat
     const { data: created, error: cuErr } = await supabaseAdmin.auth.admin.createUser({
       email: inv.email,
       password,
@@ -233,19 +332,37 @@ export const invitationService = {
     }
     const userId = created.user.id
 
-    const { error: memErr } = await supabaseAdmin
-      .from('proje_uyelikleri')
-      .upsert(
-        { user_id: userId, proje_id: inv.proje_id, rol: inv.invited_role },
-        { onConflict: 'user_id,proje_id' },
-      )
-    if (memErr) {
-      logger.error('[INVITATION] proje_uyelikleri upsert failed', { err: memErr, userId })
-      // Cleanup: yeni yaratılan kullanıcıyı sil (idempotent değilse manual review)
-      await supabaseAdmin.auth.admin.deleteUser(userId).catch(() => undefined)
-      throw ApiError.internal('Üyelik açılamadı')
+    // Sprint yetkili-role-system (PR-A): davet türüne göre dallan.
+    if (inv.invited_role === 'yetkili') {
+      // Global rol ataması — proje üyeliği yok.
+      const { error: roleErr } = await supabaseAdmin
+        .from('user_roles')
+        .upsert(
+          { user_id: userId, role: 'yetkili' },
+          { onConflict: 'user_id,role' },
+        )
+      if (roleErr) {
+        logger.error('[INVITATION] yetkili role upsert failed', { err: roleErr, userId })
+        await supabaseAdmin.auth.admin.deleteUser(userId).catch(() => undefined)
+        throw ApiError.internal('Yetkili rolü atanamadı')
+      }
+      clearRoleCache(userId)
+    } else {
+      // Proje üyelik akışı (manager / user)
+      const { error: memErr } = await supabaseAdmin
+        .from('proje_uyelikleri')
+        .upsert(
+          { user_id: userId, proje_id: inv.proje_id, rol: inv.invited_role },
+          { onConflict: 'user_id,proje_id' },
+        )
+      if (memErr) {
+        logger.error('[INVITATION] proje_uyelikleri upsert failed', { err: memErr, userId })
+        // Cleanup: yeni yaratılan kullanıcıyı sil (idempotent değilse manual review)
+        await supabaseAdmin.auth.admin.deleteUser(userId).catch(() => undefined)
+        throw ApiError.internal('Üyelik açılamadı')
+      }
+      if (inv.proje_id) clearProjectAccessCache(userId, inv.proje_id)
     }
-    clearProjectAccessCache(userId, inv.proje_id)
 
     await supabaseAdmin
       .from('invitations')
@@ -256,11 +373,18 @@ export const invitationService = {
       })
       .eq('id', inv.id)
 
-    logger.info(`[INVITATION] accepted by-token id=${inv.id} user=${userId}`)
+    if (inv.invited_role === 'yetkili') {
+      logger.info(
+        `[INVITATION][audit] invitation.accepted (yetkili) id=${inv.id} user=${userId} email=${inv.email}`,
+      )
+    } else {
+      logger.info(`[INVITATION] accepted by-token id=${inv.id} user=${userId}`)
+    }
 
     return {
       email: inv.email,
       projeId: inv.proje_id,
+      invitedRole: inv.invited_role,
     }
   },
 
@@ -278,6 +402,13 @@ export const invitationService = {
     if (new Date(inv.expires_at).getTime() < Date.now()) {
       await supabaseAdmin.from('invitations').update({ status: 'expired' }).eq('id', inv.id)
       throw ApiError.badRequest('Davetin süresi dolmuş')
+    }
+
+    // Sprint yetkili-role-system (PR-A): yetkili daveti yalnızca yeni kullanıcı
+    // için (token+OTP) açılır; banner kabul akışı yetkili davetini hiç görmez.
+    // Defensive: proje_id NULL ise (yetkili davet) bu endpoint'i reddet.
+    if (!inv.proje_id || inv.invited_role === 'yetkili') {
+      throw ApiError.badRequest('Bu davet türü banner üzerinden kabul edilemez')
     }
 
     const { error: memErr } = await supabaseAdmin

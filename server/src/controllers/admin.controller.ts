@@ -1,6 +1,7 @@
 import { Response } from 'express'
 import { AuthRequest } from '../middleware/auth'
 import { adminService } from '../services/admin.service'
+import { invitationService } from '../services/invitation.service'
 import { passwordResetService } from '../services/passwordReset.service'
 import { catchAsync } from '../utils/catchAsync'
 import { ApiError } from '../utils/ApiError'
@@ -51,4 +52,40 @@ export const resetUserPassword = catchAsync(async (req: AuthRequest, res: Respon
     newPassword,
   })
   res.json({ success: true, data })
+})
+
+/**
+ * Sprint yetkili-role-system (PR-A, 2026-05-22):
+ * PATCH /api/admin/users/:id/role — admin-only global rol değiştirme.
+ * Body: { role: 'yetkili' | 'staff' | null }  (admin reddedilir).
+ */
+export const setUserRole = catchAsync(async (req: AuthRequest, res: Response) => {
+  const targetUserId = req.params.id
+  const { role } = req.body as { role: 'yetkili' | 'staff' | null }
+
+  if (req.user?.id === targetUserId) {
+    // Self-yasak: admin kendi rolünü bu endpoint ile değiştiremez.
+    throw ApiError.forbidden('Kendi rolünüzü bu endpoint ile değiştiremezsiniz')
+  }
+
+  await adminService.setUserGlobalRole(targetUserId, role)
+  res.json({ success: true, data: { id: targetUserId, role } })
+})
+
+/**
+ * Sprint yetkili-role-system (PR-A, 2026-05-22):
+ * POST /api/admin/invitations/yetkili — admin-only yetkili daveti.
+ * Body: { email }
+ */
+export const createYetkiliInvitation = catchAsync(async (req: AuthRequest, res: Response) => {
+  const invitedBy = req.user?.id
+  if (!invitedBy) throw ApiError.unauthorized()
+  const { email } = req.body as { email: string }
+
+  const data = await invitationService.createYetkiliInvitation({
+    email,
+    invitedBy,
+    invitedByName: req.user?.email,
+  })
+  res.status(201).json({ success: true, data })
 })

@@ -54,6 +54,8 @@ vi.mock('../../src/middleware/projectAccessCache', async () => {
 vi.mock('../../src/middleware/roleCache', () => ({
   getUserRole: vi.fn(async () => currentUser?.role ?? null),
   clearRoleCache: vi.fn(),
+  // Sprint yetkili-role-system (PR-A): requireRole artık ROLE_RANK kullanır.
+  ROLE_RANK: { admin: 3, yetkili: 2, staff: 1 },
 }))
 
 vi.mock('../../src/config/supabase', () => {
@@ -244,13 +246,47 @@ describe('Admin user management smoke (PR-D)', () => {
     })
   })
 
-  describe('PATCH /api/admin/users/:id/role (deprecated → 410)', () => {
-    it('admin → 410 Gone', async () => {
+  describe('PATCH /api/admin/users/:id/role (PR-A yeniden aktif)', () => {
+    it('admin role=admin → 400 (admin atanamaz)', async () => {
       currentUser = { id: 'u-admin', role: 'admin' }
       const res = await request(app)
         .patch('/api/admin/users/some-uuid/role')
         .send({ role: 'admin' })
-      expect(res.status).toBe(410)
+      expect(res.status).toBe(400)
+    })
+
+    it('admin role=yetkili → 200', async () => {
+      currentUser = { id: 'u-admin', role: 'admin' }
+      const res = await request(app)
+        .patch('/api/admin/users/some-uuid/role')
+        .send({ role: 'yetkili' })
+      expect(res.status).toBe(200)
+      expect(res.body.data.role).toBe('yetkili')
+    })
+
+    it('admin role=null → 200 (revoke)', async () => {
+      currentUser = { id: 'u-admin', role: 'admin' }
+      const res = await request(app)
+        .patch('/api/admin/users/some-uuid/role')
+        .send({ role: null })
+      expect(res.status).toBe(200)
+      expect(res.body.data.role).toBeNull()
+    })
+
+    it('non-admin → 403', async () => {
+      currentUser = { id: 'u-staff', role: 'staff' }
+      const res = await request(app)
+        .patch('/api/admin/users/some-uuid/role')
+        .send({ role: 'yetkili' })
+      expect(res.status).toBe(403)
+    })
+
+    it('admin self-target → 403', async () => {
+      currentUser = { id: 'u-self', role: 'admin' }
+      const res = await request(app)
+        .patch('/api/admin/users/u-self/role')
+        .send({ role: 'yetkili' })
+      expect(res.status).toBe(403)
     })
   })
 

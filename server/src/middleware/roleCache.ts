@@ -18,7 +18,16 @@ import logger from '../utils/logger'
  * temizler. Multi-instance senaryosu için Redis pub/sub veya kısa TTL kalmalı.
  */
 
-export type AppRole = 'admin' | 'staff'
+// Sprint yetkili-role-system (PR-A, 2026-05-22):
+//   user_roles.role CHECK constraint genişletildi: admin | yetkili | staff
+//   Hiyerarşi: admin (rank 3) > yetkili (rank 2) > staff (rank 1)
+export type AppRole = 'admin' | 'yetkili' | 'staff'
+
+export const ROLE_RANK: Record<AppRole, number> = {
+  admin: 3,
+  yetkili: 2,
+  staff: 1,
+}
 
 interface CacheEntry {
   role: AppRole | null
@@ -52,8 +61,11 @@ export async function getUserRole(userId: string): Promise<AppRole | null> {
     }
 
     const roles = (data ?? []).map((r: { role: string }) => r.role)
+    // En yüksek role'u seç (admin > yetkili > staff)
     const role: AppRole | null = roles.includes('admin')
       ? 'admin'
+      : roles.includes('yetkili')
+      ? 'yetkili'
       : roles.includes('staff')
       ? 'staff'
       : null

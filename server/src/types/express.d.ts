@@ -14,7 +14,7 @@ declare global {
         id: string
         email?: string
       }
-      userRole?: 'admin' | 'staff' | null
+      userRole?: 'admin' | 'yetkili' | 'staff' | null
       /**
        * Sprint role-system-modernization (PR-B): yeni model owner/manager/user.
        * Legacy değerler (admin/staff/viewer) geriye uyumluluk için tip union'da

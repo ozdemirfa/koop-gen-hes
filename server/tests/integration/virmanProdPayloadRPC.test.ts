@@ -51,6 +51,8 @@ vi.mock('../../src/middleware/projectAccessCache', async () => {
 vi.mock('../../src/middleware/roleCache', () => ({
   getUserRole: vi.fn(async () => currentUser?.role ?? null),
   clearRoleCache: vi.fn(),
+  // Sprint yetkili-role-system (PR-A): requireRole artık ROLE_RANK kullanır.
+  ROLE_RANK: { admin: 3, yetkili: 2, staff: 1 },
 }))
 
 vi.mock('../../src/config/supabase', () => {
