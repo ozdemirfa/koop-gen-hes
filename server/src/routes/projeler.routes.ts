@@ -2,6 +2,7 @@ import { Router } from 'express'
 import multer from 'multer'
 import { validate } from '../middleware/validate'
 import { requireProjectAccess } from '../middleware/requireProjectAccess'
+import { requireYetkili } from '../middleware/requireRole'
 import { projeSchema, updateProjeSchema, projeIsKalemiSchema, yillikPlanSchema, yillikPlanKalemiSchema } from '../schemas/proje.schema'
 import * as projelerController from '../controllers/projeler.controller'
 
@@ -51,10 +52,13 @@ router.get('/:id/serefiye', requireProjectAccess('user'), projelerController.get
 
 // 7. Proje Temel Rotaları
 router.get('/:id', requireProjectAccess('user'), projelerController.getProjeById)
-// Yeni proje oluşturma — authMiddleware zaten parent router'da (routes/index.ts
-// `router.use(authMiddleware)`). trg_auto_owner_on_proje_insert trigger'ı
-// auth.uid() kullanarak otomatik owner atar.
-router.post('/', validate({ body: projeSchema }), projelerController.createProje)
+// Yeni proje oluşturma — Sprint yetkili-role-system (PR-A, 2026-05-22):
+//   authMiddleware parent router'da; ek olarak `requireYetkili` ile sadece
+//   admin VEYA yetkili global rolüne sahip kullanıcı geçer (aksi 403).
+//   RLS politikası (projeler_insert) zaten is_yetkili() check'ini yapıyor;
+//   middleware ile defensive in-depth + erken hata mesajı sağlıyoruz.
+//   trg_auto_owner_on_proje_insert trigger'ı yine auto-owner atar.
+router.post('/', requireYetkili, validate({ body: projeSchema }), projelerController.createProje)
 // Proje meta düzenleme — manager+ (proje adı/durumu/parametreleri)
 router.put('/:id', requireProjectAccess('manager'), validate({ body: updateProjeSchema }), projelerController.updateProje)
 

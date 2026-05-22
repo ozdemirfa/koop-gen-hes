@@ -62,3 +62,20 @@ export const updateProjeUyeligiRoluSchema = z.object({
     message: 'rol değeri owner/manager/user olmalıdır',
   }),
 })
+
+/**
+ * Sprint yetkili-role-system (PR-A, 2026-05-22):
+ * PATCH /api/admin/users/:id/role body schema.
+ *   role = 'yetkili' → user_roles upsert
+ *   role = 'staff'   → user_roles staff upsert
+ *   role = null      → user_roles satırı sil (downgrade)
+ *
+ * 'admin' kabul edilmez (admin promote sadece direkt DB ile yapılır).
+ * .strict() ile beklenmedik alanlar reddedilir.
+ */
+export const setUserRoleSchema = z
+  .object({
+    role: z.union([z.enum(['yetkili', 'staff']), z.null()]),
+  })
+  .strict()
+export type SetUserRoleBody = z.infer<typeof setUserRoleSchema>

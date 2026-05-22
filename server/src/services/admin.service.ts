@@ -6,7 +6,8 @@ import logger from '../utils/logger'
 
 // Sprint 20260520-perf hotfix: davet akışında frontend "Yok" seçimi null/undefined
 // yolluyor. Service null'ı sessizce kabul eder (trigger 'staff' atar default).
-export type GlobalRole = 'admin' | 'staff' | null | undefined
+// Sprint yetkili-role-system (PR-A, 2026-05-22): 'yetkili' eklendi.
+export type GlobalRole = 'admin' | 'yetkili' | 'staff' | null | undefined
 // Sprint role-system-modernization (PR-B): yeni model owner/manager/user.
 // Legacy değerler tip union'da kalır (frontend henüz revize edilmedi).
 export type ProjectRole = 'owner' | 'manager' | 'user' | 'admin' | 'staff' | 'viewer'
@@ -23,6 +24,8 @@ interface AdminUserSummary {
   proje_sayisi: number
   son_giris?: string | null
   created_at?: string
+  /** PR-A: proje oluşturma hakkı = admin || yetkili */
+  can_create_projects: boolean
 }
 
 const APP_PUBLIC_URL = process.env.APP_PUBLIC_URL || process.env.VITE_APP_PUBLIC_URL || ''
@@ -48,12 +51,17 @@ export const adminService = {
       supabaseAdmin.from('proje_uyelikleri').select('user_id, proje_id').in('user_id', userIds),
     ])
 
+    // PR-A: hiyerarşi admin (3) > yetkili (2) > staff (1).
+    // Bir user için en yüksek role'u seç.
+    const ROLE_RANK: Record<string, number> = { admin: 3, yetkili: 2, staff: 1 }
     const roleByUser = new Map<string, GlobalRole>()
     for (const r of roles ?? []) {
       const role = r.role as GlobalRole
+      if (!role) continue
       const existing = roleByUser.get(r.user_id)
-      // admin > staff hiyerarşisi
-      if (!existing || role === 'admin') roleByUser.set(r.user_id, role)
+      if (!existing || (ROLE_RANK[role] ?? 0) > (ROLE_RANK[existing] ?? 0)) {
+        roleByUser.set(r.user_id, role)
+      }
     }
 
     const projeCountByUser = new Map<string, number>()
@@ -61,14 +69,18 @@ export const adminService = {
       projeCountByUser.set(m.user_id, (projeCountByUser.get(m.user_id) ?? 0) + 1)
     }
 
-    return users.map((u) => ({
-      id: u.id,
-      email: u.email,
-      global_role: roleByUser.get(u.id) ?? null,
-      proje_sayisi: projeCountByUser.get(u.id) ?? 0,
-      son_giris: u.last_sign_in_at ?? null,
-      created_at: u.created_at,
-    }))
+    return users.map((u) => {
+      const role = roleByUser.get(u.id) ?? null
+      return {
+        id: u.id,
+        email: u.email,
+        global_role: role,
+        proje_sayisi: projeCountByUser.get(u.id) ?? 0,
+        son_giris: u.last_sign_in_at ?? null,
+        created_at: u.created_at,
+        can_create_projects: role === 'admin' || role === 'yetkili',
+      }
+    })
   },
 
   // inviteUser kaldırıldı (davet akışı yeniden tasarımı, 2026-05-21).
@@ -104,6 +116,72 @@ export const adminService = {
     clearRoleCache(userId)
     logger.info(`[ADMIN] global role updated: ${userId} → ${role}`)
     return { id: userId, role }
+  },
+
+  /**
+   * Sprint yetkili-role-system (PR-A, 2026-05-22):
+   * Global rol atama / kaldırma. PR-D'deki `updateGlobalRole` 410'a düşürüldüğü
+   * için yeni yetkili akışı bunu kullanır.
+   *
+   * Parametre:
+   *   role = 'yetkili' → user_roles'a yetkili row upsert (varsa idempotent).
+   *   role = 'staff'   → tüm yetkili row'ları sil, staff upsert.
+   *   role = null      → user için tüm user_roles satırlarını sil (downgrade).
+   *
+   * 'admin' KABUL ETMEZ — admin promote yalnızca migration veya doğrudan DB
+   * üzerinden yapılmalıdır (yanlışlıkla self-promote kapatma önlemi).
+   *
+   * Her çağrıda clearRoleCache(userId) ile in-memory cache invalidate edilir.
+   * Audit logger.info ile yazılır (sistem_audit_log tablosu henüz yok).
+   */
+  async setUserGlobalRole(userId: string, role: 'yetkili' | 'staff' | null): Promise<void> {
+    if ((role as unknown) === 'admin') {
+      // Defensive: çağıran taraf yanlış kullansa bile reddet.
+      throw ApiError.badRequest("admin rolü bu endpoint ile atanamaz")
+    }
+
+    try {
+      if (role === null) {
+        // Tüm global rolleri kaldır (admin row'lar dahil değil — admin row varsa
+        // bu method ile düşürme yapılmaz; admin sadece direkt DB ile değişir).
+        const { error } = await supabaseAdmin
+          .from('user_roles')
+          .delete()
+          .eq('user_id', userId)
+          .in('role', ['yetkili', 'staff'])
+        if (error) {
+          logger.error('[ADMIN] setUserGlobalRole revoke failed', { err: error, userId })
+          throw ApiError.internal('Global rol kaldırılamadı')
+        }
+        clearRoleCache(userId)
+        logger.info(`[ADMIN][audit] admin.role.revoked user=${userId}`)
+        return
+      }
+
+      // Eski rolü hijyenik şekilde temizle (yetkili ↔ staff geçişleri için).
+      // admin row varsa dokunma — admin downgrade bu endpoint kapsamında değil.
+      const otherRole = role === 'yetkili' ? 'staff' : 'yetkili'
+      await supabaseAdmin
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId)
+        .eq('role', otherRole)
+
+      const { error } = await supabaseAdmin
+        .from('user_roles')
+        .upsert({ user_id: userId, role }, { onConflict: 'user_id,role' })
+      if (error) {
+        logger.error('[ADMIN] setUserGlobalRole assign failed', { err: error, userId, role })
+        throw ApiError.internal('Global rol atanamadı')
+      }
+
+      clearRoleCache(userId)
+      logger.info(`[ADMIN][audit] admin.role.assigned user=${userId} role=${role}`)
+    } catch (err) {
+      if (err instanceof ApiError) throw err
+      logger.error('[ADMIN] setUserGlobalRole exception', { err, userId, role })
+      throw ApiError.internal('Global rol değiştirilemedi')
+    }
   },
 
   /**
