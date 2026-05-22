@@ -126,6 +126,8 @@ export const invitationService = {
       throw ApiError.internal('Davet oluşturulamadı')
     }
 
+    let mailSent = true
+    let mailError: string | undefined
     try {
       if (isNewUser) {
         if (!token || !otpPlain) {
@@ -153,11 +155,14 @@ export const invitationService = {
     } catch (mailErr) {
       // Mail başarısız ise davet row'u korunur (owner Bekleyen Davetler sekmesinde
       // görebilir, "Tekrar Davet Et" ile yeniden tetikleyebilir). Audit'te kalır.
+      // mailSent=false response'la UI'a iletilir; owner şeffaf şekilde uyarılır.
+      mailSent = false
+      mailError = mailErr instanceof Error ? mailErr.message : 'Mail gönderilemedi'
       logger.error('[INVITATION] mail send failed (invitation kept)', { err: mailErr })
     }
 
     logger.info(
-      `[INVITATION] created id=${inserted.id} proje=${input.projeId} email=${input.email} isNew=${isNewUser}`,
+      `[INVITATION] created id=${inserted.id} proje=${input.projeId} email=${input.email} isNew=${isNewUser} mailSent=${mailSent}`,
     )
 
     return {
@@ -166,6 +171,8 @@ export const invitationService = {
       email: inserted.email,
       isNewUser,
       expiresAt: inserted.expires_at,
+      mailSent,
+      mailError,
     }
   },
 
