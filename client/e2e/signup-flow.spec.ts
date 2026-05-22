@@ -13,8 +13,11 @@
  *   A1  — signInWithPassword sonrası session (issue #78 doğrulama; test.fail)
  *   A2  — Auto-signIn fail → graceful redirect /login
  *   U1  — Mobile 375px DavetKabulPage render
- *   U2  — axe-playwright 0 critical @a11y
+ *   U2  — axe-playwright 0 critical @a11y (BUG-002 fix sonrası PASS)
  *   U3  — TR karakter email normalize (server API mock)
+ *
+ * BUG-001 fix: api.ts interceptor statusCode'u non-enumerable olarak ekliyor.
+ * BUG-002 fix: email Input'a id + Form.Item htmlFor eklendi.
  *
  * Issue #78 bağımlı testler (H1, A1) test.fail() ile işaretlidir.
  * Bu testler gerçek Supabase + auth.signInWithPassword gerektirir.
@@ -85,12 +88,9 @@ test.describe('T3 — Invalid token', () => {
     await mockPreview404(page, INVALID_TOKEN)
     await page.goto(`/davet-kabul/${INVALID_TOKEN}`)
     await expect(page.getByText(/Davet kullanılamıyor/i)).toBeVisible({ timeout: 15_000 })
-    // NOT: DavetKabulPage.tsx'deki error handler api.ts interceptor nedeniyle
-    // err.response?.status okuyamıyor (api interceptor error'u data olarak reject ediyor).
-    // Bu nedenle 404 ve 500 her ikisi de generic "Davet bilgileri alınamadı" mesajı
-    // gösteriyor. Bu P1 bug olarak kayıt altına alındı (bkz. qa-report.md BUG-001).
-    // Gerçek hata mesajı: "Davet bilgileri alınamadı. Lütfen daha sonra tekrar deneyin."
-    await expect(page.getByText(/Davet bilgileri alınamadı|Davet bulunamadı/i)).toBeVisible({ timeout: 5_000 })
+    // BUG-001 fix: api.ts interceptor statusCode'u non-enumerable olarak ekliyor.
+    // 404 → "Davet bulunamadı." mesajı (generic "alınamadı" değil).
+    await expect(page.getByText(/Davet bulunamadı/i)).toBeVisible({ timeout: 5_000 })
   })
 
   test('invalid token → form render olmaz', async ({ page }) => {
@@ -328,14 +328,7 @@ test.describe('U1 — Mobile 375px', () => {
 
 test.describe('U2 — Accessibility @a11y', () => {
   test('@a11y DavetKabulPage axe critical=0', async ({ page }) => {
-    // BUG-002: DavetKabulPage email disabled Input'unda axe `label` critical violation.
-    // AntD Form.Item label="E-Posta" ile disabled Input arasındaki for/id bağlantısı
-    // AntD 6.x'de kurulmuyor → axe WCAG 2.1 AA label kuralı kritik ihlal.
-    // Kayıt: qa-report.md BUG-002. Düzeltme: DavetKabulPage.tsx'de Input'a id="email-preview" ekle
-    // ve Form.Item htmlFor="email-preview" ile eşleştir.
-    // test.fail() → bug fix sonrası kaldırılmalıdır.
-    test.fail(true, 'BUG-002: axe label violation — disabled email Input AntD Form.Item için/id bağlantısı eksik (DavetKabulPage.tsx:151)')
-
+    // BUG-002 fix: email Input'a id="davet-email-preview" + Form.Item htmlFor eklendi.
     await mockPreviewSuccess(page)
     await page.goto(`/davet-kabul/${VALID_TOKEN}`)
     await expect(page.getByText('Daveti Tamamlayın')).toBeVisible({ timeout: 15_000 })

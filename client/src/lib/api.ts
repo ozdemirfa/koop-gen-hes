@@ -59,9 +59,24 @@ api.interceptors.request.use(async (config) => {
 
 // Hata interceptor: server response body'yi (varsa) reject eder; aksi halde AxiosError.
 // 401'de agresif signOut tetiklemiyoruz — AuthContext yönetiyor.
+// Caller'lar HTTP status'a erişebilsin diye `statusCode` non-enumerable olarak ekleniyor
+// (JSON.stringify görmüyor, runtime'da err.statusCode okunabiliyor — BUG-001 fix).
 api.interceptors.response.use(
   (response) => response,
-  (error) => Promise.reject(error.response?.data || error)
+  (error) => {
+    const data = error.response?.data
+    const status = error.response?.status
+    if (data && typeof data === 'object' && typeof status === 'number') {
+      Object.defineProperty(data, 'statusCode', {
+        value: status,
+        enumerable: false,
+        writable: false,
+        configurable: false,
+      })
+      return Promise.reject(data)
+    }
+    return Promise.reject(error)
+  }
 )
 
 export const postPayment = (data: any) => api.post('/cari-hareketler/payment', data)

@@ -53,7 +53,9 @@ export const DavetKabulPage: React.FC = () => {
       })
       .catch((err: any) => {
         if (cancelled) return
-        const status = err?.response?.status
+        // api.ts interceptor `error.response.data` ile reject ediyor + statusCode'u
+        // non-enumerable olarak ekliyor; AxiosError fallback'i için response.status da kontrol.
+        const status = err?.statusCode ?? err?.status ?? err?.response?.status
         if (status === 404 || status === 400) {
           setErrorState('Davet bulunamadı. Linki kontrol edin veya yöneticiyle iletişime geçin.')
         } else if (status === 429) {
@@ -88,12 +90,14 @@ export const DavetKabulPage: React.FC = () => {
       message.success('Davet kabul edildi. Panoya yönlendiriliyorsunuz...')
       setTimeout(() => navigate('/'), 1200)
     } catch (err: any) {
-      const status = err?.response?.status
-      const data = err?.response?.data
+      // err = interceptor'dan gelen body ({ success: false, error, ... }) + statusCode non-enumerable.
+      // AxiosError fallback için response.status/data da kontrol.
+      const status = err?.statusCode ?? err?.status ?? err?.response?.status
+      const errMessage = err?.error ?? err?.response?.data?.error
       if (status === 429) {
         message.error('Çok fazla istek. Lütfen biraz bekleyin.')
-      } else if (status === 400 && typeof data?.error === 'string') {
-        message.error(data.error)
+      } else if (status === 400 && typeof errMessage === 'string') {
+        message.error(errMessage)
       } else {
         message.error('Davet tamamlanamadı. Lütfen daha sonra tekrar deneyin.')
       }
@@ -148,8 +152,13 @@ export const DavetKabulPage: React.FC = () => {
         />
 
         <Form<FormValues> form={form} layout="vertical" onFinish={handleSubmit} autoComplete="off">
-          <Form.Item label="E-Posta">
-            <Input prefix={<MailOutlined />} value={preview.email} disabled />
+          <Form.Item label="E-Posta" htmlFor="davet-email-preview">
+            <Input
+              id="davet-email-preview"
+              prefix={<MailOutlined />}
+              value={preview.email}
+              disabled
+            />
           </Form.Item>
           <Form.Item
             name="otp"
