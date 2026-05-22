@@ -212,12 +212,14 @@ Apply: `/api/invitations/accept-by-token` ve `/api/invitations/by-token/:token`.
 
 Supabase Auth `inviteUserByEmail` magic-link akışı tamamen kaldırılır (custom OTP içermez). Yeni akış için transactional mail sağlayıcı:
 
-**Önerilen:** Resend (Node SDK, free tier sprint için yeterli).
-**Alternatifler:** Postmark, SendGrid, Render üzerinden mevcut SMTP.
+**Seçilen:** Brevo (eski Sendinblue) — REST API, free tier 300 mail/gün, sender email verification (domain DNS gerekmez). Domain yatırımı yapılmadığı için tercih edildi.
+**Geçmiş:** Resend ilk implementasyonda kullanıldı; domain doğrulama olmadan ancak hesap sahibine gönderim yapabildiği için Brevo'ya geçildi (feat/brevo-mail-migration, 2026-05-22).
+**Alternatifler:** Postmark, SendGrid, Render SMTP, Gmail SMTP + Nodemailer.
 
 Yeni Render env vars:
-- `RESEND_API_KEY` (veya seçilen sağlayıcı)
-- `MAIL_FROM` — örn. `noreply@koopgenhes.com`
+- `BREVO_API_KEY` — Brevo dashboard → SMTP & API → API Keys
+- `MAIL_FROM` — Brevo'da doğrulanmış sender adresi (örn. kişisel gmail)
+- `MAIL_FROM_NAME` — opsiyonel, default `koopGenHes`
 - `APP_PUBLIC_URL` — zaten mevcut
 
 Mail template'leri inline HTML (basit `<table>`); ileride MJML/React-Email'e taşınabilir.
@@ -403,7 +405,7 @@ Mevcut "Aktif Üyeler" tablosunun yanına 2 yeni Tab:
 
 1. Migration `20260522000001_invitations_table.sql` Supabase push
 2. Migration `20260522000002_fn_audit_invitations.sql` Supabase push
-3. Render env vars: `RESEND_API_KEY` (veya seçilen sağlayıcı), `MAIL_FROM` (`APP_PUBLIC_URL` mevcut)
+3. Render env vars: `BREVO_API_KEY`, `MAIL_FROM`, `MAIL_FROM_NAME` (`APP_PUBLIC_URL` mevcut)
 4. Backend deploy
 5. Frontend deploy (Vercel)
 6. Manuel post-deploy smoke (issue takipli)
@@ -433,7 +435,7 @@ Mevcut "Aktif Üyeler" tablosunun yanına 2 yeni Tab:
 
 ## 12. Açık Sorular
 
-- **Mail sağlayıcı seçimi:** Resend mi (önerilen) yoksa Render üzerinden mevcut SMTP mi? Implementation aşamasında karar verilir, spec'i etkilemez.
+- **Mail sağlayıcı seçimi:** Brevo seçildi (2026-05-22). Resend domain doğrulama gereksinimi nedeniyle değiştirildi.
 - **Render trust-proxy ayarı:** Mevcut config'te `app.set('trust proxy', 1)` var mı? Implementation aşamasında doğrulanır, gerekirse aynı PR'da eklenir.
 - **`@node-rs/argon2` vs. `argon2`:** Hangisi projede daha az bağımlılık getirir? Implementation aşamasında değerlendirilir.
 

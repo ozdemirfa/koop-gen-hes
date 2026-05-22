@@ -1,24 +1,24 @@
 /**
- * Transactional mail wrapper (Resend).
+ * Transactional mail wrapper (Brevo / eski Sendinblue).
  *
- * RESEND_API_KEY tanımlı değilse mail gönderimi stub mode'a düşer ve
+ * BREVO_API_KEY tanımlı değilse mail gönderimi stub mode'a düşer ve
  * logger'a yazılır — lokal geliştirme için yeterli. Production'da
- * Render env'de RESEND_API_KEY + MAIL_FROM set edilmelidir.
+ * Render env'de BREVO_API_KEY + MAIL_FROM set edilmelidir.
+ *
+ * Brevo Transactional Email API: https://developers.brevo.com/reference/sendtransacemail
  *
  * Spec: docs/superpowers/specs/2026-05-21-invitation-flow-design.md
  */
 
-import { Resend } from 'resend'
 import logger from '../utils/logger'
 
-const RESEND_API_KEY = process.env.RESEND_API_KEY
+const BREVO_API_KEY = process.env.BREVO_API_KEY
 const MAIL_FROM = process.env.MAIL_FROM ?? 'noreply@koopgenhes.com'
+const MAIL_FROM_NAME = process.env.MAIL_FROM_NAME ?? 'koopGenHes'
+const BREVO_ENDPOINT = 'https://api.brevo.com/v3/smtp/email'
 
-let resend: Resend | null = null
-if (RESEND_API_KEY) {
-  resend = new Resend(RESEND_API_KEY)
-} else {
-  logger.warn('[MAILER] RESEND_API_KEY tanımlı değil; mail gönderimleri stub mode')
+if (!BREVO_API_KEY) {
+  logger.warn('[MAILER] BREVO_API_KEY tanımlı değil; mail gönderimleri stub mode')
 }
 
 export interface NewUserInviteMailData {
@@ -40,8 +40,51 @@ export interface ExistingUserInviteMailData {
   expiresAt: Date
 }
 
+interface BrevoSendPayload {
+  to: string
+  subject: string
+  textContent: string
+}
+
 function formatDate(d: Date): string {
   return d.toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' })
+}
+
+async function brevoSend(payload: BrevoSendPayload): Promise<void> {
+  if (!BREVO_API_KEY) {
+    logger.info(`[MAILER STUB] → ${payload.to}; subject="${payload.subject}"`)
+    return
+  }
+  let res: Response
+  try {
+    res = await fetch(BREVO_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'api-key': BREVO_API_KEY,
+        'content-type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify({
+        sender: { email: MAIL_FROM, name: MAIL_FROM_NAME },
+        to: [{ email: payload.to }],
+        subject: payload.subject,
+        textContent: payload.textContent,
+      }),
+    })
+  } catch (networkErr) {
+    logger.error('[MAILER] brevo network error', { err: networkErr, to: payload.to })
+    throw new Error('Mail gönderilemedi (ağ hatası)')
+  }
+  if (!res.ok) {
+    const body = await res.text().catch(() => '<no body>')
+    logger.error('[MAILER] brevo send failed', {
+      status: res.status,
+      body,
+      to: payload.to,
+      from: MAIL_FROM,
+    })
+    throw new Error(`Mail gönderilemedi (Brevo ${res.status})`)
+  }
 }
 
 export const mailer = {
@@ -67,22 +110,7 @@ Daveti siz talep etmediyseniz bu maili göz ardı edebilirsiniz.
 
 — koopGenHes`
 
-    if (!resend) {
-      logger.info(
-        `[MAILER STUB] new-user invite → ${data.to}; otp=${data.otpCode}; url=${data.acceptUrl}`,
-      )
-      return
-    }
-    const { error } = await resend.emails.send({
-      from: MAIL_FROM,
-      to: data.to,
-      subject,
-      text,
-    })
-    if (error) {
-      logger.error('[MAILER] new-user invite send failed', { err: error, to: data.to })
-      throw new Error('Mail gönderilemedi')
-    }
+    await brevoSend({ to: data.to, subject, textContent: text })
   },
 
   async sendExistingUserInvite(data: ExistingUserInviteMailData): Promise<void> {
@@ -99,19 +127,6 @@ Davet ${formatDate(data.expiresAt)} tarihine kadar geçerlidir.
 
 — koopGenHes`
 
-    if (!resend) {
-      logger.info(`[MAILER STUB] existing-user invite → ${data.to}; url=${data.loginUrl}`)
-      return
-    }
-    const { error } = await resend.emails.send({
-      from: MAIL_FROM,
-      to: data.to,
-      subject,
-      text,
-    })
-    if (error) {
-      logger.error('[MAILER] existing-user invite send failed', { err: error, to: data.to })
-      throw new Error('Mail gönderilemedi')
-    }
+    await brevoSend({ to: data.to, subject, textContent: text })
   },
 }
