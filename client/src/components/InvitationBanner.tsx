@@ -12,6 +12,8 @@ import {
   useAcceptMyInvitation,
   useRejectMyInvitation,
 } from '../hooks/useMyInvitations'
+import { PROJECT_ROLE_TR, PROJECT_ROLE_COLOR } from '../lib/roleLabels'
+import type { InvitedRole } from '../types/invitation'
 
 const { Text } = Typography
 
@@ -32,10 +34,15 @@ export const InvitationBanner: React.FC = () => {
           style={{ marginBottom: 8 }}
           message={
             <Space wrap>
-              <Text strong>"{inv.proje_adi}"</Text>
-              <Text>projesine</Text>
-              <Tag color="blue">{inv.invited_role}</Tag>
-              <Text>rolüyle davet edildiniz.</Text>
+              {inv.proje_adi && <Text strong>"{inv.proje_adi}"</Text>}
+              {inv.proje_adi && <Text>projesine</Text>}
+              <Tag color={PROJECT_ROLE_COLOR[inv.invited_role as keyof typeof PROJECT_ROLE_COLOR] ?? 'blue'}>
+                {PROJECT_ROLE_TR[inv.invited_role as keyof typeof PROJECT_ROLE_TR] ?? (inv.invited_role as InvitedRole)}
+              </Tag>
+              {inv.proje_adi
+                ? <Text>rolüyle davet edildiniz.</Text>
+                : <Text>rolüyle sisteme davet edildiniz.</Text>
+              }
               <Text type="secondary">
                 ({new Date(inv.expires_at).toLocaleDateString('tr-TR')} tarihine kadar geçerli)
               </Text>

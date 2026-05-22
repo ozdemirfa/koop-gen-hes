@@ -133,15 +133,25 @@ export const DavetKabulPage: React.FC = () => {
 
   if (!preview) return null
 
+  // PR-B: yetkili daveti ayrı başlık + mesaj (proje yok)
+  const isYetkiliInvitation = preview.invited_role === 'yetkili'
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <Card style={{ width: '100%', maxWidth: 520 }}>
         <Typography.Title level={3} style={{ marginBottom: 4 }}>
-          Daveti Tamamlayın
+          {isYetkiliInvitation ? 'Sisteme Yetkili Olarak Davet Edildiniz' : 'Daveti Tamamlayın'}
         </Typography.Title>
         <Typography.Paragraph type="secondary" style={{ marginBottom: 12 }}>
-          <strong>"{preview.proje_adi}"</strong> projesine davet edildiniz. Maildeki 6 haneli doğrulama
-          kodunu girin ve şifrenizi belirleyin.
+          {isYetkiliInvitation
+            ? 'Sisteme yetkili olarak davet edildiniz. Maildeki 6 haneli doğrulama kodunu girin ve şifrenizi belirleyin.'
+            : (
+              <>
+                <strong>"{preview.proje_adi}"</strong> projesine davet edildiniz. Maildeki 6 haneli doğrulama
+                kodunu girin ve şifrenizi belirleyin.
+              </>
+            )
+          }
         </Typography.Paragraph>
 
         <Alert

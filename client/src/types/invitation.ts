@@ -8,7 +8,8 @@
  */
 
 export type InvitationStatus = 'pending' | 'accepted' | 'rejected' | 'expired'
-export type InvitedRole = 'manager' | 'user'
+/** PR-B: 'yetkili' eklendi — global rol daveti (proje_id NULL) */
+export type InvitedRole = 'manager' | 'user' | 'yetkili'
 
 // Banner + ProjeListPage Bekleyen Davetler section'da gösterilen kayıt
 export interface MyInvitation {
@@ -38,7 +39,10 @@ export interface ProjectInvitation {
 // Public /davet-kabul/:token sayfası preview
 export interface InvitationPreview {
   email: string
-  proje_adi: string
+  /** NULL olabilir — yetkili davetinde proje_id NULL */
+  proje_adi: string | null
   expires_at: string
   expired: boolean
+  /** PR-B: yetkili daveti için 'yetkili' döner */
+  invited_role?: InvitedRole
 }

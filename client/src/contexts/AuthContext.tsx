@@ -6,13 +6,22 @@ import type { Session, User } from '@supabase/supabase-js'
 // Sprint 20260520-frontend-role-awareness (Faz 3a):
 // Global rol (admin/staff) backend'den çekilir → UI gating + ProtectedRoute requireRole.
 // `/api/auth/me` endpoint'i Faz 2 (#58) ile eklendi; her session değişiminde tetiklenir.
+//
+// PR-B (yetkili global rol sistemi):
+// - GlobalRole genişletildi: 'admin' | 'yetkili' | 'staff' | null
+// - isYetkili: admin VEYA yetkili → proje oluşturma yetkisi
+// - isAdmin: sadece 'admin'
 
-export type GlobalRole = 'admin' | 'staff' | null
+export type GlobalRole = 'admin' | 'yetkili' | 'staff' | null
 
 interface AuthContextType {
   session: Session | null
   user: User | null
   userRole: GlobalRole
+  /** Computed: admin VEYA yetkili → proje oluşturabilir */
+  isYetkili: boolean
+  /** Computed: sadece 'admin' */
+  isAdmin: boolean
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
@@ -22,6 +31,8 @@ const AuthContext = createContext<AuthContextType>({
   session: null,
   user: null,
   userRole: null,
+  isYetkili: false,
+  isAdmin: false,
   loading: true,
   signIn: async () => ({ error: null }),
   signOut: async () => {},
@@ -107,8 +118,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUserRole(null)
   }, [])
 
+  const isAdmin = userRole === 'admin'
+  const isYetkili = userRole === 'admin' || userRole === 'yetkili'
+
   return (
-    <AuthContext.Provider value={{ session, user, userRole, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ session, user, userRole, isYetkili, isAdmin, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   )
