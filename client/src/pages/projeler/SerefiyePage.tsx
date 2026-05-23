@@ -319,9 +319,7 @@ export const SerefiyePage: React.FC = () => {
               onClick={() => { setEditingSerefiye(r); uyeForm.resetFields(); setUyeModalOpen(true) }}
               title="Üyelik Ata"
               style={{ backgroundColor: '#ffa940', color: 'black', borderColor: '#ffa940' }}
-            >
-              Üyelik Ata
-            </Button>
+            />
           )}
         </Space>
       ),
