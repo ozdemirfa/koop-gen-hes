@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo } from 'react'
-import { Modal, Form, Select, InputNumber, DatePicker, Input, App } from 'antd'
+import { Modal, Form, Select, InputNumber, DatePicker, Input, App, Alert } from 'antd'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { getErrorMessage } from '../../lib/apiError'
 import { useProject } from '../../contexts/ProjectContext'
-import { trMoneyFormatter, trNumberParser } from '../../lib/format'
+import { trMoneyFormatter, trNumberParser, formatMoney } from '../../lib/format'
 
 const { TextArea } = Input
 
@@ -47,6 +47,20 @@ export const VirmanFormModal: React.FC<VirmanFormModalProps> = ({ open, onClose 
     enabled: !!activeProject?.id && open,
   })
 
+  // Nakit kasa bakiyesi için dashboard ozet — nakit_banka tipinde pre-check ve UI gösterimi
+  // amaçlı kullanılır. fn_dashboard_ozet (20260524000002 ile LEFT JOIN) `kasa_nakit` döner.
+  const { data: dashboardOzet } = useQuery<{ kasa_nakit?: number } | null>({
+    queryKey: ['dashboard-ozet', activeProject?.id],
+    queryFn: async () => {
+      const { data } = await api.get('/dashboard/ozet', {
+        params: { projeId: activeProject?.id },
+      })
+      return (data?.data ?? data) as { kasa_nakit?: number }
+    },
+    enabled: !!activeProject?.id && open,
+  })
+  const nakitKasaBakiye = Number(dashboardOzet?.kasa_nakit ?? 0)
+
   useEffect(() => {
     if (!open) return
     form.setFieldsValue({
@@ -84,6 +98,9 @@ export const VirmanFormModal: React.FC<VirmanFormModalProps> = ({ open, onClose 
       queryClient.invalidateQueries({ queryKey: ['virmanlar'] })
       queryClient.invalidateQueries({ queryKey: ['banka-hesaplari'] })
       queryClient.invalidateQueries({ queryKey: ['banka-hareketleri'] })
+      // 20260524: banka↔nakit virmanı artık nakit kasayı da etkiliyor (#3 fix).
+      queryClient.invalidateQueries({ queryKey: ['dashboard-ozet'] })
+      queryClient.invalidateQueries({ queryKey: ['cari-hareketler'] })
       form.resetFields()
       onClose()
     },
@@ -99,6 +116,26 @@ export const VirmanFormModal: React.FC<VirmanFormModalProps> = ({ open, onClose 
     if (values.virman_tipi === 'banka_banka' && values.kaynak_hesap_id === values.hedef_hesap_id) {
       message.error('Kaynak ve hedef hesap aynı olamaz')
       return
+    }
+    // 20260524 #1/#2: Kaynak bakiye pre-check (UX). Backend RPC (P0001) zaten yetkili
+    // güvenlik katmanı — bu sadece kullanıcıyı submit öncesi uyarır.
+    const tutar = Number(values.tutar) || 0
+    if (values.virman_tipi === 'nakit_banka') {
+      if (tutar > nakitKasaBakiye) {
+        message.warning(
+          `Nakit kasa bakiyesi yetersiz (mevcut: ${formatMoney(nakitKasaBakiye)} TL, talep: ${formatMoney(tutar)} TL)`,
+        )
+        return
+      }
+    } else if (values.kaynak_hesap_id) {
+      const kaynak = bankaHesaplari?.find((h) => h.id === values.kaynak_hesap_id)
+      const kaynakBakiye = Number(kaynak?.bakiye ?? 0)
+      if (kaynak && tutar > kaynakBakiye) {
+        message.warning(
+          `Kaynak banka bakiyesi yetersiz (mevcut: ${formatMoney(kaynakBakiye)} TL, talep: ${formatMoney(tutar)} TL)`,
+        )
+        return
+      }
     }
     createMutation.mutate(values)
   }
@@ -143,6 +180,16 @@ export const VirmanFormModal: React.FC<VirmanFormModalProps> = ({ open, onClose 
             ]}
           />
         </Form.Item>
+
+        {virmanTipi === 'nakit_banka' && (
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message={`Mevcut Nakit Kasa Bakiyesi: ${formatMoney(nakitKasaBakiye)} TL`}
+            description="Bu tutarın üzerinde virman yapılamaz."
+          />
+        )}
 
         {showKaynak && (
           <Form.Item
