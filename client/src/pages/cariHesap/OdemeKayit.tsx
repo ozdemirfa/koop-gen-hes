@@ -99,6 +99,22 @@ export const OdemeKayit: React.FC = () => {
     },
   })
 
+  // 20260524: Nakit kasa bakiyesi — giden_odeme/iade_odeme + nakit modunda submit
+  // öncesi pre-check ve UI gösterimi için. Backend RPC (P0001) zaten yetkili güvenlik
+  // katmanı; bu sadece kullanıcıyı erken uyarır.
+  const { data: dashboardOzet } = useQuery<{ kasa_nakit?: number } | null>({
+    queryKey: ['dashboard-ozet', activeProject?.id],
+    queryFn: async () => {
+      if (!activeProject?.id) return null
+      const { data } = await api.get('/dashboard/ozet', {
+        params: { projeId: activeProject.id },
+      })
+      return (data?.data ?? data) as { kasa_nakit?: number }
+    },
+    enabled: !!activeProject?.id,
+  })
+  const nakitKasaBakiye = Number(dashboardOzet?.kasa_nakit ?? 0)
+
   // 2026-05-20: Banka hesabı tanımlı değilse "Banka (EFT/Havale)" seçeneği
   // anlamsız — backend cariPaymentSchema banka_hesap_id'siz banka kaydını
   // reddediyor (defense-in-depth). Kullanıcı sıkışmasın diye opt'ı disable +
@@ -152,6 +168,27 @@ export const OdemeKayit: React.FC = () => {
     if (!activeProject) {
       message.warning('Lütfen önce bir proje seçin')
       return
+    }
+    // 20260524 #4: Çıkış işlemlerinde (giden_odeme/iade_odeme) + nakit/banka modlarında
+    // kaynak bakiye pre-check. Backend RPC (P0001) yetkili güvenlik katmanı.
+    const isCikis = values.islem_turu === 'giden_odeme' || values.islem_turu === 'iade_odeme'
+    const tutar = Number(values.tutar) || 0
+    if (isCikis && values.odeme_turu === 'nakit') {
+      if (tutar > nakitKasaBakiye) {
+        message.warning(
+          `Nakit kasa bakiyesi yetersiz (mevcut: ${formatMoney(nakitKasaBakiye)} TL, talep: ${formatMoney(tutar)} TL)`,
+        )
+        return
+      }
+    } else if (isCikis && values.odeme_turu === 'banka' && values.banka_hesap_id) {
+      const kaynak = bankaHesaplari?.find((b) => b.id === values.banka_hesap_id)
+      const kaynakBakiye = Number(kaynak?.bakiye ?? 0)
+      if (kaynak && tutar > kaynakBakiye) {
+        message.warning(
+          `Banka bakiyesi yetersiz (mevcut: ${formatMoney(kaynakBakiye)} TL, talep: ${formatMoney(tutar)} TL)`,
+        )
+        return
+      }
     }
     saveMutation.mutate(values)
   }
@@ -348,6 +385,18 @@ export const OdemeKayit: React.FC = () => {
                 </Form.Item>
               </Col>
             </Row>
+          )}
+
+          {/* 20260524 #4: Nakit modunda + çıkış işleminde kasa bakiyesini göster.
+              Backend RPC bakiye yetersizliğinde P0001 ile reddedecek. */}
+          {odemeTuru === 'nakit' && (islemTuru === 'giden_odeme' || islemTuru === 'iade_odeme') && (
+            <Alert
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+              message={`Mevcut Nakit Kasa Bakiyesi: ${formatMoney(nakitKasaBakiye)} TL`}
+              description="Bu tutarın üzerinde nakit ödeme/iade kaydedilemez."
+            />
           )}
 
           {/* Dinamik Alanlar: Banka (REV-PAY-09: uyelik_baslangic + banka da geçerli) */}
