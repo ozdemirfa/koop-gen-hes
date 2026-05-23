@@ -31,7 +31,10 @@ api.interceptors.request.use(async (config) => {
   }
 
   const isProjeEndpoint = config.url?.includes('/projeler')
-  const isGlobalEndpoint = config.url?.includes('/firmalar') || config.url?.includes('/settings')
+  const isGlobalEndpoint =
+    config.url?.includes('/firmalar') ||
+    config.url?.includes('/settings') ||
+    config.url?.includes('/admin/')
   const isSubResourceWithoutProject = config.url?.includes('/is-kalemleri')
 
   if (activeProjectId && activeProjectId.length === 36 && !isProjeEndpoint && !isGlobalEndpoint && !isSubResourceWithoutProject) {
