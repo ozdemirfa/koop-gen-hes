@@ -2,10 +2,10 @@
 //
 // Mock'lı: authMiddleware + supabaseAdmin mock'lanır. Endpoint matrisi:
 //   - GET    /api/projeler/:projeId/uyeler/me  (any user → kendi rolünü görür)
-//   - GET    /api/projeler/:projeId/uyeler     (admin only)
-//   - POST   /api/projeler/:projeId/uyeler     (admin only)
-//   - PATCH  /api/projeler/:projeId/uyeler/:userId  (admin only)
-//   - DELETE /api/projeler/:projeId/uyeler/:userId  (admin only)
+//   - GET    /api/projeler/:projeId/uyeler     (manager+)
+//   - POST   /api/projeler/:projeId/uyeler     (owner only)
+//   - PATCH  /api/projeler/:projeId/uyeler/:userId  (owner only)
+//   - DELETE /api/projeler/:projeId/uyeler/:userId  (owner only)
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import request from 'supertest'
@@ -123,10 +123,28 @@ describe('Project membership smoke', () => {
   })
 
   describe('GET /api/projeler/:projeId/uyeler (member list)', () => {
-    it('staff → 403', async () => {
+    it('non-member → 403', async () => {
+      // projectRole set edilmediği için getProjectRole null döner →
+      // "Bu projeye erişiminiz yok" 403.
       currentUser = { id: 'u-staff', role: 'staff' }
       const res = await request(app).get(`/api/projeler/${PROJE_ID}/uyeler`)
       expect(res.status).toBe(403)
+    })
+
+    it('user (proje üyesi) → 403 (manager gate)', async () => {
+      // Legacy viewer → user normalize edilir, manager gate'inde takılır.
+      currentUser = { id: 'u-user', role: 'staff', projectRole: 'viewer' }
+      const res = await request(app).get(`/api/projeler/${PROJE_ID}/uyeler`)
+      expect(res.status).toBe(403)
+      expect(res.body.error).toBe('Bu işlem için yönetici (manager) yetkisi gerekir')
+    })
+
+    it('manager (legacy staff) → 200', async () => {
+      // Legacy staff → manager normalize edilir, manager gate'i geçer.
+      currentUser = { id: 'u-mgr', role: 'staff', projectRole: 'staff' }
+      const res = await request(app).get(`/api/projeler/${PROJE_ID}/uyeler`)
+      expect(res.status).toBe(200)
+      expect(res.body.success).toBe(true)
     })
 
     it('admin → 200', async () => {

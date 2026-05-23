@@ -11,18 +11,19 @@ import * as projeUyelikController from '../controllers/projeUyelik.controller'
 //
 // Sprint role-system-modernization (PR-B):
 //   GET /:projeId/uyeler/me  → herhangi bir üye (kendi rolünü okur)
-//   list/upsert/patch/delete → owner only (proje sahibi üyelik yönetimi)
+//   GET /:projeId/uyeler     → manager+ (Kullanıcı Yönetimi sayfası listeleme)
+//   upsert/patch/delete       → owner only (proje sahibi üyelik yönetimi)
 //
 // Legacy global admin requireRole('admin') guard'ı kaldırıldı; yerine
-// proje-bazlı requireProjectAccess('owner') kullanılır. requireProjectAccess
-// içindeki legacy fallback global admin'i hâlâ owner olarak kabul eder
-// (faz 3'te kaldırılacak).
+// proje-bazlı requireProjectAccess kullanılır. requireProjectAccess içindeki
+// legacy fallback global admin'i hâlâ owner olarak kabul eder (faz 3'te
+// kaldırılacak).
 const router = Router({ mergeParams: true })
 
 // GET /:projeId/uyeler/me — herhangi bir proje üyesi kendi rolünü görebilir.
 router.get('/me', requireProjectAccess('user'), projeUyelikController.getMyRole)
 
-router.get('/', requireProjectAccess('owner'), projeUyelikController.listMembers)
+router.get('/', requireProjectAccess('manager'), projeUyelikController.listMembers)
 router.post('/', requireProjectAccess('owner'), validate({ body: upsertProjeUyeligiSchema }), projeUyelikController.upsertMember)
 router.patch(
   '/:userId',
