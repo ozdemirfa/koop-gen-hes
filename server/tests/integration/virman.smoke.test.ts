@@ -19,29 +19,6 @@ let currentUser: TestUser | null = null
 let virmanIdInDb: string | null = null
 let virmanProjeIdInDb: string | null = null
 
-// Sprint fix/virman-rpc-raw-fetch: service artık supabase-js .rpc() yerine
-// doğrudan fetch ile PostgREST'e POST atıyor. Bu testler için global fetch'i
-// mock'la — fn_create_virman_atomic URL pattern'ine başarı dönsün.
-const originalFetch = globalThis.fetch
-beforeEach(() => {
-  globalThis.fetch = (async (input: any, init: any) => {
-    const url = typeof input === 'string' ? input : input?.url
-    if (typeof url === 'string' && url.includes('/rpc/fn_create_virman_atomic')) {
-      // Mock RPC başarısı — raw fetch yolu
-      return new Response(
-        JSON.stringify({
-          virman_id: 'v1111111-1111-4111-a111-111111111111',
-          gider_hareket_id: 'h1111111-1111-4111-a111-111111111111',
-          gelir_hareket_id: 'h2222222-2222-4222-a222-222222222222',
-        }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } },
-      )
-    }
-    // Bilinmeyen URL → orijinal fetch'e geri dön
-    return originalFetch(input, init)
-  }) as typeof fetch
-})
-
 vi.mock('../../src/middleware/auth', async () => {
   const { ApiError } = await import('../../src/utils/ApiError')
   return {
