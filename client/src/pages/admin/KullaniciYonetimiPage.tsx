@@ -83,8 +83,10 @@ const ROLE_COLORS: Record<ProjectRole, string> = {
 }
 
 // Sistem genelindeki kullanıcı (GET /api/admin/users response shape)
+// Backend adminService.listUsers `id` field'ı döndürüyor (Supabase auth user.id),
+// `user_id` değil — proje üyeliği tablosundaki `user_id` ile karıştırma.
 interface SistemKullanici {
-  user_id: string
+  id: string
   email: string
   global_role: 'admin' | 'yetkili' | 'staff' | null
   can_create_projects: boolean
@@ -443,7 +445,7 @@ export const KullaniciYonetimiPage: React.FC = () => {
                     children: (
                       <Table<SistemKullanici>
                         dataSource={sistemKullanicilar}
-                        rowKey="user_id"
+                        rowKey="id"
                         loading={sistemLoading}
                         pagination={{ pageSize: 50 }}
                         locale={{ emptyText: 'Kullanıcı yok' }}
@@ -476,7 +478,7 @@ export const KullaniciYonetimiPage: React.FC = () => {
                             key: 'actions',
                             width: 240,
                             render: (_: unknown, r: SistemKullanici) => {
-                              const isSelf = r.user_id === currentUser?.id
+                              const isSelf = r.id === currentUser?.id
                               const isTargetAdmin = r.global_role === 'admin'
                               const isYetkiliUser = r.global_role === 'yetkili'
 
@@ -498,10 +500,10 @@ export const KullaniciYonetimiPage: React.FC = () => {
                                         disabled={isSelf || setRoleMutation.isPending}
                                         loading={
                                           setRoleMutation.isPending &&
-                                          (setRoleMutation.variables as any)?.userId === r.user_id
+                                          (setRoleMutation.variables as any)?.userId === r.id
                                         }
-                                        data-testid={`promote-btn-${r.user_id}`}
-                                        onClick={() => setRoleMutation.mutate({ userId: r.user_id, role: 'yetkili' })}
+                                        data-testid={`promote-btn-${r.id}`}
+                                        onClick={() => setRoleMutation.mutate({ userId: r.id, role: 'yetkili' })}
                                       >
                                         Yetkili Yap
                                       </Button>
@@ -511,7 +513,7 @@ export const KullaniciYonetimiPage: React.FC = () => {
                                       <Popconfirm
                                         title="Yetkili yetkisini kaldır"
                                         description="Bu kullanıcı artık yeni proje açamaz. Mevcut üyelikleri değişmez."
-                                        onConfirm={() => setRoleMutation.mutate({ userId: r.user_id, role: 'staff' })}
+                                        onConfirm={() => setRoleMutation.mutate({ userId: r.id, role: 'staff' })}
                                         okText="Evet, Kaldır"
                                         cancelText="Vazgeç"
                                         okButtonProps={{ danger: true }}
@@ -523,9 +525,9 @@ export const KullaniciYonetimiPage: React.FC = () => {
                                           disabled={isSelf}
                                           loading={
                                             setRoleMutation.isPending &&
-                                            (setRoleMutation.variables as any)?.userId === r.user_id
+                                            (setRoleMutation.variables as any)?.userId === r.id
                                           }
-                                          data-testid={`demote-btn-${r.user_id}`}
+                                          data-testid={`demote-btn-${r.id}`}
                                         >
                                           Yetkili Yetkisini Kaldır
                                         </Button>
