@@ -66,6 +66,12 @@ export interface Permissions {
   /** @deprecated `isManager` kullanın. */
   canManageProject: boolean
 
+  // Global referans veri (birim/poz/parametre) izinleri
+  /** Birim/poz silme & düzenleme — yalnız sistem admin (global 'admin' rolü). */
+  canManageGlobalDefs: boolean
+  /** Birim/poz ekleme + sistem parametresi düzenleme — admin, yetkili veya isManager. */
+  canCreateGlobalDefs: boolean
+
   // Convenience
   hasActiveProject: boolean
 }
@@ -121,6 +127,12 @@ export function usePermissions(): Permissions {
     // canManageUsers: Kullanıcı Yönetimi sayfası erişimi — manager+
     const canManageUsers = isManager
 
+    // Global referans veri (birim/poz/parametre) — sistem genelinde paylaşılan
+    // tanımlar. Sil/düzenle yalnız global admin'e ayrılır; ekleme + parametre
+    // güncelleme global admin + yetkili global rol + proje manager+'a açık.
+    const canManageGlobalDefs = isLegacyGlobalAdmin
+    const canCreateGlobalDefs = isYetkili || isManager
+
     return {
       globalRole: userRole,
       isLegacyGlobalAdmin,
@@ -137,6 +149,8 @@ export function usePermissions(): Permissions {
       canDelete,
       canManageUsers,
       canManageProject: isManager, // legacy alias
+      canManageGlobalDefs,
+      canCreateGlobalDefs,
       hasActiveProject: !!activeProject,
     }
   }, [userRole, isYetkili, isAdmin, session, activeProject, activeProjectRole])

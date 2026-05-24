@@ -1,6 +1,8 @@
 import { RequestHandler } from 'express'
 import { ApiError } from '../utils/ApiError'
 import { AppRole, ROLE_RANK, getUserRole } from './roleCache'
+import { supabaseAdmin } from '../config/supabase'
+import logger from '../utils/logger'
 
 /**
  * Sprint yetkili-role-system (PR-A, 2026-05-22):
@@ -42,3 +44,57 @@ export function requireRole(...roles: AppRole[]): RequestHandler {
  *   router.post('/projeler', requireYetkili, projelerController.createProje)
  */
 export const requireYetkili: RequestHandler = requireRole('yetkili')
+
+/**
+ * Sprint birim-poz-yetki (2026-05-24):
+ *   Global referans veri (birim, poz, sistem parametresi) oluşturma yetkisi:
+ *   admin VEYA yetkili global rol VEYA herhangi bir projede owner/manager.
+ *   RLS policy 20260524130000 ile aynı mantık (frontend canCreateGlobalDefs).
+ *
+ *   Silme/düzenleme için ayrı kontrol kullan: `requireRole('admin')`.
+ */
+export const requireCreateGlobalDefs: RequestHandler = async (req, _res, next) => {
+  if (!req.user?.id) {
+    next(ApiError.unauthorized())
+    return
+  }
+
+  if (req.userRole === undefined) {
+    req.userRole = await getUserRole(req.user.id)
+  }
+
+  if (req.userRole === 'admin' || req.userRole === 'yetkili') {
+    next()
+    return
+  }
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('proje_uyelikleri')
+      .select('id')
+      .eq('user_id', req.user.id)
+      .in('rol', ['owner', 'manager'])
+      .limit(1)
+      .maybeSingle()
+
+    if (error) {
+      logger.error('[RBAC] requireCreateGlobalDefs proje_uyelikleri lookup error', {
+        userId: req.user.id,
+        code: error.code,
+        message: error.message,
+      })
+      next(ApiError.forbidden())
+      return
+    }
+
+    if (!data) {
+      next(ApiError.forbidden())
+      return
+    }
+
+    next()
+  } catch (err) {
+    logger.error('[RBAC] requireCreateGlobalDefs exception', { userId: req.user.id, err })
+    next(ApiError.forbidden())
+  }
+}

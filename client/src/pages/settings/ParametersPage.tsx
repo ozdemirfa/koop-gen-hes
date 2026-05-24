@@ -22,8 +22,9 @@ export const ParametersPage: React.FC = () => {
   const [editModalVisible, setEditModalOpen] = useState(false)
   const [editingParam, setEditingParam] = useState<SystemParameter | null>(null)
   const [form] = Form.useForm()
-  // Sprint role-system-modernization (PR-C): Sistem parametreleri yalnızca manager+
-  const { isManager } = usePermissions()
+  // Sistem parametreleri: admin + yetkili + isManager düzenleyebilir.
+  // (canCreateGlobalDefs ile aynı izin seti — birim/poz ekleme ile eşdeğer.)
+  const { canCreateGlobalDefs } = usePermissions()
 
   usePageSettings('Sistem Parametreleri')
 
@@ -118,8 +119,8 @@ export const ParametersPage: React.FC = () => {
           type="text"
           icon={<EditOutlined />}
           onClick={() => handleEdit(record)}
-          disabled={!isManager}
-          title={!isManager ? 'Yetki yok (manager+ gerekli)' : undefined}
+          disabled={!canCreateGlobalDefs}
+          title={!canCreateGlobalDefs ? 'Yetki yok (yetkili/yönetici/admin gerekli)' : undefined}
         >
           Düzenle
         </Button>

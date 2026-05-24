@@ -18,10 +18,10 @@ export const BirimListPage: React.FC = () => {
   const [form] = Form.useForm()
   const queryClient = useQueryClient()
   const { message: messageApi } = App.useApp()
-  // Sprint role-system-modernization (PR-C): Parametre/ayar sayfaları —
-  // sadece manager+ değişiklik yapabilir. Spec: "kullanıcı parametre
-  // değişikliği yapamaz". Form girişi ve delete butonları isManager gating.
-  const { isManager } = usePermissions()
+  // Birim — sistem genelinde paylaşılan global tanım.
+  //   Ekleme: admin + yetkili + isManager (canCreateGlobalDefs)
+  //   Silme : yalnız sistem admin (canManageGlobalDefs)
+  const { canCreateGlobalDefs, canManageGlobalDefs } = usePermissions()
 
   usePageSettings('Birimler')
 
@@ -63,7 +63,7 @@ export const BirimListPage: React.FC = () => {
       key: 'action',
       width: 100,
       render: (_: any, record: Birim) =>
-        isManager ? (
+        canManageGlobalDefs ? (
           <ConfirmDelete
             title="Birimi silmek istediğinize emin misiniz?"
             onConfirm={() => deleteMutation.mutate(record.id)}
@@ -71,7 +71,7 @@ export const BirimListPage: React.FC = () => {
             <Button icon={<DeleteOutlined />} type="text" danger />
           </ConfirmDelete>
         ) : (
-          <Button icon={<DeleteOutlined />} type="text" danger disabled title="Yetki yok (manager+ gerekli)" />
+          <Button icon={<DeleteOutlined />} type="text" danger disabled title="Yalnız sistem admin silebilir" />
         )
     }
   ]
@@ -80,9 +80,9 @@ export const BirimListPage: React.FC = () => {
     <Card variant="borderless" className="shadow-sm">
       <div style={{ marginBottom: 24, padding: '16px', background: '#f8fafc', borderRadius: '8px' }}>
         <Typography.Title level={5} style={{ marginTop: 0 }}>Yeni Birim Ekle</Typography.Title>
-        {!isManager && (
+        {!canCreateGlobalDefs && (
           <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-            Birim tanımlarını yalnızca proje yöneticileri (manager+) değiştirebilir.
+            Birim eklemek için yetkili, yönetici veya sistem admin olmalısınız.
           </Typography.Text>
         )}
         <Form
@@ -90,7 +90,7 @@ export const BirimListPage: React.FC = () => {
           layout="inline"
           onFinish={(v) => createMutation.mutate(v)}
           validateTrigger={["onBlur", "onChange"]}
-          disabled={!isManager}
+          disabled={!canCreateGlobalDefs}
         >
           <Form.Item
             name="ad"
@@ -105,8 +105,8 @@ export const BirimListPage: React.FC = () => {
               htmlType="submit"
               icon={<PlusOutlined />}
               loading={createMutation.isPending}
-              disabled={!isManager}
-              title={!isManager ? 'Yetki yok (manager+ gerekli)' : undefined}
+              disabled={!canCreateGlobalDefs}
+              title={!canCreateGlobalDefs ? 'Yetki yok (yetkili/yönetici/admin gerekli)' : undefined}
             >
               Ekle
             </Button>
