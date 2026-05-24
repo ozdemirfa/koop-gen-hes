@@ -3,14 +3,20 @@ import { requireProjeId } from '../utils/projectGuard'
 import logger from '../utils/logger'
 
 export const raporService = {
-  async dashboardOzet(projeId: string) {
+  async dashboardOzet(projeId: string, baslangicTarihi?: string, bitisTarihi?: string) {
     const proje = requireProjeId(projeId)
+    // RPC tarih param'larını DATE bekler; null geçilince tüm-zaman davranışı.
+    // Boş string'i null'a çeviriyoruz (Postgres date cast hatası vermesin).
+    const p_baslangic = baslangicTarihi && baslangicTarihi.trim() !== '' ? baslangicTarihi : null
+    const p_bitis = bitisTarihi && bitisTarihi.trim() !== '' ? bitisTarihi : null
     const { data, error } = await supabaseAdmin.rpc('fn_dashboard_ozet', {
-      p_proje_id: proje
+      p_proje_id: proje,
+      p_baslangic,
+      p_bitis,
     });
 
     if (error) {
-      logger.error('fn_dashboard_ozet RPC error', { error, projeId });
+      logger.error('fn_dashboard_ozet RPC error', { error, projeId, p_baslangic, p_bitis });
       throw error;
     }
 
