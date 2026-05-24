@@ -23,8 +23,10 @@ export const PozListPage: React.FC = () => {
   const [form] = Form.useForm()
   const queryClient = useQueryClient()
   const { message: messageApi } = App.useApp()
-  // Sprint role-system-modernization (PR-C): Parametre sayfaları manager+ gating
-  const { isManager } = usePermissions()
+  // Poz — sistem genelinde paylaşılan global tanım.
+  //   Ekleme       : admin + yetkili + isManager (canCreateGlobalDefs)
+  //   Düzenle/Sil  : yalnız sistem admin (canManageGlobalDefs)
+  const { canCreateGlobalDefs, canManageGlobalDefs } = usePermissions()
 
   usePageSettings('Pozlar')
 
@@ -111,10 +113,10 @@ export const PozListPage: React.FC = () => {
             icon={<EditOutlined />}
             type="text"
             onClick={() => handleEdit(record)}
-            disabled={!isManager}
-            title={!isManager ? 'Yetki yok (manager+ gerekli)' : undefined}
+            disabled={!canManageGlobalDefs}
+            title={!canManageGlobalDefs ? 'Yalnız sistem admin düzenleyebilir' : undefined}
           />
-          {isManager ? (
+          {canManageGlobalDefs ? (
             <ConfirmDelete
               title="Pozu silmek istediğinize emin misiniz?"
               onConfirm={() => deleteMutation.mutate(record.id)}
@@ -122,7 +124,7 @@ export const PozListPage: React.FC = () => {
               <Button icon={<DeleteOutlined />} type="text" danger />
             </ConfirmDelete>
           ) : (
-            <Button icon={<DeleteOutlined />} type="text" danger disabled title="Yetki yok (manager+ gerekli)" />
+            <Button icon={<DeleteOutlined />} type="text" danger disabled title="Yalnız sistem admin silebilir" />
           )}
         </Space>
       )
@@ -136,14 +138,14 @@ export const PozListPage: React.FC = () => {
           type="primary"
           icon={<PlusOutlined />}
           onClick={() => setModalVisible(true)}
-          disabled={!isManager}
-          title={!isManager ? 'Yetki yok (manager+ gerekli)' : undefined}
+          disabled={!canCreateGlobalDefs}
+          title={!canCreateGlobalDefs ? 'Yetki yok (yetkili/yönetici/admin gerekli)' : undefined}
         >
           Yeni Poz Ekle
         </Button>
-        {!isManager && (
+        {!canCreateGlobalDefs && (
           <Typography.Text type="secondary">
-            Poz tanımlarını yalnızca proje yöneticileri (manager+) değiştirebilir.
+            Poz eklemek için yetkili, yönetici veya sistem admin olmalısınız. Düzenleme/silme yalnız sistem admin'e açıktır.
           </Typography.Text>
         )}
       </div>
@@ -166,7 +168,7 @@ export const PozListPage: React.FC = () => {
         destroyOnHidden
         width="min(520px, 95vw)"
       >
-        <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)} validateTrigger={["onBlur", "onChange"]} disabled={!isManager}>
+        <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)} validateTrigger={["onBlur", "onChange"]} disabled={editingPoz ? !canManageGlobalDefs : !canCreateGlobalDefs}>
           <Form.Item
             name="poz_no"
             label="Poz No"
