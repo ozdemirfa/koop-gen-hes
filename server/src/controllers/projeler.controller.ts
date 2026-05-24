@@ -116,7 +116,10 @@ export const clearSerefiye = catchAsync(async (req: AuthRequest<any, any, any, a
 })
 
 export const updateSerefiye = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await projeService.updateSerefiye(req.params.serefiyeId, req.body)
+  // proje_id sadece requireProjectAccess middleware'i için body'de taşınır;
+  // UPDATE payload'ına dahil edilmemeli (FK'yi yeniden yazmaya çalışmaz).
+  const { proje_id: _projeIdIgnored, projeId: _projeIdAliasIgnored, ...payload } = req.body || {}
+  const data = await projeService.updateSerefiye(req.params.serefiyeId, payload)
   res.json({ success: true, data })
 })
 

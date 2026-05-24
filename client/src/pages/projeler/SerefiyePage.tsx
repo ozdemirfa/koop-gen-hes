@@ -67,7 +67,7 @@ export const SerefiyePage: React.FC = () => {
 
   const saveMutation = useMutation({
     mutationFn: async (values: any) => {
-      return await api.put(`/projeler/serefiye/${editingSerefiye?.id}`, values)
+      return await api.put(`/projeler/serefiye/${editingSerefiye?.id}`, { ...values, proje_id: projeId })
     },
     onSuccess: () => {
       messageApi.success('Daire bilgileri güncellendi')
@@ -80,7 +80,7 @@ export const SerefiyePage: React.FC = () => {
 
   const assignUyeMutation = useMutation({
     mutationFn: async ({ serefiyeId, uyeId }: { serefiyeId: string, uyeId: string | null }) => {
-      return await api.put(`/projeler/serefiye/${serefiyeId}`, { uye_id: uyeId, durum: uyeId ? 'dolu' : 'bos' })
+      return await api.put(`/projeler/serefiye/${serefiyeId}`, { uye_id: uyeId, durum: uyeId ? 'dolu' : 'bos', proje_id: projeId })
     },
     onSuccess: () => {
       messageApi.success('Üyelik ataması güncellendi')
