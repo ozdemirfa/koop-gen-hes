@@ -36,6 +36,7 @@ interface ReqInput {
   body?: Record<string, unknown>
   query?: Record<string, unknown>
   params?: Record<string, string>
+  baseUrl?: string
 }
 
 function makeReq(input: ReqInput = {}): Request {
@@ -45,6 +46,7 @@ function makeReq(input: ReqInput = {}): Request {
     body: input.body ?? {},
     query: input.query ?? ({} as any),
     params: input.params ?? {},
+    baseUrl: input.baseUrl ?? '',
   }
   return req as Request
 }
@@ -211,11 +213,32 @@ describe('requireProjectAccess', () => {
     expect(result).toBeUndefined()
   })
 
-  it('reads proje_id from req.params.id as last resort', async () => {
+  it('reads proje_id from req.params.id ONLY on /projeler mount (proje-anchor)', async () => {
     mockedGetProjectRole.mockResolvedValueOnce('user')
-    const req = makeReq({ user: { id: 'u1' }, userRole: 'staff', params: { id: PROJE_ID } })
+    const req = makeReq({
+      user: { id: 'u1' },
+      userRole: 'staff',
+      params: { id: PROJE_ID },
+      baseUrl: '/api/projeler',
+    })
     const result = await runMiddleware(requireProjectAccess('user'), req)
     expect(result).toBeUndefined()
+  })
+
+  it('does NOT use req.params.id fallback on sub-resource routes (e.g. /uyeler/:id) → 400', async () => {
+    // Regression: `/uyeler/:id` rotasında `:id` üye UUID'sidir; proje_id sanılırsa
+    // 403 "Bu projeye erişiminiz yok" döner — beklenen davranış net 400.
+    const req = makeReq({
+      user: { id: 'u1' },
+      userRole: 'staff',
+      params: { id: PROJE_ID },
+      baseUrl: '/api/uyeler',
+    })
+    const result = await runMiddleware(requireProjectAccess('user'), req)
+    expect(result).toBeInstanceOf(ApiError)
+    expect((result as ApiError).statusCode).toBe(400)
+    expect((result as ApiError).message).toMatch(/proje_id/i)
+    expect(mockedGetProjectRole).not.toHaveBeenCalled()
   })
 
   it('reads proje_id from req.params.proje_id (snake_case) as fallback', async () => {

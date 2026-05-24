@@ -28,8 +28,12 @@ import {
  * geçiş dönemi içindir — faz 3'te (PR-D sonrası) kaldırılacak.
  *
  * Davranış:
- *  - `proje_id` `req.body`, `req.query` veya `req.params.projeId`/`req.params.id`
- *    ya da `req.params.proje_id`'den çekilir.
+ *  - `proje_id` `req.body`, `req.query` veya `req.params.projeId`/
+ *    `req.params.proje_id`'den çekilir. `req.params.id` fallback'i YALNIZCA
+ *    `req.baseUrl` `/projeler` mount path'iyle bitiyorsa devreye girer
+ *    (proje-anchor rotalar). Alt-kaynak rotalarında (`/uyeler/:id` vb.)
+ *    `:id` üye UUID'sidir; proje_id sanılmamalı — yoksa kafa karıştırıcı
+ *    403 yerine net 400 alınır.
  *  - Eksikse `400 proje_id zorunludur`.
  *  - Global admin (`user_roles.role='admin'`) hâlâ tüm projelere `owner`
  *    seviyesinde erişebilir → req.projectRole = 'owner'. Bu legacy davranıştır
@@ -72,12 +76,21 @@ export function requireProjectAccess(
         return next(ApiError.unauthorized())
       }
 
+      // `req.params.id` fallback'i yalnızca proje-anchor mount path'i altında
+      // güvenlidir. `/api/uyeler/:id`, `/api/aidatlar/:id` gibi alt-kaynak
+      // rotalarında `:id` üye/aidat UUID'sidir; proje_id sanılırsa middleware
+      // `proje_uyelikleri` tablosunda eşleşme bulamaz ve kafa karıştırıcı bir
+      // 403 "Bu projeye erişiminiz yok" üretir (asıl problem 400 olmalıydı:
+      // proje_id eksik). Bu yüzden fallback'i yalnızca `req.baseUrl` proje
+      // mount path'iyle bitiyorsa devreye alıyoruz.
+      const isProjeAnchorMount = req.baseUrl?.endsWith('/projeler') ?? false
+
       const projeIdRaw =
         (req.body && (req.body.proje_id ?? req.body.projeId)) ??
         (req.query && (req.query.proje_id ?? req.query.projeId)) ??
         req.params?.projeId ??
         req.params?.proje_id ??
-        req.params?.id
+        (isProjeAnchorMount ? req.params?.id : undefined)
 
       const projeId = typeof projeIdRaw === 'string' ? projeIdRaw.trim() : ''
       if (!projeId || projeId === 'null' || projeId === 'undefined') {
