@@ -136,21 +136,32 @@ export const projeService = {
     return { updated: updatedCount, failed: failedCount, total: updates.length }
   },
 
-  async list(opts: { userId?: string; isAdmin?: boolean } = {}) {
+  async list(opts: { userId?: string; isAdmin?: boolean; arsiv?: boolean } = {}) {
+    // Arşiv görünümü: silindi_mi=true. Aktif görünüm: silindi_mi=false.
+    // (Yeni proje silme akışı, 2026-05-24)
+    const arsivMod = opts.arsiv === true
+
     let q = supabaseAdmin
       .from('projeler')
       .select('*')
-      .order('created_at', { ascending: false })
+      .eq('silindi_mi', arsivMod)
+      .order(arsivMod ? 'silinme_tarihi' : 'created_at', { ascending: false })
 
     // Global admin tüm projeleri görür. Diğer kullanıcılar sadece üye oldukları
     // projeleri görür — service-role RLS bypass ettiği için üyelik filtresi
     // burada uygulanır (defense-in-depth: RLS de aynı kontrolü yapar).
+    // Arşiv listesinde ek bir kısıt: non-admin kullanıcı sadece OWNER olduğu
+    // arşivdeki projeleri görebilir (manager/user arşivi göremez).
     let roleByProje = new Map<string, 'admin' | 'staff' | 'viewer'>()
     if (!opts.isAdmin && opts.userId) {
-      const { data: memberships } = await supabaseAdmin
+      const membershipQ = supabaseAdmin
         .from('proje_uyelikleri')
         .select('proje_id, rol')
         .eq('user_id', opts.userId)
+      if (arsivMod) {
+        membershipQ.eq('rol', 'owner')
+      }
+      const { data: memberships } = await membershipQ
       const rows = memberships ?? []
       if (rows.length === 0) {
         return []
@@ -795,5 +806,150 @@ export const projeService = {
       throw error
     }
     return data
-  }
+  },
+
+  // --------------------------------------------------------------------------
+  // Sprint proje-silme-akisi (2026-05-24): İki aşamalı silme akışı.
+  // Arşivle (soft) → Kalıcı Sil (hard, CASCADE).
+  // --------------------------------------------------------------------------
+
+  /**
+   * Projenin tüm alt tablolardaki kayıt sayılarını döner.
+   * Frontend onay modalı bu sayıları "X üye, Y fatura silinecek" şeklinde gösterir.
+   * Yetki kontrolü route layer'da requireProjectAccess middleware'i ile yapılır.
+   */
+  async getSilmeOnizleme(projeId: string) {
+    const { data, error } = await supabaseAdmin.rpc('fn_proje_silme_onizleme', {
+      p_proje_id: projeId,
+    })
+    if (error) throw error
+    return data as Record<string, number>
+  },
+
+  /**
+   * Soft-delete: projeyi arşivle. silindi_mi=true → RLS helper'ları (is_project_*)
+   * artık bu projeyi "yok" sayar; tüm alt tablo mutasyonları engellenir.
+   * Geri alınabilir (arsivdenGeriAl).
+   */
+  async arsivle(projeId: string, sebep: string, actorId: string) {
+    // Mevcut proje aktif mi? Çift arşivlemeyi engelle.
+    const { data: mevcut, error: fetchErr } = await supabaseAdmin
+      .from('projeler')
+      .select('silindi_mi')
+      .eq('id', projeId)
+      .single()
+    if (fetchErr) throw ApiError.notFound('Proje bulunamadı')
+    if (mevcut.silindi_mi) {
+      throw ApiError.badRequest('Proje zaten arşivde')
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('projeler')
+      .update({
+        silindi_mi: true,
+        silinme_tarihi: new Date().toISOString(),
+        silinme_sebebi: sebep,
+        silen_kullanici_id: actorId,
+      })
+      .eq('id', projeId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  /**
+   * Soft-delete geri al. silindi_mi=false → proje aktif olarak listeye geri döner.
+   */
+  async arsivdenGeriAl(projeId: string) {
+    const { data: mevcut, error: fetchErr } = await supabaseAdmin
+      .from('projeler')
+      .select('silindi_mi')
+      .eq('id', projeId)
+      .single()
+    if (fetchErr) throw ApiError.notFound('Proje bulunamadı')
+    if (!mevcut.silindi_mi) {
+      throw ApiError.badRequest('Proje zaten aktif (arşivde değil)')
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('projeler')
+      .update({
+        silindi_mi: false,
+        silinme_tarihi: null,
+        silinme_sebebi: null,
+        silen_kullanici_id: null,
+      })
+      .eq('id', projeId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  /**
+   * Hard-delete: CASCADE ile arşivdeki projeyi kalıcı siler.
+   *
+   * Yetki kuralı (controller tarafından çağrılmadan ÖNCE garanti edilmiş olmalı):
+   *   - Proje arşivde (silindi_mi=true) — RPC bunu da doğrular.
+   *   - Veri varsa (toplam_kayit > 0) → caller global admin olmalı.
+   *   - Boşsa → caller global admin VEYA arşivdeki projenin owner'ı.
+   *
+   * Bu metod yalın execute: yetki controller'da uygulanır.
+   * RPC döndürdüğü etkilenen kayıt sayılarını controller raporlar.
+   */
+  async kaliciSil(projeId: string) {
+    const { data, error } = await supabaseAdmin.rpc('fn_proje_hard_delete', {
+      p_proje_id: projeId,
+    })
+    if (error) {
+      // RPC içindeki RAISE EXCEPTION'ları semantik hatalara map et.
+      const msg = (error.message || '').toLowerCase()
+      if (msg.includes('arşivlenmiş olmalı') || msg.includes('arsivlenmis olmali')) {
+        throw ApiError.badRequest('Kalıcı silmeden önce proje arşivlenmiş olmalı')
+      }
+      if (msg.includes('bulunamadı') || msg.includes('bulunamadi')) {
+        throw ApiError.notFound('Proje bulunamadı')
+      }
+      throw error
+    }
+    return data as {
+      success: boolean
+      proje_id: string
+      proje_adi: string
+      toplam_kayit: number
+      etkilenen: Record<string, number>
+    }
+  },
+
+  /**
+   * Caller'ın bir projedeki proje_uyelikleri.rol değerini döner.
+   * Kalıcı silme yetki kontrolünde kullanılır (owner mı?).
+   * Üye değilse null.
+   */
+  async getProjeRol(projeId: string, userId: string): Promise<string | null> {
+    const { data } = await supabaseAdmin
+      .from('proje_uyelikleri')
+      .select('rol')
+      .eq('proje_id', projeId)
+      .eq('user_id', userId)
+      .maybeSingle()
+    return data?.rol ?? null
+  },
+
+  /**
+   * Sadece proje meta'sını döner (proje_adi, silindi_mi). Kalıcı silme onayı
+   * için "yazdığınız ad eşleşmiyor" guard'ında kullanılır.
+   */
+  async getProjeMetaForDelete(projeId: string) {
+    const { data, error } = await supabaseAdmin
+      .from('projeler')
+      .select('id, proje_adi, silindi_mi')
+      .eq('id', projeId)
+      .single()
+    if (error) throw ApiError.notFound('Proje bulunamadı')
+    return data as { id: string; proje_adi: string; silindi_mi: boolean }
+  },
 }

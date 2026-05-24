@@ -25,13 +25,19 @@ export async function assertProjectMember(userId: string, projeId: string): Prom
 /**
  * Returns the list of project ids the given user is a member of.
  * Useful when filtering a multi-project list down to allowed scopes.
+ *
+ * Sprint proje-silme-akisi (2026-05-24): arşivdeki (silindi_mi=true) projeler
+ * varsayılan olarak listelenmez — onları görmek için inner JOIN yerine outer
+ * filter kullanıp dahil edebiliriz. Çoğu kullanım için "aktif olan projelere
+ * scope'la" semantiği doğru olduğundan default false.
  */
 export async function getAllowedProjeIds(userId: string): Promise<string[]> {
   const { data } = await supabaseAdmin
     .from('proje_uyelikleri')
-    .select('proje_id')
+    .select('proje_id, projeler!inner(silindi_mi)')
     .eq('user_id', userId)
-  return data?.map((r: { proje_id: string }) => r.proje_id) ?? []
+    .eq('projeler.silindi_mi', false)
+  return data?.map((r: any) => r.proje_id) ?? []
 }
 
 /**

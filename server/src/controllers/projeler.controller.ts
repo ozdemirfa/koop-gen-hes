@@ -5,9 +5,16 @@ import { catchAsync } from '../utils/catchAsync'
 import { supabaseAdmin } from '../config/supabase'
 
 export const getProjeler = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  // Sprint proje-silme-akisi (2026-05-24):
+  //   ?arsiv=1 → silindi_mi=true projeleri listele (Arşivlenmiş Projeler sayfası).
+  //   Diğer durumda silindi_mi=false (varsayılan).
+  const arsivFlag = String((req.query as any)?.arsiv ?? '').toLowerCase()
+  const arsiv = arsivFlag === '1' || arsivFlag === 'true'
+
   const data = await projeService.list({
     userId: req.user?.id,
     isAdmin: req.userRole === 'admin',
+    arsiv,
   })
   res.json({ success: true, data })
 })
@@ -131,4 +138,67 @@ export const createYillikPlanKalemleriBulk = catchAsync(async (req: AuthRequest<
   const { data, error } = await supabaseAdmin.from('yillik_plan_kalemleri').upsert(kalemler, { onConflict: 'plan_id,proje_is_kalemi_id,ay' }).select()
   if (error) throw error
   res.json({ success: true, data })
+})
+
+// ---------------------------------------------------------------------------
+// Sprint proje-silme-akisi (2026-05-24): İki aşamalı silme handler'ları.
+// ---------------------------------------------------------------------------
+// Yetki katmanları:
+//   - getSilmeOnizleme / arsivleProje / geriAlProje
+//       → route'ta requireProjectAccess('owner') ile guard (owner + global admin geçer)
+//   - kaliciSilProje
+//       → route guard owner; ek kural "veri varsa sadece global admin" handler içinde
+//         kontrol edilir (controller seviyesinde 403 dönerek RPC çağrısına gitmez).
+// ---------------------------------------------------------------------------
+
+import { ApiError } from '../utils/ApiError'
+
+export const getSilmeOnizleme = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const data = await projeService.getSilmeOnizleme(req.params.id)
+  res.json({ success: true, data })
+})
+
+export const arsivleProje = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  if (!req.user?.id) throw ApiError.unauthorized()
+  const { sebep } = req.body as { sebep: string }
+  const data = await projeService.arsivle(req.params.id, sebep, req.user.id)
+  res.json({ success: true, data, message: 'Proje arşivlendi' })
+})
+
+export const geriAlProje = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const data = await projeService.arsivdenGeriAl(req.params.id)
+  res.json({ success: true, data, message: 'Proje arşivden geri alındı' })
+})
+
+export const kaliciSilProje = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  if (!req.user?.id) throw ApiError.unauthorized()
+  const projeId = req.params.id
+  const { projeAdiOnay } = req.body as { projeAdiOnay: string }
+
+  // 1) Proje meta'sını al — arşivde mi + isim eşleşmesi için.
+  const meta = await projeService.getProjeMetaForDelete(projeId)
+  if (!meta.silindi_mi) {
+    throw ApiError.badRequest('Kalıcı silmeden önce proje arşivlenmiş olmalı')
+  }
+  if (projeAdiOnay.trim() !== meta.proje_adi) {
+    throw ApiError.badRequest('Yazdığınız proje adı eşleşmiyor')
+  }
+
+  // 2) Yetki kuralı — "veri varsa sadece admin":
+  //    önizleme RPC'sinden toplam_kayit al, > 0 ise caller global admin olmalı.
+  //    Boşsa: owner veya admin/yetkili yeterli (route guard zaten owner enforce eder;
+  //    admin de owner gibi davranır).
+  const onizleme = await projeService.getSilmeOnizleme(projeId)
+  const toplam = Number((onizleme as any)?.toplam_kayit ?? 0)
+  const isAdmin = req.userRole === 'admin'
+
+  if (toplam > 0 && !isAdmin) {
+    throw ApiError.forbidden(
+      `Bu proje ${toplam} ilişkili kayıt içeriyor — kalıcı silmeyi yalnızca sistem yöneticisi (admin) gerçekleştirebilir`
+    )
+  }
+
+  // 3) RPC çağrısı — CASCADE silme + audit trigger.
+  const result = await projeService.kaliciSil(projeId)
+  res.json({ success: true, data: result, message: 'Proje kalıcı olarak silindi' })
 })

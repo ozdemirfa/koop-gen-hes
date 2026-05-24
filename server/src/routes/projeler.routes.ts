@@ -3,7 +3,15 @@ import multer from 'multer'
 import { validate } from '../middleware/validate'
 import { requireProjectAccess } from '../middleware/requireProjectAccess'
 import { requireYetkili } from '../middleware/requireRole'
-import { projeSchema, updateProjeSchema, projeIsKalemiSchema, yillikPlanSchema, yillikPlanKalemiSchema } from '../schemas/proje.schema'
+import {
+  projeSchema,
+  updateProjeSchema,
+  projeIsKalemiSchema,
+  yillikPlanSchema,
+  yillikPlanKalemiSchema,
+  arsivleProjeSchema,
+  kaliciSilProjeSchema,
+} from '../schemas/proje.schema'
 import * as projelerController from '../controllers/projeler.controller'
 
 const router = Router()
@@ -61,5 +69,13 @@ router.get('/:id', requireProjectAccess('user'), projelerController.getProjeById
 router.post('/', requireYetkili, validate({ body: projeSchema }), projelerController.createProje)
 // Proje meta düzenleme — manager+ (proje adı/durumu/parametreleri)
 router.put('/:id', requireProjectAccess('manager'), validate({ body: updateProjeSchema }), projelerController.updateProje)
+
+// 8. Sprint proje-silme-akisi (2026-05-24): İki aşamalı silme.
+//    - Önizleme + Arşivle + Geri Al: owner+ (global admin owner gibi geçer).
+//    - Kalıcı sil: owner+ guard; veri varsa "sadece admin" kuralı controller içinde.
+router.get('/:id/silme-onizleme', requireProjectAccess('owner'), projelerController.getSilmeOnizleme)
+router.post('/:id/arsivle', requireProjectAccess('owner'), validate({ body: arsivleProjeSchema }), projelerController.arsivleProje)
+router.post('/:id/geri-al', requireProjectAccess('owner'), projelerController.geriAlProje)
+router.delete('/:id', requireProjectAccess('owner'), validate({ body: kaliciSilProjeSchema }), projelerController.kaliciSilProje)
 
 export default router

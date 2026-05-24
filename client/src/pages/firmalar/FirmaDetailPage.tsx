@@ -209,9 +209,9 @@ export const FirmaDetailPage: React.FC = () => {
       title: 'İşlem', 
       key: 'action', 
       fixed: 'right' as const,
-      width: 140,
+      width: 80,
       render: (_: any, r: any) => (
-        <Space size="middle">
+        <Space size="small">
           <Tooltip title="Görüntüle">
             <Button icon={<FileSearchOutlined />} type="text" size="small" onClick={() => navigate(`/hakedisler/${r.id}`)} />
           </Tooltip>
@@ -254,7 +254,7 @@ export const FirmaDetailPage: React.FC = () => {
       width: 80,
       render: (_: unknown, r: any) => (
         <Tooltip title="Faturayı Görüntüle">
-          <Button icon={<FileTextOutlined />} type="text" onClick={() => navigate(`/faturalar/${r.id}`)} />
+          <Button icon={<FileTextOutlined />} type="text" onClick={() => navigate(`/faturalar?fatura=${r.id}`)} />
         </Tooltip>
       ),
     },
