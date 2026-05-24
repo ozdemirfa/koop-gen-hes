@@ -55,7 +55,10 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (response.data.success) {
         setProjects(response.data.data)
 
-        // Restore from localStorage if possible
+        // Restore from localStorage if possible. Sprint proje-silme-akisi
+        // (2026-05-24): aktif proje arşivlenmiş/silinmişse listeden gelmez —
+        // başka projeye fallback yap; hiç proje yoksa aktif proje + localStorage
+        // temizle (aksi halde detay sayfaları kayıp ID ile 403/404 üretir).
         const savedProjectId = localStorage.getItem('activeProjectId')
         if (savedProjectId) {
           const project = response.data.data.find((p: Project) => p.id === savedProjectId)
@@ -63,6 +66,10 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
             setActiveProjectState(project)
           } else if (response.data.data.length > 0) {
             setActiveProjectState(response.data.data[0])
+            localStorage.setItem('activeProjectId', response.data.data[0].id)
+          } else {
+            setActiveProjectState(null)
+            localStorage.removeItem('activeProjectId')
           }
         } else if (response.data.data.length > 0) {
           setActiveProjectState(response.data.data[0])

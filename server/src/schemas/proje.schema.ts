@@ -46,3 +46,16 @@ export const yillikPlanKalemiSchema = z.object({
   planlanan_adet: z.number().min(0).nullable().optional(),
   planlanan_birim_fiyat: z.number().min(0).nullable().optional(),
 })
+
+// Sprint proje-silme-akisi (2026-05-24): iki aşamalı silme akışı.
+// Arşivleme (soft) için sebep zorunlu — audit trail'de "neden silindi"
+// sorusuna cevap. min 3 karakter, max 500.
+export const arsivleProjeSchema = z.object({
+  sebep: z.string().min(3, 'Sebep en az 3 karakter olmalı').max(500, 'Sebep en fazla 500 karakter olabilir'),
+})
+
+// Kalıcı silme için proje adı yazma onayı (typo guard). Backend ayrıca
+// DB'deki proje_adi ile EŞİT mi kontrol eder; case-sensitive eşleşme istenir.
+export const kaliciSilProjeSchema = z.object({
+  projeAdiOnay: z.string().min(1, 'Proje adı onayı zorunlu'),
+})

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import { Button, Modal, Form, Input, Space, Tag, DatePicker, Card, Row, Col, Select, InputNumber, Divider, Typography, Table, Popconfirm, App } from 'antd'
-import { PlusOutlined, EditOutlined, EyeOutlined, ProjectOutlined, DeleteOutlined, TeamOutlined } from '@ant-design/icons'
+import { Button, Modal, Form, Input, Space, Tag, DatePicker, Card, Row, Col, Select, InputNumber, Divider, Typography, Table, Popconfirm, App, Alert, Descriptions } from 'antd'
+import { PlusOutlined, EditOutlined, EyeOutlined, ProjectOutlined, DeleteOutlined, TeamOutlined, InboxOutlined, WarningOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   useMyInvitations,
@@ -39,6 +39,7 @@ interface Proje {
   toplam_butce?: number
   durum: 'planli' | 'devam_ediyor' | 'tamamlandi' | 'iptal'
   bloklar?: Blok[]
+  current_user_role?: 'owner' | 'manager' | 'user' | 'admin' | 'staff' | 'viewer' | null
 }
 
 const durumRenkleri: Record<string, string> = {
@@ -58,16 +59,23 @@ const durumEtiketleri: Record<string, string> = {
 export const ProjeListPage: React.FC = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { refreshProjects, setActiveProject } = useProject()
+  const { refreshProjects, setActiveProject, activeProject } = useProject()
   // Sprint role-system-modernization (PR-C):
   //   - "Yeni Proje" oluşturma: hâlâ legacy global admin'e ait. PR-D ile
   //     birlikte yeniden değerlendirilecek (kooperatif başkanı/owner senaryosu).
   //   - Proje düzenleme (edit) + üyelik yönetimi: artık proje yöneticileri
   //     (owner + manager) da yapabilir — `isManager`.
-  const { canCreateProjects, isManager, canManageUsers } = usePermissions()
+  // Sprint proje-silme-akisi (2026-05-24):
+  //   - Arşivle butonu sadece owner'a açık (server tarafında `requireProjectAccess('owner')`).
+  //     usePermissions().isOwner aktif proje rolü üzerinden hesaplanır — proje kartında
+  //     görünmek için kullanıcının O projede owner olması gerekir. Liste sayfasında
+  //     aktif proje context dışında, kart bazlı kontrol için current_user_role'a bakarız.
+  const { canCreateProjects, isManager, canManageUsers, isLegacyGlobalAdmin } = usePermissions()
   const [modalOpen, setModalOpen] = useState(false)
   const [editingProje, setEditingProje] = useState<Proje | null>(null)
+  const [arsivProje, setArsivProje] = useState<Proje | null>(null)
   const [form] = Form.useForm()
+  const [arsivForm] = Form.useForm()
   const { message: messageApi } = App.useApp()
 
   const { data: projeler, isLoading, isError, error, refetch } = useQuery({
@@ -75,6 +83,37 @@ export const ProjeListPage: React.FC = () => {
     queryFn: async () => {
       const { data } = await api.get('/projeler')
       return data.data as Proje[]
+    },
+  })
+
+  // Sprint proje-silme-akisi (2026-05-24): Arşivleme önizleme + mutation.
+  const onizlemeQuery = useQuery({
+    queryKey: ['proje-silme-onizleme', arsivProje?.id],
+    queryFn: async () => {
+      const { data } = await api.get(`/projeler/${arsivProje!.id}/silme-onizleme`)
+      return data.data as Record<string, number>
+    },
+    enabled: !!arsivProje?.id,
+    staleTime: 0,
+  })
+
+  const arsivMutation = useMutation({
+    mutationFn: async (values: { sebep: string }) => {
+      return await api.post(`/projeler/${arsivProje!.id}/arsivle`, values)
+    },
+    onSuccess: () => {
+      messageApi.success('Proje arşivlendi')
+      queryClient.invalidateQueries({ queryKey: ['projeler'] })
+      // Aktif proje arşivlenen ise temizle — alt sayfalar otomatik fallback'e geçer.
+      if (activeProject?.id === arsivProje?.id) {
+        setActiveProject(null)
+      }
+      refreshProjects()
+      setArsivProje(null)
+      arsivForm.resetFields()
+    },
+    onError: (err: any) => {
+      messageApi.error(getErrorMessage(err))
     },
   })
 
@@ -111,31 +150,46 @@ export const ProjeListPage: React.FC = () => {
   })
 
   const headerActions = React.useMemo(() => {
-    // PR-B: canCreateProjects → admin VEYA yetkili. Yetkisi yoksa buton gizlenir.
-    if (!canCreateProjects) return null
-    return (
+    // Sprint proje-silme-akisi (2026-05-24): "Arşiv" linki — herkese görünür
+    // (yetki gerektirmeyen liste sayfası; arşivde projesi yoksa sayfada empty state).
+    const arsivBtn = (
       <Button
-        type="primary"
-        icon={<PlusOutlined />}
-        data-testid="add-new-project"
-        onClick={() => {
-          setModalOpen(true)
-          setEditingProje(null)
-          // Küçük bir delay ile formun mount olduğundan emin oluyoruz (forceRender olsa bile garantiye almak iyidir)
-          setTimeout(() => {
-            form.resetFields()
-            form.setFieldsValue({
-              durum: 'planli',
-              bloklar: [{ blok_adi: '', toplam_daire: 0, daire_baslangic_no: 1 }]
-            })
-          }, 0)
-        }}
+        icon={<InboxOutlined />}
+        onClick={() => navigate('/projeler/arsiv')}
         size="middle"
       >
-        Yeni Proje
+        Arşiv
       </Button>
     )
-  }, [form, canCreateProjects])
+
+    // PR-B: canCreateProjects → admin VEYA yetkili. Yetkisi yoksa buton gizlenir.
+    if (!canCreateProjects) return arsivBtn
+    return (
+      <Space>
+        {arsivBtn}
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          data-testid="add-new-project"
+          onClick={() => {
+            setModalOpen(true)
+            setEditingProje(null)
+            // Küçük bir delay ile formun mount olduğundan emin oluyoruz (forceRender olsa bile garantiye almak iyidir)
+            setTimeout(() => {
+              form.resetFields()
+              form.setFieldsValue({
+                durum: 'planli',
+                bloklar: [{ blok_adi: '', toplam_daire: 0, daire_baslangic_no: 1 }]
+              })
+            }, 0)
+          }}
+          size="middle"
+        >
+          Yeni Proje
+        </Button>
+      </Space>
+    )
+  }, [form, canCreateProjects, navigate])
 
   usePageSettings('İnşaat Projeleri', headerActions)
 
@@ -246,6 +300,27 @@ export const ProjeListPage: React.FC = () => {
                         </div>,
                       ]
                     : []),
+                  // Sprint proje-silme-akisi (2026-05-24):
+                  // Arşivle butonu — sadece projenin owner'ı (veya global admin)
+                  // görür. Backend requireProjectAccess('owner') de aynı guard'ı yapar.
+                  ...((p.current_user_role === 'owner' || p.current_user_role === 'admin' || isLegacyGlobalAdmin)
+                    ? [
+                        <Button
+                          key="arsiv"
+                          type="text"
+                          size="small"
+                          danger
+                          icon={<InboxOutlined />}
+                          title="Projeyi arşivle (silme yolunda 1. adım)"
+                          data-testid={`archive-project-${p.id}`}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setArsivProje(p)
+                            arsivForm.resetFields()
+                          }}
+                        />,
+                      ]
+                    : []),
                 ]}
                 title={
                   <div 
@@ -281,6 +356,116 @@ export const ProjeListPage: React.FC = () => {
       </Row>
 
       <BekleyenDavetlerSection />
+
+      {/*
+        Sprint proje-silme-akisi (2026-05-24): Arşivle onay modalı.
+        Akış:
+          1) Önizleme query çalışır → etkilenen kayıt sayıları gösterilir.
+          2) Kullanıcı "sebep" yazar, en az 3 karakter.
+          3) Onay → POST /projeler/:id/arsivle → liste yenilenir.
+        Arşivleme reversible — Arşivlenmiş Projeler sayfasından geri alınabilir.
+      */}
+      <Modal
+        title={
+          <Space>
+            <InboxOutlined style={{ color: '#dc2626' }} />
+            <span>Projeyi Arşivle</span>
+          </Space>
+        }
+        open={!!arsivProje}
+        onCancel={() => { setArsivProje(null); arsivForm.resetFields() }}
+        onOk={() => arsivForm.submit()}
+        okText="Arşivle"
+        okButtonProps={{ danger: true, loading: arsivMutation.isPending }}
+        cancelText="İptal"
+        width="min(600px, 95vw)"
+        destroyOnHidden
+        centered
+        getContainer={() => document.body}
+      >
+        {arsivProje && (
+          <>
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: 12 }}
+              message={<span><strong>{arsivProje.proje_adi}</strong> arşivlenecek</span>}
+              description={
+                <span>
+                  Arşivlenen projeler listeden kaybolur ve hiçbir alt kayıt (üye, fatura, hakediş vb.)
+                  değiştirilemez. Bu işlem <strong>geri alınabilir</strong> — kalıcı silme için
+                  Arşivlenmiş Projeler sayfasına gidin.
+                </span>
+              }
+            />
+
+            {onizlemeQuery.isLoading ? (
+              <div style={{ padding: 16, textAlign: 'center', color: '#64748b' }}>
+                Etkilenen kayıt sayıları yükleniyor...
+              </div>
+            ) : onizlemeQuery.data ? (
+              (() => {
+                const counts = onizlemeQuery.data
+                const toplam = Number(counts.toplam_kayit ?? 0)
+                if (toplam === 0) {
+                  return (
+                    <Alert
+                      type="success"
+                      showIcon
+                      style={{ marginBottom: 12 }}
+                      message="Bu proje boş — hiçbir alt kayıt etkilenmeyecek"
+                    />
+                  )
+                }
+                // Sadece > 0 olan kayıtları göster
+                const rows = Object.entries(counts)
+                  .filter(([k, v]) => k !== 'toplam_kayit' && Number(v) > 0)
+                  .sort((a, b) => Number(b[1]) - Number(a[1]))
+                return (
+                  <>
+                    <Descriptions
+                      size="small"
+                      column={2}
+                      bordered
+                      style={{ marginBottom: 12 }}
+                      title={<span><WarningOutlined style={{ color: '#f59e0b' }} /> Etkilenen kayıtlar ({toplam} toplam)</span>}
+                    >
+                      {rows.map(([k, v]) => (
+                        <Descriptions.Item key={k} label={k}>{String(v)}</Descriptions.Item>
+                      ))}
+                    </Descriptions>
+                  </>
+                )
+              })()
+            ) : null}
+
+            <Form
+              form={arsivForm}
+              layout="vertical"
+              onFinish={(v) => arsivMutation.mutate(v)}
+              autoComplete="off"
+              size="small"
+            >
+              <Form.Item
+                name="sebep"
+                label={<span style={{ fontWeight: 500 }}>Arşivleme Sebebi</span>}
+                rules={[
+                  { required: true, message: 'Sebep zorunlu' },
+                  { min: 3, message: 'En az 3 karakter' },
+                  { max: 500, message: 'En fazla 500 karakter' },
+                ]}
+              >
+                <Input.TextArea
+                  rows={3}
+                  placeholder="Örn: Yanlışlıkla oluşturulmuş test projesi"
+                  autoComplete="off"
+                  data-testid="archive-reason-input"
+                />
+              </Form.Item>
+            </Form>
+          </>
+        )}
+      </Modal>
 
       <Modal
         title={editingProje ? 'Proje Düzenle' : 'Yeni Proje'}

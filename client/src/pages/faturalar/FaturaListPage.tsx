@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { Button, Select, Space, Tag, Modal, Form, Input, InputNumber, DatePicker, App, Row, Col, Divider, Typography } from 'antd'
 
 const { RangePicker } = DatePicker
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusOutlined, DeleteOutlined, ScheduleOutlined, EditOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -50,6 +50,7 @@ const tipLabel: Record<string, string> = { gelen: 'Gelen', giden: 'Giden' }
 export const FaturaListPage: React.FC = () => {
   const { message } = App.useApp()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const queryClient = useQueryClient()
   const { activeProject } = useProject()
   const { canEdit, canDelete } = usePermissions()
@@ -58,6 +59,44 @@ export const FaturaListPage: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingFatura, setEditingFatura] = useState<Fatura | null>(null)
   const [form] = Form.useForm()
+
+  const faturaIdFromUrl = searchParams.get('fatura')
+
+  const closeModal = () => {
+    setModalOpen(false)
+    setEditingFatura(null)
+    form.resetFields()
+    if (searchParams.get('fatura')) {
+      const next = new URLSearchParams(searchParams)
+      next.delete('fatura')
+      setSearchParams(next, { replace: true })
+    }
+  }
+
+  // /faturalar?fatura=ID deep-link (FirmaDetailPage > Faturalar tab > Görüntüle).
+  // Modal'ı tek-seferlik açıyoruz; kapatınca param temizleniyor (closeModal).
+  useEffect(() => {
+    if (!faturaIdFromUrl || modalOpen) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data } = await api.get(`/faturalar/${faturaIdFromUrl}`)
+        const f: Fatura | undefined = data?.data
+        if (cancelled || !f) return
+        setEditingFatura(f)
+        form.setFieldsValue({
+          ...f,
+          fatura_tarihi: dayjs(f.fatura_tarihi),
+          vade_tarihi: f.vade_tarihi ? dayjs(f.vade_tarihi) : null,
+          kalemler: f.fatura_kalemleri,
+        })
+        setModalOpen(true)
+      } catch (err) {
+        if (!cancelled) message.error(getErrorMessage(err))
+      }
+    })()
+    return () => { cancelled = true }
+  }, [faturaIdFromUrl, modalOpen, form, message])
 
   // Project değiştiğinde verileri tazele
   useEffect(() => {
@@ -189,9 +228,7 @@ export const FaturaListPage: React.FC = () => {
     onSuccess: () => {
       message.success('Fatura kaydedildi')
       queryClient.invalidateQueries({ queryKey: ['faturalar'] })
-      setModalOpen(false)
-      form.resetFields()
-      setEditingFatura(null)
+      closeModal()
     },
     onError: (err: any) => {
       if (err?.details && Array.isArray(err.details)) {
@@ -308,7 +345,7 @@ export const FaturaListPage: React.FC = () => {
       <Modal
         title={editingFatura ? 'Fatura Düzenle' : 'Yeni Fatura'}
         open={modalOpen}
-        onCancel={() => { setModalOpen(false); setEditingFatura(null); form.resetFields() }}
+        onCancel={closeModal}
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
         width="min(900px, 95vw)"

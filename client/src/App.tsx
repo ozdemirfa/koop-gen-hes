@@ -36,6 +36,7 @@ import { KullaniciYonetimiPage } from './pages/admin/KullaniciYonetimiPage'
 import { ProtectedRoute } from './components/common/ProtectedRoute'
 import { MalzemeTeslimListPage } from './pages/malzemeTeslim/MalzemeTeslimListPage'
 import { ProjeListPage } from './pages/projeler/ProjeListPage'
+import { ArsivlenmisProjelerPage } from './pages/projeler/ArsivlenmisProjelerPage'
 import { ProjeDetailPage } from './pages/projeler/ProjeDetailPage'
 import { SerefiyePage } from './pages/projeler/SerefiyePage'
 import { YillikPlanPage } from './pages/projeler/YillikPlanPage'
@@ -155,6 +156,8 @@ const App: React.FC = () => {
                         <Route path="virmanlar" element={<VirmanListPage />} />
                         <Route path="fatura-irsaliye" element={<MalzemeTeslimListPage />} />
                         <Route path="projeler" element={<ProjeListPage />} />
+                        {/* Sprint proje-silme-akisi (2026-05-24): Arşivlenmiş projeler sayfası */}
+                        <Route path="projeler/arsiv" element={<ArsivlenmisProjelerPage />} />
                         <Route path="projeler/:id" element={<ProjeDetailPage />} />
                         <Route path="projeler/:id/serefiye" element={<SerefiyePage />} />
                         <Route path="projeler/:id/yillik-plan/:yil" element={<YillikPlanPage />} />
