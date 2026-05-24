@@ -265,12 +265,14 @@ export const YillikPlanPage: React.FC = () => {
     }
   }
 
+  // İş Kalemi sütunu — kullanıcı isteği (2026-05-24):
+  //   sabit (sticky) konumlandırma kaldırıldı + genişlik %20 daraltıldı (200 → 160).
+  //   Hem "Bütçe Girişi" hem "Adet × Birim Fiyat" sekmelerinde aynı kolon kullanılıyor.
   const kalemColumn = {
     title: 'İş Kalemi',
     dataIndex: 'tanim',
     key: 'tanim',
-    fixed: 'left' as const,
-    width: 200,
+    width: 160,
     render: (text: string, record: any) => (
       <div>
         <Typography.Text strong>{record.kalem_kodu}</Typography.Text>
@@ -289,10 +291,11 @@ export const YillikPlanPage: React.FC = () => {
     )
   }
 
+  // İşlem sütunu — kullanıcı isteği (2026-05-24): sticky/fixed kaldırıldı,
+  // tablo yatay kaydırılırken son sütun da akar.
   const actionColumn = {
     title: 'İşlem',
     key: 'action',
-    fixed: 'right' as const,
     width: 100,
     render: (_: any, record: any) => (
       <Space orientation="horizontal">
@@ -503,7 +506,7 @@ export const YillikPlanPage: React.FC = () => {
                   columns={tutarColumns}
                   rowKey="kalem_id"
                   pagination={false}
-                  scroll={{ x: 1600 }}
+                  scroll={{ x: 'max-content' }}
                   size="small"
                 />
               ),
@@ -517,7 +520,7 @@ export const YillikPlanPage: React.FC = () => {
                   columns={adetColumns}
                   rowKey="kalem_id"
                   pagination={false}
-                  scroll={{ x: 2000 }}
+                  scroll={{ x: 'max-content' }}
                   size="small"
                 />
               ),

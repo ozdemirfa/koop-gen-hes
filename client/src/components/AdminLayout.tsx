@@ -477,15 +477,18 @@ export const AdminLayout: React.FC = () => {
           settingsMenu={settingsMenu}
         />
         <InvitationBanner />
-        <Content style={{
-          margin: '24px',
+        {/*
+         * 2026-05-24 (UI compaction): content margin daraltıldı (24 → 8) ve
+         * maxWidth: 1400 ile dayatılan sayfa içi sınır kaldırıldı. Sayfa
+         * gövdesi artık kenarlara çok yakın hizalanır; mobilde admin-content
+         * CSS sınıfı padding'i daha da küçültür (bkz. index.css).
+         */}
+        <Content className="admin-content" style={{
           minHeight: 280,
           background: 'transparent',
           overflow: 'initial'
         }}>
-          <div style={{ maxWidth: 1400, margin: '0 auto' }}>
-            <Outlet />
-          </div>
+          <Outlet />
         </Content>
       </Layout>
     </Layout>

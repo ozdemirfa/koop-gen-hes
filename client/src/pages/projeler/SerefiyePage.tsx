@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
-import { Button, Modal, Form, Input, InputNumber, Tag, Space, Card, Row, Col, Select, Typography, App } from 'antd'
-import { EditOutlined, ArrowLeftOutlined, UserAddOutlined, UserDeleteOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons'
+import { Button, Modal, Form, Input, InputNumber, Tag, Space, Card, Row, Col, Select, Typography, App, Tooltip } from 'antd'
+import { EditOutlined, ArrowLeftOutlined, UserAddOutlined, UserDeleteOutlined, DownloadOutlined, UploadOutlined, AppstoreAddOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../../lib/api'
@@ -164,54 +164,58 @@ export const SerefiyePage: React.FC = () => {
   }
 
   const actions = useMemo(() => (
-    <Space orientation="horizontal">
-      <Button
-        icon={<ArrowLeftOutlined />}
-        onClick={() => navigate(`/projeler/${projeId}`)}
-        type="text"
-      />
-      <Button 
-        type="primary" 
-        onClick={async () => {
-          try {
-            await api.post(`/projeler/serefiye-actions/olustur`, { projeId })
-            messageApi.success('Şerefiye tablosu oluşturuldu')
-            queryClient.invalidateQueries({ queryKey: ['serefiye-list', projeId] })
-          } catch (err) {
-            messageApi.error(getErrorMessage(err))
-          }
-        }} 
-        disabled={serefiyeList && serefiyeList.length > 0}
-        style={{ backgroundColor: '#1890ff', color: '#52c41a', fontWeight: 'bold' }}
-      >
-        Tabloyu Oluştur
-      </Button>
+    <Space size="small" orientation="horizontal">
+      <Tooltip title="Geri">
+        <Button
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate(`/projeler/${projeId}`)}
+          type="text"
+          aria-label="Geri"
+        />
+      </Tooltip>
+      <Tooltip title="Tabloyu Oluştur">
+        <Button
+          type="primary"
+          icon={<AppstoreAddOutlined />}
+          onClick={async () => {
+            try {
+              await api.post(`/projeler/serefiye-actions/olustur`, { projeId })
+              messageApi.success('Şerefiye tablosu oluşturuldu')
+              queryClient.invalidateQueries({ queryKey: ['serefiye-list', projeId] })
+            } catch (err) {
+              messageApi.error(getErrorMessage(err))
+            }
+          }}
+          disabled={serefiyeList && serefiyeList.length > 0}
+          aria-label="Tabloyu Oluştur"
+        />
+      </Tooltip>
 
       {serefiyeList && serefiyeList.length > 0 && (
-        <Button danger onClick={handleClear}>
-          Tabloyu Sil
-        </Button>
+        <Tooltip title="Tabloyu Sil">
+          <Button danger icon={<DeleteOutlined />} onClick={handleClear} aria-label="Tabloyu Sil" />
+        </Tooltip>
       )}
     </Space>
   ), [navigate, projeId, serefiyeList])
 
   const rightActions = useMemo(() => (
-    <Space>
-      <Button 
-        icon={<DownloadOutlined />} 
-        onClick={handleCsvDownload}
-        title="CSV İndir"
-      >
-        CSV İndir
-      </Button>
-      <label htmlFor="csv-upload" style={{ cursor: 'pointer' }}>
-        <Button 
-          icon={<UploadOutlined />} 
-          onClick={() => document.getElementById('csv-upload')?.click()}
-          title="CSV Yükle"
-        >
-          CSV Yükle
-        </Button>
+    <Space size="small">
+      <Tooltip title="CSV İndir">
+        <Button
+          icon={<DownloadOutlined />}
+          onClick={handleCsvDownload}
+          aria-label="CSV İndir"
+        />
+      </Tooltip>
+      <label htmlFor="csv-upload" style={{ cursor: 'pointer', display: 'inline-flex' }}>
+        <Tooltip title="CSV Yükle">
+          <Button
+            icon={<UploadOutlined />}
+            onClick={() => document.getElementById('csv-upload')?.click()}
+            aria-label="CSV Yükle"
+          />
+        </Tooltip>
         <input
           id="csv-upload"
           type="file"

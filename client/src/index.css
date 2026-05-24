@@ -314,3 +314,49 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/*
+ * 2026-05-24 (UI compaction): sayfa gövdesini içerik kenarına yaklaştır.
+ *   - Desktop: 12px padding, içerik genişliği serbest (önceki maxWidth: 1400
+ *     dayatması kaldırıldı → büyük ekranlarda tablolar kenara kadar açılır).
+ *   - Tablet (<992px): 8px padding.
+ *   - Mobile (<768px): 6px padding — tablolar/kartlar kenara çok az kalır.
+ *   - Küçük telefon (<480px): 4px padding.
+ *
+ * Card/Table'ların kendi padding'i AntD default kalır; ancak sayfa içinde
+ * Card "borderless" + "body padding: 0" kullanan ekranlar (proje detay
+ * iş kalemleri, yıllık plan, şerefiye) kenarla flush olur.
+ */
+.admin-content {
+  padding: 12px;
+}
+@media (max-width: 991px) {
+  .admin-content {
+    padding: 8px;
+  }
+}
+@media (max-width: 767px) {
+  .admin-content {
+    padding: 6px;
+  }
+  /* Mobilde card body padding'i biraz daraltsın — istatistik kartı dışındaki
+     genel kartlar (form, liste container'ları) da kenar boşluğunu azaltsın. */
+  .admin-content .ant-card > .ant-card-body {
+    padding: 12px;
+  }
+  /* Tablolarda hücre padding'i azalt — mobilde dar ekranda daha çok kolon görsün */
+  .admin-content .ant-table-small .ant-table-cell {
+    padding: 6px 6px !important;
+  }
+  .admin-content .ant-table-cell {
+    padding: 8px 8px;
+  }
+}
+@media (max-width: 479px) {
+  .admin-content {
+    padding: 4px;
+  }
+  .admin-content .ant-card > .ant-card-body {
+    padding: 10px;
+  }
+}
