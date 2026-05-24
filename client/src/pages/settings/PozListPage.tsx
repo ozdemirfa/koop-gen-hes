@@ -145,7 +145,7 @@ export const PozListPage: React.FC = () => {
         </Button>
         {!canCreateGlobalDefs && (
           <Typography.Text type="secondary">
-            Poz eklemek için yetkili, yönetici veya sistem admin olmalısınız. Düzenleme/silme yalnız sistem admin'e açıktır.
+            Poz ekleme ya da düzenleme için proje yetkilisine başvurunuz.
           </Typography.Text>
         )}
       </div>
