@@ -95,7 +95,7 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data, yil, planYil
       if (cleanValues.notlar === '') delete cleanValues.notlar
 
       if (editingKalem) {
-        return await api.put(`/projeler/is-kalemleri/${editingKalem.id}`, cleanValues)
+        return await api.put(`/projeler/is-kalemleri/${editingKalem.id}`, { ...cleanValues, proje_id: projeId })
       }
       return await api.post(`/projeler/${projeId}/is-kalemleri`, cleanValues)
     },
@@ -112,7 +112,7 @@ export const ProjeIsKalemiTree: React.FC<Props> = ({ projeId, data, yil, planYil
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await api.delete(`/projeler/is-kalemleri/${id}`)
+      return await api.delete(`/projeler/is-kalemleri/${id}`, { params: { proje_id: projeId } })
     },
     onSuccess: () => {
       messageApi.success('İş kalemi silindi')

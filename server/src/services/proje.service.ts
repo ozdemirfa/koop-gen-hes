@@ -427,9 +427,12 @@ export const projeService = {
   },
 
   async updateIsKalemi(id: string, body: Record<string, any>) {
+    // proje_id middleware (requireProjectAccess) için body'de taşınır; UPDATE
+    // payload'ı FK'yi yeniden yazmasın — kalemin başka projeye taşınma vektörünü kapat.
+    const { proje_id: _pid, projeId: _pidCamel, ...updatePayload } = body
     const { data, error } = await supabaseAdmin
       .from('proje_is_kalemleri')
-      .update(body)
+      .update(updatePayload)
       .eq('id', id)
       .select()
       .single()

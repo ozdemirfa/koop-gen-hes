@@ -40,10 +40,15 @@ export const SozlesmeDetailPage: React.FC = () => {
     },
   })
 
+  const projeId = sozlesme?.proje_id as string | undefined
+
   const { data: isKalemleri, isLoading: kalemLoading } = useQuery({
-    queryKey: ['is-kalemleri', id],
+    queryKey: ['is-kalemleri', id, projeId],
+    enabled: !!projeId,
     queryFn: async () => {
-      const response = await api.get(`/sozlesmeler/${id}/is-kalemleri`)
+      const response = await api.get(`/sozlesmeler/${id}/is-kalemleri`, {
+        params: { proje_id: projeId },
+      })
       return response.data.data as IsKalemi[]
     },
   })
@@ -87,11 +92,12 @@ export const SozlesmeDetailPage: React.FC = () => {
 
   const saveKalemMutation = useMutation({
     mutationFn: async (values: Record<string, unknown>) => {
+      const payload = { ...values, proje_id: projeId }
       if (editingKalem) {
-        const { data } = await api.put(`/sozlesmeler/is-kalemleri/${editingKalem.id}`, values)
+        const { data } = await api.put(`/sozlesmeler/is-kalemleri/${editingKalem.id}`, payload)
         return data
       }
-      const { data } = await api.post(`/sozlesmeler/${id}/is-kalemleri`, values)
+      const { data } = await api.post(`/sozlesmeler/${id}/is-kalemleri`, payload)
       return data
     },
     onSuccess: () => {
@@ -104,7 +110,9 @@ export const SozlesmeDetailPage: React.FC = () => {
 
   const deleteKalemMutation = useMutation({
     mutationFn: async (kalemId: string) => {
-      await api.delete(`/sozlesmeler/is-kalemleri/${kalemId}`)
+      await api.delete(`/sozlesmeler/is-kalemleri/${kalemId}`, {
+        params: { proje_id: projeId },
+      })
 
       // C4 (sprint 20260511-uye-tahsilat-firma-revisions): silme sonrası kalan
       // kalemleri 1'den itibaren yeniden numaralandır. Eksik sira_no dizilerini
@@ -128,6 +136,7 @@ export const SozlesmeDetailPage: React.FC = () => {
             birim: kalem.birim,
             miktar: kalem.miktar,
             birim_fiyat: kalem.birim_fiyat,
+            proje_id: projeId,
           })
         )
       )
