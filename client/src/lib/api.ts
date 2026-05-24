@@ -51,8 +51,14 @@ api.interceptors.request.use(async (config) => {
         config.data instanceof FormData ||
         config.data instanceof Blob ||
         config.data instanceof File
-      if (!isMultipart && typeof config.data === 'object' && config.data !== null && !config.data?.proje_id && !config.data?.projeId) {
-        config.data = { ...config.data, proje_id: activeProjectId }
+      if (!isMultipart) {
+        if (config.data == null) {
+          // Bodyless PUT/POST/PATCH (örn. /hakedisler/:id/onayla) için body
+          // yarat — yoksa requireProjectAccess proje_id bulamayıp 400 döner.
+          config.data = { proje_id: activeProjectId }
+        } else if (typeof config.data === 'object' && !config.data?.proje_id && !config.data?.projeId) {
+          config.data = { ...config.data, proje_id: activeProjectId }
+        }
       }
     }
   }
