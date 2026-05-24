@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Row, Col, Card, Statistic, Tag, Button, Space, Divider, Typography, Collapse } from 'antd'
+import { Row, Col, Card, Statistic, Tag, Button, Space, Divider, Typography, Collapse, Tooltip } from 'antd'
 import { CalendarOutlined, ArrowLeftOutlined, BarChartOutlined, HomeOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
@@ -66,28 +66,31 @@ export const ProjeDetailPage: React.FC = () => {
   })
 
   const actions = useMemo(() => (
-    <Space>
-      <Button
-        icon={<HomeOutlined />}
-        onClick={() => navigate(`/projeler/${id}/serefiye`)}
-        style={{ background: 'white' }}
-      >
-        Şerefiye Tablosu
-      </Button>
-      <Button
-        icon={<BarChartOutlined />}
-        onClick={() => navigate(`/projeler/${id}/yillik-plan/${selectedYear}`)}
-        style={{ background: 'white' }}
-      >
-        Yıllık Plan
-      </Button>
-      <Button
-        icon={<ArrowLeftOutlined />}
-        onClick={() => navigate('/projeler')}
-        style={{ background: 'white' }}
-      >
-        Geri
-      </Button>
+    <Space size="small">
+      <Tooltip title="Şerefiye Tablosu">
+        <Button
+          icon={<HomeOutlined />}
+          onClick={() => navigate(`/projeler/${id}/serefiye`)}
+          aria-label="Şerefiye Tablosu"
+          style={{ background: 'white' }}
+        />
+      </Tooltip>
+      <Tooltip title="Yıllık Plan">
+        <Button
+          icon={<BarChartOutlined />}
+          onClick={() => navigate(`/projeler/${id}/yillik-plan/${selectedYear}`)}
+          aria-label="Yıllık Plan"
+          style={{ background: 'white' }}
+        />
+      </Tooltip>
+      <Tooltip title="Geri">
+        <Button
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate('/projeler')}
+          aria-label="Geri"
+          style={{ background: 'white' }}
+        />
+      </Tooltip>
     </Space>
   ), [id, navigate, selectedYear])
 

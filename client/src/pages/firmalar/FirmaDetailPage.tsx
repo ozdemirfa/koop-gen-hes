@@ -202,7 +202,7 @@ export const FirmaDetailPage: React.FC = () => {
     { title: 'Matrah', key: 'brut', align: 'right' as const, width: 130, responsive: ['sm'] as ('sm')[], render: (_: any, r: any) => <MoneyDisplay amount={r.ara_toplam || r.brut_tutar || 0} /> },
     { title: 'Hakediş Toplamı (KDVli)', key: 'kdvli', align: 'right' as const, width: 150, responsive: ['md'] as ('md')[], render: (_: any, r: any) => <MoneyDisplay amount={r.hakedis_toplam || (Number(r.ara_toplam || r.brut_tutar || 0) + Number(r.kdv_tutar || 0))} /> },
     { title: 'Teminat', dataIndex: 'teminat_kesintisi', key: 'teminat', align: 'right' as const, width: 110, responsive: ['lg'] as ('lg')[], render: (v: number) => <MoneyDisplay amount={v} colored /> },
-    { title: 'Stopaj', dataIndex: 'stopaj_kesintisi', key: 'stopaj', align: 'right' as const, width: 110, responsive: ['lg'] as ('lg')[], render: (v: number) => <MoneyDisplay amount={v} colored /> },
+    { title: 'Stopaj', dataIndex: 'stopaj_kesintisi', key: 'stopaj', align: 'right' as const, width: 90, responsive: ['sm'] as ('sm')[], render: (v: number) => <MoneyDisplay amount={v} colored /> },
     { title: 'Net Ödeme', dataIndex: 'net_tutar', key: 'net', align: 'right' as const, width: 130, render: (v: number) => <MoneyDisplay amount={v} /> },
     { title: 'Durum', dataIndex: 'durum', key: 'durum', width: 100, render: (d: string) => <Tag color={durumRenk[d] || 'default'}>{d.toUpperCase()}</Tag> },
     { 
