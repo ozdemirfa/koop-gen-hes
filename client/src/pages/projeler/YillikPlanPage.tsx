@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Table, InputNumber, Button, Space, Card, Typography, Empty, Row, Col, Statistic, Popconfirm, Modal, Select, App, Tabs } from 'antd'
+import { Table, InputNumber, Button, Space, Card, Typography, Empty, Row, Col, Statistic, Popconfirm, Modal, Select, App, Tabs, Grid } from 'antd'
 import { SaveOutlined, PlusOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons'
 import api from '../../lib/api'
 import { getErrorMessage } from '../../lib/apiError'
@@ -200,7 +200,11 @@ export const YillikPlanPage: React.FC = () => {
     </Space>
   ), [yil, yearOptions, plan, projeId, navigate])
 
-  usePageSettings(`${yil} Yılı Yıllık Planı`, headerActions)
+  // Mobil görünümde header title'ı gizle (kullanıcı isteği 2026-05-24):
+  // başlık yıl seçici + butonlarla zaten redundant — dar ekranda yer tutmasın.
+  const screens = Grid.useBreakpoint()
+  const isMobile = !screens.md
+  usePageSettings(isMobile ? '' : `${yil} Yılı Yıllık Planı`, headerActions)
 
   const handleInputChange = (pkId: string, value: number | null) => {
     setEditingValues(prev => ({ ...prev, [pkId]: value || 0 }))
