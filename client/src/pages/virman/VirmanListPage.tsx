@@ -91,7 +91,7 @@ export const VirmanListPage: React.FC = () => {
         title: 'Tarih',
         dataIndex: 'tarih',
         key: 'tarih',
-        width: 110,
+        width: 95,
         render: (d: string) => (d ? dayjs(d).format('DD.MM.YYYY') : '-'),
         sorter: (a: VirmanRow, b: VirmanRow) =>
           dayjs(a.tarih).valueOf() - dayjs(b.tarih).valueOf(),
@@ -101,7 +101,7 @@ export const VirmanListPage: React.FC = () => {
         title: 'Tip',
         dataIndex: 'virman_tipi',
         key: 'virman_tipi',
-        width: 150,
+        width: 120,
         render: (v: string) => {
           const meta = VIRMAN_TIPI_META[v] ?? { label: v, color: 'default' }
           return <Tag color={meta.color}>{meta.label}</Tag>
@@ -132,16 +132,16 @@ export const VirmanListPage: React.FC = () => {
         title: 'Tutar',
         dataIndex: 'tutar',
         key: 'tutar',
-        width: 140,
+        width: 110,
         align: 'right' as const,
         render: (v: number) => <MoneyDisplay amount={Number(v) || 0} />,
         sorter: (a: VirmanRow, b: VirmanRow) => Number(a.tutar) - Number(b.tutar),
       },
-      { title: 'Açıklama', dataIndex: 'aciklama', key: 'aciklama', render: (v?: string | null) => v || '-' },
+      { title: 'Açıklama', dataIndex: 'aciklama', key: 'aciklama', ellipsis: true, render: (v?: string | null) => v || '-' },
       {
         title: 'İşlem',
         key: 'actions',
-        width: 80,
+        width: 60,
         align: 'center' as const,
         render: (_: unknown, r: VirmanRow) => (
           <Popconfirm

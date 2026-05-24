@@ -201,7 +201,6 @@ export const MalzemeTeslimListPage: React.FC = () => {
     {
       title: 'İşlem',
       key: 'action',
-      fixed: 'right' as const,
       width: 90,
       render: (_: any, r: Irsaliye) => (
         <Space size="small">

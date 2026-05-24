@@ -262,12 +262,15 @@ export const FirmaDetailPage: React.FC = () => {
 
   // xs (<576px) görünür: Tarih, İşlem Türü, Bakiye.
   // sm+: Borç, Alacak. md+: Açıklama.
+  // Sütun genişlikleri kompaktlaştırıldı (kullanıcı isteği 2026-05-24): tablo
+  // sayfa kenarına kadar açılır, scroll'a düşmesin diye işlem türü 130→95,
+  // tarih 100→90, borç/alacak/bakiye 110→100.
   const cariColumns = [
-    { title: 'Tarih', dataIndex: 'tarih', key: 'tarih', width: 100, render: (d: string) => dayjs(d).format('DD.MM.YYYY') },
+    { title: 'Tarih', dataIndex: 'tarih', key: 'tarih', width: 90, render: (d: string) => dayjs(d).format('DD.MM.YYYY') },
     {
       title: 'İşlem Türü',
       key: 'islem_turu',
-      width: 130,
+      width: 95,
       render: (_: any, r: any) => {
         // Hakediş satırı mı ve bu hakedişe bağlı ödeme var mı kontrol et
         const isHakedis = r.islem_turu === 'hakedis';
@@ -304,9 +307,9 @@ export const FirmaDetailPage: React.FC = () => {
       },
     },
     { title: 'Açıklama', dataIndex: 'aciklama', key: 'aciklama', responsive: ['md'] as ('md')[], ellipsis: true },
-    { title: 'Borç', dataIndex: 'borc', key: 'borc', width: 110, align: 'right' as const, responsive: ['sm'] as ('sm')[], render: (v: number) => (v && v > 0) ? <span style={{ color: '#cf1322' }}><MoneyDisplay amount={v} /></span> : '-' },
-    { title: 'Alacak', dataIndex: 'alacak', key: 'alacak', width: 110, align: 'right' as const, responsive: ['sm'] as ('sm')[], render: (v: number) => (v && v > 0) ? <span style={{ color: '#3f8600' }}><MoneyDisplay amount={v} /></span> : '-' },
-    { title: 'Bakiye', dataIndex: 'bakiye', key: 'bakiye', width: 110, align: 'right' as const, render: (v: number) => <MoneyDisplay amount={v} colored /> },
+    { title: 'Borç', dataIndex: 'borc', key: 'borc', width: 100, align: 'right' as const, responsive: ['sm'] as ('sm')[], render: (v: number) => (v && v > 0) ? <span style={{ color: '#cf1322' }}><MoneyDisplay amount={v} /></span> : '-' },
+    { title: 'Alacak', dataIndex: 'alacak', key: 'alacak', width: 100, align: 'right' as const, responsive: ['sm'] as ('sm')[], render: (v: number) => (v && v > 0) ? <span style={{ color: '#3f8600' }}><MoneyDisplay amount={v} /></span> : '-' },
+    { title: 'Bakiye', dataIndex: 'bakiye', key: 'bakiye', width: 100, align: 'right' as const, render: (v: number) => <MoneyDisplay amount={v} colored /> },
   ]
 
   // --- Calculations ---

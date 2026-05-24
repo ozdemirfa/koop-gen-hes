@@ -533,13 +533,18 @@ export const UyeDetailPage: React.FC = () => {
 
   return (
     <div>
-      <PageHeader 
-        title={uye ? `${uye.ad} ${uye.soyad}` : "Üye Detayı"} 
+      <PageHeader
+        title={uye ? `${uye.ad} ${uye.soyad}` : "Üye Detayı"}
         subtitle={uye ? `Üye No: ${uye.uye_no} | Daire Kod: ${daireNo}` : ""}
         onBack={() => navigate('/uyeler')}
         extra={
-          <Space>
+          // 2026-05-24: Aksiyon grubu CSS class ile sarılır — desktop'ta inline
+          // [ikon + yazı] olarak kalır; mobilde (<768px) .uye-detail-actions
+          // medya kuralı butonları flex: 1 1 0 + flex-direction: column yapar →
+          // 3 buton ekrana yan yana sığar (üst satır ikon, alt satır yazı).
+          <div className="uye-detail-actions">
             <Button
+              className="uye-detail-action-btn"
               icon={<AuditOutlined />}
               onClick={() => matchMutation.mutate()}
               loading={matchMutation.isPending}
@@ -549,6 +554,7 @@ export const UyeDetailPage: React.FC = () => {
               Hesap Kapatma (FIFO)
             </Button>
             <Button
+              className="uye-detail-action-btn"
               icon={<UserAddOutlined />}
               onClick={() => setBaslangicModalOpen(true)}
               disabled={!canEdit}
@@ -557,8 +563,8 @@ export const UyeDetailPage: React.FC = () => {
               Başlangıç Bedeli Tahakkuk
             </Button>
             <Button
+              className="uye-detail-action-btn"
               type="primary"
-              size="large"
               danger
               icon={<PercentageOutlined />}
               onClick={() => setFaizModalOpen(true)}
@@ -567,7 +573,7 @@ export const UyeDetailPage: React.FC = () => {
             >
               Üye Faiz Borç İşle
             </Button>
-          </Space>
+          </div>
         }
       />
 
@@ -629,11 +635,14 @@ export const UyeDetailPage: React.FC = () => {
           defaultActiveKey="1"
           type="line"
           size="large"
+          className="uye-detail-tabs"
           style={{ padding: '0 24px 24px' }}
           items={[
+            // 2026-05-24: tab label'ları artık .tab-label-stacked span ile sarılır
+            // → mobilde ikon üstte, yazı altta; üç sekme yan yana eşit genişlikte sığar.
             {
               key: '1',
-              label: <Space><DollarOutlined />Aidat Hesapları</Space>,
+              label: <span className="tab-label-stacked"><DollarOutlined /><span>Aidat Hesapları</span></span>,
               children: (
                 <div style={{ paddingTop: 16 }}>
                   <DataTable
@@ -649,7 +658,7 @@ export const UyeDetailPage: React.FC = () => {
             },
             {
               key: '2',
-              label: <Space><HistoryOutlined />Ödemeler / Makbuzlar</Space>,
+              label: <span className="tab-label-stacked"><HistoryOutlined /><span>Ödemeler / Makbuzlar</span></span>,
               children: (
                 <div style={{ paddingTop: 16 }}>
                   <DataTable
@@ -664,7 +673,7 @@ export const UyeDetailPage: React.FC = () => {
             },
             {
               key: '3',
-              label: <Space><UserOutlined />Profil Bilgileri</Space>,
+              label: <span className="tab-label-stacked"><UserOutlined /><span>Profil Bilgileri</span></span>,
               children: (
                 <div style={{ paddingTop: 24 }}>
                   {uye && (
