@@ -94,7 +94,7 @@ export const AidatYillikPlanPage: React.FC = () => {
   }
 
   return (
-    <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+    <div>
       <PageHeader
         title="Yeni Yıllık Aidat Planı"
         subtitle="Seçilen yıl için aylık aidat ve ara ödeme planı hazırlayın (Sadece taslak olarak kaydedilir)"
@@ -116,13 +116,13 @@ export const AidatYillikPlanPage: React.FC = () => {
           autoComplete="off"
           validateTrigger={["onBlur", "onChange"]}
         >
-          <Row gutter={16} align="middle">
-            <Col span={6}>
+          <Row gutter={[16, 8]} align="middle">
+            <Col xs={12} sm={8} md={6}>
               <Form.Item name="yil" label="Hangi Yıl İçin Planlanıyor?" rules={[{ required: true }]}>
                  <InputNumber style={{ width: '100%' }} placeholder="Örn: 2026" autoComplete="off" />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col xs={12} sm={8} md={6}>
               <div style={{ padding: '0 8px' }}>
                 <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Yıllık Toplam Ödeme (1 Pay)</Text>
                 <Text strong style={{ fontSize: '20px', color: '#1890ff' }}>
@@ -140,7 +140,14 @@ export const AidatYillikPlanPage: React.FC = () => {
             </Col>
           </Row>
 
-          <div style={{ marginTop: 10 }}>
+          {/*
+           * 2026-05-24 (kullanıcı isteği): satır artık responsive grid.
+           * Desktop'ta yatay (Row gutter), mobilde wrap'lı (Col xs={12}/{24}).
+           * Üst başlık satırı kaldırıldı; her input kendi label'ını taşıyor →
+           * mobilde dar ekranda da label görünür. Outer .yillik-plan-rows
+           * container'i xs (<576) için gerekirse yatay scroll açar.
+           */}
+          <div className="yillik-plan-rows" style={{ marginTop: 10 }}>
             <Form.List name="kalemler">
               {(fields, { add, remove }) => (
                 <>
@@ -154,98 +161,108 @@ export const AidatYillikPlanPage: React.FC = () => {
                     </Button>
                   </div>
 
-                  <div style={{ display: 'flex', fontWeight: 'bold', marginBottom: 8, padding: '0 8px' }}>
-                    <div style={{ width: 130 }}>Ay</div>
-                    <div style={{ width: 130 }}>Tür</div>
-                    <div style={{ width: 160 }}>Katsayı Tutarı (TL)</div>
-                    <div style={{ width: 110 }}>Son Gün</div>
-                    <div style={{ width: 110 }}>Gecikme %</div>
-                    <div style={{ flex: 1 }}>İşlemler</div>
-                  </div>
-
                   {fields.map(({ key, name, ...restField }) => (
-                    <Card size="small" style={{ marginBottom: 8 }} key={key} styles={{ body: { padding: '12px 8px' } }}>
-                      <Space style={{ display: 'flex' }} align="baseline">
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'ay']}
-                          rules={[{ required: true }]}
-                          style={{ marginBottom: 0 }}
-                        >
-                          <Select style={{ width: 120 }}>
-                            {aylar.map((a, i) => <Select.Option key={i + 1} value={i + 1}>{a}</Select.Option>)}
-                          </Select>
-                        </Form.Item>
-
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'tur']}
-                          rules={[{ required: true }]}
-                          style={{ marginBottom: 0 }}
-                        >
-                          <Select style={{ width: 120 }}>
-                            <Select.Option value="normal">Normal</Select.Option>
-                            <Select.Option value="ara_odeme">Ara Ödeme</Select.Option>
-                          </Select>
-                        </Form.Item>
-
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'katsayi_tutari']}
-                          rules={[{ required: true, message: 'Zorunlu' }]}
-                          style={{ marginBottom: 0 }}
-                        >
-                          <InputNumber 
-                            placeholder="Tutar" 
-                            min={0} 
-                            step={0.01}
-                            style={{ width: 150 }} 
-                            onChange={(val) => handleKatsayiChange(val as number | null, name)}
-                            formatter={trMoneyFormatter}
-                            parser={trNumberParser}
-                            decimalSeparator=","
-                            autoComplete="off"
-                          />
-                        </Form.Item>
-
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'son_odeme_gunu']}
-                          style={{ marginBottom: 0 }}
-                        >
-                          <InputNumber placeholder="Gün" min={1} max={31} style={{ width: 100 }} autoComplete="off" />
-                        </Form.Item>
-
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'gecikme_faiz_orani']}
-                          style={{ marginBottom: 0 }}
-                        >
-                          <InputNumber 
-                            placeholder="%" 
-                            min={0} 
-                            max={100} 
-                            step={0.1} 
-                            style={{ width: 100 }} 
-                            onChange={(val) => handleGecikmeChange(val as number | null, name)}
-                            formatter={trNumberFormatter}
-                            parser={trNumberParser}
-                            decimalSeparator=","
-                            autoComplete="off"
-                          />
-                        </Form.Item>
-
-                        <Space>
-                          <Button 
-                            type="dashed" 
-                            size="small"
-                            onClick={() => add({ ay: form.getFieldValue(['kalemler', name, 'ay']), tur: 'ara_odeme', katsayi_tutari: 0, son_odeme_gunu: 15, gecikme_faiz_orani: 0 }, name + 1)}
+                    <Card size="small" style={{ marginBottom: 8 }} key={key} styles={{ body: { padding: '10px 12px' } }}>
+                      <Row gutter={[8, 8]} align="bottom">
+                        <Col xs={12} sm={8} md={4}>
+                          <Form.Item
+                            {...restField}
+                            name={[name, 'ay']}
+                            label="Ay"
+                            rules={[{ required: true }]}
+                            style={{ marginBottom: 0 }}
                           >
-                            + Ara Ödeme
-                          </Button>
-                          <Button type="text" danger size="small" onClick={() => remove(name)}>Sil</Button>
-                        </Space>
-                      </Space>
+                            <Select style={{ width: '100%' }} size="small">
+                              {aylar.map((a, i) => <Select.Option key={i + 1} value={i + 1}>{a}</Select.Option>)}
+                            </Select>
+                          </Form.Item>
+                        </Col>
+
+                        <Col xs={12} sm={8} md={4}>
+                          <Form.Item
+                            {...restField}
+                            name={[name, 'tur']}
+                            label="Tür"
+                            rules={[{ required: true }]}
+                            style={{ marginBottom: 0 }}
+                          >
+                            <Select style={{ width: '100%' }} size="small">
+                              <Select.Option value="normal">Normal</Select.Option>
+                              <Select.Option value="ara_odeme">Ara Ödeme</Select.Option>
+                            </Select>
+                          </Form.Item>
+                        </Col>
+
+                        <Col xs={12} sm={8} md={5}>
+                          <Form.Item
+                            {...restField}
+                            name={[name, 'katsayi_tutari']}
+                            label="Katsayı (₺)"
+                            rules={[{ required: true, message: 'Zorunlu' }]}
+                            style={{ marginBottom: 0 }}
+                          >
+                            <InputNumber
+                              placeholder="Tutar"
+                              min={0}
+                              step={0.01}
+                              size="small"
+                              style={{ width: '100%' }}
+                              onChange={(val) => handleKatsayiChange(val as number | null, name)}
+                              formatter={trMoneyFormatter}
+                              parser={trNumberParser}
+                              decimalSeparator=","
+                              autoComplete="off"
+                            />
+                          </Form.Item>
+                        </Col>
+
+                        <Col xs={6} sm={4} md={3}>
+                          <Form.Item
+                            {...restField}
+                            name={[name, 'son_odeme_gunu']}
+                            label="Son Gün"
+                            style={{ marginBottom: 0 }}
+                          >
+                            <InputNumber placeholder="Gün" min={1} max={31} size="small" style={{ width: '100%' }} autoComplete="off" />
+                          </Form.Item>
+                        </Col>
+
+                        <Col xs={6} sm={4} md={3}>
+                          <Form.Item
+                            {...restField}
+                            name={[name, 'gecikme_faiz_orani']}
+                            label="Gecikme %"
+                            style={{ marginBottom: 0 }}
+                          >
+                            <InputNumber
+                              placeholder="%"
+                              min={0}
+                              max={100}
+                              step={0.1}
+                              size="small"
+                              style={{ width: '100%' }}
+                              onChange={(val) => handleGecikmeChange(val as number | null, name)}
+                              formatter={trNumberFormatter}
+                              parser={trNumberParser}
+                              decimalSeparator=","
+                              autoComplete="off"
+                            />
+                          </Form.Item>
+                        </Col>
+
+                        <Col xs={12} sm={24} md={5}>
+                          <Space size={4} wrap>
+                            <Button
+                              type="dashed"
+                              size="small"
+                              onClick={() => add({ ay: form.getFieldValue(['kalemler', name, 'ay']), tur: 'ara_odeme', katsayi_tutari: 0, son_odeme_gunu: 15, gecikme_faiz_orani: 0 }, name + 1)}
+                            >
+                              + Ara Ödeme
+                            </Button>
+                            <Button type="text" danger size="small" onClick={() => remove(name)}>Sil</Button>
+                          </Space>
+                        </Col>
+                      </Row>
                     </Card>
                   ))}
                 </>

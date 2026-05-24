@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import type { ReactNode } from 'react'
-import { Space, Badge, Button, Drawer, Grid } from 'antd'
+import { Space, Badge, Button, Drawer, Grid, Tooltip } from 'antd'
 import { FilterOutlined } from '@ant-design/icons'
 
 const { useBreakpoint } = Grid
@@ -60,15 +60,20 @@ export const HeaderActionsToolbar: React.FC<HeaderActionsToolbarProps> = ({
       <>
         <Space size="small" wrap>
           {primary}
+          {/*
+           * 2026-05-24: Filtre butonu artık ikon-only + Tooltip; mobilde header
+           * action chip'lerinin yan yana sığması için "Filtrele" text'i kaldırıldı.
+           * Badge filterCount > 0 olduğunda yine sayıyı gösterir.
+           */}
           <Badge count={filterCount} size="small" offset={[-4, 4]}>
-            <Button
-              icon={<FilterOutlined />}
-              onClick={() => setDrawerOpen(true)}
-              size="small"
-              aria-label="Filtreleri aç"
-            >
-              Filtrele
-            </Button>
+            <Tooltip title={drawerTitle}>
+              <Button
+                icon={<FilterOutlined />}
+                onClick={() => setDrawerOpen(true)}
+                size="small"
+                aria-label={drawerTitle}
+              />
+            </Tooltip>
           </Badge>
         </Space>
         <Drawer

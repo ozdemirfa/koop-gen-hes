@@ -70,25 +70,29 @@ export const UyeBorcRaporPage: React.FC = () => {
 
   usePageSettings('Üye Borç Listesi', actions)
 
+  // Sütun genişlikleri kompaktlaştırıldı (kullanıcı isteği 2026-05-24):
+  // Üye No 90→70, Blok 80→60, Daire No 90→70, En Eski Gecikme 130→105,
+  // Ort. Gecikme 120→95. Ad Soyad ve Geciken Borç esnek kalır.
   const columns = useMemo<any[]>(() => [
-    { title: 'Üye No', dataIndex: 'uye_no', key: 'uye_no', width: 90 },
+    { title: 'Üye No', dataIndex: 'uye_no', key: 'uye_no', width: 70 },
     {
       title: 'Ad Soyad',
       key: 'ad_soyad',
+      ellipsis: true,
       render: (_: unknown, r: any) => <Text strong>{`${r.ad || ''} ${r.soyad || ''}`.trim()}</Text>,
     },
     {
       title: 'Blok',
       dataIndex: 'blok_adi',
       key: 'blok',
-      width: 80,
+      width: 60,
       render: (v: string) => v || '-',
     },
     {
       title: 'Daire No',
       dataIndex: 'daire_no',
       key: 'daire_no',
-      width: 90,
+      width: 70,
       render: (v: string) => v || '-',
     },
     {
@@ -96,6 +100,7 @@ export const UyeBorcRaporPage: React.FC = () => {
       dataIndex: 'geciken_borc',
       key: 'geciken_borc',
       align: 'right' as const,
+      width: 120,
       sorter: (a: any, b: any) => Number(a.geciken_borc || 0) - Number(b.geciken_borc || 0),
       render: (v: number) => (
         <Text strong style={{ color: '#cf1322' }}><MoneyDisplay amount={Number(v || 0)} /></Text>
@@ -106,7 +111,7 @@ export const UyeBorcRaporPage: React.FC = () => {
       dataIndex: 'max_gecikme_gun',
       key: 'max_gecikme',
       align: 'right' as const,
-      width: 130,
+      width: 105,
       sorter: (a: any, b: any) => Number(a.max_gecikme_gun || 0) - Number(b.max_gecikme_gun || 0),
       render: (v: number) => <Tag color={v > 30 ? 'red' : v > 7 ? 'orange' : 'default'}>{v || 0} gün</Tag>,
     },
@@ -115,7 +120,7 @@ export const UyeBorcRaporPage: React.FC = () => {
       dataIndex: 'ortalama_gecikme_gun',
       key: 'ort_gecikme',
       align: 'right' as const,
-      width: 120,
+      width: 95,
       render: (v: number) => `${v || 0} gün`,
     },
   ], [])

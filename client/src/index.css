@@ -316,6 +316,84 @@ body {
 }
 
 /*
+ * 2026-05-24 — Üye detay sayfası aksiyon grubu
+ * Desktop: 3 buton inline (ikon + yazı yan yana).
+ * Mobil (<768px): equal flex columns; üst ikon, alt yazı (two-line stack).
+ *   - Yazı küçülür (11px), satır yüksekliği daralır → ekrana yan yana sığar.
+ */
+.uye-detail-actions {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+@media (max-width: 767px) {
+  .uye-detail-actions {
+    display: flex;
+    width: 100%;
+    gap: 4px;
+    flex-wrap: nowrap;
+  }
+  .uye-detail-actions .uye-detail-action-btn.ant-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    height: auto;
+    padding: 6px 4px;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.15;
+    font-size: 11px;
+    white-space: normal;
+    text-align: center;
+    word-break: break-word;
+  }
+  .uye-detail-actions .uye-detail-action-btn.ant-btn .anticon {
+    margin: 0 0 4px 0 !important;
+    font-size: 18px;
+  }
+  /* Loading spinner ikonunun yerini de stack hizalamasıyla uyumla */
+  .uye-detail-actions .uye-detail-action-btn.ant-btn-loading .ant-btn-loading-icon {
+    margin: 0 0 4px 0 !important;
+  }
+}
+
+/*
+ * 2026-05-24 — Üye detay tab başlıkları
+ * Desktop: ikon + text inline (AntD default).
+ * Mobil (<768px): ikon üstte, yazı altta; tüm sekmeler eşit genişlikte yan yana.
+ */
+.tab-label-stacked {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+@media (max-width: 767px) {
+  .uye-detail-tabs .ant-tabs-nav-list {
+    width: 100%;
+  }
+  .uye-detail-tabs .ant-tabs-nav .ant-tabs-tab {
+    flex: 1 1 0;
+    justify-content: center;
+    padding: 8px 4px !important;
+    margin: 0 !important;
+  }
+  .uye-detail-tabs .ant-tabs-nav .ant-tabs-tab + .ant-tabs-tab {
+    margin: 0 !important;
+  }
+  .uye-detail-tabs .tab-label-stacked {
+    flex-direction: column;
+    gap: 2px;
+    font-size: 11px;
+    line-height: 1.15;
+    text-align: center;
+  }
+  .uye-detail-tabs .tab-label-stacked .anticon {
+    font-size: 16px;
+  }
+}
+
+/*
  * 2026-05-24 (UI compaction): sayfa gövdesini içerik kenarına yaklaştır.
  *   - Desktop: 12px padding, içerik genişliği serbest (önceki maxWidth: 1400
  *     dayatması kaldırıldı → büyük ekranlarda tablolar kenara kadar açılır).

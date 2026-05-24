@@ -106,22 +106,26 @@ export const MizanPage: React.FC = () => {
     return { totalWeAreOwed, totalWeOwe }
   }, [list])
 
+  // Sütun aralıkları sıkıştırıldı (kullanıcı isteği 2026-05-24): Tür 120→80,
+  // tutar sütunlarına da width eklendi ki cari adı esnek kalsın ve diğerleri
+  // gereksiz yer kaplamasın.
   const columns = [
-    { 
-      title: 'Cari Adı', 
-      dataIndex: 'cari_adi', 
+    {
+      title: 'Cari Adı',
+      dataIndex: 'cari_adi',
       key: 'cari_adi',
+      ellipsis: true,
       sorter: (a: MizanData, b: MizanData) => a.cari_adi.localeCompare(b.cari_adi),
       render: (text: string) => <Text strong>{text}</Text>
     },
-    { 
-      title: 'Tür', 
-      dataIndex: 'cari_turu', 
+    {
+      title: 'Tür',
+      dataIndex: 'cari_turu',
       key: 'cari_turu',
-      width: 120,
+      width: 80,
       render: (tur: string) => (
-        <Tag 
-          color={tur === 'uye' ? 'blue' : 'orange'} 
+        <Tag
+          color={tur === 'uye' ? 'blue' : 'orange'}
           icon={tur === 'uye' ? <TeamOutlined /> : <ShopOutlined />}
           style={{ borderRadius: '4px', padding: '2px 8px' }}
         >
@@ -134,27 +138,30 @@ export const MizanPage: React.FC = () => {
       ],
       onFilter: (value: any, record: MizanData) => record.cari_turu === value,
     },
-    { 
-      title: 'Toplam Borç', 
-      dataIndex: 'toplam_borc', 
-      key: 'toplam_borc', 
+    {
+      title: 'Toplam Borç',
+      dataIndex: 'toplam_borc',
+      key: 'toplam_borc',
       align: 'right' as const,
+      width: 120,
       render: (v: number) => <MoneyDisplay amount={v} />,
       sorter: (a: MizanData, b: MizanData) => a.toplam_borc - b.toplam_borc
     },
-    { 
-      title: 'Toplam Alacak', 
-      dataIndex: 'toplam_alacak', 
-      key: 'toplam_alacak', 
+    {
+      title: 'Toplam Alacak',
+      dataIndex: 'toplam_alacak',
+      key: 'toplam_alacak',
       align: 'right' as const,
+      width: 120,
       render: (v: number) => <MoneyDisplay amount={v} />,
       sorter: (a: MizanData, b: MizanData) => a.toplam_alacak - b.toplam_alacak
     },
-    { 
-      title: 'Bakiye', 
-      dataIndex: 'bakiye', 
-      key: 'bakiye', 
+    {
+      title: 'Bakiye',
+      dataIndex: 'bakiye',
+      key: 'bakiye',
       align: 'right' as const,
+      width: 130,
       render: (v: number) => {
         // Pozitifler yeşil/mavi (Alacak Bakiyesi), negatifler kırmızı (Borç Bakiyesi)
         const isPositive = v > 0;

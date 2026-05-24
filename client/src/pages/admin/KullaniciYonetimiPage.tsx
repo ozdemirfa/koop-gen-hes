@@ -292,26 +292,30 @@ export const KullaniciYonetimiPage: React.FC = () => {
     }
   }
 
+  // Sütun genişlikleri yeniden ayarlandı (kullanıcı isteği 2026-05-24):
+  // E-posta esnek (artık fixed 400 vermiyoruz, ellipsis ile uzar), Rol 130→90,
+  // Eklendi 140→100, İşlem 180→130.
   const columns = useMemo(
     () => [
       {
         title: 'E-posta',
         dataIndex: 'email',
         key: 'email',
+        ellipsis: true,
         render: (v?: string) => <Typography.Text strong>{v ?? '-'}</Typography.Text>,
       },
       {
         title: 'Rol',
         dataIndex: 'rol',
         key: 'rol',
-        width: 130,
+        width: 90,
         render: (v: ProjectRole) => <Tag color={ROLE_COLORS[v] ?? 'default'}>{ROLE_LABELS[v] ?? v}</Tag>,
       },
       {
         title: 'Eklendi',
         dataIndex: 'created_at',
         key: 'created_at',
-        width: 140,
+        width: 100,
         render: (v: string) => {
           if (!v) return '-'
           const d = new Date(v)
@@ -321,7 +325,7 @@ export const KullaniciYonetimiPage: React.FC = () => {
       {
         title: 'İşlem',
         key: 'actions',
-        width: 180,
+        width: 130,
         align: 'center' as const,
         render: (_: unknown, r: ProjeUye) => {
           const targetIsOwner = r.rol === 'owner'

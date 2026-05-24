@@ -90,24 +90,18 @@ export const BankaHesapListPage: React.FC = () => {
 
   usePageSettings('Banka Hesapları', actions)
 
+  // Kolon sırası (kullanıcı isteği 2026-05-24): Banka Adı → Şube → Durum →
+  // Hesap Bakiyesi → İşlem → Hesap No → IBAN. Hesap No ve IBAN tablonun en
+  // sağında — mobilde önemli özet alanlar (banka adı, durum, bakiye, işlem)
+  // soldan başlayıp ekrana sığar; teknik detaylar (hesap_no, iban) sona kayar.
   const columns = [
     { title: 'Banka Adı', dataIndex: 'banka_adi', key: 'banka_adi' },
     { title: 'Şube', dataIndex: 'sube', key: 'sube' },
-    { title: 'Hesap No', dataIndex: 'hesap_no', key: 'hesap_no' },
-    { 
-      title: 'IBAN', 
-      dataIndex: 'iban', 
-      key: 'iban',
-      render: (v: string) => v ? (
-        <Typography.Text copyable={{ text: getIBANRaw(v), tooltips: ['Kopyala (Sadece Rakamlar)', 'Kopyalandı!'] }}>
-          {formatIBAN(v)}
-        </Typography.Text>
-      ) : '-'
-    },
     {
       title: 'Durum',
       dataIndex: 'aktif',
       key: 'aktif',
+      width: 90,
       render: (aktif: boolean) => (
         <Tag color={aktif ? 'green' : 'red'}>{aktif ? 'Aktif' : 'Pasif'}</Tag>
       ),
@@ -117,6 +111,7 @@ export const BankaHesapListPage: React.FC = () => {
       dataIndex: 'bakiye',
       key: 'bakiye',
       align: 'right' as const,
+      width: 140,
       render: (bakiye: number) => (
         <Typography.Text strong type={(bakiye || 0) < 0 ? 'danger' : undefined}>
           {formatMoney(bakiye)} TL
@@ -154,6 +149,18 @@ export const BankaHesapListPage: React.FC = () => {
           </Tooltip>
         </Space>
       ),
+    },
+    { title: 'Hesap No', dataIndex: 'hesap_no', key: 'hesap_no', width: 140 },
+    {
+      title: 'IBAN',
+      dataIndex: 'iban',
+      key: 'iban',
+      width: 240,
+      render: (v: string) => v ? (
+        <Typography.Text copyable={{ text: getIBANRaw(v), tooltips: ['Kopyala (Sadece Rakamlar)', 'Kopyalandı!'] }}>
+          {formatIBAN(v)}
+        </Typography.Text>
+      ) : '-'
     },
   ]
 

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { Button, Select, Space, Tag, Modal, Form, Input, InputNumber, DatePicker, App, Row, Col, Divider, Typography } from 'antd'
+import { Button, Select, Space, Tag, Modal, Form, Input, InputNumber, DatePicker, App, Row, Col, Divider, Typography, Tooltip } from 'antd'
 
 const { RangePicker } = DatePicker
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -122,24 +122,27 @@ export const FaturaListPage: React.FC = () => {
     return count
   }, [filterTip, dateRange])
 
+  // Mobil/desktop ortak görünüm için (2026-05-24): Yeni Fatura ikon-only +
+  // Tooltip. Filtre butonu HeaderActionsToolbar tarafından üretilir; o da ayrı
+  // bir PR'da ikon-only'ye çevrildi.
   const primaryAction = useMemo(() => (
-    <Button
-      size="small"
-      type="primary"
-      icon={<PlusOutlined />}
-      disabled={!activeProject || !canEdit}
-      title={!canEdit ? 'Yetki yok' : undefined}
-      onClick={() => {
-        setEditingFatura(null);
-        form.resetFields();
-        form.setFieldsValue({
-          kalemler: [{ kalem_adi: '', birim: 'Adet', miktar: 1, birim_fiyat: 0, kdv_orani: 20 }]
-        });
-        setModalOpen(true)
-      }}
-    >
-      Yeni Fatura
-    </Button>
+    <Tooltip title={!canEdit ? 'Yetki yok' : 'Yeni Fatura'}>
+      <Button
+        size="small"
+        type="primary"
+        icon={<PlusOutlined />}
+        disabled={!activeProject || !canEdit}
+        aria-label="Yeni Fatura"
+        onClick={() => {
+          setEditingFatura(null);
+          form.resetFields();
+          form.setFieldsValue({
+            kalemler: [{ kalem_adi: '', birim: 'Adet', miktar: 1, birim_fiyat: 0, kdv_orani: 20 }]
+          });
+          setModalOpen(true)
+        }}
+      />
+    </Tooltip>
   ), [form, activeProject, canEdit])
 
   const secondaryActions = useMemo(() => (

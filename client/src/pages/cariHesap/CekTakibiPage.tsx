@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import { Button, Modal, Form, Input, InputNumber, DatePicker, Select, Space, message, Tag, Card, Row, Col, Statistic, Radio } from 'antd'
-import { PlusOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
+import { Button, Modal, Form, Input, InputNumber, DatePicker, Select, Space, message, Tag, Card, Row, Col, Statistic, Radio, Tooltip } from 'antd'
+import { PlusOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined, DollarCircleOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api, { payCheck } from '../../lib/api'
@@ -160,39 +160,45 @@ export const CekTakibiPage: React.FC = () => {
     {
       title: 'İşlem',
       key: 'action',
-      width: 150,
+      width: 100,
       render: (_: any, r: Cek) => (
-        <Space>
-          <Button
-            icon={<EditOutlined />}
-            size="small"
-            disabled={!canEdit}
-            title={!canEdit ? 'Yetki yok' : 'Düzenle'}
-            onClick={() => { setEditingCek(r); form.setFieldsValue({ ...r, vade_tarihi: dayjs(r.vade_tarihi), keside_tarihi: r.keside_tarihi ? dayjs(r.keside_tarihi) : null }); setModalOpen(true) }}
-          />
-          {r.durum === 'beklemede' && canEdit && (
+        <Space size={4}>
+          <Tooltip title={!canEdit ? 'Yetki yok' : 'Düzenle'}>
             <Button
+              icon={<EditOutlined />}
               size="small"
-              type="primary"
-              ghost
-              onClick={() => {
-                setPayingCek(r)
-                payForm.resetFields()
-                setPayModalOpen(true)
-              }}
-            >
-              Çek Öde
-            </Button>
+              disabled={!canEdit}
+              onClick={() => { setEditingCek(r); form.setFieldsValue({ ...r, vade_tarihi: dayjs(r.vade_tarihi), keside_tarihi: r.keside_tarihi ? dayjs(r.keside_tarihi) : null }); setModalOpen(true) }}
+              aria-label="Düzenle"
+            />
+          </Tooltip>
+          {r.durum === 'beklemede' && canEdit && (
+            <Tooltip title="Çek Öde">
+              <Button
+                icon={<DollarCircleOutlined />}
+                size="small"
+                type="primary"
+                ghost
+                onClick={() => {
+                  setPayingCek(r)
+                  payForm.resetFields()
+                  setPayModalOpen(true)
+                }}
+                aria-label="Çek Öde"
+              />
+            </Tooltip>
           )}
           {r.durum === 'beklemede' && canDelete && (
-            <Button
-              icon={<CloseCircleOutlined />}
-              size="small"
-              danger
-              ghost
-              title="Çeki iptal et (manager+)"
-              onClick={() => updateDurumMutation.mutate({ id: r.id, durum: 'iptal' })}
-            />
+            <Tooltip title="Çeki iptal et (manager+)">
+              <Button
+                icon={<CloseCircleOutlined />}
+                size="small"
+                danger
+                ghost
+                onClick={() => updateDurumMutation.mutate({ id: r.id, durum: 'iptal' })}
+                aria-label="Çeki iptal et"
+              />
+            </Tooltip>
           )}
         </Space>
       ),

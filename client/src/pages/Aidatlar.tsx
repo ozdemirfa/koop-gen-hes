@@ -437,27 +437,29 @@ export const Aidatlar: React.FC = () => {
   ), [listFilterControls, listFilterControlsVertical, activeListFilterCount])
 
   // OC-07: Aidat Tanımları header — HeaderActionsToolbar
-  // primary=Yeni + Yıllık Plan (her ikisi her zaman görünür kalsın), secondary=Yıl Select
+  // primary=Yeni + Yıllık Plan, secondary=Yıl Select. Mobil/desktop ortak görünüm
+  // için kullanıcı isteği üzerine (2026-05-24) butonlar ikon-only + Tooltip.
   const tanimPrimary = useMemo(() => (
     <Space size="small">
-      <Button
-        type="primary"
-        icon={<PlusOutlined />}
-        onClick={handleAdd}
-        disabled={!activeProject || !canEdit}
-        title={!canEdit ? 'Yetki yok' : undefined}
-        size="small"
-      >
-        Yeni
-      </Button>
-      <Button
-        type="default"
-        icon={<HistoryOutlined />}
-        onClick={() => navigate('/aidatlar/yillik-plan')}
-        size="small"
-      >
-        Yıllık Plan
-      </Button>
+      <Tooltip title={!canEdit ? 'Yetki yok' : 'Yeni Tanım'}>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={handleAdd}
+          disabled={!activeProject || !canEdit}
+          size="small"
+          aria-label="Yeni Tanım"
+        />
+      </Tooltip>
+      <Tooltip title="Yıllık Plan">
+        <Button
+          type="default"
+          icon={<HistoryOutlined />}
+          onClick={() => navigate('/aidatlar/yillik-plan')}
+          size="small"
+          aria-label="Yıllık Plan"
+        />
+      </Tooltip>
     </Space>
   ), [activeProject, navigate, canEdit])
 
