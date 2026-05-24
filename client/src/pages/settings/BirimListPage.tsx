@@ -82,7 +82,7 @@ export const BirimListPage: React.FC = () => {
         <Typography.Title level={5} style={{ marginTop: 0 }}>Yeni Birim Ekle</Typography.Title>
         {!canCreateGlobalDefs && (
           <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-            Birim eklemek için yetkili, yönetici veya sistem admin olmalısınız.
+            Birim eklemek için proje yetkilisine başvurunuz.
           </Typography.Text>
         )}
         <Form
