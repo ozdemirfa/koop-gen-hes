@@ -47,8 +47,19 @@ CREATE INDEX IF NOT EXISTS idx_aidatlar_proje_id
   ON public.aidatlar(proje_id);
 
 -- aidat_odemeleri.aidat_id — odeme listesi + FIFO match
-CREATE INDEX IF NOT EXISTS idx_aidat_odemeleri_aidat_id
-  ON public.aidat_odemeleri(aidat_id);
+-- 2026-05-25 hotfix: aidat_odemeleri tablosu production'da mevcut olmayabilir
+-- (FIFO match patterni cari_hareketler.kaynak_id ile birlestirilmis olabilir).
+-- DO block ile tablo var ise index ekle, yoksa atla.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'aidat_odemeleri'
+  ) THEN
+    CREATE INDEX IF NOT EXISTS idx_aidat_odemeleri_aidat_id
+      ON public.aidat_odemeleri(aidat_id);
+  END IF;
+END$$;
 
 -- proje_uyelikleri.user_id — requireProjectAccess middleware'in icindeki sorgu
 CREATE INDEX IF NOT EXISTS idx_proje_uyelikleri_user_id
