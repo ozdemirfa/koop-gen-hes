@@ -71,4 +71,86 @@ describe('raporService', () => {
     rpcMock.mockResolvedValueOnce({ data: null, error: { code: '42P01' } })
     await expect(raporService.dashboardOzet(PROJE)).rejects.toMatchObject({ code: '42P01' })
   })
+
+  // 20260525160000 — Rapor hesaplama revizyonu (formul degisikligi service shape'e
+  // yansiyor — yeni semantik alanlar oncelikli + fallback'li okunur).
+
+  it('aylikRapor — RPC yeni semantik alanlari oncelikli okunur (formul revizyonu sonrasi)', async () => {
+    // RPC body simulasyonu: toplam_tahakkuk artik aidat + gecikme + uyelik_baslangic;
+    // toplam_gider_tahakkuku artik hakedis + iade_odeme (fatura yok).
+    rpcMock.mockResolvedValueOnce({
+      data: {
+        gelirler: [
+          { id: 'g1', islem_turu: 'aidat_kayit', alacak: 1000 },
+          { id: 'g2', islem_turu: 'gecikme_faizi', alacak: 50 },
+          { id: 'g3', islem_turu: 'uyelik_baslangic', alacak: 5000, kaynak_tipi: null },
+        ],
+        giderler: [
+          { id: 'h1', islem_turu: 'hakedis', borc: 2000, alacak: 0 },
+          { id: 'i1', islem_turu: 'iade_odeme', borc: 0, alacak: 800 },
+        ],
+        tahsilatlar: [],
+        odemeler: [],
+        toplam_gelir: 6050,
+        toplam_tahakkuk: 6050,
+        toplam_gider: 2800,
+        toplam_gider_tahakkuku: 2800,
+        toplam_tahsilat: 0,
+        toplam_odeme: 0,
+      },
+      error: null,
+    })
+    const r = await raporService.aylikRapor(2026, 5, PROJE)
+    expect(r.toplam_tahakkuk).toBe(6050)
+    expect(r.toplam_gider_tahakkuku).toBe(2800)
+    // Deprecated alias'lar service tarafindan yeni degerlerle yansitilir
+    expect(r.toplam_gelir).toBe(6050)
+    expect(r.toplam_gider).toBe(2800)
+    // Listeler dogrudan dondurulur
+    expect(r.gelirler).toHaveLength(3)
+    expect(r.giderler).toHaveLength(2)
+    expect((r.giderler as any[]).some(g => g.islem_turu === 'iade_odeme')).toBe(true)
+    expect((r.giderler as any[]).some(g => g.islem_turu === 'fatura')).toBe(false)
+  })
+
+  it('yillikRapor — RPC formul revizyonu sonrasi toplam alanlari ve aylik enrichment', async () => {
+    rpcMock.mockResolvedValueOnce({
+      data: {
+        yil: 2026,
+        aylik: [
+          { ay: 1, gelir: 1500, tahakkuk: 1500, gider: 800, gider_tahakkuku: 800, tahsilat: 1200, odeme: 600 },
+          { ay: 2, gelir: 2000, tahakkuk: 2000, gider: 1000, gider_tahakkuku: 1000, tahsilat: 1800, odeme: 700 },
+        ],
+        toplam_gelir: 3500,
+        toplam_tahakkuk: 3500,
+        toplam_gider: 1800,
+        toplam_gider_tahakkuku: 1800,
+        toplam_tahsilat: 3000,
+        toplam_odeme: 1300,
+      },
+      error: null,
+    })
+    // aidat_detaylari empty mock
+    const fromMock = vi.fn(() => ({
+      select: () => ({
+        eq: () => ({
+          eq: () => ({
+            eq: () => Promise.resolve({ data: [], error: null }),
+          }),
+        }),
+      }),
+    }))
+    // @ts-ignore
+    ;(await import('../../src/config/supabase')).supabaseAdmin.from = fromMock as any
+
+    const r = await raporService.yillikRapor(2026, PROJE)
+    expect(r.toplam_tahakkuk).toBe(3500)
+    expect(r.toplam_gider_tahakkuku).toBe(1800)
+    // Aylik enrichment yeni alanlari korur
+    expect(r.aylik[0].tahakkuk).toBe(1500)
+    expect(r.aylik[0].gider_tahakkuku).toBe(800)
+    // Deprecated alias'lar
+    expect(r.aylik[0].gelir).toBe(1500)
+    expect(r.aylik[0].gider).toBe(800)
+  })
 })
