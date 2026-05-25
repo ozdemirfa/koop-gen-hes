@@ -144,6 +144,11 @@ export const raporService = {
     // semantik alanları (toplam_tahakkuk, toplam_gider_tahakkuku) döndürüyor.
     // Service shape: yeni alanları öncelikli okur, eski'leri @deprecated olarak
     // korur (B5 sprintinde temizlenecek).
+    //
+    // 20260525160000: RPC body formul revizyonu — toplam_tahakkuk artik
+    // uyelik_baslangic tahakkukunu (alacak, kaynak_tipi NULL) icerir;
+    // toplam_gider_tahakkuku artik fatura yerine iade_odeme'yi icerir.
+    // Service shape DEGISMEDI — sadece dondurulen sayisal degerler degisti.
     const tahakkuk = Number(data.toplam_tahakkuk ?? data.toplam_gelir ?? 0)
     const giderTahakkuku = Number(data.toplam_gider_tahakkuku ?? data.toplam_gider ?? 0)
     const tahsilat = Number(data.toplam_tahsilat || 0)
@@ -205,6 +210,10 @@ export const raporService = {
     // 20260525150000: RPC her aylik satırına hem eski (gelir, gider) hem yeni
     // semantik alanları (tahakkuk, gider_tahakkuku) ekliyor. Service enrichment'ı
     // yeni alanları öncelikli korur; eski'leri RPC zaten yazıyor.
+    //
+    // 20260525160000: Aylik CTE formul revizyonu — gelir artik uyelik_baslangic
+    // tahakkukunu, gider artik fatura yerine iade_odeme'yi (alacak yonu) icerir.
+    // Service enrichment shape DEGISMEDI.
     const aylikEnriched = ((data?.aylik) || []).map((row: any) => {
       const m = Number(row.ay)
       const stats = monthlyMap.get(m)

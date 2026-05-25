@@ -119,12 +119,34 @@ export const pdfGenerator = {
    * 20260525150000: rapor.service yeni semantik alanlar döndürüyor —
    *   toplam_tahakkuk (eski: toplam_gelir), toplam_gider_tahakkuku (eski: toplam_gider).
    *   Eski alanlardan fallback ile geriye uyumluluk korunur.
+   *
+   * 20260525160000: RPC formul revizyonu sonrasi `gelirler` listesi artik
+   *   uyelik_baslangic tahakkukunu, `giderler` listesi artik iade_odeme'yi
+   *   icerebilir. PDF'te islem_turu metni Turkce etiketle gosterilir.
+   *
+   *   iade_odeme `alacak` ile kaydedildigi icin tutar hucresi borc yerine
+   *   alacak'tan okunur (conditional).
    */
   generateMaliRaporPDF(raporData: any): any {
     const { donem, gelirler, giderler, toplam_aidat_tahsilat } = raporData
     // YENİ semantik alanları öncelikli okur; eski alias'a fallback.
     const toplam_tahakkuk: number = Number(raporData.toplam_tahakkuk ?? raporData.toplam_gelir ?? 0)
     const toplam_gider_tahakkuku: number = Number(raporData.toplam_gider_tahakkuku ?? raporData.toplam_gider ?? 0)
+
+    // 20260525160000: islem_turu → kullanici etiketi (PDF + Turkce + tutarli)
+    const islemTuruEtiket = (turu: string): string => {
+      switch (turu) {
+        case 'aidat_kayit': return 'Aidat Tahakkuku'
+        case 'gecikme_faizi': return 'Gecikme Faizi'
+        case 'uyelik_baslangic': return 'Üyelik Başlangıç Bedeli'
+        case 'hakedis': return 'Hakediş'
+        case 'iade_odeme': return 'Üyelik Bedeli İadesi'
+        case 'fatura': return 'Fatura'
+        case 'gelen_odeme': return 'Tahsilat'
+        case 'giden_odeme': return 'Ödeme'
+        default: return turu || '-'
+      }
+    }
 
     return {
       content: [
@@ -138,7 +160,7 @@ export const pdfGenerator = {
               [{ text: 'Tarih', style: 'tableHeader' }, { text: 'Açıklama / Kategori', style: 'tableHeader' }, { text: 'Tutar (TL)', style: 'tableHeader', alignment: 'right' }],
               ...gelirler.map((g: any) => [
                 new Date(g.tarih).toLocaleDateString('tr-TR'),
-                `${g.islem_turu || '-'} - ${g.aciklama || ''}`,
+                `${islemTuruEtiket(g.islem_turu)} - ${g.aciklama || ''}`,
                 { text: Number(g.alacak ?? g.tutar ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 }), alignment: 'right' }
               ]),
               [{ text: 'Aidat Tahsilatları Toplamı', colSpan: 2, bold: true }, {}, { text: toplam_aidat_tahsilat.toLocaleString('tr-TR', { minimumFractionDigits: 2 }), bold: true, alignment: 'right' }],
@@ -153,11 +175,19 @@ export const pdfGenerator = {
             widths: ['auto', '*', 'auto'],
             body: [
               [{ text: 'Tarih', style: 'tableHeader' }, { text: 'Açıklama / Kategori', style: 'tableHeader' }, { text: 'Tutar (TL)', style: 'tableHeader', alignment: 'right' }],
-              ...giderler.map((g: any) => [
-                new Date(g.tarih).toLocaleDateString('tr-TR'),
-                `${g.islem_turu || '-'} - ${g.aciklama || ''}`,
-                { text: Number(g.borc ?? g.tutar ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 }), alignment: 'right' }
-              ]),
+              ...giderler.map((g: any) => {
+                // iade_odeme alacak ile kaydedilir; hakedis borc ile. Tutar yon-bilincli.
+                const tutar = Number(
+                  g.islem_turu === 'iade_odeme'
+                    ? (g.alacak ?? 0)
+                    : (g.borc ?? g.tutar ?? 0)
+                )
+                return [
+                  new Date(g.tarih).toLocaleDateString('tr-TR'),
+                  `${islemTuruEtiket(g.islem_turu)} - ${g.aciklama || ''}`,
+                  { text: tutar.toLocaleString('tr-TR', { minimumFractionDigits: 2 }), alignment: 'right' }
+                ]
+              }),
               [{ text: 'GİDER TAHAKKUKU TOPLAMI', colSpan: 2, bold: true, fillColor: '#fff1f0' }, {}, { text: toplam_gider_tahakkuku.toLocaleString('tr-TR', { minimumFractionDigits: 2 }), bold: true, alignment: 'right', fillColor: '#fff1f0' }]
             ]
           }
