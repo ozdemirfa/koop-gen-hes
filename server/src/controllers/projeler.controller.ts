@@ -221,3 +221,22 @@ export const kaliciSilProje = catchAsync(async (req: AuthRequest<any, any, any, 
   const result = await projeService.kaliciSil(projeId)
   res.json({ success: true, data: result, message: 'Proje kalıcı olarak silindi' })
 })
+
+// ---------------------------------------------------------------------------
+// Sprint desktop-offline-mode (2026-05-26): proje çevrimdışı moduna alma /
+// online'a döndürme. Route guard owner enforce eder; controller yalnız
+// payload validation + service çağrısı yapar. Web tarafında UI yok ama
+// desktop kardeş uygulaması (Electron + offline SQLite mirror) bu endpoint'i
+// kullanır.
+// ---------------------------------------------------------------------------
+
+export const setOfflineMode = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  if (!req.user?.id) throw ApiError.unauthorized()
+  const { offline_mode } = req.body as { offline_mode: boolean }
+  const data = await projeService.setOfflineMode(req.params.id, offline_mode, req.user.id)
+  res.json({
+    success: true,
+    data,
+    message: offline_mode ? 'Proje çevrimdışı moda alındı' : 'Proje online moduna döndü',
+  })
+})

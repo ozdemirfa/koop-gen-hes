@@ -958,4 +958,36 @@ export const projeService = {
     if (error) throw ApiError.notFound('Proje bulunamadı')
     return data as { id: string; proje_adi: string; silindi_mi: boolean }
   },
+
+  /**
+   * Sprint desktop-offline-mode (2026-05-26): proje çevrimdışı moduna alır
+   * veya online'a döndürür. Yalnız project owner çağırabilir (route guard
+   * ile enforce). Desktop kardeş uygulaması bu endpoint'i kullanır; web
+   * tarafında henüz UI yok ama backend desteklenir.
+   *
+   * - offline_mode=true  → flag true, offline_mode_owner_id=callerId,
+   *                        offline_mode_set_at=now. Diğer kullanıcıların
+   *                        yazma yetkileri DB/middleware seviyesinde kilitlenir.
+   * - offline_mode=false → flag false, owner_id NULL, set_at=now.
+   *
+   * supabaseAdmin RLS bypass eder; route guard owner kontrolünü yapmıştır.
+   */
+  async setOfflineMode(projeId: string, offline: boolean, callerId: string) {
+    const payload: Record<string, any> = {
+      offline_mode: offline,
+      offline_mode_set_at: new Date().toISOString(),
+      offline_mode_owner_id: offline ? callerId : null,
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('projeler')
+      .update(payload)
+      .eq('id', projeId)
+      .select('id, proje_adi, offline_mode, offline_mode_owner_id, offline_mode_set_at')
+      .single()
+
+    if (error) throw error
+    if (!data) throw ApiError.notFound('Proje bulunamadı')
+    return data
+  },
 }
