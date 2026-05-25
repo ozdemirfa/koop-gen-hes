@@ -2,18 +2,28 @@
 -- Sprint revizyon-bugfix-paketi B4 (2026-05-25, madde 6)
 --
 -- Kullanim:
---   psql $DATABASE_URL -f supabase/scripts/audit_uyelik_baslangic_cari_hesap.sql
+--   A) Supabase Studio > SQL Editor: tum dosyayi yapistir + Run.
+--      Cikti panelinde 5 ayri "Results" tab'i acilir; sira asagidaki
+--      basliklarla eslesir.
+--   B) psql CLI (DATABASE_URL ile): bu dosya saf SQL (\echo meta-komutu
+--      kullanmaz); psql'de de tek seferde calisir.
 --
 -- Kullanici sikayeti: "Para Hareketleri'nde tum baslangic bedelleri ilk uyede
 -- gorunuyor; halbuki uye detaylarinda dogru uyede gorunuyor." Bu sorgu:
 --   1. Her uyelik_baslangic cari_hareketinin bagli oldugu cari_hesap_id'yi listeler
---   2. cari_hesap_id->uye_id mapping'inin doğru olup olmadığını gosterir
+--   2. cari_hesap_id -> uye_id mapping'inin dogru olup olmadigini gosterir
 --   3. NULL cari_hesap_id veya tekrar eden cari_hesap_id paterni tespit eder
+--   4. cari_hesaplar.uye_id NULL olan orphan kayitlari bulur
+--   5. Bir uyeye bagli birden fazla cari_hesap (duplicate) varsa raporlar
 --
 -- Eger Para Hareketleri sayfasinda gercekten tum baslangic bedelleri ayni
--- cari_adi'nda gorunuyorsa, bu sorgu kac ayri cari_hesap_id oldugunu doğrular.
+-- cari_adi'nda gorunuyorsa, sorgu #2'de bunun veri tabaninda gercek mi
+-- yoksa sadece UI rendering bug mi oldugu netlesir.
 
-\echo '=== uyelik_baslangic cari hareketleri (son 50) ==='
+
+-- =========================================================================
+-- #1. uyelik_baslangic cari hareketleri (son 50)
+-- =========================================================================
 SELECT
     ch.id AS hareket_id,
     ch.tarih,
@@ -34,8 +44,12 @@ WHERE ch.islem_turu = 'uyelik_baslangic'
 ORDER BY ch.tarih DESC, ch.id DESC
 LIMIT 50;
 
-\echo ''
-\echo '=== uyelik_baslangic per cari_hesap_id (kac farkli hesap?) ==='
+
+-- =========================================================================
+-- #2. uyelik_baslangic per cari_hesap_id (kac farkli hesap kullanildi?)
+--     Eger tek satir donerse: tum baslangic kayitlari ayni hesaba yazilmis (bug).
+--     Birden cok satir donerse: dagilim normal, sorun UI tarafinda.
+-- =========================================================================
 SELECT
     ch.cari_hesap_id,
     c.cari_adi,
@@ -51,8 +65,12 @@ WHERE ch.islem_turu = 'uyelik_baslangic'
 GROUP BY ch.cari_hesap_id, c.cari_adi, u.uye_no, u.ad, u.soyad
 ORDER BY u.uye_no NULLS LAST;
 
-\echo ''
-\echo '=== NULL cari_hesap_id sahip uyelik_baslangic kayitlari (bug indikatoru) ==='
+
+-- =========================================================================
+-- #3. NULL cari_hesap_id sahip uyelik_baslangic kayitlari (bug indikatoru)
+--     Bos satir donerse: tum kayitlar bir cari_hesap'a baglanmis (iyi).
+--     Satir donerse: orphan tahakkuklar var, veri onarimi gerek.
+-- =========================================================================
 SELECT
     ch.id,
     ch.tarih,
@@ -63,8 +81,11 @@ FROM public.cari_hareketler ch
 WHERE ch.islem_turu = 'uyelik_baslangic'
   AND ch.cari_hesap_id IS NULL;
 
-\echo ''
-\echo '=== cari_hesaplar.uye_id NULL olan uye carileri (orphan) ==='
+
+-- =========================================================================
+-- #4. cari_hesaplar.uye_id NULL olan uye carileri (orphan)
+--     cari_turu='uye' olmasina ragmen uye_id eksikse: data corruption.
+-- =========================================================================
 SELECT
     c.id AS cari_hesap_id,
     c.cari_adi,
@@ -75,8 +96,11 @@ SELECT
 FROM public.cari_hesaplar c
 WHERE c.cari_turu = 'uye' AND c.uye_id IS NULL;
 
-\echo ''
-\echo '=== Bir uyenin birden fazla cari_hesap_id varsa (duplicate, beklenmedik) ==='
+
+-- =========================================================================
+-- #5. Bir uyenin birden fazla cari_hesap_id varsa (duplicate, beklenmedik)
+--     COUNT>1 satirlari: muhtemelen FIFO/birlesik kapama yanlis cari'ye gitmis.
+-- =========================================================================
 SELECT
     c.uye_id,
     u.uye_no,
