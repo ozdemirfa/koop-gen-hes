@@ -617,3 +617,54 @@ Sprint 3 faza bölünmüş: (1) Backend hardening, (2) admin/üyelik API + davet
 
 ## Durum
 Faz 1 (PR #55) ve Faz 2 (PR #56) gönderildi. Faz 3 (frontend) sırada.
+
+---
+
+# SPRINT: QA + Review + Bug-fix + Faz 3 Frontend Gating (`20260525-qa-review-bugfix-faz3`)
+
+## Bağlam
+
+3 paralel review (test inventeri, bug audit, perf audit) sonucu mevcut sistemde 3 P0 güvenlik açığı, 3 P1 bug, 14 servisin testsizliği, CI'ın yokluğu ve 2.18 MB bundle warning doğrulandı. Sprint planı `~/.claude/plans/workspace-master-agent-md-kapsaml-qa-te-wise-cocke.md` dosyasında detaylı; 6 atomik batch + bonus CI.
+
+## Görevler
+
+### Batch 1 — P0 Security Fixes — commit `69871c1` ✅
+- [x] `routes/index.ts:58-64` inline guard'sız settings route'ları kaldırıldı; `settings.routes.ts` mount edildi (POST `requireCreateGlobalDefs`, PUT/DELETE `requireRole('admin')`).
+- [x] `routes/projeler.routes.ts:18` multer `+limits.fileSize=5MB, files=1, CSV-only fileFilter`.
+- [x] `middleware/errorHandler.ts` MulterError → 413/400, CSV_ONLY → 400 Türkçe.
+- [x] `schemas/proje.schema.ts` `yillikPlanKalemleriBulkSchema` (strict UUID + ay 1-12 + min1/max500).
+- [x] `routes/projeler.routes.ts:36` bulk endpoint `validate({ body: yillikPlanKalemleriBulkSchema })`.
+- [x] `controllers/projeler.controller.ts`: cross-project guard (kalem.proje_id ≠ query.proje_id → 403) + `throw new Error('Dosya yüklenmedi')` → `ApiError.badRequest`.
+- [x] 3 yeni integration test (settings.guard 11 + bulk.validate 8 + import.limits 4) = 23 test.
+- [x] Suite: **253 → 276 yeşil**, 0 regression.
+
+### Batch 2 — P1 Bug Fixes + Atomik Cari Delete — commit `7e812bf` ✅
+- [x] Migration `20260525120000_fn_delete_cari_hareket_with_banka.sql` (tek tx, P0001 kapalı + P0002 yok).
+- [x] Migration `20260525120001_fn_firma_bakiye_batch.sql` (firma_ids array → tek pass agregasyon).
+- [x] `services/cariHesap.service.ts:206-241` iki-step delete → RPC; "P2 backlog" yorumu silindi.
+- [x] `services/firma.service.ts:31-93` Promise.all N+1 → tek RPC + Map merge; silent catch kaldırıldı (RPC fail artık throw).
+- [x] 2 unit test (cariHesapService.delete 4 + firmaService.list 6) = 10 test.
+- [x] Suite: **276 → 286 yeşil**, build clean.
+
+### Sırada (oturum sınırına gelindi)
+- [ ] **Batch 3** — 14 servis için Vitest mock unit test (~70 test) + `supabaseMockChain.ts` enrichment.
+- [ ] **Batch 4** — `vite.config.ts` manualChunks + QueryClient defaults + FK index audit migration + `docs/performance.md`.
+- [ ] **Batch 5** — `RoleGatedButton` + 16 sayfa gating + viewer rozeti + `role-gating-coverage.spec.ts`.
+- [ ] **Batch 6** — 3 finansal-akış spec + 2 master-data CRUD spec + 2 perspective spec.
+- [ ] **Bonus** — `.github/workflows/{ci,migration-check}.yml` + dependabot.
+
+## Doğrulanmış Bulgular (Sprint sonu güncelleme)
+
+| Sev | Durum | Bulgu |
+|---|---|---|
+| P0 | ✅ FIXED B1 | settings inline guard'sız → settings.routes.ts mount |
+| P0 | ✅ FIXED B1 | multer no limit → 5MB+1+CSV |
+| P0 | ✅ FIXED B1 | bulk upsert no validation → Zod + cross-project guard |
+| P1 | ✅ FIXED B1 | importSerefiye generic Error → ApiError.badRequest |
+| P1 | ✅ FIXED B2 | cari delete multi-step → atomik RPC |
+| P1 | ✅ FIXED B2 | firma N+1 + silent failure → batch RPC + throw |
+| P2 | (yanlış alarm) | errorHandler typeof guard zaten var |
+
+## Durum
+
+**Yarım tamam.** Batch 1+2 push'a hazır (2 local commit). Bug audit'in P0+P1 hepsi kapatıldı, en yüksek-değerli kısım bitti. Geri kalan batch'ler (B3-B6 + bonus) ayrı oturumlarda devam edilecek; plan dosyası referans olarak korunuyor.
