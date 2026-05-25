@@ -114,15 +114,22 @@ export const pdfGenerator = {
   },
 
   /**
-   * Mali rapor (Gelir/Gider) için PDF dökümanı oluşturur.
+   * Mali rapor (Tahakkuk/Gider) için PDF dökümanı oluşturur.
+   *
+   * 20260525150000: rapor.service yeni semantik alanlar döndürüyor —
+   *   toplam_tahakkuk (eski: toplam_gelir), toplam_gider_tahakkuku (eski: toplam_gider).
+   *   Eski alanlardan fallback ile geriye uyumluluk korunur.
    */
   generateMaliRaporPDF(raporData: any): any {
-    const { donem, gelirler, giderler, toplam_gelir, toplam_gider, toplam_aidat_tahsilat } = raporData
-    
+    const { donem, gelirler, giderler, toplam_aidat_tahsilat } = raporData
+    // YENİ semantik alanları öncelikli okur; eski alias'a fallback.
+    const toplam_tahakkuk: number = Number(raporData.toplam_tahakkuk ?? raporData.toplam_gelir ?? 0)
+    const toplam_gider_tahakkuku: number = Number(raporData.toplam_gider_tahakkuku ?? raporData.toplam_gider ?? 0)
+
     return {
       content: [
         { text: `${donem.yil} / ${donem.ay} DÖNEMİ MALİ RAPORU`, style: 'header', alignment: 'center' },
-        { text: 'GELİRLER', style: 'subheader', margin: [0, 20, 0, 5] },
+        { text: 'TAHAKKUKLAR', style: 'subheader', margin: [0, 20, 0, 5] },
         {
           table: {
             headerRows: 1,
@@ -135,11 +142,11 @@ export const pdfGenerator = {
                 { text: Number(g.alacak ?? g.tutar ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 }), alignment: 'right' }
               ]),
               [{ text: 'Aidat Tahsilatları Toplamı', colSpan: 2, bold: true }, {}, { text: toplam_aidat_tahsilat.toLocaleString('tr-TR', { minimumFractionDigits: 2 }), bold: true, alignment: 'right' }],
-              [{ text: 'GELİRLER TOPLAMI', colSpan: 2, bold: true, fillColor: '#e6ffed' }, {}, { text: (toplam_gelir + toplam_aidat_tahsilat).toLocaleString('tr-TR', { minimumFractionDigits: 2 }), bold: true, alignment: 'right', fillColor: '#e6ffed' }]
+              [{ text: 'TAHAKKUK + TAHSİLAT TOPLAMI', colSpan: 2, bold: true, fillColor: '#e6ffed' }, {}, { text: (toplam_tahakkuk + toplam_aidat_tahsilat).toLocaleString('tr-TR', { minimumFractionDigits: 2 }), bold: true, alignment: 'right', fillColor: '#e6ffed' }]
             ]
           }
         },
-        { text: 'GİDERLER', style: 'subheader', margin: [0, 20, 0, 5] },
+        { text: 'GİDER TAHAKKUKLARI', style: 'subheader', margin: [0, 20, 0, 5] },
         {
           table: {
             headerRows: 1,
@@ -151,7 +158,7 @@ export const pdfGenerator = {
                 `${g.islem_turu || '-'} - ${g.aciklama || ''}`,
                 { text: Number(g.borc ?? g.tutar ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 }), alignment: 'right' }
               ]),
-              [{ text: 'GİDERLER TOPLAMI', colSpan: 2, bold: true, fillColor: '#fff1f0' }, {}, { text: toplam_gider.toLocaleString('tr-TR', { minimumFractionDigits: 2 }), bold: true, alignment: 'right', fillColor: '#fff1f0' }]
+              [{ text: 'GİDER TAHAKKUKU TOPLAMI', colSpan: 2, bold: true, fillColor: '#fff1f0' }, {}, { text: toplam_gider_tahakkuku.toLocaleString('tr-TR', { minimumFractionDigits: 2 }), bold: true, alignment: 'right', fillColor: '#fff1f0' }]
             ]
           }
         },
@@ -160,7 +167,7 @@ export const pdfGenerator = {
           table: {
             widths: ['*', 'auto'],
             body: [
-              [{ text: 'DÖNEM NET BAKİYE (KASA/BANKA)', bold: true, fontSize: 14 }, { text: (toplam_gelir + toplam_aidat_tahsilat - toplam_gider).toLocaleString('tr-TR', { minimumFractionDigits: 2 }), bold: true, fontSize: 14, alignment: 'right' }]
+              [{ text: 'DÖNEM NET BAKİYE (KASA/BANKA)', bold: true, fontSize: 14 }, { text: (toplam_tahakkuk + toplam_aidat_tahsilat - toplam_gider_tahakkuku).toLocaleString('tr-TR', { minimumFractionDigits: 2 }), bold: true, fontSize: 14, alignment: 'right' }]
             ]
           }
         }

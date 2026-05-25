@@ -140,6 +140,15 @@ export const raporService = {
       throw error;
     }
 
+    // 20260525150000: RPC artık hem eski (toplam_gelir, toplam_gider) hem yeni
+    // semantik alanları (toplam_tahakkuk, toplam_gider_tahakkuku) döndürüyor.
+    // Service shape: yeni alanları öncelikli okur, eski'leri @deprecated olarak
+    // korur (B5 sprintinde temizlenecek).
+    const tahakkuk = Number(data.toplam_tahakkuk ?? data.toplam_gelir ?? 0)
+    const giderTahakkuku = Number(data.toplam_gider_tahakkuku ?? data.toplam_gider ?? 0)
+    const tahsilat = Number(data.toplam_tahsilat || 0)
+    const odeme = Number(data.toplam_odeme || 0)
+
     return {
       donem: { yil, ay },
       gelirler: data.gelirler || [],
@@ -147,11 +156,15 @@ export const raporService = {
       tahsilatlar: data.tahsilatlar || [],
       aidat_tahsilat: data.tahsilatlar || [], // Frontend compatibility
       odemeler: data.odemeler || [],
-      toplam_gelir: Number(data.toplam_gelir || 0),
-      toplam_gider: Number(data.toplam_gider || 0),
-      toplam_tahsilat: Number(data.toplam_tahsilat || 0),
-      toplam_aidat_tahsilat: Number(data.toplam_tahsilat || 0),
-      toplam_odeme: Number(data.toplam_odeme || 0),
+      // YENİ semantik alanlar
+      toplam_tahakkuk: tahakkuk,
+      toplam_gider_tahakkuku: giderTahakkuku,
+      // @deprecated 20260525150000 — B5 sprintinde silinecek; tüketici toplam_tahakkuk/toplam_gider_tahakkuku kullanmalı.
+      toplam_gelir: tahakkuk,
+      toplam_gider: giderTahakkuku,
+      toplam_tahsilat: tahsilat,
+      toplam_aidat_tahsilat: tahsilat,
+      toplam_odeme: odeme,
       yaklasan_odemeler: { t: 0, t1: 0, t2: 0 }
     };
   },
@@ -189,18 +202,40 @@ export const raporService = {
       monthlyMap.set(m, stats)
     }
 
+    // 20260525150000: RPC her aylik satırına hem eski (gelir, gider) hem yeni
+    // semantik alanları (tahakkuk, gider_tahakkuku) ekliyor. Service enrichment'ı
+    // yeni alanları öncelikli korur; eski'leri RPC zaten yazıyor.
     const aylikEnriched = ((data?.aylik) || []).map((row: any) => {
       const m = Number(row.ay)
       const stats = monthlyMap.get(m)
+      const tahakkuk = Number(row.tahakkuk ?? row.gelir ?? 0)
+      const giderTahakkuku = Number(row.gider_tahakkuku ?? row.gider ?? 0)
       return {
         ...row,
+        // YENİ semantik alanlar (RPC zaten yazıyor; tutarlılık için garantiliyoruz)
+        tahakkuk,
+        gider_tahakkuku: giderTahakkuku,
+        // @deprecated B5 sprintinde silinecek
+        gelir: tahakkuk,
+        gider: giderTahakkuku,
         geciken_alacak: stats ? Math.round(stats.geciken_alacak * 100) / 100 : 0,
         ortalama_gecikme_gun: stats && stats.count > 0 ? Math.round(stats.gecikme_gun_toplam / stats.count) : 0,
       }
     })
 
+    // Top-level toplam_tahakkuk / toplam_gider_tahakkuku alanlarını da garantile
+    // (RPC zaten yazıyor; data spread'i sonrası ek alias).
+    const topTahakkuk = Number(data?.toplam_tahakkuk ?? data?.toplam_gelir ?? 0)
+    const topGiderTahakkuku = Number(data?.toplam_gider_tahakkuku ?? data?.toplam_gider ?? 0)
+
     return {
       ...data,
+      // YENİ semantik alanlar (öncelikli)
+      toplam_tahakkuk: topTahakkuk,
+      toplam_gider_tahakkuku: topGiderTahakkuku,
+      // @deprecated B5 sprintinde silinecek
+      toplam_gelir: topTahakkuk,
+      toplam_gider: topGiderTahakkuku,
       aylik: aylikEnriched,
     }
   },
