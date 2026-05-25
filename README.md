@@ -1,12 +1,16 @@
 # KoopGenHes
 
+[![CI](https://github.com/ozdemirfa/koop-gen-hes/actions/workflows/ci.yml/badge.svg)](https://github.com/ozdemirfa/koop-gen-hes/actions/workflows/ci.yml)
+
 Konut Yapı Kooperatifi - Genel Hesap Yönetim Sistemi
 
 ## Stack
-- **Frontend:** React + Vite + Ant Design
-- **Backend:** Node.js + Express
-- **Veritabanı:** Supabase (PostgreSQL)
-- **Auth:** Supabase Auth (email/password, role-based)
+- **Frontend:** React 19 + Vite 8 + Ant Design 6 (route-based lazy splitting)
+- **Backend:** Node.js + Express 5 + TypeScript
+- **Veritabanı:** Supabase (PostgreSQL, RLS + audit_logs)
+- **Auth:** Supabase Auth (email/password, JWT lokal verify, 3-rol proje modeli)
+- **Test:** Vitest (server, 386 test) + Playwright (client e2e)
+- **CI:** GitHub Actions — push/PR'da server-test + client-build (bkz. [docs/ci-setup.md](docs/ci-setup.md))
 
 ## Kurulum
 
