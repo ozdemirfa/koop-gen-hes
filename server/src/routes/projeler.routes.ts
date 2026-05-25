@@ -12,6 +12,7 @@ import {
   yillikPlanKalemleriBulkSchema,
   arsivleProjeSchema,
   kaliciSilProjeSchema,
+  offlineModeSchema,
 } from '../schemas/proje.schema'
 import * as projelerController from '../controllers/projeler.controller'
 
@@ -96,5 +97,18 @@ router.get('/:id/silme-onizleme', requireProjectAccess('owner'), projelerControl
 router.post('/:id/arsivle', requireProjectAccess('owner'), validate({ body: arsivleProjeSchema }), projelerController.arsivleProje)
 router.post('/:id/geri-al', requireProjectAccess('owner'), projelerController.geriAlProje)
 router.delete('/:id', requireProjectAccess('owner'), validate({ body: kaliciSilProjeSchema }), projelerController.kaliciSilProje)
+
+// 9. Sprint desktop-offline-mode (2026-05-26): proje çevrimdışı moduna alma.
+//    Yalnız owner çağırabilir. Service offline_mode_set_at +
+//    offline_mode_owner_id alanlarını otomatik doldurur. Desktop kardeş
+//    uygulaması (Electron) bu endpoint'i kullanır; web tarafında UI yok
+//    ama backend desteklenir (file:// scheme'de relatif /api çözmediği
+//    için desktop client absolute backend URL'sine ulaşır).
+router.patch(
+  '/:id/offline-mode',
+  requireProjectAccess('owner'),
+  validate({ body: offlineModeSchema }),
+  projelerController.setOfflineMode,
+)
 
 export default router

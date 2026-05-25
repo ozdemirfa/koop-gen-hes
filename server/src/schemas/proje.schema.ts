@@ -80,3 +80,11 @@ export const arsivleProjeSchema = z.object({
 export const kaliciSilProjeSchema = z.object({
   projeAdiOnay: z.string().min(1, 'Proje adı onayı zorunlu'),
 })
+
+// Sprint desktop-offline-mode (2026-05-26): proje çevrimdışı moduna alma /
+// online'a döndürme. Yalnız owner çağırabilir; route guard owner enforce eder.
+// Desktop kardeş uygulaması bu endpoint'i kullanır — web tarafında UI yok
+// ama backend desteklenir ki desktop client (file://) backend'e PATCH atabilsin.
+export const offlineModeSchema = z.object({
+  offline_mode: z.boolean(),
+})
