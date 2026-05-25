@@ -209,6 +209,44 @@ export const cariHesapService = {
       if ((error as any).code === 'P0002') {
         throw ApiError.notFound('Cari hareket bulunamadi')
       }
+      // Hotfix 2026-05-25: RPC production'da deploy edilmemis olabilir.
+      // 42883 / PGRST202 alindiginda eski iki-step delete'e fallback yap.
+      const rpcMissing =
+        (error as any).code === '42883' ||
+        (error as any).code === 'PGRST202' ||
+        (error as any).code === 'PGRST204' ||
+        /fn_delete_cari_hareket_with_banka.*does not exist|Could not find the function/i.test(
+          (error as any).message || '',
+        )
+      if (rpcMissing) {
+        logger.warn(
+          'fn_delete_cari_hareket_with_banka RPC bulunamadi — eski iki-step delete fallback aktif (migration apply edilmeli)',
+        )
+        // Eski iki-step delete: kapali kayit guard + banka delete + cari delete.
+        const { data: existing, error: fetchErr } = await supabaseAdmin
+          .from('cari_hareketler')
+          .select('id, kaynak_tipi, kaynak_id')
+          .eq('id', id)
+          .maybeSingle()
+        if (fetchErr) throw fetchErr
+        if (!existing) throw ApiError.notFound('Cari hareket bulunamadi')
+        if (existing.kaynak_tipi && existing.kaynak_id) {
+          throw ApiError.conflict(
+            'Bu tahsilat bir aidat/hakedis ile eslestirilmis ve dogrudan silinemez. Once hesap kapamayi geri alin.',
+          )
+        }
+        const { error: bErr } = await supabaseAdmin
+          .from('banka_hareketleri')
+          .delete()
+          .eq('eslesen_cari_hareket_id', id)
+        if (bErr) throw bErr
+        const { error: cErr } = await supabaseAdmin
+          .from('cari_hareketler')
+          .delete()
+          .eq('id', id)
+        if (cErr) throw cErr
+        return { success: true, message: 'Tahsilat kaydi silindi (fallback).' }
+      }
       throw error
     }
     return { success: true, message: 'Tahsilat kaydi silindi.' }
