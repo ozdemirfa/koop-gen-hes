@@ -50,14 +50,17 @@ export const AylikRaporPage: React.FC = () => {
     if (!rapor) return
     const yil = targetDate.year()
     const ay = targetDate.month() + 1
+    // 20260525150000: yeni semantik alanlar — fallback ile geriye uyumlu.
+    const aidatTahakkuku = Number(rapor.toplam_tahakkuk ?? rapor.toplam_gelir ?? 0)
+    const giderTahakkuku = Number(rapor.toplam_gider_tahakkuku ?? rapor.toplam_gider ?? 0)
     downloadCsv(`aylik-rapor-${yil}-${String(ay).padStart(2, '0')}`, [
       {
         title: `Aylık Mali Rapor — ${dayjs().year(yil).month(ay - 1).format('MMMM YYYY')}`,
         headers: ['Metrik', 'Tutar (TL)'],
         rows: [
           ['Toplam Tahsilat', rapor.toplam_aidat_tahsilat || 0],
-          ['Diğer Gelirler', rapor.toplam_gelir || 0],
-          ['Toplam Giderler', rapor.toplam_gider || 0],
+          ['Aidat Tahakkuku', aidatTahakkuku],
+          ['Gider Tahakkuku', giderTahakkuku],
           ['Yaklaşan: Bu Ay (T)', rapor.yaklasan_odemeler?.t || 0],
           ['Yaklaşan: Gelecek Ay (T+1)', rapor.yaklasan_odemeler?.t1 || 0],
           ['Yaklaşan: Sonraki Ay (T+2)', rapor.yaklasan_odemeler?.t2 || 0],
@@ -74,7 +77,7 @@ export const AylikRaporPage: React.FC = () => {
         ]),
       },
       {
-        title: 'Gelirler',
+        title: 'Aidat Tahakkukları',
         headers: ['Tarih', 'Cari/Kaynak', 'Açıklama', 'Tutar (TL)'],
         rows: (rapor.gelirler || []).map((r: any) => [
           dayjs(r.tarih).format('DD.MM.YYYY'),
@@ -84,7 +87,7 @@ export const AylikRaporPage: React.FC = () => {
         ]),
       },
       {
-        title: 'Giderler',
+        title: 'Gider Tahakkukları',
         headers: ['Tarih', 'Tür', 'Cari/Firma', 'Açıklama', 'Tutar (TL)'],
         rows: (rapor.giderler || []).map((r: any) => [
           dayjs(r.tarih).format('DD.MM.YYYY'),
@@ -166,8 +169,8 @@ export const AylikRaporPage: React.FC = () => {
         <Col span={8}>
           <Card variant="borderless" size="small" className="stat-card shadow-sm">
             <Statistic
-              title="Diğer Gelirler"
-              value={rapor?.toplam_gelir || 0}
+              title="Aidat Tahakkuku"
+              value={Number(rapor?.toplam_tahakkuk ?? rapor?.toplam_gelir ?? 0)}
               prefix={<RiseOutlined />}
               suffix="TL"
               formatter={(v) => trMoneyFormatter(v as number)}
@@ -178,8 +181,8 @@ export const AylikRaporPage: React.FC = () => {
         <Col span={8}>
           <Card variant="borderless" size="small" className="stat-card shadow-sm">
             <Statistic
-              title="Toplam Giderler"
-              value={rapor?.toplam_gider || 0}
+              title="Gider Tahakkuku"
+              value={Number(rapor?.toplam_gider_tahakkuku ?? rapor?.toplam_gider ?? 0)}
               prefix={<FallOutlined />}
               suffix="TL"
               formatter={(v) => trMoneyFormatter(v as number)}
@@ -250,8 +253,8 @@ export const AylikRaporPage: React.FC = () => {
               ),
             },
             {
-              key: 'gelir',
-              label: `Gelirler (${rapor?.gelirler?.length || 0})`,
+              key: 'tahakkuk',
+              label: `Aidat Tahakkukları (${rapor?.gelirler?.length || 0})`,
               children: (
                 <Table
                   dataSource={rapor?.gelirler || []}
@@ -263,8 +266,8 @@ export const AylikRaporPage: React.FC = () => {
               ),
             },
             {
-              key: 'gider',
-              label: `Giderler (${rapor?.giderler?.length || 0})`,
+              key: 'gider_tahakkuku',
+              label: `Gider Tahakkukları (${rapor?.giderler?.length || 0})`,
               children: (
                 <Table
                   dataSource={rapor?.giderler || []}

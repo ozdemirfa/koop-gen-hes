@@ -178,7 +178,8 @@ export const Dashboard: React.FC = () => {
           <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
               title={<span style={cardTitleStyle}>Tahakkuk Eden Gider</span>}
-              value={ozet?.toplam_gider || 0}
+              // 20260525150000: yeni semantik alan toplam_gider_tahakkuku; eski toplam_gider'a fallback.
+              value={ozet?.toplam_gider_tahakkuku ?? ozet?.toplam_gider ?? 0}
               prefix={<IconBadge icon={<ContainerOutlined />} color="#d4380d" />}
               suffix={TLSuffix}
               formatter={(v) => trMoneyFormatter(v as number)}

@@ -36,9 +36,10 @@ export const YillikRaporPage: React.FC = () => {
     if (!rapor) return
     const yil = targetYear.year()
     const toplamTahsilat = Number(rapor.toplam_tahsilat || 0)
-    const toplamTahakkuk = Number(rapor.toplam_gelir || 0)
-    const toplamGider = Number(rapor.toplam_gider || 0)
-    const netBakiye = toplamTahsilat - toplamGider
+    // 20260525150000: semantik field naming — yeni alanlar öncelikli, eski'lere fallback.
+    const toplamTahakkuk = Number(rapor.toplam_tahakkuk ?? rapor.toplam_gelir ?? 0)
+    const toplamGiderTahakkuku = Number(rapor.toplam_gider_tahakkuku ?? rapor.toplam_gider ?? 0)
+    const netBakiye = toplamTahsilat - toplamGiderTahakkuku
     downloadCsv(`yillik-rapor-${yil}`, [
       {
         title: `Yıllık Mali Rapor — ${yil}`,
@@ -46,17 +47,17 @@ export const YillikRaporPage: React.FC = () => {
         rows: [
           ['Yıllık Aidat Tahakkuku', toplamTahakkuk],
           ['Yıllık Tahsilat (Aidat + Üyelik Başlangıç)', toplamTahsilat],
-          ['Yıllık Toplam Gider', toplamGider],
+          ['Yıllık Gider Tahakkuku', toplamGiderTahakkuku],
           ['Yıllık Nakit Farkı', netBakiye],
         ],
       },
       {
         title: `${yil} Aylık Döküm`,
-        headers: ['Ay', 'Aidat Tahakkuku', 'Tahsilat', 'Geciken Alacak', 'Ort. Gecikme Gün', 'Giderler', 'Nakit Farkı'],
+        headers: ['Ay', 'Aidat Tahakkuku', 'Tahsilat', 'Geciken Alacak', 'Ort. Gecikme Gün', 'Gider Tahakkuku', 'Nakit Farkı'],
         rows: (rapor.aylik || []).map((r: any) => {
-          const tahakkuk = Number(r.gelir || 0)
+          const tahakkuk = Number(r.tahakkuk ?? r.gelir ?? 0)
           const tahsilat = Number(r.tahsilat || 0)
-          const gider = Number(r.gider || 0)
+          const giderTahakkuku = Number(r.gider_tahakkuku ?? r.gider ?? 0)
           const geciken = Number(r.geciken_alacak || 0)
           const ortGecikme = Number(r.ortalama_gecikme_gun || 0)
           return [
@@ -65,8 +66,8 @@ export const YillikRaporPage: React.FC = () => {
             tahsilat,
             geciken,
             ortGecikme,
-            gider,
-            tahsilat - gider,
+            giderTahakkuku,
+            tahsilat - giderTahakkuku,
           ]
         }),
       },
@@ -97,11 +98,11 @@ export const YillikRaporPage: React.FC = () => {
       render: (a: number) => AY_ETIKETLERI[(a || 1) - 1] || a,
     },
     {
+      // 20260525150000: dataIndex 'tahakkuk' (yeni); render fallback ile geriye uyumlu.
       title: 'Aidat Tahakkuku',
-      dataIndex: 'gelir',
       key: 'tahakkuk',
       align: 'right' as const,
-      render: (v: number) => trMoneyFormatter(Number(v || 0)),
+      render: (_: unknown, r: any) => trMoneyFormatter(Number(r.tahakkuk ?? r.gelir ?? 0)),
     },
     {
       title: 'Tahsilat',
@@ -130,12 +131,12 @@ export const YillikRaporPage: React.FC = () => {
       render: (v: number) => `${Number(v || 0)} gün`,
     },
     {
-      title: 'Giderler',
-      dataIndex: 'gider',
-      key: 'gider',
+      // 20260525150000: yeni semantik dataIndex; render fallback ile geriye uyumlu.
+      title: 'Gider Tahakkuku',
+      key: 'gider_tahakkuku',
       align: 'right' as const,
-      render: (v: number) => (
-        <span style={{ color: '#cf1322' }}>{trMoneyFormatter(Number(v || 0))}</span>
+      render: (_: unknown, r: any) => (
+        <span style={{ color: '#cf1322' }}>{trMoneyFormatter(Number(r.gider_tahakkuku ?? r.gider ?? 0))}</span>
       ),
     },
     {
@@ -143,7 +144,8 @@ export const YillikRaporPage: React.FC = () => {
       key: 'fark',
       align: 'right' as const,
       render: (_: unknown, r: any) => {
-        const fark = Number(r.tahsilat || 0) - Number(r.gider || 0)
+        const giderTahakkuku = Number(r.gider_tahakkuku ?? r.gider ?? 0)
+        const fark = Number(r.tahsilat || 0) - giderTahakkuku
         return (
           <span style={{ color: fark >= 0 ? '#3f8600' : '#cf1322', fontWeight: 600 }}>
             {trMoneyFormatter(fark)}
@@ -177,12 +179,13 @@ export const YillikRaporPage: React.FC = () => {
         </Button>
       </div>
 
+      {/* 20260525150000: yeni semantik alanlar — fallback ile geriye uyumlu. */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
               title="Yıllık Aidat Tahakkuku"
-              value={Number(rapor?.toplam_gelir || 0)}
+              value={Number(rapor?.toplam_tahakkuk ?? rapor?.toplam_gelir ?? 0)}
               prefix={<RiseOutlined />}
               suffix="TL"
               formatter={(v) => trMoneyFormatter(v as number)}
@@ -204,8 +207,8 @@ export const YillikRaporPage: React.FC = () => {
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="Yıllık Toplam Gider"
-              value={Number(rapor?.toplam_gider || 0)}
+              title="Yıllık Gider Tahakkuku"
+              value={Number(rapor?.toplam_gider_tahakkuku ?? rapor?.toplam_gider ?? 0)}
               prefix={<FallOutlined />}
               suffix="TL"
               formatter={(v) => trMoneyFormatter(v as number)}
@@ -217,11 +220,11 @@ export const YillikRaporPage: React.FC = () => {
           <Card>
             <Statistic
               title="Yıllık Nakit Farkı"
-              value={Number(rapor?.toplam_tahsilat || 0) - Number(rapor?.toplam_gider || 0)}
+              value={Number(rapor?.toplam_tahsilat || 0) - Number(rapor?.toplam_gider_tahakkuku ?? rapor?.toplam_gider ?? 0)}
               prefix={<BarChartOutlined />}
               suffix="TL"
               formatter={(v) => trMoneyFormatter(v as number)}
-              styles={{ content: { color: (Number(rapor?.toplam_tahsilat || 0) - Number(rapor?.toplam_gider || 0)) >= 0 ? '#3f8600' : '#cf1322' } }}
+              styles={{ content: { color: (Number(rapor?.toplam_tahsilat || 0) - Number(rapor?.toplam_gider_tahakkuku ?? rapor?.toplam_gider ?? 0)) >= 0 ? '#3f8600' : '#cf1322' } }}
             />
           </Card>
         </Col>
