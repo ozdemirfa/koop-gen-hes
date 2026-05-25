@@ -838,3 +838,158 @@ Kullanıcı net 4'lü ayrım istedi:
 4. `client/.../*RaporPage.tsx` + `Dashboard.tsx` `?? eski` fallback'leri kaldır.
 5. Test'lerde response shape assertion eklenirse o tarafta da güncelle.
 
+---
+
+# SPRINT: Rapor Hesaplama Formülleri Revizyonu (`20260525-rapor-hesaplama-revizyonu`)
+
+## Bağlam
+
+Önceki sprint (`sprint-rapor-semantic-naming`, tag `419ede1`) **alan adlandırmasını** düzeltti: `toplam_gelir → toplam_tahakkuk`, `toplam_gider → toplam_gider_tahakkuku`. Şimdi semantik isimler doğru ama RPC body'lerindeki **gerçek SQL hesaplamaları** kullanıcının iş kurallarıyla uyuşmuyor.
+
+Kullanıcının net iş kuralları (kelimesi kelimesine):
+
+1. **`toplam_gider_tahakkuku`**: Hakediş + Üyelik Bedeli İadesi. **Fatura çıkarılacak.** Aylık Mali Rapor "Giderler" sekmesinde fatura görünmeyecek; üyelik bedeli iadesi görünecek.
+2. **`toplam_tahakkuk`**: Aidat tahakkukları + Üyelik tahakkukları. "Üyelik tahakkukları" tarafına üyelik başlangıç bedeli tahakkuku eklenecek (üye kaydı yapıldığında yazılan başlangıç bedeli alacağı).
+3. **Yıllık Mali Rapor — 4 kart formülleri**:
+   - Yıllık Aidat Tahakkuku: SADECE üyelik aidatları + gecikme faiz farkları.
+   - Yıllık Tahsilat: Aidatlar + faiz farkları + üyelik başlangıç bedeli (gelen ödemelerin tümü).
+   - Yıllık Toplam Gider: Hakedişler + üyelik bedeli iadesi (yükümlülükler).
+   - Yıllık Nakit Farkı: tahsilat − ödeme.
+4. **Genel Mizan (`/raporlar/mizan`)**: Üstteki özet kartlar ile alt mizan tablosu toplamlarının uyuşmadığı bildirildi.
+
+## Veri Kaynağı Netleştirme (keşif çıktısı)
+
+| Kavram | cari_hareketler eşleşmesi |
+|--------|---------------------------|
+| Aidat tahakkuku | `islem_turu = 'aidat_kayit'` AND `alacak > 0`, `cari_turu = 'uye'` |
+| Gecikme faizi tahakkuku | `islem_turu = 'gecikme_faizi'` AND `alacak > 0`, `cari_turu = 'uye'` |
+| Üyelik başlangıç tahakkuku | `islem_turu = 'uyelik_baslangic'` AND `alacak > 0` AND `kaynak_tipi IS NULL` (REV-PAY-02: `odeme_turu='cari'` olduğunda tahakkuk) |
+| Aidat/üyelik tahsilatı | `islem_turu IN ('gelen_odeme','uyelik_baslangic')` AND `borc > 0`, `cari_turu = 'uye'` |
+| Hakediş gider tahakkuku | `hakedisler.durum IN ('onaylandi','odendi')` → SUM(hakedis_toplam) |
+| Üyelik bedeli iadesi | `cari_hareketler.islem_turu = 'iade_odeme'` AND `alacak > 0` (üye lehine üyelik bedeli iadesi; constraint commentinde net tanım) |
+| Fatura (artık tahakkuk değil) | `cari_hareketler.islem_turu = 'fatura'` → ayrı kart, gider_tahakkuku formülünden çıkarılır |
+| Genel ödeme | `islem_turu IN ('giden_odeme','odeme','cek_odeme','banka_transfer')` AND `alacak > 0`, `cari_turu = 'firma'` |
+
+**Mizan bug kök neden:** `MizanPage.tsx` üst kartlar `useMemo` ile **tüm `list`** üzerinde, alt `summary` ise `pageData` (Ant Design Table'ın current page + filter sonrası subset) üzerinde toplama yapıyor. Filtre/sayfalama tetiklenince fark açık. Çözüm: alt summary'yi de tüm `list` üzerinden hesapla, "GENEL TOPLAM" olarak adlandır (sayfa içeriği yerine veri seti toplamı).
+
+## Tasarım Kararları
+
+### Yeni Formüller (RPC body'lerinde uygulanacak)
+
+**`toplam_tahakkuk` (Aidat + Üyelik tahakkukları):**
+```sql
+SUM(CASE WHEN c.cari_turu='uye' AND ch.islem_turu IN ('aidat_kayit','gecikme_faizi') THEN ch.alacak ELSE 0 END)
++ SUM(CASE WHEN ch.islem_turu='uyelik_baslangic' AND ch.alacak>0 AND ch.kaynak_tipi IS NULL THEN ch.alacak ELSE 0 END)
+```
+
+**`toplam_gider_tahakkuku` (Hakediş + Üyelik bedeli iadesi):**
+```sql
+SUM(hakedisler WHERE durum IN ('onaylandi','odendi'))
++ SUM(CASE WHEN ch.islem_turu='iade_odeme' AND ch.alacak>0 THEN ch.alacak ELSE 0 END)
+-- fatura ÇIKARILDI
+```
+
+**`toplam_tahsilat`:** Değişmez (`gelen_odeme + uyelik_baslangic` borc > 0).
+
+**`toplam_odeme`:** Değişmez (`giden_odeme + odeme + cek_odeme + banka_transfer` alacak).
+
+**Mizan kartları:** Component-level `stats` ve `summary` aynı **`list`** kaynağından beslenir; "SAYFA TOPLAMI" yerine "GENEL TOPLAM" (filtre/sayfalamadan bağımsız) gösterilir. Kullanıcı filtreden bağımsız tutarlı toplamı görür.
+
+### Migration Stratejisi
+
+- Yeni timestamp'li migration `20260525160000_rapor_hesaplama_revizyonu.sql` — eski'yi düzenlemez, `CREATE OR REPLACE` ile RPC body'lerini yeniden yazar.
+- Eski `toplam_gelir` ve `toplam_gider` alias'ları **korunur** (B5 cleanup'a kadar). Bu sprint formül değişikliği, alan rename değil.
+- Aylık rapor `giderler` jsonb listesinde `islem_turu IN ('hakedis','iade_odeme')` olarak güncellenir; fatura çıkarılır.
+- Aylık rapor `gelirler` listesi şu an sadece `aidat_kayit` — bu sprint `'aidat_kayit','gecikme_faizi','uyelik_baslangic'` (`alacak>0 AND kaynak_tipi IS NULL`) genişletilir.
+
+## Görevler
+
+### Batch 1 — DB Migration (`20260525160000_rapor_hesaplama_revizyonu.sql`) — commit `<b1>`
+- [ ] `fn_dashboard_ozet` RPC body güncelleme:
+  - `v_toplam_gelir` (= toplam_tahakkuk): aidat + gecikme_faizi + uyelik_baslangic (alacak, kaynak_tipi IS NULL).
+  - `v_hakedis_toplam_gider` (= toplam_gider_tahakkuku) artık hakediş + iade_odeme topla; fatura ayrı kart kalır (`v_toplam_fatura` mevcut).
+- [ ] `fn_aylik_rapor_detay` RPC body güncelleme:
+  - `v_gelirler` listesinde `islem_turu IN ('aidat_kayit','gecikme_faizi','uyelik_baslangic')` AND `alacak > 0` AND `kaynak_tipi IS NULL` (uyelik_baslangic için).
+  - `v_giderler` listesinde `islem_turu IN ('hakedis','iade_odeme')` AND `borc > 0` (fatura çıkarıldı).
+  - `v_toplam_gelir` ve `v_toplam_gider` aggregate'leri yeni listelerden gelir.
+- [ ] `fn_yillik_rapor_ozet` aylık CTE'sinde formüller güncellenir; toplam alanları yeni formüllere dayanır.
+- [ ] Migration timestamp test guard (`server/tests/unit/migrationTimestampUnique.test.ts`) pass.
+- [ ] Server test suite 354/354 yeşil (var olan testler — formül davranışı RPC mock'lu olduğu için zaten yeşil kalır; yeni semantik testler B4'te).
+
+### Batch 2 — Backend service/PDF — commit `<b2>`
+- [ ] `server/src/services/rapor.service.ts`:
+  - `aylikRapor()` response shape DEĞİŞMEZ (RPC zaten yeni alan değerlerini doğru hesaplar). Sadece `toplam_aidat_tahsilat` alias'ı korunur.
+  - `yillikRapor()` — herhangi bir client-side toplamlama yok (RPC final değerleri verir). Aylık enrichment (geciken alacak) korunur.
+- [ ] `server/src/utils/pdfGenerator.ts`:
+  - `generateMaliRaporPDF` — "TAHAKKUK + TAHSİLAT TOPLAMI" ve "GİDER TAHAKKUKU TOPLAMI" zaten doğru field'lardan okur.
+  - PDF'te "Açıklama / Kategori" satırında `islem_turu` text olarak çıkıyor; `iade_odeme` etiketi PDF için "Üyelik Bedeli İadesi" olarak Türkçeleştirilir (mapping function).
+- [ ] `npm --prefix server run build` clean.
+- [ ] `npm --prefix server test` — 354 yeşil.
+
+### Batch 3 — Frontend — commit `<b3>`
+- [ ] `client/src/pages/raporlar/AylikRaporPage.tsx`:
+  - `giderColumns` "Tür" render'ı `iade_odeme` için "Üyelik Bedeli İadesi" Tag (color green) etiketi ekler; `fatura` etiketi kaldırılır (RPC zaten fatura döndürmüyor).
+  - CSV section başlıkları aynı (RPC değişikliği sonrası fatura kalemleri zaten yok).
+- [ ] `client/src/pages/raporlar/YillikRaporPage.tsx`:
+  - 4 kart label'ları yeni semantikle netleştirilir:
+    - "Yıllık Aidat Tahakkuku" → kalır (formül RPC tarafında düzeltildi).
+    - "Yıllık Tahsilat" → kalır.
+    - "Yıllık Gider Tahakkuku" → "Yıllık Toplam Gider" (kullanıcı isteği).
+    - "Yıllık Nakit Farkı" → kalır.
+  - CSV başlığı "Yıllık Gider Tahakkuku" → "Yıllık Toplam Gider" eşleştirilir.
+- [ ] `client/src/pages/raporlar/MizanPage.tsx` (kart-altToplam tutarlılığı bug fix):
+  - `stats` (üst kartlar) **`list`** üzerinden zaten doğru hesaplıyor — değişiklik yok.
+  - DataTable `summary` `pageData` yerine **tüm `list`** üzerinden hesaplar; satır başlığı "SAYFA TOPLAMI" → "GENEL TOPLAM" değiştirilir.
+- [ ] `client/src/pages/Dashboard.tsx`:
+  - "Tahakkuk Eden Gider" kartı zaten `toplam_gider_tahakkuku ?? toplam_gider` okur — değer artık fatura hariç (RPC değişti) — UI değişiklik yok.
+- [ ] `npm --prefix client run build` clean.
+
+### Batch 4 — Doğrulama
+- [ ] Server build clean.
+- [ ] Server test 354/354 yeşil + yeni testler:
+  - `raporService.test.ts` — RPC sözleşmesinde mock dataset üzerinde aylık rapor `v_giderler` filtresi (`hakedis`+`iade_odeme`) ve `v_gelirler` filtresi (3-state) için iki ek test.
+- [ ] Client tsc + vite build clean.
+- [ ] Git tag: `sprint-rapor-hesaplama-revizyonu`.
+
+## Bilinmesi Gereken
+
+- **Fatura kalmaya devam ediyor:** Fatura modülü silinmedi — sadece `toplam_gider_tahakkuku` formülünden çıkarıldı. Dashboard "Faturalar" kartı `ozet?.toplam_fatura` üzerinden bağımsız gösteriliyor.
+- **`uyelik_baslangic` çift yönlü:** `alacak > 0` (tahakkuk, `odeme_turu='cari'`) ve `borc > 0` (tahsilat) iki ayrı kullanım. Tahsilat zaten `20260515000003`'te formüle dahil edildi. Bu sprint **tahakkuk** tarafını ekler.
+- **`kaynak_tipi IS NULL` filtresi `uyelik_baslangic` tahakkukunda kritik:** FIFO eşleşmesi sonrası bir tahsilat satırı `kaynak_tipi='baslangic_bedeli'` olur — bunu tahakkuk olarak saymak çift sayım olur. Sadece kaynak ataması yapılmamış başlangıç bedeli alacak satırı tahakkuk sayılır.
+- **`iade_odeme` ve `gider_tahakkuku` çakışması:** Önceki spesifikasyonda `iade_odeme` bir **ödeme** (cari hesabın alacak tarafında, kasadan para çıkışı). REV-PAY-02 yorumuna göre üyenin lehine yapılan para çıkışı. Kullanıcı bunu "yükümlülük" (gider tahakkuku) olarak almak istiyor — bu mantıklı çünkü iade kararı verildiğinde yükümlülük doğar, fiili para çıkışı ayrı bir banka hareketi ile olur. RPC `iade_odeme` satırlarının `alacak` toplamını hem `toplam_odeme` hem `toplam_gider_tahakkuku`'na sayar (iki rol).
+- **PostgREST cache:** `CREATE OR REPLACE FUNCTION` sonrası schema cache reload Supabase tarafında otomatik (`NOTIFY pgrst, 'reload schema'`).
+
+## Doğrulanmış Sonuç
+
+| Batch | Commit | İçerik |
+|-------|--------|--------|
+| B1 — DB | `e8d1a96` | `20260525160000_rapor_hesaplama_revizyonu.sql` — 3 RPC body formül revizyonu: tahakkuk formülüne `uyelik_baslangic` (alacak, kaynak_tipi NULL) eklendi; gider formülünden `fatura` çıkarıldı, `iade_odeme` (alacak) eklendi. `fn_aylik_rapor_detay` v_giderler listesi `hakedis + iade_odeme`; v_toplam_gider hesabı borc+alacak conditional CASE. Dashboard alt-kırılım alanları: `aidat_tahakkuk`, `uyelik_tahakkuk`, `hakedis_tahakkuk`, `iade_tahakkuku`. |
+| B2 — Backend/PDF | `caefd8c` | `pdfGenerator.generateMaliRaporPDF` — `islemTuruEtiket()` helper (Türkçe etiketler); gider tablosu tutar yön-bilinçli (`iade_odeme` `alacak`, `hakedis` `borc`). `rapor.service.ts` — service shape DEĞİŞMEDİ, sadece doc comment 20260525160000 referansı. |
+| B3 — Frontend | `b94eb74` | `AylikRaporPage` gelir+gider columns Tag etiketleri + tab "Tahakkuklar" + CSV section güncellemesi (fatura yok, üyelik bedeli iadesi var). `YillikRaporPage` 4 kart label "Yıllık Toplam Gider" + CSV başlığı + aylık tablo column. `MizanPage` bug fix — summary `pageData` yerine tüm `list` üzerinden, "SAYFA TOPLAMI" → "GENEL TOPLAM". |
+| B4 — Test | `da1b030` | `raporService.test.ts` +2 yeni test: aylikRapor + yillikRapor RPC formül davranışı (iade_odeme/uyelik_baslangic listeleri + deprecated alias yansıtması). Server tests 354 → 356/356 yeşil. |
+| Tag | `sprint-rapor-hesaplama-revizyonu` | Sprint kapanışı annotated tag. |
+
+**Doğrulama:**
+- `npm --prefix server run build` — clean
+- `npm --prefix server test` — **356/356 yeşil**
+- `npx tsc --noEmit -p client/tsconfig.app.json` — clean
+- `npm --prefix client run build` — clean (bundle warning pre-existing)
+- Migration timestamp test — pass
+
+## Durum
+
+**Tamamlandı.** Batch 1-4 commit + push edildi; sprint tag oluşturuldu.
+
+**Mizan bug:** Kök neden teşhis edildi — kartlar `useMemo` ile tüm `list`'ten, summary `pageData` (filtre+sayfa subset) üzerinden hesaplıyordu. Summary tüm `list`'e geçirildi; başlık "GENEL TOPLAM" oldu. Kullanıcı testinde tutarlılığı doğrulayacak.
+
+**Bilinmesi gereken (üretim deploy sonrası):**
+- `fn_aylik_rapor_detay` yeni body `v_giderler` listesinde fatura görünmez — kullanıcı uyumu için Beklenen davranış.
+- `iade_odeme` cari_hareketler kaydı `alacak` ile yapılır; RPC ve PDF tutar gösteriminde bu yön-bilinçli okunur.
+- Dashboard'a eklenen alt-kırılım alanları (`aidat_tahakkuk`, `uyelik_tahakkuk`, `hakedis_tahakkuk`, `iade_tahakkuku`) frontend tarafında henüz tüketilmiyor — gelecekte detay drilldown için hazır.
+
+**İleri sprint (B5 cleanup, 1-2 hafta sonra):**
+1. Önceki sprintten kalan deprecated alias temizliği (`toplam_gelir`, `toplam_gider`, `aylik[].gelir`, `aylik[].gider`).
+2. `pdfGenerator` + `rapor.service` + `*RaporPage.tsx` + `Dashboard.tsx` `?? eski` fallback'leri kaldır.
+
+
+
