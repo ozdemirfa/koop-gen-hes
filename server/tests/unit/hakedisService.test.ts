@@ -8,6 +8,9 @@ let nextCount = 0
 let firmaSozlesmeleri: any[] = []
 let currentTable = ''
 
+let rpcResponse: { data: any; error: any } = { data: null, error: null }
+const rpcCalls: { name: string; args: any }[] = []
+
 vi.mock('../../src/config/supabase', () => {
   const builder: any = {}
   builder.select = () => builder
@@ -29,6 +32,10 @@ vi.mock('../../src/config/supabase', () => {
         currentTable = t
         return builder
       },
+      rpc: async (name: string, args: any) => {
+        rpcCalls.push({ name, args })
+        return rpcResponse
+      },
     },
   }
 })
@@ -42,6 +49,8 @@ beforeEach(() => {
   nextCount = 0
   firmaSozlesmeleri = []
   currentTable = ''
+  rpcResponse = { data: null, error: null }
+  rpcCalls.length = 0
 })
 
 const PROJE = 'a1111111-1111-4111-a111-111111111111'
@@ -67,8 +76,29 @@ describe('hakedisService.list', () => {
     expect(r.pagination.totalCount).toBe(0)
   })
 
-  it('getById — kayıt yok → ApiError.notFound', async () => {
-    nextError = { code: 'PGRST116' }
+  // Sprint followup-pipeline-cleanup-perf B4 (2026-05-25):
+  // getById artık fn_get_hakedis_detail RPC kullanır. Eski PostgREST nested
+  // select pattern kaldırıldı.
+
+  it('getById — fn_get_hakedis_detail RPC çağrılır', async () => {
+    rpcResponse = {
+      data: { id: 'h1', hakedis_no: 1, sozlesmeler: { id: 's1' }, hakedis_kalemleri: [], irsaliyeler: [] },
+      error: null,
+    }
+    const r = await hakedisService.getById('h1')
+    expect(rpcCalls).toHaveLength(1)
+    expect(rpcCalls[0].name).toBe('fn_get_hakedis_detail')
+    expect(rpcCalls[0].args).toEqual({ p_id: 'h1' })
+    expect((r as any).id).toBe('h1')
+  })
+
+  it('getById — P0002 → ApiError.notFound', async () => {
+    rpcResponse = { data: null, error: { code: 'P0002', message: 'Hakedis bulunamadi' } }
+    await expect(hakedisService.getById('h1')).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it('getById — null data → ApiError.notFound', async () => {
+    rpcResponse = { data: null, error: null }
     await expect(hakedisService.getById('h1')).rejects.toBeInstanceOf(ApiError)
   })
 })

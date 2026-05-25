@@ -57,14 +57,16 @@ export const hakedisService = {
     return { data, pagination: paginationMeta(pagination, count || 0) }
   },
 
+  // Sprint followup-pipeline-cleanup-perf B4 (2026-05-25):
+  // 4+ seviye nested PostgREST select pattern yerine fn_get_hakedis_detail RPC.
+  // RPC jsonb döndürür; tek round-trip + DB-side JSON komposizyon. P0002 → 404.
   async getById(id: string) {
-    const { data, error } = await supabaseAdmin
-      .from('hakedisler')
-      .select('*, sozlesmeler(sozlesme_no, konu, teminat_orani, stopaj_orani, firma_id, firmalar(unvan)), hakedis_kalemleri(*, sozlesme_is_kalemleri(poz_no, tanim, birim, miktar, kdv_orani)), irsaliyeler!irsaliyeler_hakedis_id_fkey(id, irsaliye_no, teslim_tarihi, teslim_alan, notlar, irsaliye_kalemleri(id, malzeme_adi, birim, miktar))')
-      .eq('id', id)
-      .single()
-
-    if (error) throw ApiError.notFound('Hakediş bulunamadı')
+    const { data, error } = await supabaseAdmin.rpc('fn_get_hakedis_detail', { p_id: id })
+    if (error) {
+      if ((error as any).code === 'P0002') throw ApiError.notFound('Hakediş bulunamadı')
+      throw error
+    }
+    if (!data) throw ApiError.notFound('Hakediş bulunamadı')
     return data
   },
 
