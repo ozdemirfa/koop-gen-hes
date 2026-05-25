@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react'
-import { Layout, Menu, Button, Typography, Tooltip, Dropdown, Drawer, Grid } from 'antd'
+import { Layout, Menu, Button, Typography, Tooltip, Dropdown, Drawer, Grid, Tag } from 'antd'
 import {
   UserOutlined,
   LogoutOutlined,
@@ -169,6 +169,12 @@ const MainHeader: React.FC<{
 }> = ({ onToggleCollapsed, settingsMenu }) => {
   const { title, headerActions, headerRightActions } = useLayout()
   const { user } = useAuth()
+  // Sprint qa-review-bugfix-faz3 (2026-05-25, Batch 5): aktif projede role=user
+  // (görüntüleyici/viewer alias) ise username yanında Tag göster → kullanıcı
+  // davranışı kısıtlı olduğunu anlasın (silik butonlar + 403 oluşturmadan).
+  const { projectRole, hasActiveProject } = usePermissions()
+  const isViewerOnly = hasActiveProject && projectRole === 'user'
+
   const displayName =
     (user?.user_metadata as { full_name?: string; name?: string } | undefined)?.full_name ??
     (user?.user_metadata as { full_name?: string; name?: string } | undefined)?.name ??
@@ -279,6 +285,16 @@ const MainHeader: React.FC<{
           <div style={{ display: 'flex', alignItems: 'center' }}>
             {headerRightActions}
           </div>
+        )}
+        {isViewerOnly && (
+          <Tag
+            color="default"
+            data-testid="role-viewer-tag"
+            style={{ marginRight: 8 }}
+            title="Bu projede sadece görüntüleme yetkiniz var"
+          >
+            Görüntüleyici
+          </Tag>
         )}
         {displayName && (
           <Typography.Text
