@@ -717,3 +717,124 @@ Faz 1 (PR #55) ve Faz 2 (PR #56) gönderildi. Faz 3 (frontend) sırada.
 - `.github/workflows/` CI pipeline + dependabot
 - `hakedis.service.getById` 4+ seviye nested select → RPC refactor (perf hotspot)
 - `proje.service.importSerefiye` for-loop → batch update (perf hotspot)
+
+---
+
+# SPRINT: Rapor Field Naming Semantik Temizliği (`20260525-rapor-semantic-naming`)
+
+## Bağlam
+
+Mali raporlama RPC'lerinde (`fn_dashboard_ozet`, `fn_aylik_rapor_detay`, `fn_yillik_rapor_ozet`) ve service/UI katmanlarında field naming **anlamsal karışıklık** yaratıyordu:
+
+- `toplam_gelir` field'ı backend'den geliyor ama UI'da "Yıllık Aidat Tahakkuku" / "Tahakkuk" olarak etiketleniyor → field adı gerçek anlamı (tahakkuk = kesilmiş ama henüz tahsil edilmemiş alacak) yansıtmıyordu.
+- `toplam_gider` benzer karışıklık: hem **gider tahakkuku** (hakediş onaylanması — borç tarafı) hem **ödeme** anlamına çekilebiliyordu. Dashboard'da "Tahakkuk Eden Gider" yazıyor — yine label-field uyumsuzluğu.
+- `toplam_tahsilat` ve `toplam_odeme` zaten net (gerçek para girişi/çıkışı).
+
+Kullanıcı net 4'lü ayrım istedi:
+- **tahakkuk** → aidat/üyelik kesilmiş, henüz para hareketi yok (alacak)
+- **tahsilat** → gerçek para girişi (DEĞİŞMEZ)
+- **gider_tahakkuku** → hakediş/fatura kesilmesi (borç, henüz ödenmedi)
+- **odeme** → gerçek para çıkışı (DEĞİŞMEZ)
+
+## Tasarım Kararları
+
+### Field Naming Mapping
+
+| Eski | Yeni | Anlam |
+|------|------|-------|
+| `toplam_gelir` | `toplam_tahakkuk` | Aidat + üyelik başlangıç tahakkukları (alacak kayıt) |
+| `toplam_gider` | `toplam_gider_tahakkuku` | Hakediş/fatura tahakkukları (henüz ödeme değil) |
+| `toplam_tahsilat` | `toplam_tahsilat` | Gerçek para girişi (DEĞİŞMEZ) |
+| `toplam_odeme` | `toplam_odeme` | Gerçek para çıkışı (DEĞİŞMEZ) |
+| `toplam_aidat_tahsilat` | `toplam_aidat_tahsilat` | service alias; DEĞİŞMEZ |
+| `aylik[].gelir` | `aylik[].tahakkuk` | Yıllık rapor aylık serisinde gelir satırı |
+| `aylik[].gider` | `aylik[].gider_tahakkuku` | Yıllık rapor aylık gider satırı |
+
+### Migration Stratejisi: Option B (geriye uyumlu)
+
+- **RPC'ler her iki field'ı (eski + yeni) jsonb response'unda döndürür.** Tek-shot rename değil — eski client'lar kırılmasın.
+- Service eski + yeni alanları response shape'inde sunar.
+- Frontend yeni alanlara taşınır; eski alanlar deprecated note ile korunur.
+- B5 (ileri sprint): tüm tüketiciler yeni'ye geçtikten sonra eski alanları RPC'lerden sil.
+
+### Sprint Batch'leri
+
+- **B1 — DB Migration**: yeni timestamp'li migration; 3 RPC `CREATE OR REPLACE` ile eski+yeni dual field döndürür.
+- **B2 — Backend service**: `rapor.service.aylikRapor()` ve `yillikRapor()` response shape'inde yeni alanlar; eski alanlar `// @deprecated` yorumuyla korunur. pdfGenerator yeni alanlardan okur.
+- **B3 — Frontend**: `YillikRaporPage`, `AylikRaporPage`, `Dashboard.tsx` `toplam_gelir`/`toplam_gider` referansları yeni alanlara çevrilir; CSV/UI label/Statistic value'ları güncellenir.
+- **B4 — Doğrulama**: server build + 354 test yeşil + client build clean.
+- **B5 (ileri sprint)**: eski field cleanup — RPC alias'ları kaldır, response shape'inden eski alanları sil.
+
+## Görevler
+
+### Batch 1 — DB Migration (yeni RPC field'ları) — commit `<b1>`
+- [ ] Migration: `supabase/migrations/20260525150000_rapor_semantic_naming.sql`.
+  - `fn_dashboard_ozet(UUID, DATE, DATE)` — eski jsonb'ye `toplam_tahakkuk` ve `toplam_gider_tahakkuku` eklenir (eski'ler korunur).
+  - `fn_aylik_rapor_detay(UUID, INT, INT)` — eski jsonb'ye `toplam_tahakkuk`, `toplam_gider_tahakkuku` eklenir.
+  - `fn_yillik_rapor_ozet(UUID, INT)` — eski jsonb'ye `toplam_tahakkuk`, `toplam_gider_tahakkuku` + `aylik[]` her satırına `tahakkuk` + `gider_tahakkuku` eklenir.
+  - `COMMENT ON FUNCTION ...` ile deprecation notu ve B5 cleanup planı yazılır.
+- [ ] Migration timestamp test guard pass (`server/tests/unit/migrationTimestampUnique.test.ts`).
+- [ ] Server test suite **354 yeşil** kalır.
+
+### Batch 2 — Backend service + pdfGenerator — commit `<b2>`
+- [ ] `server/src/services/rapor.service.ts`:
+  - `aylikRapor()` response: `toplam_tahakkuk`, `toplam_gider_tahakkuku` alanları yeni; eski alanlar `// @deprecated` yorumuyla.
+  - `yillikRapor()` response: yeni alanlar ek + `aylik[]` enrichment'a `tahakkuk`/`gider_tahakkuku` alanları eklenir.
+- [ ] `server/src/utils/pdfGenerator.ts:120,138,163` — `generateMaliRaporPDF` `toplam_gelir` → `toplam_tahakkuk` (geriye uyumlu fallback ile: `toplam_tahakkuk ?? toplam_gelir`).
+- [ ] `npm --prefix server run build` clean.
+- [ ] `npm --prefix server test` — 354 yeşil; raporService.test mevcut test'leri etkilenmeden geçer (response shape sadece eklemeli).
+
+### Batch 3 — Frontend rename — commit `<b3>`
+- [ ] `client/src/pages/raporlar/YillikRaporPage.tsx`:
+  - `toplamTahakkuk = Number(rapor.toplam_tahakkuk ?? rapor.toplam_gelir ?? 0)` (B5'e kadar fallback).
+  - `toplamGider = Number(rapor.toplam_gider_tahakkuku ?? rapor.toplam_gider ?? 0)`.
+  - DataTable column `dataIndex: 'tahakkuk'` (`fallback: 'gelir'`), gider column `dataIndex: 'gider_tahakkuku'`.
+  - CSV ve Statistic kart label'ları kullanım yerlerinde net (zaten "Aidat Tahakkuku" / "Toplam Gider" — değişiklik yok).
+- [ ] `client/src/pages/raporlar/AylikRaporPage.tsx`:
+  - Statistic value'lar `rapor?.toplam_tahakkuk ?? rapor?.toplam_gelir ?? 0` ve `rapor?.toplam_gider_tahakkuku ?? rapor?.toplam_gider ?? 0`.
+  - CSV satırları aynı.
+- [ ] `client/src/pages/Dashboard.tsx:181` — `ozet?.toplam_gider_tahakkuku ?? ozet?.toplam_gider ?? 0` ("Tahakkuk Eden Gider" label tutarlı).
+- [ ] `npm --prefix client run build` clean.
+
+### Batch 4 — Doğrulama
+- [ ] Server build clean.
+- [ ] Server test 354/354 yeşil.
+- [ ] Client tsc + vite build clean.
+- [ ] Git tag: `sprint-rapor-semantic-naming`.
+
+## Bilinmesi Gereken
+
+- **pdfGenerator önceki sprintte temizlendi**: `gelir_gider_kategorileri` referansları 2026-05 sprint'inde `islem_turu` + `borc/alacak` alanlarına taşınmıştı. Bu sprint o temizliği rapor-spesifik field naming katmanına genişletir.
+- **PostgREST cache invalidation**: Supabase'de RPC `CREATE OR REPLACE` sonrası `NOTIFY pgrst, 'reload schema'` otomatik tetiklenir; manuel adım gerekmez.
+- **Eski field'ların korunması**: Geriye uyumluluk B5 sprintine kadar — production'da hem eski hem yeni alan döner, network payload ~%2 büyür. Kabul edilebilir trade-off.
+- **`aylik[].gelir`/`aylik[].gider`** alanları SQL CTE'de generic isimle (aidat değil bir başka projede başka anlama gelmesin) korunuyordu. Yeni `tahakkuk`/`gider_tahakkuku` semantik olarak doğru.
+- **Aidatlar.tsx, FirmaListPage, CariEkstrePage gibi sayfalar `toplam_gider` aramasına çıkmadı** — Grep ile teyit; bu sprint 3 rapor sayfası + dashboard + 3 RPC + service + pdfGenerator scope'unda.
+- **`toplam_aidat_tahsilat` deprecated rumor**: `aylikRapor` response'ta `toplam_aidat_tahsilat: data.toplam_tahsilat` alias var (frontend compat); bu sprint o alias'ı bozmaz, AylikRaporPage'in "Toplam Tahsilat" kartı bağımlı.
+
+## Doğrulanmış Sonuç
+
+| Batch | Commit | İçerik |
+|-------|--------|--------|
+| B1 — DB | `9de7405` | `20260525150000_rapor_semantic_naming.sql` — 3 RPC'ye semantik alias alanlar (toplam_tahakkuk, toplam_gider_tahakkuku, aylik[].tahakkuk, aylik[].gider_tahakkuku) eklendi; eski alanlar `@deprecated` yorumuyla korundu. |
+| B2 — Backend | `ada10eb` | `rapor.service.ts` `aylikRapor()` + `yillikRapor()` response shape'inde yeni alanlar (fallback ile geriye uyumlu); `pdfGenerator.ts` `generateMaliRaporPDF` yeni alanları okur + section başlıkları "GELİRLER/GİDERLER" → "TAHAKKUKLAR/GİDER TAHAKKUKLARI" semantik düzeltildi. |
+| B3 — Frontend | `a8a23c8` | `YillikRaporPage`, `AylikRaporPage`, `Dashboard.tsx` yeni alanlardan okur; CSV section başlıkları + Statistic kart label'ları + Tab başlıkları + DataTable column'ları "Gelir/Gider" → "Tahakkuk/Gider Tahakkuku" güncellendi. |
+| Tag | `sprint-rapor-semantic-naming` | Sprint kapanışı annotated tag. |
+
+**Doğrulama:**
+- `npm --prefix server run build` — clean
+- `npm --prefix server test` — **354/354 yeşil** (raporService unit testleri response shape eklemeli olduğu için etkilenmedi)
+- `npx tsc --noEmit -p client/tsconfig.app.json` — clean
+- `npm --prefix client run build` — clean (bundle size warning mevcut, sprint dışı)
+- Migration timestamp test — pass
+
+## Durum
+
+**Tamamlandı.** Batch 1-3 commit + push edildi; sprint tag oluşturuldu.
+
+**İleri sprint (B5) — eski alan cleanup:**
+1. 1-2 hafta production gözlem süresi (deprecated alanlardan okuyan eski client'lar/cache'ler kalmadığını teyit et).
+2. Yeni migration `<timestamp>_rapor_semantic_naming_cleanup.sql`: RPC `jsonb_build_object`'larından eski `toplam_gelir`, `toplam_gider`, `aylik[].gelir`, `aylik[].gider` alanları sil.
+3. `rapor.service.ts` ve `pdfGenerator.ts` `?? eski` fallback'leri kaldır.
+4. `client/.../*RaporPage.tsx` + `Dashboard.tsx` `?? eski` fallback'leri kaldır.
+5. Test'lerde response shape assertion eklenirse o tarafta da güncelle.
+
