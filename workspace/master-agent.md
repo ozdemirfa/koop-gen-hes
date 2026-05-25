@@ -709,7 +709,7 @@ Faz 1 (PR #55) ve Faz 2 (PR #56) gönderildi. Faz 3 (frontend) sırada.
 - Docs: `docs/performance.md` (bundle hedefleri + RQ + N+1 önleme + FK index discovery)
 
 **İleri sprint adayları:**
-- AntD tree-shake (468KB gzip — `antd/es/...` import pattern)
+- ~~AntD tree-shake (468KB gzip — `antd/es/...` import pattern)~~ — **Tamam (route lazy ile çözüldü, commit `<lazy>`):** Manuel per-component import yerine `React.lazy()` ile route-based code splitting uygulandı. Main bundle 108KB → 15KB gzip (-%86). 30+ sayfa kendi chunk'ında (1-7KB gzip). AntD bundle korunur (468KB gzip) ama paylaşılır + cache'lenir; kullanıcı sayfa değiştirdiğinde sadece küçük route chunk transferi.
 - Real Supabase docker integration testleri (atomik RPC transaction semantiği)
 - viewer/manager dedicated E2E fixture'ları + skeleton spec'lerin aktivasyonu
 - 8 eksik sayfada inline frontend gating (UI hint — backend zaten 403 koruyor)
