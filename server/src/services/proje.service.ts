@@ -114,26 +114,29 @@ export const projeService = {
       }
     }).filter(Boolean)
 
-    let updatedCount = 0
-    let failedCount = 0
-    for (const update of updates) {
-      if (!update) continue
+    // Sprint followup-deps-perf-cleanup (2026-05-25): N+1 for-loop UPDATE
+    // yerine fn_import_serefiye_bulk RPC ile tek round-trip. 1000 satir icin
+    // ~1000x daha hizli (network + query plan overhead bir kere yerine N kez).
+    const { data, error } = await supabaseAdmin.rpc('fn_import_serefiye_bulk', {
+      p_proje_id: projeId,
+      p_rows: updates as any,
+    })
 
-      const { error } = await supabaseAdmin
-        .from('serefiye_tablosu')
-        .update(update)
-        .eq('proje_id', projeId)
-        .eq('daire_no', update.daire_no)
-
-      if (error) {
-        failedCount++
-        logger.error(`CSV Import hatası (Daire: ${update.daire_no}):`, error.message)
-      } else {
-        updatedCount++
-      }
+    if (error) {
+      logger.error('Serefiye bulk import RPC hatasi', {
+        code: (error as any).code,
+        message: (error as any).message,
+        projeId,
+        rowCount: updates.length,
+      })
+      throw error
     }
 
-    return { updated: updatedCount, failed: failedCount, total: updates.length }
+    return {
+      updated: Number((data as any)?.updated ?? 0),
+      failed: Number((data as any)?.failed ?? 0),
+      total: Number((data as any)?.total ?? updates.length),
+    }
   },
 
   async list(opts: { userId?: string; isAdmin?: boolean; arsiv?: boolean } = {}) {
