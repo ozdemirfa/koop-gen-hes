@@ -77,50 +77,90 @@ export const AylikRaporPage: React.FC = () => {
         ]),
       },
       {
-        title: 'Aidat Tahakkukları',
-        headers: ['Tarih', 'Cari/Kaynak', 'Açıklama', 'Tutar (TL)'],
-        rows: (rapor.gelirler || []).map((r: any) => [
-          dayjs(r.tarih).format('DD.MM.YYYY'),
-          r.cari_hesaplar?.cari_adi || '',
-          r.aciklama || '',
-          r.alacak || 0,
-        ]),
+        // 20260525160000: tahakkuk listesi aidat + gecikme_faizi + uyelik_baslangic icerir
+        title: 'Tahakkuklar',
+        headers: ['Tarih', 'Tür', 'Cari/Kaynak', 'Açıklama', 'Tutar (TL)'],
+        rows: (rapor.gelirler || []).map((r: any) => {
+          const turuTr =
+            r.islem_turu === 'aidat_kayit' ? 'Aidat' :
+            r.islem_turu === 'gecikme_faizi' ? 'Gecikme Faizi' :
+            r.islem_turu === 'uyelik_baslangic' ? 'Üyelik Başlangıç' :
+            (r.islem_turu || 'Tahakkuk')
+          return [
+            dayjs(r.tarih).format('DD.MM.YYYY'),
+            turuTr,
+            r.cari_hesaplar?.cari_adi || '',
+            r.aciklama || '',
+            r.alacak || 0,
+          ]
+        }),
       },
       {
+        // 20260525160000: gider listesi hakedis + iade_odeme (fatura YOK).
+        // iade_odeme `alacak` ile kaydedilir.
         title: 'Gider Tahakkukları',
         headers: ['Tarih', 'Tür', 'Cari/Firma', 'Açıklama', 'Tutar (TL)'],
-        rows: (rapor.giderler || []).map((r: any) => [
-          dayjs(r.tarih).format('DD.MM.YYYY'),
-          r.islem_turu === 'hakedis' ? 'Hakediş' : (r.islem_turu === 'fatura' ? 'Fatura' : 'Gider'),
-          r.cari_hesaplar?.cari_adi || '',
-          r.aciklama || '',
-          r.borc || 0,
-        ]),
+        rows: (rapor.giderler || []).map((r: any) => {
+          const turuTr =
+            r.islem_turu === 'hakedis' ? 'Hakediş' :
+            r.islem_turu === 'iade_odeme' ? 'Üyelik Bedeli İadesi' :
+            (r.islem_turu || 'Gider')
+          const tutar = r.islem_turu === 'iade_odeme' ? (r.alacak || 0) : (r.borc || 0)
+          return [
+            dayjs(r.tarih).format('DD.MM.YYYY'),
+            turuTr,
+            r.cari_hesaplar?.cari_adi || '',
+            r.aciklama || '',
+            tutar,
+          ]
+        }),
       },
     ], { projectName: activeProject?.proje_adi })
   }
 
+  // 20260525160000: tahakkuk listesi artik aidat_kayit + gecikme_faizi + uyelik_baslangic
+  // (kaynak_tipi NULL — ham tahakkuk) icerir. Tur sutunu eklendi.
   const gelirColumns = [
     { title: 'Tarih', dataIndex: 'tarih', key: 'tarih', render: (t: string) => dayjs(t).format('DD.MM.YYYY') },
+    {
+      title: 'Tür',
+      key: 'tip',
+      render: (_: any, r: any) => {
+        if (r.islem_turu === 'aidat_kayit') return <Tag color="blue">Aidat</Tag>
+        if (r.islem_turu === 'gecikme_faizi') return <Tag color="orange">Gecikme Faizi</Tag>
+        if (r.islem_turu === 'uyelik_baslangic') return <Tag color="purple">Üyelik Başlangıç</Tag>
+        return <Tag>Tahakkuk</Tag>
+      }
+    },
     { title: 'Cari/Kaynak', dataIndex: ['cari_hesaplar', 'cari_adi'], key: 'cari' },
     { title: 'Açıklama', dataIndex: 'aciklama', key: 'aciklama' },
     { title: 'Tutar', dataIndex: 'alacak', key: 'tutar', align: 'right' as const, render: (v: number) => <MoneyDisplay amount={v} /> }
   ]
 
+  // 20260525160000: gider listesi artik hakedis + iade_odeme icerir (fatura YOK).
+  // iade_odeme cari_hareketler'de `alacak` ile kaydedildigi icin tutar yon-bilincli.
   const giderColumns = [
     { title: 'Tarih', dataIndex: 'tarih', key: 'tarih', render: (t: string) => dayjs(t).format('DD.MM.YYYY') },
     {
       title: 'Tür',
       key: 'tip',
-      render: (_: any, r: any) => (
-        <Tag color={r.islem_turu === 'hakedis' ? 'blue' : 'orange'}>
-          {r.islem_turu === 'hakedis' ? 'Hakediş' : (r.islem_turu === 'fatura' ? 'Fatura' : 'Gider')}
-        </Tag>
-      )
+      render: (_: any, r: any) => {
+        if (r.islem_turu === 'hakedis') return <Tag color="blue">Hakediş</Tag>
+        if (r.islem_turu === 'iade_odeme') return <Tag color="green">Üyelik Bedeli İadesi</Tag>
+        return <Tag color="orange">Gider</Tag>
+      }
     },
     { title: 'Cari/Firma', dataIndex: ['cari_hesaplar', 'cari_adi'], key: 'cari' },
     { title: 'Açıklama', dataIndex: 'aciklama', key: 'aciklama' },
-    { title: 'Tutar', dataIndex: 'borc', key: 'tutar', align: 'right' as const, render: (v: number) => <MoneyDisplay amount={v} /> }
+    {
+      title: 'Tutar',
+      key: 'tutar',
+      align: 'right' as const,
+      render: (_: any, r: any) => {
+        const tutar = r.islem_turu === 'iade_odeme' ? Number(r.alacak || 0) : Number(r.borc || 0)
+        return <MoneyDisplay amount={tutar} />
+      }
+    }
   ]
 
   const aidatColumns = [
@@ -254,7 +294,8 @@ export const AylikRaporPage: React.FC = () => {
             },
             {
               key: 'tahakkuk',
-              label: `Aidat Tahakkukları (${rapor?.gelirler?.length || 0})`,
+              // 20260525160000: liste artik aidat + gecikme_faizi + uyelik_baslangic icerir
+              label: `Tahakkuklar (${rapor?.gelirler?.length || 0})`,
               children: (
                 <Table
                   dataSource={rapor?.gelirler || []}

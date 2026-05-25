@@ -45,15 +45,17 @@ export const YillikRaporPage: React.FC = () => {
         title: `Yıllık Mali Rapor — ${yil}`,
         headers: ['Metrik', 'Tutar (TL)'],
         rows: [
+          // 20260525160000: tahakkuk = aidat + gecikme_faizi + uyelik_baslangic;
+          // gider = hakedis + iade_odeme (fatura cikarildi).
           ['Yıllık Aidat Tahakkuku', toplamTahakkuk],
           ['Yıllık Tahsilat (Aidat + Üyelik Başlangıç)', toplamTahsilat],
-          ['Yıllık Gider Tahakkuku', toplamGiderTahakkuku],
+          ['Yıllık Toplam Gider', toplamGiderTahakkuku],
           ['Yıllık Nakit Farkı', netBakiye],
         ],
       },
       {
         title: `${yil} Aylık Döküm`,
-        headers: ['Ay', 'Aidat Tahakkuku', 'Tahsilat', 'Geciken Alacak', 'Ort. Gecikme Gün', 'Gider Tahakkuku', 'Nakit Farkı'],
+        headers: ['Ay', 'Aidat Tahakkuku', 'Tahsilat', 'Geciken Alacak', 'Ort. Gecikme Gün', 'Toplam Gider', 'Nakit Farkı'],
         rows: (rapor.aylik || []).map((r: any) => {
           const tahakkuk = Number(r.tahakkuk ?? r.gelir ?? 0)
           const tahsilat = Number(r.tahsilat || 0)
@@ -132,7 +134,9 @@ export const YillikRaporPage: React.FC = () => {
     },
     {
       // 20260525150000: yeni semantik dataIndex; render fallback ile geriye uyumlu.
-      title: 'Gider Tahakkuku',
+      // 20260525160000: kullanici istegine gore basligi "Toplam Gider" yapildi
+      // (hakedis + iade_odeme; fatura cikarildi).
+      title: 'Toplam Gider',
       key: 'gider_tahakkuku',
       align: 'right' as const,
       render: (_: unknown, r: any) => (
@@ -207,7 +211,9 @@ export const YillikRaporPage: React.FC = () => {
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="Yıllık Gider Tahakkuku"
+              // 20260525160000: kullanici istegine gore "Yillik Toplam Gider".
+              // Formul artik hakedis + iade_odeme (fatura cikarildi).
+              title="Yıllık Toplam Gider"
               value={Number(rapor?.toplam_gider_tahakkuku ?? rapor?.toplam_gider ?? 0)}
               prefix={<FallOutlined />}
               suffix="TL"

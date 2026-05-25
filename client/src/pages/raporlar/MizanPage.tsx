@@ -244,21 +244,27 @@ export const MizanPage: React.FC = () => {
           }}
           emptyDescription="Bu projede mizan kaydı yok"
           scroll={{ x: 800 }}
-          summary={(pageData) => {
-            let totalB = 0;
-            let totalA = 0;
-            let totalNet = 0;
-
-            pageData.forEach(({ toplam_borc, toplam_alacak, bakiye }) => {
-              totalB += toplam_borc;
-              totalA += toplam_alacak;
-              totalNet += bakiye;
-            });
+          summary={() => {
+            // 20260525160000 — Mizan bug fix:
+            // Onceden summary `pageData` uzerinden hesapliyordu — Ant Design'in
+            // current page + filter subset'i. Bu, ust kartlarla (tum `list`
+            // uzerinden) tutarsizlik yaratiyordu (kullanici sikayeti).
+            // Cozum: summary de tum `list` uzerinden hesaplar — filtre ve
+            // sayfalama'dan bagimsiz, ust kartlarla birebir tutarli.
+            const source = list || []
+            let totalB = 0
+            let totalA = 0
+            let totalNet = 0
+            source.forEach(({ toplam_borc, toplam_alacak, bakiye }) => {
+              totalB += toplam_borc
+              totalA += toplam_alacak
+              totalNet += bakiye
+            })
 
             return (
               <Table.Summary fixed>
                 <Table.Summary.Row style={{ backgroundColor: '#fafafa', fontWeight: 'bold' }}>
-                  <Table.Summary.Cell index={0} colSpan={2}>SAYFA TOPLAMI</Table.Summary.Cell>
+                  <Table.Summary.Cell index={0} colSpan={2}>GENEL TOPLAM</Table.Summary.Cell>
                   <Table.Summary.Cell index={2} align="right">
                     <MoneyDisplay amount={totalB} />
                   </Table.Summary.Cell>
@@ -274,7 +280,7 @@ export const MizanPage: React.FC = () => {
                   </Table.Summary.Cell>
                 </Table.Summary.Row>
               </Table.Summary>
-            );
+            )
           }}
         />
       </Card>
