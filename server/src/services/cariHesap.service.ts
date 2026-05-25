@@ -197,47 +197,21 @@ export const cariHesapService = {
     return data
   },
 
-  // B1 + B3 (sprint 20260511-uye-tahsilat-firma-revisions): tahsilat satırı sil.
-  // Kapatılmış (kaynak_id NOT NULL) bir hareket doğrudan silinemez — 409 + Türkçe mesaj.
-  // 2026-05-15 fix: banka_hareketleri.eslesen_cari_hareket_id FK'sinin ON DELETE
-  // davranışı NO ACTION (default). OdemeKayit banka path'i hem cari_hareketi hem
-  // banka_hareketini atomik oluşturuyordu; silmede ise FK violation (23503) atıyordu.
-  // Çözüm: önce eşleşmiş banka_hareketini sil, sonra cari_hareketi sil.
+  // Sprint qa-review-bugfix-faz3 (2026-05-25, P1): tahsilat satiri sil.
+  // Eski iki-step delete (banka + cari) transaction'a sarilmiyordu → tutarsizlik
+  // riski. Migration 20260525120000 ile fn_delete_cari_hareket_with_banka RPC
+  // tek tx icinde calistirir; kapali (kaynak_id NOT NULL) icin P0001 → 400 +
+  // Turkce mesaj (errorHandler.ts:113-119); kayit yok ise P0002.
   async delete(id: string) {
-    const { data: existing, error: fetchErr } = await supabaseAdmin
-      .from('cari_hareketler')
-      .select('id, kaynak_tipi, kaynak_id, islem_turu')
-      .eq('id', id)
-      .maybeSingle()
-
-    if (fetchErr) throw fetchErr
-    if (!existing) throw ApiError.notFound('Cari hareket bulunamadı')
-
-    if (existing.kaynak_tipi && existing.kaynak_id) {
-      throw ApiError.conflict(
-        'Bu tahsilat bir aidat/hakediş ile eşleştirilmiş ve doğrudan silinemez. Önce hesap kapamayı geri alın.'
-      )
+    const { error } = await supabaseAdmin.rpc('fn_delete_cari_hareket_with_banka', { p_id: id })
+    if (error) {
+      // P0002 (notFound) → 404; P0001 zaten errorHandler tarafindan 400 yapilir
+      if ((error as any).code === 'P0002') {
+        throw ApiError.notFound('Cari hareket bulunamadi')
+      }
+      throw error
     }
-
-    // Bu cari harekete eşleşmiş banka hareketlerini (varsa) önce sil.
-    // Tek tx olmadığı için: banka silme başarısız olursa cari hareket silinmez (PG hata yükselir);
-    // banka silme başarılı sonra cari silmede hata olursa orphan banka_hareketi kalmaz çünkü
-    // cari_hareketler.banka_hareket_id de bu satırı aynı banka_hareketine işaret eder ve
-    // ikinci silmenin başarısızlığı tüm kullanıcı senaryosunda nadirdir. Tam atomik gerekirse
-    // RPC'ye taşınmalı (P2 backlog).
-    const { error: bankaErr } = await supabaseAdmin
-      .from('banka_hareketleri')
-      .delete()
-      .eq('eslesen_cari_hareket_id', id)
-    if (bankaErr) throw bankaErr
-
-    const { error } = await supabaseAdmin
-      .from('cari_hareketler')
-      .delete()
-      .eq('id', id)
-
-    if (error) throw error
-    return { success: true, message: 'Tahsilat kaydı silindi.' }
+    return { success: true, message: 'Tahsilat kaydi silindi.' }
   },
 
   // TASK-BE-07 (sprint 20260511-backlog-batch1):

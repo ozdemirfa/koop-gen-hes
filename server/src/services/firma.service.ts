@@ -25,73 +25,58 @@ export const firmaService = {
 
     if (error) throw error
 
-    // Bakiyeleri ve teminatları (seçili proje varsa o projeye göre) ekle
-    const pId = (query.proje_id && query.proje_id !== 'null' && query.proje_id !== 'undefined') ? query.proje_id : null;
+    // Sprint qa-review-bugfix-faz3 (2026-05-25, P1 + perf):
+    // Eski Promise.all N+1 (her firma icin 3 query → 50 firma=150+) silinir;
+    // fn_firma_bakiye_batch RPC tek pass'te tum bakiyeleri hesaplar.
+    // Silent catch de kaldirildi — RPC fail → hata UI'da gorunur (eski:
+    // 0 dondurup yanlis mali tablo gosterirdi).
+    const pId =
+      query.proje_id && query.proje_id !== 'null' && query.proje_id !== 'undefined'
+        ? query.proje_id
+        : null
 
-    const updatedData = await Promise.all((data || []).map(async (firma) => {
-      let bakiye = 0
-      let birikmisTeminat = 0
-      let toplamOdeme = 0
-      let toplamKdvli = 0
+    const firmaIds = (data || []).map((f) => f.id)
+    let balanceMap = new Map<
+      string,
+      { toplam_odeme: number; toplam_kdvli: number; birikmis_teminat: number }
+    >()
 
-      try {
-        // 1. Ödemeler (Project Perspective: ALACAK is payment/outflow for project)
-        let hareketQuery = supabaseAdmin
-          .from('cari_hareketler')
-          .select('alacak, borc, islem_turu, kaynak_tipi, cari_hesaplar!inner(firma_id)')
-          .eq('cari_hesaplar.firma_id', firma.id)
-
-        if (pId) {
-          hareketQuery = hareketQuery.eq('proje_id', pId)
-        }
-
-        const { data: hareketler } = await hareketQuery
-
-        hareketler?.forEach((h: any) => {
-          if (h.islem_turu === 'giden_odeme' || h.islem_turu === 'odeme') {
-            toplamOdeme += Number(h.alacak || 0)
-          }
+    if (firmaIds.length > 0) {
+      const { data: rpcRows, error: rpcErr } = await supabaseAdmin.rpc(
+        'fn_firma_bakiye_batch',
+        { p_firma_ids: firmaIds, p_proje_id: pId },
+      )
+      if (rpcErr) {
+        logger.error('Firma bakiye batch RPC hatasi', {
+          code: (rpcErr as any).code,
+          message: (rpcErr as any).message,
+          firmaCount: firmaIds.length,
+          projeId: pId,
         })
-
-        // 2. Hakedişler (KDVli tutarlar)
-        // Firma ID'sine göre hakedişleri çekmek için sozlesmeler tablosunu inner join ile kullanıyoruz
-        let hakedisQuery = supabaseAdmin
-          .from('hakedisler')
-          .select('hakedis_toplam, ara_toplam, kdv_tutar, sozlesmeler!inner(firma_id)')
-          .eq('sozlesmeler.firma_id', firma.id)
-          .in('durum', ['onaylandi', 'odendi'])
-
-        if (pId) {
-          hakedisQuery = hakedisQuery.eq('proje_id', pId)
-        }
-
-        const { data: hakedisler } = await hakedisQuery
-        toplamKdvli = hakedisler?.reduce((sum, h) => sum + Number(h.hakedis_toplam || (Number(h.ara_toplam || 0) + Number(h.kdv_tutar || 0))), 0) || 0
-        
-        // 3. Birikmiş Teminat — 20260514000003 migration'ı ile cari_hareketler teminat
-        // iadeleri (kaynak_tipi='teminat' + islem_turu in giden_odeme/odeme) trigger ile
-        // birikmis_teminatlar tablosundan otomatik düşülüyor. Artık tablo değeri NET — runtime
-        // düşümü yok.
-        const { data: teminatRecord } = await supabaseAdmin
-          .from('birikmis_teminatlar')
-          .select('birikmis_teminat')
-          .eq('firma_id', firma.id)
-          .eq('proje_id', pId || '')
-          .maybeSingle()
-
-        birikmisTeminat = Number(teminatRecord?.birikmis_teminat || 0)
-        
-        // Cari Bakiye = Toplam Ödeme - Hakediş (KDVli)
-        // Project Perspective: (+) Fazla ödedik, (-) Borçluyuz
-        bakiye = toplamOdeme - toplamKdvli
-
-      } catch (err) {
-        logger.error(`Bakiye hesaplama hatası (Firma: ${firma.id}):`, err)
+        throw rpcErr
       }
+      balanceMap = new Map(
+        ((rpcRows as any[]) ?? []).map((r: any) => [
+          r.firma_id as string,
+          {
+            toplam_odeme: Number(r.toplam_odeme || 0),
+            toplam_kdvli: Number(r.toplam_kdvli || 0),
+            birikmis_teminat: Number(r.birikmis_teminat || 0),
+          },
+        ]),
+      )
+    }
 
-      return { ...firma, guncel_bakiye: bakiye, toplam_teminat: birikmisTeminat }
-    }))
-
+    const updatedData = (data || []).map((firma) => {
+      const b = balanceMap.get(firma.id) ?? {
+        toplam_odeme: 0,
+        toplam_kdvli: 0,
+        birikmis_teminat: 0,
+      }
+      // Project perspective: (+) fazla odedik, (-) borcluyuz
+      const bakiye = b.toplam_odeme - b.toplam_kdvli
+      return { ...firma, guncel_bakiye: bakiye, toplam_teminat: b.birikmis_teminat }
+    })
 
     return { data: updatedData, pagination: paginationMeta(pagination, count || 0) }
   },
