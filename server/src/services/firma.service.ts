@@ -47,22 +47,7 @@ export const firmaService = {
         'fn_firma_bakiye_batch',
         { p_firma_ids: firmaIds, p_proje_id: pId },
       )
-
-      // Hotfix 2026-05-25: RPC production'da deploy edilmemis olabilir
-      // (Render auto-deploy backend code'u tetikler ama Supabase migration'lari
-      // ayri bir adim). 42883 (function not found) / PGRST202 (signature not found)
-      // / PGRST301 alindiginda eski N+1 Promise.all paternine fallback yap +
-      // warn log. Migration apply edilince RPC otomatik devreye girer.
-      const rpcMissing =
-        rpcErr &&
-        ((rpcErr as any).code === '42883' ||
-          (rpcErr as any).code === 'PGRST202' ||
-          (rpcErr as any).code === 'PGRST204' ||
-          /fn_firma_bakiye_batch.*does not exist|Could not find the function/i.test(
-            (rpcErr as any).message || '',
-          ))
-
-      if (rpcErr && !rpcMissing) {
+      if (rpcErr) {
         logger.error('Firma bakiye batch RPC hatasi', {
           code: (rpcErr as any).code,
           message: (rpcErr as any).message,
@@ -71,96 +56,16 @@ export const firmaService = {
         })
         throw rpcErr
       }
-
-      if (rpcMissing) {
-        logger.warn('fn_firma_bakiye_batch RPC bulunamadi — eski Promise.all fallback aktif (migration apply edilmeli)')
-        // Eski N+1 patern — her firma icin 3 paralel sorgu. Performans olarak
-        // ideal degil ama production hatasi yerine calisir hal.
-        const results = await Promise.all(
-          (data || []).map(async (firma: any) => {
-            try {
-              // 1. Odemeler
-              let hareketQuery = supabaseAdmin
-                .from('cari_hareketler')
-                .select('alacak, borc, islem_turu, cari_hesaplar!inner(firma_id)')
-                .eq('cari_hesaplar.firma_id', firma.id)
-              if (pId) hareketQuery = hareketQuery.eq('proje_id', pId)
-              const { data: hareketler } = await hareketQuery
-
-              let toplamOdeme = 0
-              hareketler?.forEach((h: any) => {
-                if (h.islem_turu === 'giden_odeme' || h.islem_turu === 'odeme') {
-                  toplamOdeme += Number(h.alacak || 0)
-                }
-              })
-
-              // 2. Hakedisler
-              let hakedisQuery = supabaseAdmin
-                .from('hakedisler')
-                .select('hakedis_toplam, ara_toplam, kdv_tutar, sozlesmeler!inner(firma_id)')
-                .eq('sozlesmeler.firma_id', firma.id)
-                .in('durum', ['onaylandi', 'odendi'])
-              if (pId) hakedisQuery = hakedisQuery.eq('proje_id', pId)
-              const { data: hakedisler } = await hakedisQuery
-              const toplamKdvli =
-                hakedisler?.reduce(
-                  (sum, h: any) =>
-                    sum +
-                    Number(h.hakedis_toplam || Number(h.ara_toplam || 0) + Number(h.kdv_tutar || 0)),
-                  0,
-                ) || 0
-
-              // 3. Birikmis Teminat
-              let birikmisTeminat = 0
-              if (pId) {
-                const { data: tRec } = await supabaseAdmin
-                  .from('birikmis_teminatlar')
-                  .select('birikmis_teminat')
-                  .eq('firma_id', firma.id)
-                  .eq('proje_id', pId)
-                  .maybeSingle()
-                birikmisTeminat = Number(tRec?.birikmis_teminat || 0)
-              }
-
-              return {
-                firma_id: firma.id,
-                toplam_odeme: toplamOdeme,
-                toplam_kdvli: toplamKdvli,
-                birikmis_teminat: birikmisTeminat,
-              }
-            } catch (err) {
-              logger.error('Firma bakiye fallback per-firma hatasi', { firmaId: firma.id, err })
-              return {
-                firma_id: firma.id,
-                toplam_odeme: 0,
-                toplam_kdvli: 0,
-                birikmis_teminat: 0,
-              }
-            }
-          }),
-        )
-        balanceMap = new Map(
-          results.map((r) => [
-            r.firma_id,
-            {
-              toplam_odeme: r.toplam_odeme,
-              toplam_kdvli: r.toplam_kdvli,
-              birikmis_teminat: r.birikmis_teminat,
-            },
-          ]),
-        )
-      } else {
-        balanceMap = new Map(
-          ((rpcRows as any[]) ?? []).map((r: any) => [
-            r.firma_id as string,
-            {
-              toplam_odeme: Number(r.toplam_odeme || 0),
-              toplam_kdvli: Number(r.toplam_kdvli || 0),
-              birikmis_teminat: Number(r.birikmis_teminat || 0),
-            },
-          ]),
-        )
-      }
+      balanceMap = new Map(
+        ((rpcRows as any[]) ?? []).map((r: any) => [
+          r.firma_id as string,
+          {
+            toplam_odeme: Number(r.toplam_odeme || 0),
+            toplam_kdvli: Number(r.toplam_kdvli || 0),
+            birikmis_teminat: Number(r.birikmis_teminat || 0),
+          },
+        ]),
+      )
     }
 
     const updatedData = (data || []).map((firma) => {
