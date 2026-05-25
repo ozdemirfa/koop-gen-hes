@@ -333,11 +333,20 @@ export const cariHesapService = {
     }
 
     // Cari hesaptan firma_id'yi bul (cekler tablosunda firma_id zorunludur).
+    // Sprint revizyon-bugfix-paketi B3 (2026-05-25, madde 4): cari_turu da
+    // doneriz ki uye carisinden cek odeme denemesi net mesajla reddedilsin.
     const { data: cari } = await supabaseAdmin
       .from('cari_hesaplar')
-      .select('firma_id')
+      .select('firma_id, cari_turu')
       .eq('id', cari_hesap_id)
       .single()
+
+    if (cari?.cari_turu === 'uye') {
+      throw new ApiError(
+        400,
+        'Üye cari hesabi icin cek odeme araci kullanilamaz. Lutfen banka, nakit veya kredi karti seciniz.',
+      )
+    }
 
     if (!cari?.firma_id) {
       throw new ApiError(400, 'Çek kaydı için geçerli bir firma cari hesabı gereklidir.')

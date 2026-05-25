@@ -64,6 +64,12 @@ export const OdemeKayit: React.FC = () => {
     if (filterCariTuru === 'firma' && (islemTuru === 'iade_odeme' || islemTuru === 'uyelik_baslangic')) {
       form.setFieldValue('islem_turu', 'giden_odeme')
     }
+    // Sprint revizyon-bugfix-paketi B3 (2026-05-25, madde 4):
+    // Cari turu uye iken cek odeme araci anlamsizdir (uye cek kesmez).
+    // Filter firma -> uye'ye gectiginde 'cek' secili kaldiysa banka'ya cevir.
+    if (filterCariTuru === 'uye' && form.getFieldValue('odeme_turu') === 'cek') {
+      form.setFieldValue('odeme_turu', 'banka')
+    }
   }, [filterCariTuru, islemTuru, form])
 
   // Cari Hesaplar (Üyeler + Firmalar) Fetch
@@ -329,7 +335,12 @@ export const OdemeKayit: React.FC = () => {
                     Banka (EFT/Havale){noBankAccounts ? ' — banka hesabı tanımsız' : ''}
                   </Option>
                   <Option value="kredi_karti">Kredi Kartı</Option>
-                  <Option value="cek">Çek</Option>
+                  {/* Sprint revizyon-bugfix-paketi B3 (2026-05-25, madde 4):
+                      Cari turu uye iken cek odeme araci anlamsiz; uyenin ciktigi
+                      cek kabul edilmiyor. Sadece firma carilerde gosterilir. */}
+                  {filterCariTuru === 'firma' && (
+                    <Option value="cek">Çek</Option>
+                  )}
                   {islemTuru === 'uyelik_baslangic' && (
                     <Option value="cari">Cari (Tahakkuk — para hareketi yok)</Option>
                   )}

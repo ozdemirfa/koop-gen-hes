@@ -82,4 +82,10 @@ describe('cekService', () => {
     nextData = { id: '1', durum: 'odendi', tutar: 100, firma_id: 'f1', proje_id: PROJE }
     await expect(cekService.payCheck('1', 'bh1')).rejects.toThrow(/zaten ödendi/)
   })
+
+  // Sprint revizyon-bugfix-paketi B4 (2026-05-25, madde 7 — production 400 fix)
+  it('payCheck — banka_hesap_id eksikse 400 dondurur', async () => {
+    await expect(cekService.payCheck('1', '')).rejects.toThrow(/banka_hesap_id zorunlu/)
+    await expect(cekService.payCheck('1', undefined as any)).rejects.toThrow(/banka_hesap_id zorunlu/)
+  })
 })

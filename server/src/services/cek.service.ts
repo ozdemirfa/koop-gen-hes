@@ -83,6 +83,13 @@ export const cekService = {
   },
 
   async payCheck(id: string, bankaHesapId: string) {
+    // Sprint revizyon-bugfix-paketi B4 (2026-05-25, madde 7):
+    // banka_hesap_id frontend'den gelmiyor olabilir; defensive validation
+    // (route'da schema yok; controller body'den okuyor — direkt buraya bind).
+    if (!bankaHesapId || typeof bankaHesapId !== 'string') {
+      throw ApiError.badRequest('banka_hesap_id zorunlu')
+    }
+
     // 1. Çeki bul
     const { data: cek, error: getErr } = await supabaseAdmin
       .from('cekler')
@@ -133,9 +140,15 @@ export const cekService = {
       if (chError) throw chError
 
       // 5. Banka hareketi
+      // Sprint revizyon-bugfix-paketi B4 (2026-05-25, madde 7 — production 400 fix):
+      // banka_hareketleri.proje_id 20260511000007 migration'inda NOT NULL'a alindi
+      // ama bu insert'te proje_id atlandigi icin Supabase 23502 (NOT NULL violation)
+      // donduruyordu — errorHandler bunu 400 yapip "PATCH /cekler/:id/pay 400" log'una
+      // sebep oluyordu. cek.proje_id'yi insert'e ekledik.
       const { error: bankaError } = await supabaseAdmin
         .from('banka_hareketleri')
         .insert([{
+          proje_id: cek.proje_id,
           banka_hesap_id: bankaHesapId,
           tarih: new Date().toISOString().split('T')[0],
           tutar: Number(cek.tutar),
