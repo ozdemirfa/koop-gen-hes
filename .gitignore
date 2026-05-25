@@ -30,6 +30,14 @@ bug*.md
 test-results/
 playwright-report/
 
+# Dev/debug scratchpads (root)
+repro_*.ts
+repro_*.js
+*.repro.ts
+*.repro.sql
+scratch_*.ts
+scratch_*.sql
+
 # Project Specific
 .agents/
 .claude/
