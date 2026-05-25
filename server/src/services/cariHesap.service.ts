@@ -214,6 +214,59 @@ export const cariHesapService = {
     return { success: true, message: 'Tahsilat kaydi silindi.' }
   },
 
+  // Sprint uyelik-baslangic-iptal-duzenle (2026-05-25):
+  // Uyelik baslangic bedeli tahakkukunu duzenle. Migration 20260525170000
+  // fn_update_uyelik_baslangic_tahakkuk tahsilat bagi varsa P0001 ile engeller;
+  // semantik olarak 409 conflict (cariHesap.service.update'in `existing.kaynak_tipi`
+  // guard'iyla simetrik). Yanlis tip / kayit yoksa P0002 → 404.
+  async updateUyelikBaslangicTahakkuk(
+    id: string,
+    payload: { tutar: number; tarih: string; aciklama?: string | null },
+    actorId?: string,
+  ) {
+    const { data, error } = await supabaseAdmin.rpc('fn_update_uyelik_baslangic_tahakkuk', {
+      p_id: id,
+      p_tutar: payload.tutar,
+      p_tarih: payload.tarih,
+      p_aciklama: payload.aciklama ?? null,
+      p_actor_id: actorId ?? null,
+    })
+
+    if (error) {
+      const code = (error as any).code
+      const message = (error as any).message ?? 'Tahakkuk guncellenemedi'
+      if (code === 'P0002') {
+        throw ApiError.notFound(message)
+      }
+      if (code === 'P0001') {
+        throw ApiError.conflict(message)
+      }
+      throw error
+    }
+    return data
+  },
+
+  // Sprint uyelik-baslangic-iptal-duzenle (2026-05-25): tahakkuk iptal.
+  async deleteUyelikBaslangicTahakkuk(id: string, actorId?: string) {
+    const { error } = await supabaseAdmin.rpc('fn_delete_uyelik_baslangic_tahakkuk', {
+      p_id: id,
+      p_actor_id: actorId ?? null,
+    })
+
+    if (error) {
+      const code = (error as any).code
+      const message = (error as any).message ?? 'Tahakkuk iptal edilemedi'
+      if (code === 'P0002') {
+        throw ApiError.notFound(message)
+      }
+      if (code === 'P0001') {
+        throw ApiError.conflict(message)
+      }
+      throw error
+    }
+    return { success: true, message: 'Baslangic bedeli tahakkuku iptal edildi.' }
+  },
+
   // TASK-BE-07 (sprint 20260511-backlog-batch1):
   // Çek path'i kendi metoduna ayrıldı. createPayment artık sadece dispatcher.
   async createPayment(paymentData: PaymentInput) {

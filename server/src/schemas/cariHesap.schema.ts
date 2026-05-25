@@ -81,6 +81,31 @@ export const cariPaymentSchema = z.object({
   }
 })
 
+// Sprint uyelik-baslangic-iptal-duzenle (2026-05-25):
+// PATCH /cari-hareketler/baslangic-bedeli/:tahakkukId body schema.
+// Sadece tutar (numeric, positive, ≤1e9) + tarih (ISO string) + aciklama
+// (opsiyonel, nullable) alanlarini kabul eder; uye_id/islem_turu/kaynak_*
+// sabit kalir (mass-assignment koruma).
+//
+// NOT: client/lib/api.ts interceptor'u PATCH body'lerine `proje_id` ekler
+// (requireProjectAccess middleware'i icin). Bu sebeple `proje_id`'yi opsiyonel
+// olarak whitelist'liyoruz; service body'yi RPC'ye gondermez (yalniz tutar/
+// tarih/aciklama RPC'ye gecer). .strict() ile diger extra field'lar reddedilir.
+export const uyelikBaslangicUpdateSchema = z
+  .object({
+    tutar: z
+      .number()
+      .positive('Tutar pozitif olmalidir')
+      .max(TUTAR_UPPER_BOUND, `Tutar ${TUTAR_UPPER_BOUND.toLocaleString('tr-TR')} TL uzerinde olamaz`),
+    tarih: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Tarih YYYY-MM-DD formatinda olmali'),
+    aciklama: z.string().max(1000, 'Aciklama 1000 karakteri asamaz').optional().nullable(),
+    // Interceptor'un eklediği proje_id — requireProjectAccess okur, service
+    // RPC payload'ina dahil etmez (mass-assignment guard).
+    proje_id: z.string().uuid().optional(),
+    projeId: z.string().uuid().optional(),
+  })
+  .strict()
+
 // Sprint 20260519-para-hareketleri-improvements / US-1 + US-4:
 // `GET /cari-hareketler` query schema. Tek opsiyonel alan `exclude_tahakkuk`;
 // `true` ise list path'i Supabase tarafında üyelik başlangıç tahakkuk satırlarını

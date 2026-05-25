@@ -101,3 +101,40 @@ export const deleteCariHareket = catchAsync(
   }
 )
 
+// Sprint uyelik-baslangic-iptal-duzenle (2026-05-25):
+// PATCH /cari-hareketler/baslangic-bedeli/:tahakkukId — uyelik baslangic
+// tahakkuk satirini duzenle. requireProjectAccess('manager') + Zod validate.
+// Body'deki proje_id/projeId interceptor'dan gelir (requireProjectAccess okur);
+// RPC payload'ina dahil edilmez (mass-assignment guard).
+export const updateUyelikBaslangicTahakkuk = catchAsync(
+  async (
+    req: AuthRequest<
+      { tahakkukId: string },
+      unknown,
+      { tutar: number; tarih: string; aciklama?: string | null; proje_id?: string; projeId?: string }
+    >,
+    res: Response,
+  ) => {
+    const { tahakkukId } = req.params
+    const { tutar, tarih, aciklama } = req.body
+    const data = await cariHesapService.updateUyelikBaslangicTahakkuk(
+      tahakkukId,
+      { tutar, tarih, aciklama },
+      req.user?.id,
+    )
+    res.json({ success: true, data })
+  },
+)
+
+// DELETE /cari-hareketler/baslangic-bedeli/:tahakkukId — tahakkuku iptal et.
+export const deleteUyelikBaslangicTahakkuk = catchAsync(
+  async (req: AuthRequest<{ tahakkukId: string }>, res: Response) => {
+    const { tahakkukId } = req.params
+    const data = await cariHesapService.deleteUyelikBaslangicTahakkuk(
+      tahakkukId,
+      req.user?.id,
+    )
+    res.json(data)
+  },
+)
+
