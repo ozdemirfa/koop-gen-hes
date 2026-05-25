@@ -43,7 +43,7 @@ export const YillikRaporPage: React.FC = () => {
     downloadCsv(`yillik-rapor-${yil}`, [
       {
         title: `Yıllık Mali Rapor — ${yil}`,
-        headers: ['Metrik', 'Tutar (TL)'],
+        headers: ['Metrik', 'Tutar'],
         rows: [
           // 20260525160000: tahakkuk = aidat + gecikme_faizi + uyelik_baslangic;
           // gider = hakedis + iade_odeme (fatura cikarildi).
@@ -191,7 +191,6 @@ export const YillikRaporPage: React.FC = () => {
               title="Yıllık Aidat Tahakkuku"
               value={Number(rapor?.toplam_tahakkuk ?? rapor?.toplam_gelir ?? 0)}
               prefix={<RiseOutlined />}
-              suffix="TL"
               formatter={(v) => trMoneyFormatter(v as number)}
             />
           </Card>
@@ -202,7 +201,6 @@ export const YillikRaporPage: React.FC = () => {
               title="Yıllık Tahsilat"
               value={Number(rapor?.toplam_tahsilat || 0)}
               prefix={<DollarOutlined />}
-              suffix="TL"
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#3f8600' } }}
             />
@@ -216,7 +214,6 @@ export const YillikRaporPage: React.FC = () => {
               title="Yıllık Toplam Gider"
               value={Number(rapor?.toplam_gider_tahakkuku ?? rapor?.toplam_gider ?? 0)}
               prefix={<FallOutlined />}
-              suffix="TL"
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#cf1322' } }}
             />
@@ -228,7 +225,6 @@ export const YillikRaporPage: React.FC = () => {
               title="Yıllık Nakit Farkı"
               value={Number(rapor?.toplam_tahsilat || 0) - Number(rapor?.toplam_gider_tahakkuku ?? rapor?.toplam_gider ?? 0)}
               prefix={<BarChartOutlined />}
-              suffix="TL"
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: (Number(rapor?.toplam_tahsilat || 0) - Number(rapor?.toplam_gider_tahakkuku ?? rapor?.toplam_gider ?? 0)) >= 0 ? '#3f8600' : '#cf1322' } }}
             />

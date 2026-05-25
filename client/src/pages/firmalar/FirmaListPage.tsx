@@ -415,7 +415,6 @@ export const FirmaListPage: React.FC = () => {
               value={stats?.birikmis_teminat || 0} 
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#722ed1', fontSize: '15px', fontWeight: 'bold' } }}
-              suffix={<span style={{ fontSize: '11px', fontWeight: 'normal', marginLeft: 4 }}>TL</span>}
             />
             <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 4, paddingTop: 4 }}>
               <Typography.Text type="secondary" style={{ fontSize: '11px' }}>Net Kalan Teminat</Typography.Text>
@@ -430,7 +429,6 @@ export const FirmaListPage: React.FC = () => {
               value={stats?.toplam_odeme || 0} 
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#3f8600', fontSize: '15px', fontWeight: 'bold' } }}
-              suffix={<span style={{ fontSize: '11px', fontWeight: 'normal', marginLeft: 4 }}>TL</span>}
             />
             <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 4, paddingTop: 4 }}>
               <Typography.Text type="secondary" style={{ fontSize: '11px' }}>Yapılan Toplam Ödeme</Typography.Text>
@@ -445,7 +443,6 @@ export const FirmaListPage: React.FC = () => {
               value={stats?.bakiye || 0} 
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: (stats?.bakiye || 0) < 0 ? '#cf1322' : '#1677ff', fontSize: '20px', fontWeight: 'bold' } }}
-              suffix={<span style={{ fontSize: '12px', fontWeight: 'normal', marginLeft: 4 }}>TL</span>}
             />
             <div style={{ borderTop: '1px solid #ddecff', marginTop: 4, paddingTop: 4 }}>
               <Typography.Text type="secondary" style={{ fontSize: '11px' }}>Ödeme - KDVli Tutar</Typography.Text>

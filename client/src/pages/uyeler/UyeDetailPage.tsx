@@ -708,7 +708,6 @@ export const UyeDetailPage: React.FC = () => {
             <Statistic 
               title="Toplam Tahakkuk" 
               value={toplamTahakkuk} 
-              prefix="₺" 
               formatter={(v) => trMoneyFormatter(v as number)} 
               styles={{ content: { fontWeight: 700 } }}
             />
@@ -719,7 +718,6 @@ export const UyeDetailPage: React.FC = () => {
             <Statistic 
               title="Toplam Ödeme" 
               value={toplamOdenen} 
-              prefix="₺" 
               formatter={(v) => trMoneyFormatter(v as number)} 
               styles={{ content: { color: 'var(--success)', fontWeight: 700 } }} 
             />
@@ -730,7 +728,6 @@ export const UyeDetailPage: React.FC = () => {
             <Statistic 
               title="Geciken Borç" 
               value={toplamKalan} 
-              prefix="₺" 
               formatter={(v) => trMoneyFormatter(v as number)} 
               styles={{ content: { 
                 color: toplamKalan > 0 ? 'var(--error)' : 'var(--success)',
@@ -744,7 +741,6 @@ export const UyeDetailPage: React.FC = () => {
             <Statistic 
               title="Gecikme Faizi" 
               value={toplamGecikmeFaizi} 
-              prefix="₺" 
               formatter={(v) => trMoneyFormatter(v as number)} 
               styles={{ content: { color: '#fa8c16', fontWeight: 700 } }} 
             />

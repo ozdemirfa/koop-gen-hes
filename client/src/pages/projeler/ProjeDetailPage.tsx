@@ -158,7 +158,6 @@ export const ProjeDetailPage: React.FC = () => {
         <Statistic
           title="Toplam Bütçe"
           value={proje.toplam_butce || 0}
-          prefix="₺"
           formatter={(v) => trMoneyFormatter(v as number)}
         />
       </Col>

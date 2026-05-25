@@ -38,7 +38,7 @@ export const UyeBorcRaporPage: React.FC = () => {
     downloadCsv(`uye-borc-listesi-${dayjs().format('YYYYMMDD')}`, [
       {
         title: `Üye Borç Listesi — ${dayjs().format('DD.MM.YYYY')}`,
-        headers: ['Üye No', 'Ad Soyad', 'Blok', 'Daire No', 'Geciken Borç (TL)', 'En Eski Gecikme (gün)', 'Ort. Gecikme (gün)'],
+        headers: ['Üye No', 'Ad Soyad', 'Blok', 'Daire No', 'Geciken Borç', 'En Eski Gecikme (gün)', 'Ort. Gecikme (gün)'],
         rows: list.map((r: any) => [
           r.uye_no || '',
           `${r.ad || ''} ${r.soyad || ''}`.trim(),
@@ -156,7 +156,6 @@ export const UyeBorcRaporPage: React.FC = () => {
               title="Toplam Geciken Borç"
               value={genelToplamBorc}
               prefix={<DollarOutlined />}
-              suffix="TL"
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#cf1322', fontSize: '1.2rem' } }}
             />

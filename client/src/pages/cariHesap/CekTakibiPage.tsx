@@ -216,7 +216,6 @@ export const CekTakibiPage: React.FC = () => {
             <Statistic 
               title="Bekleyen Çekler Toplamı" 
               value={totalBekleyen} 
-              suffix="TL" 
               formatter={(v) => trMoneyFormatter(v as number)} 
               styles={{ content: { color: '#1890ff' } }} 
             />
@@ -227,7 +226,6 @@ export const CekTakibiPage: React.FC = () => {
             <Statistic 
               title="Ödenen Çekler Toplamı" 
               value={totalOdendi} 
-              suffix="TL" 
               formatter={(v) => trMoneyFormatter(v as number)} 
               styles={{ content: { color: '#52c41a' } }} 
             />

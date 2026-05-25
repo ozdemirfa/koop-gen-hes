@@ -52,7 +52,7 @@ export const MizanPage: React.FC = () => {
     downloadCsv(`genel-mizan-${dayjs().format('YYYYMMDD')}`, [
       {
         title: `Genel Mizan — ${dayjs().format('DD.MM.YYYY')}`,
-        headers: ['Cari Adı', 'Tür', 'Toplam Borç (TL)', 'Toplam Alacak (TL)', 'Bakiye (TL)', 'Bakiye Yönü'],
+        headers: ['Cari Adı', 'Tür', 'Toplam Borç', 'Toplam Alacak', 'Bakiye', 'Bakiye Yönü'],
         rows: list.map((r) => [
           r.cari_adi,
           r.cari_turu === 'uye' ? 'ÜYE' : 'FİRMA',
@@ -199,7 +199,6 @@ export const MizanPage: React.FC = () => {
               value={stats.totalWeAreOwed}
               precision={2}
               prefix={<ArrowUpOutlined style={{ color: '#1890ff' }} />}
-              suffix="TL"
               styles={{ 
                 content: { color: '#1890ff', fontWeight: 800, fontSize: '24px' }
               }}
@@ -214,7 +213,6 @@ export const MizanPage: React.FC = () => {
               value={stats.totalWeOwe}
               precision={2}
               prefix={<ArrowDownOutlined style={{ color: '#ff4d4f' }} />}
-              suffix="TL"
               styles={{ 
                 content: { color: '#ff4d4f', fontWeight: 800, fontSize: '24px' }
               }}

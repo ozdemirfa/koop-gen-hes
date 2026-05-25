@@ -56,7 +56,7 @@ export const AylikRaporPage: React.FC = () => {
     downloadCsv(`aylik-rapor-${yil}-${String(ay).padStart(2, '0')}`, [
       {
         title: `Aylık Mali Rapor — ${dayjs().year(yil).month(ay - 1).format('MMMM YYYY')}`,
-        headers: ['Metrik', 'Tutar (TL)'],
+        headers: ['Metrik', 'Tutar'],
         rows: [
           ['Toplam Tahsilat', rapor.toplam_aidat_tahsilat || 0],
           ['Aidat Tahakkuku', aidatTahakkuku],
@@ -68,7 +68,7 @@ export const AylikRaporPage: React.FC = () => {
       },
       {
         title: 'Tahsilatlar',
-        headers: ['Tarih', 'Üye', 'Ödeme Yöntemi', 'Tutar (TL)'],
+        headers: ['Tarih', 'Üye', 'Ödeme Yöntemi', 'Tutar'],
         rows: (rapor.aidat_tahsilat || []).map((r: any) => [
           dayjs(r.tarih).format('DD.MM.YYYY'),
           r.cari_hesaplar?.cari_adi || '',
@@ -79,7 +79,7 @@ export const AylikRaporPage: React.FC = () => {
       {
         // 20260525160000: tahakkuk listesi aidat + gecikme_faizi + uyelik_baslangic icerir
         title: 'Tahakkuklar',
-        headers: ['Tarih', 'Tür', 'Cari/Kaynak', 'Açıklama', 'Tutar (TL)'],
+        headers: ['Tarih', 'Tür', 'Cari/Kaynak', 'Açıklama', 'Tutar'],
         rows: (rapor.gelirler || []).map((r: any) => {
           const turuTr =
             r.islem_turu === 'aidat_kayit' ? 'Aidat' :
@@ -99,7 +99,7 @@ export const AylikRaporPage: React.FC = () => {
         // 20260525160000: gider listesi hakedis + iade_odeme (fatura YOK).
         // iade_odeme `alacak` ile kaydedilir.
         title: 'Gider Tahakkukları',
-        headers: ['Tarih', 'Tür', 'Cari/Firma', 'Açıklama', 'Tutar (TL)'],
+        headers: ['Tarih', 'Tür', 'Cari/Firma', 'Açıklama', 'Tutar'],
         rows: (rapor.giderler || []).map((r: any) => {
           const turuTr =
             r.islem_turu === 'hakedis' ? 'Hakediş' :
@@ -200,7 +200,6 @@ export const AylikRaporPage: React.FC = () => {
               title="Toplam Tahsilat"
               value={rapor?.toplam_aidat_tahsilat || 0}
               prefix={<DollarOutlined />}
-              suffix="TL"
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#3f8600', fontSize: '1.2rem' } }}
             />
@@ -212,7 +211,6 @@ export const AylikRaporPage: React.FC = () => {
               title="Aidat Tahakkuku"
               value={Number(rapor?.toplam_tahakkuk ?? rapor?.toplam_gelir ?? 0)}
               prefix={<RiseOutlined />}
-              suffix="TL"
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#3f8600', fontSize: '1.2rem' } }}
             />
@@ -224,7 +222,6 @@ export const AylikRaporPage: React.FC = () => {
               title="Gider Tahakkuku"
               value={Number(rapor?.toplam_gider_tahakkuku ?? rapor?.toplam_gider ?? 0)}
               prefix={<FallOutlined />}
-              suffix="TL"
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#cf1322', fontSize: '1.2rem' } }}
             />
@@ -244,8 +241,7 @@ export const AylikRaporPage: React.FC = () => {
                 title="Bu Ay (T)"
                 value={rapor?.yaklasan_odemeler?.t || 0}
                 formatter={(v) => trMoneyFormatter(v as number)}
-                suffix="TL"
-                styles={{ content: { fontSize: '1.1rem' } }}
+                  styles={{ content: { fontSize: '1.1rem' } }}
               />
             </Card>
           </Col>
@@ -255,8 +251,7 @@ export const AylikRaporPage: React.FC = () => {
                 title="Gelecek Ay (T+1)"
                 value={rapor?.yaklasan_odemeler?.t1 || 0}
                 formatter={(v) => trMoneyFormatter(v as number)}
-                suffix="TL"
-                styles={{ content: { fontSize: '1.1rem' } }}
+                  styles={{ content: { fontSize: '1.1rem' } }}
               />
             </Card>
           </Col>
@@ -266,8 +261,7 @@ export const AylikRaporPage: React.FC = () => {
                 title="Sonraki Ay (T+2)"
                 value={rapor?.yaklasan_odemeler?.t2 || 0}
                 formatter={(v) => trMoneyFormatter(v as number)}
-                suffix="TL"
-                styles={{ content: { fontSize: '1.1rem' } }}
+                  styles={{ content: { fontSize: '1.1rem' } }}
               />
             </Card>
           </Col>

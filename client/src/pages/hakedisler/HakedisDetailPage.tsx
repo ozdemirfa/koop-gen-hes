@@ -298,7 +298,7 @@ export const HakedisDetailPage: React.FC = () => {
       },
       {
         title: 'Kesinti Özeti',
-        headers: ['Kalem', 'Tutar (TL)'],
+        headers: ['Kalem', 'Tutar'],
         rows: [
           ['Hakediş Toplam', hakedisToplam],
           [`Teminat (%${teminatOrani})`, teminatKesintisi],
@@ -620,7 +620,7 @@ export const HakedisDetailPage: React.FC = () => {
       <Row gutter={[12, 12]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} md={4}>
           <Card variant="borderless" size="small" className="shadow-sm">
-            <Statistic title="Hakediş Toplam" value={hakedisToplam} suffix="TL" formatter={(v) => trMoneyFormatter(v as number)} />
+            <Statistic title="Hakediş Toplam" value={hakedisToplam} formatter={(v) => trMoneyFormatter(v as number)} />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={4}>
@@ -628,7 +628,6 @@ export const HakedisDetailPage: React.FC = () => {
             <Statistic
               title={`Teminat (%${teminatOrani})`}
               value={teminatKesintisi}
-              suffix="TL"
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#cf1322' } }}
             />
@@ -639,7 +638,6 @@ export const HakedisDetailPage: React.FC = () => {
             <Statistic
               title={`Stopaj (%${stopajOrani})`}
               value={stopajKesintisi}
-              suffix="TL"
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#cf1322' } }}
             />
@@ -650,7 +648,6 @@ export const HakedisDetailPage: React.FC = () => {
             <Statistic
               title="Diğer Kesintiler"
               value={digerKesintiler}
-              suffix="TL"
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#cf1322' } }}
             />
@@ -661,7 +658,6 @@ export const HakedisDetailPage: React.FC = () => {
             <Statistic
               title="Net Ödenecek"
               value={netTutar}
-              suffix="TL"
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#3f8600', fontWeight: 'bold' } }}
             />

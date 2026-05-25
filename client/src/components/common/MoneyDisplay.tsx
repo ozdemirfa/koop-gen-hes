@@ -11,16 +11,19 @@ interface MoneyDisplayProps {
   strong?: boolean
 }
 
-export const MoneyDisplay: React.FC<MoneyDisplayProps> = ({ 
-  amount, 
-  colored = false, 
-  currency = 'TL',
+export const MoneyDisplay: React.FC<MoneyDisplayProps> = ({
+  amount,
+  colored = false,
+  // Sprint revizyon-bugfix-paketi B1 (2026-05-25): para kartlarinda
+  // "TL" ifadesi kaldirildi; sayisal deger TR locale ile zaten formatlaniyor.
+  // Geri uyumluluk: caller currency=' TL' gibi ozellik gondererek tekrar acabilir.
+  currency = '',
   strong = false
 }) => {
   if (amount == null) return <span>-</span>;
-  
+
   const formatted = formatMoney(amount)
-  
+
   let color = 'inherit'
   if (colored) {
     if (amount > 0) color = '#52c41a' // Yeşil
@@ -29,7 +32,7 @@ export const MoneyDisplay: React.FC<MoneyDisplayProps> = ({
 
   return (
     <Text strong={strong} style={{ color }}>
-      {formatted} {currency}
+      {formatted}{currency ? ` ${currency}` : ''}
     </Text>
   )
 }

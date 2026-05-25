@@ -37,8 +37,6 @@ const IconBadge: React.FC<{ icon: React.ReactNode; color: string }> = ({ icon, c
   </span>
 )
 
-const TLSuffix = <span className="stat-suffix">TL</span>
-
 export const Dashboard: React.FC = () => {
   const { activeProject } = useProject()
   const [dates, setDates] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null)
@@ -140,7 +138,6 @@ export const Dashboard: React.FC = () => {
               title={<span style={cardTitleStyle}>Toplam Tahsilat</span>}
               value={ozet?.toplam_tahsilat || 0}
               prefix={<IconBadge icon={<DollarCircleOutlined />} color="#52c41a" />}
-              suffix={TLSuffix}
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#52c41a', ...cardValueStyle } }}
             />
@@ -152,7 +149,6 @@ export const Dashboard: React.FC = () => {
               title={<span style={cardTitleStyle}>Geciken Aidatlar</span>}
               value={ozet?.bekleyen_alacak || 0}
               prefix={<IconBadge icon={<WarningOutlined />} color="#cf1322" />}
-              suffix={TLSuffix}
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#cf1322', ...cardValueStyle } }}
             />
@@ -164,7 +160,6 @@ export const Dashboard: React.FC = () => {
               title={<span style={cardTitleStyle}>Gecikme Faizi</span>}
               value={ozet?.gecikme_faiz_tahsilati || 0}
               prefix={<IconBadge icon={<PercentageOutlined />} color="#faad14" />}
-              suffix={TLSuffix}
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#faad14', ...cardValueStyle } }}
             />
@@ -181,7 +176,6 @@ export const Dashboard: React.FC = () => {
               // 20260525150000: yeni semantik alan toplam_gider_tahakkuku; eski toplam_gider'a fallback.
               value={ozet?.toplam_gider_tahakkuku ?? ozet?.toplam_gider ?? 0}
               prefix={<IconBadge icon={<ContainerOutlined />} color="#d4380d" />}
-              suffix={TLSuffix}
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#d4380d', ...cardValueStyle } }}
             />
@@ -193,7 +187,6 @@ export const Dashboard: React.FC = () => {
               title={<span style={cardTitleStyle}>Faturalar</span>}
               value={ozet?.toplam_fatura || 0}
               prefix={<IconBadge icon={<FileTextOutlined />} color="#fa8c16" />}
-              suffix={TLSuffix}
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#fa8c16', ...cardValueStyle } }}
             />
@@ -205,7 +198,6 @@ export const Dashboard: React.FC = () => {
               title={<span style={cardTitleStyle}>Fatura Farkı</span>}
               value={ozet?.fatura_farki || 0}
               prefix={<IconBadge icon={<DiffOutlined />} color={faturaFarkiPositive ? '#faad14' : '#8c8c8c'} />}
-              suffix={TLSuffix}
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: faturaFarkiPositive ? '#faad14' : 'inherit', ...cardValueStyle } }}
             />
@@ -221,7 +213,6 @@ export const Dashboard: React.FC = () => {
               title={<span style={cardTitleStyle}>Toplam Cari Ödeme</span>}
               value={ozet?.toplam_odeme || 0}
               prefix={<IconBadge icon={<SendOutlined />} color="#cf1322" />}
-              suffix={TLSuffix}
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#cf1322', ...cardValueStyle } }}
             />
@@ -233,7 +224,6 @@ export const Dashboard: React.FC = () => {
               title={<span style={cardTitleStyle}>Birikmiş Teminatlar</span>}
               value={ozet?.birikmis_teminat || 0}
               prefix={<IconBadge icon={<SafetyOutlined />} color="#13c2c2" />}
-              suffix={TLSuffix}
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#13c2c2', ...cardValueStyle } }}
             />
@@ -250,7 +240,6 @@ export const Dashboard: React.FC = () => {
               title={<span style={cardTitleStyle}>Cari Bakiye</span>}
               value={ozet?.cari_bakiye || 0}
               prefix={<IconBadge icon={<FundOutlined />} color={cariBakiyePositive ? '#1677ff' : '#cf1322'} />}
-              suffix={TLSuffix}
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: {
                 color: cariBakiyePositive ? '#1677ff' : '#cf1322',
@@ -269,7 +258,6 @@ export const Dashboard: React.FC = () => {
               title={<span style={cardTitleStyle}>Bankalar Toplamı</span>}
               value={ozet?.banka_toplami || 0}
               prefix={<IconBadge icon={<BankOutlined />} color="#722ed1" />}
-              suffix={TLSuffix}
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#722ed1', ...cardValueStyle } }}
             />
@@ -281,7 +269,6 @@ export const Dashboard: React.FC = () => {
               title={<span style={cardTitleStyle}>Çekler</span>}
               value={ozet?.cek_toplami || 0}
               prefix={<IconBadge icon={<FileProtectOutlined />} color="#eb2f96" />}
-              suffix={TLSuffix}
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#eb2f96', ...cardValueStyle } }}
             />
@@ -298,7 +285,6 @@ export const Dashboard: React.FC = () => {
               title={<span style={cardTitleStyle}>Nakit Durumu</span>}
               value={ozet?.odeme_sonrasi_nakit || 0}
               prefix={<IconBadge icon={nakitPositive ? <ArrowUpOutlined /> : <ArrowDownOutlined />} color={nakitPositive ? '#fa8c16' : '#cf1322'} />}
-              suffix={TLSuffix}
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: {
                 color: nakitPositive ? '#fa8c16' : '#cf1322',
@@ -318,7 +304,6 @@ export const Dashboard: React.FC = () => {
               title={<span style={cardTitleStyle}>Kasa Nakit</span>}
               value={ozet?.kasa_nakit ?? 0}
               prefix={<IconBadge icon={<WalletOutlined />} color="#fa8c16" />}
-              suffix={TLSuffix}
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#fa8c16', ...cardValueStyle } }}
             />

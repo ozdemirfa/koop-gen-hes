@@ -465,7 +465,6 @@ export const YillikPlanPage: React.FC = () => {
             <Statistic 
               title="Toplam Proje Bütçesi" 
               value={plan.toplam_butce || 0} 
-              prefix="₺" 
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { fontWeight: 700 } }}
             />
@@ -476,7 +475,6 @@ export const YillikPlanPage: React.FC = () => {
             <Statistic 
               title="Planda Toplam" 
               value={toplamPlanlanan} 
-              prefix="₺" 
               styles={{ content: { color: '#1890ff', fontWeight: 700 } }} 
               formatter={(v) => trMoneyFormatter(v as number)}
             />
@@ -487,7 +485,6 @@ export const YillikPlanPage: React.FC = () => {
             <Statistic 
               title="Gerçekleşen Toplam" 
               value={toplamGerceklesen} 
-              prefix="₺" 
               styles={{ content: { color: '#52c41a', fontWeight: 700 } }} 
               formatter={(v) => trMoneyFormatter(v as number)}
             />

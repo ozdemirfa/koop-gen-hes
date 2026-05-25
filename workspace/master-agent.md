@@ -1099,5 +1099,82 @@ SUM(hakedisler WHERE durum IN ('onaylandi','odendi'))
 **İleri sprint adayı (opsiyonel):**
 - Audit_logs history için UI panel (UyeDetailPage altında "Geçmiş" sekmesi) — admin için tahakkuk düzenleme/iptal geçmişi görüntüleme. Şu an `fn_audit_history` RPC mevcut ama UI tüketici yok.
 
+---
+
+# SPRINT: 9-Maddelik Revizyon Bug-Fix + UI Paketi
+
+**Tarih:** 2026-05-25
+**Tag:** `sprint-revizyon-bugfix-paketi` (sprint kapanışında oluşturulur)
+**Önceki sprint:** `sprint-uyelik-baslangic-iptal-duzenle` (`7d30820`)
+
+## Bağlam
+
+Kullanıcıdan gelen 9 maddelik karışık paket: 1 P0 multi-tenant veri sızıntısı, 3 P1 bug, 3 RPC formül revizyonu (Pano Nakit Durumu, Gecikme Faizi tahsil, Aylık Rapor Tahsilatlar), 1 frontend UX (cari türü=üye iken çek option gizle) ve 1 global UI cleanup (Statistic kartlarından "TL" suffix kaldır).
+
+Batch sıralaması: düşük risk → yüksek risk (UI → P0 → UX → bug → RPC formül).
+
+## Batch Planı
+
+| Batch | Kapsam | Risk |
+|-------|--------|------|
+| B1 | UI: tüm Statistic kartlarından "TL"/"₺" suffix/prefix kaldır | Düşük (mekanik refactor) |
+| B2 | P0 Veri Sızıntısı: Firma Cari Ekstre proje_id filtresi zorla (controller `req.query` geçirmiyordu) | Orta (multi-tenant) |
+| B3 | UX: OdemeKayit/TahsilatList — cari türü 'uye' iken `odeme_turu='cek'` option gizle + backend schema reddet | Düşük |
+| B4 | Bug Paketi: (a) çek öde 400 — `banka_hareketleri.proje_id` eksik insert, (b) Para Hareketleri üye join — gözlem & teşhis (frontend join doğru görünüyor; muhtemelen veri tarafı `fn_create_member_atomic`), (c) virman → kasa nakit cache invalidation | Orta |
+| B5 | RPC Formül Revizyonu: (a) `fn_dashboard_ozet` `nakit_durumu` = Bankalar + Kasa Nakit + Cari Bakiye − Çekler, (b) `gecikme_faizi_tahsilati` (kapama match'li), (c) `fn_aylik_rapor_detay` tahsilatlar kapama yerine kaynak hareketten + Belge No kolonu | Yüksek (formül + frontend kolon) |
+
+## Görevler
+
+### B1 — UI Cleanup: TL suffix/prefix kaldır
+- [ ] `client/src/pages/Dashboard.tsx` — `TLSuffix` const'unu sil; 12 Statistic suffix={TLSuffix} kaldır.
+- [ ] `client/src/pages/firmalar/FirmaDetailPage.tsx` — 3 Statistic suffix span'i kaldır.
+- [ ] `client/src/pages/firmalar/FirmaListPage.tsx` — 3 Statistic suffix span'i kaldır.
+- [ ] `client/src/pages/projeler/ProjeDetailPage.tsx` — prefix="₺" kaldır.
+- [ ] `client/src/pages/projeler/YillikPlanPage.tsx` — 3 prefix="₺" kaldır.
+- [ ] `client/src/pages/uyeler/UyeDetailPage.tsx` — 4 prefix="₺" kaldır.
+- [ ] `client/src/pages/cariHesap/CekTakibiPage.tsx` — 2 suffix="TL" kaldır.
+- [ ] `client/src/pages/hakedisler/HakedisDetailPage.tsx` — 5 suffix="TL" + CSV header "Tutar (TL)" → "Tutar" kaldır.
+- [ ] `client/src/pages/raporlar/AylikRaporPage.tsx` — 6 suffix="TL" + 4 CSV header kaldır.
+- [ ] `client/src/pages/raporlar/MizanPage.tsx` — 2 suffix="TL" + 3 CSV header kaldır.
+- [ ] `client/src/pages/raporlar/UyeBorcRaporPage.tsx` — 1 suffix="TL" + 1 CSV header kaldır.
+- [ ] `client/src/pages/raporlar/YillikRaporPage.tsx` — 4 suffix="TL" + 1 CSV header kaldır.
+- [ ] `client/src/components/common/MoneyDisplay.tsx` — default `currency='TL'` → `''` (boş; opt-in).
+- [ ] Build: `npm --prefix client run build` clean.
+
+### B2 — P0: Firma Cari Ekstre proje izolasyonu
+- [ ] `server/src/controllers/firma.controller.ts` getCariEkstre — `req.query` geçir.
+- [ ] `server/src/services/firma.service.ts` getCariEkstre — `requireProjeId(query?.proje_id)` zorunlu.
+- [ ] Frontend `FirmaDetailPage` cari-ekstre query'sinde `activeProject.id` zaten `params`'a giriyor mu kontrol et.
+- [ ] Test: `firmaService.getCariEkstre.test.ts` — proje_id yok → 400; başka proje hareketi sızmamalı.
+
+### B3 — UX: cari türü 'uye' iken çek seçeneği gizle
+- [ ] `client/src/pages/cariHesap/OdemeKayit.tsx` ve `TahsilatListPage.tsx` — `odeme_turu` Select options'tan `cari_turu==='uye'` durumunda `cek` filtrele.
+- [ ] `server/src/schemas/cariHesap.schema.ts` cariPaymentSchema — `superRefine` ile `cari_turu lookup` gerektirebilir; daha pratik: payment dispatcher servisinde reddet.
+
+### B4 — Bug Paketi
+- [ ] **Çek Öde 400 fix:** `server/src/services/cek.service.ts` `payCheck` — `banka_hareketleri` INSERT'inde `proje_id: cek.proje_id` eklenecek (NOT NULL constraint).
+- [ ] **Çek Öde hardening:** `payCheck` body schema validation (banka_hesap_id zorunlu).
+- [ ] **Para Hareketleri başlangıç üye join:** veri tarafı kontrol — `cari_hareketler.cari_hesap_id` her satırda doğru mu? Eğer doğruysa frontend `cari_hesaplar` join'i sorun değil. Hipotez: yanlış `cari_hesap_id` yazılmış kayıtlar geçmişte var. Manuel DB audit script (read-only) ekle: `scripts/audit_uyelik_baslangic_cari_hesap.sql`.
+- [ ] **Virman → kasa nakit cache invalidation:** `client/src/pages/virman/VirmanFormModal.tsx` onSuccess'inde `dashboard-ozet` ve `banka-hesaplari` invalid et.
+
+### B5 — RPC Formül Revizyonu
+- [ ] **Migration `20260525180000_dashboard_nakit_durumu_revize.sql`:** `fn_dashboard_ozet` `nakit_durumu` ALANI yeni — `Bankalar + Kasa Nakit + Cari Bakiye − Çekler`. `odeme_sonrasi_nakit` aliası korunur (deprecated) — frontend `nakit_durumu`'na geçer.
+  - Formül netleştirme: spec'te "Cari Bakiye − Çekler" → mevcut hesapta `cari_bakiye<0` ise borç eklenir; `cek_toplami` her zaman düşülür. Spec lafzı: `banka_toplami + kasa_nakit + cari_bakiye - cek_toplami` (cari_bakiye negatifse borç → çıkar, yani toplam azalır; pozitifse alacak fazla → toplam artar. Spec'in matematik yorumu bu).
+- [ ] **Migration aynı sql:** `fn_dashboard_ozet` `gecikme_faizi_tahsilati` ALANI yeni — sadece `cari_hareketler.islem_turu='gecikme_faizi'` ile eşleşmiş tahsilat (kapama paterni). Mevcut Dashboard kart `ozet.gecikme_faiz_tahsilati`'a fallback; alan adı tutarlılığı.
+- [ ] **Migration aynı sql:** `fn_aylik_rapor_detay` tahsilatlar dataset'i `cari_hareketler.islem_turu IN ('gelen_odeme','uyelik_baslangic') AND borc>0 AND kaynak_tipi IS NULL` filtresi — yani ham ödeme satırı (kapama parçası değil). belge_no, odeme_turu, banka_hesap_id zaten select'te.
+- [ ] **Frontend `AylikRaporPage.tsx` Tahsilatlar tab kolonu** — Ödeme Yöntemi'nin sağına Belge No kolonu ekle.
+
+### B6 — Doğrulama
+- [ ] `npm --prefix server run build` — clean
+- [ ] `npm --prefix server test` — 379+ yeşil
+- [ ] `npm --prefix client run build` — clean
+- [ ] Migration timestamp test — pass
+- [ ] Git commit batch başına atomik + push.
+- [ ] Sprint kapanış: `git tag -a sprint-revizyon-bugfix-paketi` + push.
+
+## Durum
+
+Devam ediyor.
+
 
 
