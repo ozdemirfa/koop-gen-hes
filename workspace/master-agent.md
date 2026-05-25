@@ -1165,16 +1165,51 @@ Batch sıralaması: düşük risk → yüksek risk (UI → P0 → UX → bug →
 - [ ] **Frontend `AylikRaporPage.tsx` Tahsilatlar tab kolonu** — Ödeme Yöntemi'nin sağına Belge No kolonu ekle.
 
 ### B6 — Doğrulama
-- [ ] `npm --prefix server run build` — clean
-- [ ] `npm --prefix server test` — 379+ yeşil
-- [ ] `npm --prefix client run build` — clean
-- [ ] Migration timestamp test — pass
-- [ ] Git commit batch başına atomik + push.
-- [ ] Sprint kapanış: `git tag -a sprint-revizyon-bugfix-paketi` + push.
+- [x] `npm --prefix server run build` — clean (B5 sonu)
+- [x] `npm --prefix server test` — 386/386 yeşil (379 baseline + 7 yeni: cek payCheck banka_hesap_id + 6 cariEkstre)
+- [x] `npm --prefix client run build` — clean
+- [x] Migration timestamp test — pass
+- [x] Git commit batch başına atomik + push (1909682, fa90328, 3ae1a30, 42c5f67).
+- [x] Sprint kapanış: `git tag -a sprint-revizyon-bugfix-paketi` + push.
+
+## Sonuç Tablosu
+
+| Batch | Commit | Madde | Çıktı |
+|-------|--------|-------|-------|
+| B1 — UI cleanup | `1909682` | 9 | 13 dosyada 30+ Statistic'ten "TL"/"₺" kaldırıldı; MoneyDisplay default currency boş. |
+| B2 — P0 fix | `fa90328` | 1 | firma.controller `req.query` iletir; service `requireProjeId` zorunlu; route `requireProjectAccess('user')` middleware; +6 test. |
+| B3+B4 partial | `3ae1a30` | 4, 7, 6 | OdemeKayit cek option `filterCariTuru==='firma'` gating; backend cari_turu=uye reddi; cek.service.payCheck banka_hareketleri.proje_id eklendi; banka_hesap_id zorunlu defensive; +1 test; audit script. |
+| B5 — RPC | `42c5f67` | 2, 5, 8 | 20260525180000 migration: fn_dashboard_ozet yeni alanlar `nakit_durumu` (banka+kasa+cari-cek) + `gecikme_faizi_tahsilati` (kaynak_tipi=gecikme_faizi AND borc>0); FLOW SELECT LEFT JOIN restored (virman nakit fix); fn_aylik_rapor_detay tahsilatlar dataset kaynak_tipi IS NULL (1 odeme=1 satir); Dashboard yeni alan okur fallback'li; AylikRaporPage Tahsilatlar tab Belge No kolonu. |
+| Tag | `sprint-revizyon-bugfix-paketi` | — | Sprint kapanış annotated tag. |
+
+**Doğrulama:**
+- `npm --prefix server run build` — clean
+- `npm --prefix server test` — **386/386 yeşil**
+- `npm --prefix client run build` — clean (chunk warning pre-existing)
+- Migration timestamp test — pass
+
+## Üretim deploy dikkat
+- Yeni RPC'ler Supabase'e deploy olduğunda PostgREST otomatik `NOTIFY pgrst, 'reload schema'` ile cache reload eder.
+- `nakit_durumu` ve `gecikme_faizi_tahsilati` field'ları frontend tarafında `??` fallback'li okunur; eski sürüm RPC'de bu alanlar yoksa `odeme_sonrasi_nakit` / `gecikme_faiz_tahsilati` alias devreye girer.
+- Madde 6 (Para Hareketleri yanlış üye join) için: kullanıcı lokalden `supabase/scripts/audit_uyelik_baslangic_cari_hesap.sql` ile DB veri auditini yapabilir; kod tarafında frontend join doğru — sorun veri tarafında ise (orphan cari_hesap_id, duplicate cari_hesap per uye_id) bu script tespit eder.
+
+## Madde-Sprint Eşleştirmesi (9/9)
+
+| # | Madde | Durum | Commit |
+|---|-------|-------|--------|
+| 1 | Firma cari-ekstre proje izolasyonu | ✓ Tamamlandı | `fa90328` |
+| 2 | Pano Nakit Durumu yeni formül | ✓ Tamamlandı | `42c5f67` |
+| 3 | Virman → kasa nakit (RPC LEFT JOIN restore) | ✓ Tamamlandı | `42c5f67` |
+| 4 | Cari türü üye iken çek option gizle | ✓ Tamamlandı | `3ae1a30` |
+| 5 | Gecikme Faizi tahsil edilen toplamı | ✓ Tamamlandı | `42c5f67` |
+| 6 | Para Hareketleri yanlış üye join | Kısmi (kod doğru, veri audit script ile bırakıldı) | `3ae1a30` |
+| 7 | Çek öde 400 hatası | ✓ Tamamlandı | `3ae1a30` |
+| 8 | Aylık rapor Tahsilatlar kaynak hareket + Belge No | ✓ Tamamlandı | `42c5f67` |
+| 9 | Para kartlarında TL ifadesi kaldır | ✓ Tamamlandı | `1909682` |
 
 ## Durum
 
-Devam ediyor.
+**Tamamlandı.** Tüm batch'ler commit + push edildi; sprint tag oluşturuldu.
 
 
 
