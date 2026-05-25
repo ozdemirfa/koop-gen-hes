@@ -43,6 +43,11 @@ export const updateFirma = catchAsync(async (req: AuthRequest<any, any, any, any
 })
 
 export const getCariEkstre = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await firmaService.getCariEkstre(req.params.id)
+  // Sprint revizyon-bugfix-paketi B2 (2026-05-25, P0 veri sizintisi):
+  // req.query servise iletilmiyordu; getCariEkstre proje_id filtresi
+  // bekliyordu ama firmaService cagrisinda atlandigi icin bir firmaya bagli
+  // TUM projelerin cari hareketleri sizdiriliyordu. Multi-tenant ihlali.
+  // Artik query iletilir + servis tarafinda proje_id zorunlu kilinir.
+  const data = await firmaService.getCariEkstre(req.params.id, req.query as Record<string, any>)
   res.json({ success: true, data })
 })

@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '../config/supabase'
 import { ApiError } from '../utils/ApiError'
 import { parsePagination, toSupabaseRange, paginationMeta } from '../utils/pagination'
+import { requireProjeId } from '../utils/projectGuard'
 import logger from '../utils/logger'
 
 export const firmaService = {
@@ -212,12 +213,17 @@ export const firmaService = {
   },
 
   async getCariEkstre(firmaId: string, query?: Record<string, any>) {
-    let q = supabaseAdmin
+    // Sprint revizyon-bugfix-paketi B2 (2026-05-25, P0 multi-tenant fix):
+    // service-role RLS bypass ettiginden proje_id filtresi zorunlu kilinir.
+    // Aksi halde firma ID'sine bagli TUM projelerin cari hareketleri sizar.
+    // Frontend zaten activeProject.id yolluyor; eksikse 400 dondur.
+    const projeId = requireProjeId(query?.proje_id)
+
+    const q = supabaseAdmin
       .from('cari_hareketler')
       .select('*, cari_hesaplar!inner(*)')
       .eq('cari_hesaplar.firma_id', firmaId)
-    
-    if (query?.proje_id) q = q.eq('proje_id', query.proje_id)
+      .eq('proje_id', projeId)
 
     const { data, error } = await q.order('tarih', { ascending: true })
 

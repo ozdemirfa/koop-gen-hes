@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { validate } from '../middleware/validate'
+import { requireProjectAccess } from '../middleware/requireProjectAccess'
 import { createFirmaSchema, updateFirmaSchema } from '../schemas/firma.schema'
 import * as firmaController from '../controllers/firma.controller'
 
@@ -18,6 +19,8 @@ router.get('/:id/stats', firmaController.getFirmaStats)
 router.get('/:id', firmaController.getFirmaById)
 router.post('/', validate({ body: createFirmaSchema }), firmaController.createFirma)
 router.put('/:id', validate({ body: updateFirmaSchema }), firmaController.updateFirma)
-router.get('/:id/cari-ekstre', firmaController.getCariEkstre)
+// Sprint revizyon-bugfix-paketi B2 (2026-05-25, P0): cari-ekstre proje-bagli;
+// requireProjectAccess proje_id'yi query'den dogrular ve uyelik kontrolu yapar.
+router.get('/:id/cari-ekstre', requireProjectAccess('user'), firmaController.getCariEkstre)
 
 export default router
