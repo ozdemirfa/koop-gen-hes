@@ -9,13 +9,32 @@ import {
   projeIsKalemiSchema,
   yillikPlanSchema,
   yillikPlanKalemiSchema,
+  yillikPlanKalemleriBulkSchema,
   arsivleProjeSchema,
   kaliciSilProjeSchema,
 } from '../schemas/proje.schema'
 import * as projelerController from '../controllers/projeler.controller'
 
 const router = Router()
-const upload = multer({ storage: multer.memoryStorage() })
+// Sprint qa-review-bugfix-faz3 (2026-05-25, P0): memoryStorage'a fileSize +
+// files cap + CSV-only fileFilter. Önceden no limit → 6+ MB body memory'yi
+// patlatabilirdi; mimetype kontrolü olmadığı için arbitrary binary upload
+// edilebilirdi.
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, cb) => {
+    const isCsv =
+      file.mimetype === 'text/csv' ||
+      file.mimetype === 'application/vnd.ms-excel' ||
+      /\.csv$/i.test(file.originalname)
+    if (!isCsv) {
+      cb(new Error('CSV_ONLY'))
+      return
+    }
+    cb(null, true)
+  },
+})
 
 // Sprint role-system-modernization (PR-B):
 //   GET (liste/detay/alt kaynaklar)  → user
@@ -33,7 +52,7 @@ router.post('/serefiye-actions/olustur', requireProjectAccess('manager'), projel
 // 2. Statik / Spesifik Rotalar
 // GET /projeler — controller kullanıcı üyeliğine göre filtreler (Faz 1.4)
 router.get('/', projelerController.getProjeler)
-router.post('/yillik-plan-kalemleri/bulk', requireProjectAccess('user'), projelerController.createYillikPlanKalemleriBulk)
+router.post('/yillik-plan-kalemleri/bulk', requireProjectAccess('user'), validate({ body: yillikPlanKalemleriBulkSchema }), projelerController.createYillikPlanKalemleriBulk)
 // Global "aktif proje" sorgusu — proje_id gerektirmez
 router.get('/aktif/bloklar', projelerController.getAktifBloklar)
 router.get('/bloklar/:blokId/musait-daireler', requireProjectAccess('user'), projelerController.getMusaitDaireler)

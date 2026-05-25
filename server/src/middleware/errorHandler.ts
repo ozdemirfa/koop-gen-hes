@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express'
+import multer from 'multer'
 import { ApiError } from '../utils/ApiError'
 import { ZodError } from 'zod'
 import logger from '../utils/logger'
@@ -10,6 +11,24 @@ export function errorHandler(err: Error, req: Request, res: Response, _next: Nex
       error: err.message,
       ...(err.details && { details: err.details })
     })
+    return
+  }
+
+  // Sprint qa-review-bugfix-faz3 (2026-05-25, P0): Multer upload hataları
+  // (boyut/sayı/CSV-only) — generic 500 yerine kullanıcı dostu 413/400.
+  if (err instanceof multer.MulterError) {
+    const map: Record<string, { code: number; msg: string }> = {
+      LIMIT_FILE_SIZE: { code: 413, msg: 'Dosya boyutu 5MB sınırını aşıyor' },
+      LIMIT_FILE_COUNT: { code: 400, msg: 'Çok fazla dosya gönderildi (tek dosya kabul edilir)' },
+      LIMIT_UNEXPECTED_FILE: { code: 400, msg: 'Beklenmeyen dosya alanı' },
+    }
+    const m = map[err.code] ?? { code: 400, msg: 'Dosya yükleme hatası' }
+    res.status(m.code).json({ success: false, error: m.msg })
+    return
+  }
+  // Custom multer fileFilter rejection (CSV-only).
+  if (err.message === 'CSV_ONLY') {
+    res.status(400).json({ success: false, error: 'Sadece CSV dosyası kabul edilir' })
     return
   }
 

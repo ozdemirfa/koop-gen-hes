@@ -47,6 +47,27 @@ export const yillikPlanKalemiSchema = z.object({
   planlanan_birim_fiyat: z.number().min(0).nullable().optional(),
 })
 
+// Sprint qa-review-bugfix-faz3 (2026-05-25, P0): /yillik-plan-kalemleri/bulk
+// endpoint'i önceden raw body kabul ediyordu (supabaseAdmin.upsert(req.body.kalemler))
+// → cross-project proje_id enjeksiyonu mümkündü. Şimdi her kalem için zorunlu
+// upsert anahtarları (plan_id, proje_is_kalemi_id, ay, proje_id) ve numerik
+// alanlar valide ediliyor. Cross-project guard ayrıca controller'da çalışır.
+export const yillikPlanKalemleriBulkItemSchema = z.object({
+  id: z.string().uuid().optional(),
+  plan_id: z.string().uuid(),
+  proje_is_kalemi_id: z.string().uuid(),
+  proje_id: z.string().uuid(),
+  ay: z.number().int().min(1).max(12),
+  planlanan_tutar: z.number().min(0).optional().nullable(),
+  gerceklesen_tutar: z.number().min(0).optional().nullable(),
+  planlanan_adet: z.number().min(0).nullable().optional(),
+  planlanan_birim_fiyat: z.number().min(0).nullable().optional(),
+})
+
+export const yillikPlanKalemleriBulkSchema = z.object({
+  kalemler: z.array(yillikPlanKalemleriBulkItemSchema).min(1, 'En az bir kalem gerekli').max(500, 'En fazla 500 kalem'),
+})
+
 // Sprint proje-silme-akisi (2026-05-24): iki aşamalı silme akışı.
 // Arşivleme (soft) için sebep zorunlu — audit trail'de "neden silindi"
 // sorusuna cevap. min 3 karakter, max 500.

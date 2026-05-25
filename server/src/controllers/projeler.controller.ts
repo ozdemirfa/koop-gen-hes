@@ -3,6 +3,7 @@ import { AuthRequest } from '../middleware/auth'
 import { projeService } from '../services/proje.service'
 import { catchAsync } from '../utils/catchAsync'
 import { supabaseAdmin } from '../config/supabase'
+import { ApiError } from '../utils/ApiError'
 
 export const getProjeler = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   // Sprint proje-silme-akisi (2026-05-24):
@@ -131,14 +132,31 @@ export const exportSerefiye = catchAsync(async (req: AuthRequest<any, any, any, 
 })
 
 export const importSerefiye = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  if (!req.file) throw new Error('Dosya yüklenmedi')
+  // Sprint qa-review-bugfix-faz3 (2026-05-25, P1): generic Error errorHandler
+  // tarafından 500'e çevriliyordu. ApiError.badRequest ile 400 + Türkçe mesaj.
+  if (!req.file) throw ApiError.badRequest('Dosya yüklenmedi')
   const data = await projeService.importSerefiye(req.params.id, req.file.buffer)
   res.json({ success: true, data })
 })
 
 export const createYillikPlanKalemleriBulk = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const { kalemler } = req.body
-  const { data, error } = await supabaseAdmin.from('yillik_plan_kalemleri').upsert(kalemler, { onConflict: 'plan_id,proje_is_kalemi_id,ay' }).select()
+  // Sprint qa-review-bugfix-faz3 (2026-05-25, P0): kalemler artık Zod ile
+  // valide ediliyor (yillikPlanKalemleriBulkSchema). Ek olarak cross-project
+  // guard: tüm kalemlerin proje_id'si query'deki proje_id ile aynı olmalı —
+  // aksi halde başka projenin verisi üstüne yazılabilirdi.
+  const { kalemler } = req.body as { kalemler: { proje_id: string }[] }
+  const queryProjeId = (req.query as any)?.proje_id as string | undefined
+  if (!queryProjeId) {
+    throw ApiError.badRequest('proje_id query parametresi gerekli')
+  }
+  const crossProject = kalemler.find((k) => k.proje_id !== queryProjeId)
+  if (crossProject) {
+    throw ApiError.forbidden('Tüm kalemler aktif proje ile aynı proje_id taşımalı')
+  }
+  const { data, error } = await supabaseAdmin
+    .from('yillik_plan_kalemleri')
+    .upsert(kalemler, { onConflict: 'plan_id,proje_is_kalemi_id,ay' })
+    .select()
   if (error) throw error
   res.json({ success: true, data })
 })
@@ -153,8 +171,6 @@ export const createYillikPlanKalemleriBulk = catchAsync(async (req: AuthRequest<
 //       → route guard owner; ek kural "veri varsa sadece global admin" handler içinde
 //         kontrol edilir (controller seviyesinde 403 dönerek RPC çağrısına gitmez).
 // ---------------------------------------------------------------------------
-
-import { ApiError } from '../utils/ApiError'
 
 export const getSilmeOnizleme = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   const data = await projeService.getSilmeOnizleme(req.params.id)
