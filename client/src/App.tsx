@@ -51,11 +51,16 @@ import { ParametersPage } from './pages/settings/ParametersPage'
 import { SifreDegistirPage } from './pages/settings/SifreDegistirPage'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 
+// Sprint qa-review-bugfix-faz3 (2026-05-25, Batch 4):
+// staleTime 30s → 60s (cache hit %30 → %60), gcTime 5dk (bellek temizliği).
+// Referans tablolar (birim, poz, parametre) için per-query staleTime: 5*60_000
+// override edilebilir; mutate sonrası invalidateQueries hâlâ doğru davranır.
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
-      staleTime: 30_000,
+      staleTime: 60_000,
+      gcTime: 5 * 60_000,
       refetchOnWindowFocus: false,
     },
   },
