@@ -163,10 +163,15 @@ export const AylikRaporPage: React.FC = () => {
     }
   ]
 
+  // Sprint revizyon-bugfix-paketi B5 (2026-05-25, madde 8):
+  // 20260525180000 ile tahsilatlar dataset'i kaynak ham odemeden geldigi icin
+  // 1 odeme = 1 satir (artik FIFO kapama parcalari degil). Belge No kolonu
+  // Odeme Yontemi'nin sagina eklendi.
   const aidatColumns = [
     { title: 'Tarih', dataIndex: 'tarih', key: 'tarih', render: (t: string) => dayjs(t).format('DD.MM.YYYY') },
     { title: 'Üye', dataIndex: ['cari_hesaplar', 'cari_adi'], key: 'uye' },
     { title: 'Ödeme Yöntemi', dataIndex: 'odeme_turu', key: 'yontem', render: (v: string) => <Tag>{(v || 'Banka').toUpperCase()}</Tag> },
+    { title: 'Belge No', dataIndex: 'belge_no', key: 'belge_no', render: (v: string | null) => v || '-' },
     { title: 'Tutar', dataIndex: 'borc', key: 'tutar', align: 'right' as const, render: (v: number) => <MoneyDisplay amount={v} /> }
   ]
 

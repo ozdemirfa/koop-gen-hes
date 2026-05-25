@@ -89,7 +89,11 @@ export const Dashboard: React.FC = () => {
   const cardValueStyle = { fontWeight: 700, fontSize: 'clamp(16px, 4vw, 18px)' }
 
   const cariBakiyePositive = (ozet?.cari_bakiye || 0) >= 0
-  const nakitPositive = (ozet?.odeme_sonrasi_nakit || 0) >= 0
+  // Sprint revizyon-bugfix-paketi B5 (2026-05-25, madde 2):
+  // 20260525180000 ile yeni alan nakit_durumu = banka + nakit + cari_bakiye - cek.
+  // Eski odeme_sonrasi_nakit alias korunur (geri uyumlu).
+  const nakitDurumuValue = ozet?.nakit_durumu ?? ozet?.odeme_sonrasi_nakit ?? 0
+  const nakitPositive = (nakitDurumuValue || 0) >= 0
   const faturaFarkiPositive = (ozet?.fatura_farki || 0) > 0
 
   return (
@@ -158,7 +162,10 @@ export const Dashboard: React.FC = () => {
           <Card variant="borderless" className="stat-card shadow-sm" size="small">
             <Statistic
               title={<span style={cardTitleStyle}>Gecikme Faizi</span>}
-              value={ozet?.gecikme_faiz_tahsilati || 0}
+              // Sprint revizyon-bugfix-paketi B5 (2026-05-25, madde 5):
+              // 20260525180000 ile yeni alan gecikme_faizi_tahsilati (tahsil edilen
+              // gecikme faizi). Eski alias gecikme_faiz_tahsilati korunur.
+              value={ozet?.gecikme_faizi_tahsilati ?? ozet?.gecikme_faiz_tahsilati ?? 0}
               prefix={<IconBadge icon={<PercentageOutlined />} color="#faad14" />}
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: { color: '#faad14', ...cardValueStyle } }}
@@ -283,7 +290,7 @@ export const Dashboard: React.FC = () => {
           >
             <Statistic
               title={<span style={cardTitleStyle}>Nakit Durumu</span>}
-              value={ozet?.odeme_sonrasi_nakit || 0}
+              value={nakitDurumuValue}
               prefix={<IconBadge icon={nakitPositive ? <ArrowUpOutlined /> : <ArrowDownOutlined />} color={nakitPositive ? '#fa8c16' : '#cf1322'} />}
               formatter={(v) => trMoneyFormatter(v as number)}
               styles={{ content: {
