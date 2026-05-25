@@ -1,0 +1,69 @@
+# koopGenHes — Dependabot config
+#
+# Sprint ci-pipeline (2026-05-25):
+# Haftalik npm + monthly github-actions updates. PR ile gelir, CI auto
+# gate eder. Major bump'lar manuel review (ignore listesi yok — bilincli
+# karar her PR'da yapilir).
+
+version: 2
+updates:
+  # Server backend
+  - package-ecosystem: "npm"
+    directory: "/server"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Istanbul"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "backend"
+    commit-message:
+      prefix: "chore(deps,server)"
+      include: "scope"
+
+  # Client frontend
+  - package-ecosystem: "npm"
+    directory: "/client"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Istanbul"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "frontend"
+    commit-message:
+      prefix: "chore(deps,client)"
+      include: "scope"
+
+  # Root (varsa root package.json)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Istanbul"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "root"
+    commit-message:
+      prefix: "chore(deps,root)"
+      include: "scope"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "chore(deps,ci)"
+      include: "scope"
