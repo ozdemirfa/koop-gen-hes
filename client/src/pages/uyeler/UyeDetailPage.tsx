@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react'
 import { Card, Descriptions, Tabs, Tag, Row, Col, Statistic, Button, Space, App, Popconfirm, Tooltip } from 'antd'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { DollarOutlined, HistoryOutlined, UserOutlined, AuditOutlined, RollbackOutlined, PercentageOutlined, InfoCircleOutlined, UserAddOutlined } from '@ant-design/icons'
+import { DollarOutlined, HistoryOutlined, UserOutlined, AuditOutlined, RollbackOutlined, PercentageOutlined, InfoCircleOutlined, UserAddOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { getErrorMessage } from '../../lib/apiError'
@@ -14,6 +14,7 @@ import { LoadingState } from '../../components/common/LoadingState'
 import { ErrorState } from '../../components/common/ErrorState'
 import { FaizBorclandirModal } from './components/FaizBorclandirModal'
 import { BaslangicBedeliTahakkukModal } from './components/BaslangicBedeliTahakkukModal'
+import { BaslangicBedeliDuzenleModal } from './components/BaslangicBedeliDuzenleModal'
 
 import { trMoneyFormatter } from '../../lib/format'
 import { useIsTouchDevice } from '../../hooks/useIsTouchDevice'
@@ -39,6 +40,14 @@ interface AidatOdeme {
   // REV-AIDAT-01: başlangıç bedeli virtual row marker (Aidat Hesapları tab'inde
   // gerçek aidat satırlarıyla aynı kolonlarda gösterilir).
   isStarter?: boolean
+  // Sprint uyelik-baslangic-iptal-duzenle (2026-05-25): başlangıç bedeli virtual
+  // row için orijinal cari_hareket bilgisi (Düzenle modal'ının initialValues'u).
+  _baslangic?: {
+    id: string  // cari_hareket id (bb- prefix'siz)
+    tutar: number
+    tarih: string
+    aciklama?: string | null
+  }
 }
 
 export const UyeDetailPage: React.FC = () => {
@@ -48,10 +57,21 @@ export const UyeDetailPage: React.FC = () => {
   const { canEdit, canDelete } = usePermissions()
   const [faizModalOpen, setFaizModalOpen] = useState(false)
   const [baslangicModalOpen, setBaslangicModalOpen] = useState(false)
+  // Sprint uyelik-baslangic-iptal-duzenle (2026-05-25): düzenle modal state.
+  const [duzenleModalState, setDuzenleModalState] = useState<{
+    open: boolean
+    tahakkukId: string
+    tutar: number
+    tarih: string
+    aciklama?: string | null
+  }>({ open: false, tahakkukId: '', tutar: 0, tarih: '', aciklama: null })
   const { message: messageApi } = App.useApp()
   const isTouchDevice = useIsTouchDevice()
 
-  // Helper: tüm cache invalidation sweep'i (undo + match sonrası ortak).
+  // Helper: tüm cache invalidation sweep'i (undo + match + tahakkuk düzenle/sil ortak).
+  // Sprint uyelik-baslangic-iptal-duzenle (2026-05-25): tahakkuk değişikliği
+  // 20260525160000 sonrası `toplam_tahakkuk`'a sayılır → aylık/yıllık rapor da
+  // invalid edilir.
   const invalidateAllPaymentCaches = () => {
     queryClient.invalidateQueries({ queryKey: ['uye', id] })
     queryClient.invalidateQueries({ queryKey: ['uye-aidatlar', id] })
@@ -60,7 +80,24 @@ export const UyeDetailPage: React.FC = () => {
     queryClient.invalidateQueries({ queryKey: ['aidat-ozet'] })
     queryClient.invalidateQueries({ queryKey: ['cari-ekstre'] })
     queryClient.invalidateQueries({ queryKey: ['dashboard-ozet'] })
+    queryClient.invalidateQueries({ queryKey: ['aylik-rapor'] })
+    queryClient.invalidateQueries({ queryKey: ['yillik-rapor'] })
   }
+
+  // Sprint uyelik-baslangic-iptal-duzenle (2026-05-25): başlangıç bedeli
+  // tahakkuk iptal mutation. DELETE /cari-hareketler/baslangic-bedeli/:id.
+  // 409 conflict → backend Türkçe mesaj (tahsilat bağı) ekranda gösterilir.
+  const deleteBaslangicMutation = useMutation({
+    mutationFn: async (tahakkukId: string) => {
+      const { data } = await api.delete(`/cari-hareketler/baslangic-bedeli/${tahakkukId}`)
+      return data
+    },
+    onSuccess: (resp: any) => {
+      messageApi.success(resp?.message || 'Başlangıç bedeli tahakkuku iptal edildi')
+      invalidateAllPaymentCaches()
+    },
+    onError: (err) => messageApi.error(getErrorMessage(err, 'Tahakkuk iptal edilemedi')),
+  })
 
   // Undo Match Mutation (ödeme satırı bazında)
   const undoMatchMutation = useMutation({
@@ -218,6 +255,14 @@ export const UyeDetailPage: React.FC = () => {
           son_odeme_tarihi: o.tarih,
           durum,
           isStarter: true,
+          // Sprint uyelik-baslangic-iptal-duzenle (2026-05-25): Düzenle modal için
+          // initialValues; İptal mutation için orijinal cari_hareket id.
+          _baslangic: {
+            id: o.id,
+            tutar: tahakkuk,
+            tarih: o.tarih,
+            aciklama: o.aciklama ?? null,
+          },
         } as AidatOdeme
       })
   }, [odemeler])
@@ -356,11 +401,91 @@ export const UyeDetailPage: React.FC = () => {
     {
       // A3 (sprint 20260511-uye-tahsilat-firma-revisions): aidat satırı bazında
       // toplu kapama iptal. toplam_odenen > 0 olan satırlarda undo butonu görünür.
+      //
+      // Sprint uyelik-baslangic-iptal-duzenle (2026-05-25): isStarter satırları
+      // için ek olarak "Düzenle" + "İptal" butonları gösterilir. Tahsilat varsa
+      // backend 409 conflict + Türkçe mesaj döndürür → messageApi.error.
       title: 'İşlem',
       key: 'aidat_action',
-      width: 80,
+      // isStarter satırlarında 3'e kadar buton dizilir (Düzenle/İptal/Geri Al) →
+      // 130 px; normal aidat satırları için 80 px yeterli. Kolon başına tek
+      // sayısal width (AntD ColumnType) — runtime'da satıra göre genişlik
+      // değiştirme desteklenmez; en geniş gereksinim üzerinden sabitlenir.
+      width: 130,
       render: (_: unknown, r: AidatOdeme) => {
         const odenen = Number(r.toplam_odenen ?? r.dinamik_odenen_tutar ?? r.odenen_tutar ?? 0)
+
+        // Başlangıç bedeli virtual row → Düzenle + İptal + (varsa) Kapama Geri Al.
+        if (r.isStarter && r._baslangic) {
+          const bb = r._baslangic
+          return (
+            <Space size={4}>
+              <Button
+                type="text"
+                size="small"
+                disabled={!canDelete}
+                icon={<EditOutlined />}
+                title={!canDelete ? 'Yetki yok (manager+ gerekli)' : 'Tahakkuku düzenle'}
+                aria-label="Başlangıç bedeli tahakkukunu düzenle"
+                onClick={() =>
+                  setDuzenleModalState({
+                    open: true,
+                    tahakkukId: bb.id,
+                    tutar: bb.tutar,
+                    tarih: bb.tarih,
+                    aciklama: bb.aciklama,
+                  })
+                }
+              />
+              <Popconfirm
+                title="Tahakkuku İptal Et"
+                description="Bu başlangıç bedeli tahakkukunu tamamen iptal etmek istediğinize emin misiniz? Bağlı tahsilat varsa işlem reddedilir."
+                onConfirm={() => deleteBaslangicMutation.mutate(bb.id)}
+                okText="Evet, İptal Et"
+                cancelText="Vazgeç"
+                okButtonProps={{ danger: true }}
+                disabled={!canDelete}
+              >
+                <Button
+                  type="text"
+                  size="small"
+                  danger
+                  disabled={!canDelete}
+                  icon={<DeleteOutlined />}
+                  loading={
+                    deleteBaslangicMutation.isPending &&
+                    deleteBaslangicMutation.variables === bb.id
+                  }
+                  title={!canDelete ? 'Yetki yok (manager+ gerekli)' : 'Tahakkuku iptal et'}
+                  aria-label="Başlangıç bedeli tahakkukunu iptal et"
+                />
+              </Popconfirm>
+              {odenen > 0 && (
+                <Popconfirm
+                  title="Tahsilat Eşleşmesini Geri Al"
+                  description="Bu tahakkuka bağlı ödeme eşleşmeleri kaldırılacak. Emin misiniz?"
+                  onConfirm={() => undoAidatMutation.mutate(r.id)}
+                  okText="Evet, Geri Al"
+                  cancelText="Vazgeç"
+                  okButtonProps={{ danger: true }}
+                  disabled={!canDelete}
+                >
+                  <Button
+                    type="text"
+                    size="small"
+                    danger
+                    disabled={!canDelete}
+                    icon={<RollbackOutlined />}
+                    loading={undoAidatMutation.isPending && undoAidatMutation.variables === r.id}
+                    title={!canDelete ? 'Yetki yok (manager+ gerekli)' : 'Kapama Geri Al'}
+                    aria-label="Tahakkuk eşleşmesini geri al"
+                  />
+                </Popconfirm>
+              )}
+            </Space>
+          )
+        }
+
         if (odenen <= 0) {
           return (
             <Tooltip
@@ -725,6 +850,21 @@ export const UyeDetailPage: React.FC = () => {
           uyeId={id}
           projeId={uye.proje_id}
           uyeAd={`${uye.ad ?? ''} ${uye.soyad ?? ''}`.trim()}
+        />
+      )}
+
+      {id && (
+        <BaslangicBedeliDuzenleModal
+          open={duzenleModalState.open}
+          onCancel={() => setDuzenleModalState((s) => ({ ...s, open: false }))}
+          tahakkukId={duzenleModalState.tahakkukId}
+          uyeId={id}
+          initialValues={{
+            tutar: duzenleModalState.tutar,
+            tarih: duzenleModalState.tarih,
+            aciklama: duzenleModalState.aciklama,
+          }}
+          uyeAd={uye ? `${uye.ad ?? ''} ${uye.soyad ?? ''}`.trim() : undefined}
         />
       )}
     </div>
