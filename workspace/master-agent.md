@@ -991,5 +991,113 @@ SUM(hakedisler WHERE durum IN ('onaylandi','odendi'))
 1. Önceki sprintten kalan deprecated alias temizliği (`toplam_gelir`, `toplam_gider`, `aylik[].gelir`, `aylik[].gider`).
 2. `pdfGenerator` + `rapor.service` + `*RaporPage.tsx` + `Dashboard.tsx` `?? eski` fallback'leri kaldır.
 
+---
+
+# SPRINT: Üyelik Başlangıç Bedeli Tahakkukunu İptal ve Düzenle
+
+## Bağlam
+
+Üye detay sayfasındaki "Başlangıç Bedeli Tahakkuk Et" modalı (REV-MEM-02) üyenin cari hesabına `islem_turu='uyelik_baslangic' + alacak>0 + kaynak_tipi/id IS NULL` ile bir tahakkuk satırı atıyor. Tutar yanlış girildiğinde veya bedel iptal edilmek istendiğinde **kayıdı düzenleyecek/silecek bir akış yok**:
+
+- `cariHesap.service.delete` mevcut ama RPC `fn_delete_cari_hareket_with_banka` sadece `kaynak_tipi IS NOT NULL` koşulunu engelliyor; tahakkuk tarafı her zaman NULL — bu yüzden tahsilat bağı olan tahakkuk yanlış pozitif yeşil sinyal verir ve silinirse FIFO tarafında orphan kayıt kalır (UI'daki `bb-<uuid>` virtual row kaybolur ama tahsilat satırı `kaynak_tipi='baslangic_bedeli'` referansla bekler).
+- `cariHesap.service.update` whitelist'i `borc/alacak/tarih/aciklama/odeme_turu/banka_hesap_id` izin veriyor ama UI'da bu tahakkukları update edecek buton yok; ayrıca `alacak` değişikliği FIFO sonrası tahsilat dağılımını bozar — bu kayıt için özel guard (manager + tahsilat yok) şart.
+
+## Onaylı Tasarım Kararları (kullanıcı)
+
+1. **Yetki:** `requireProjectAccess('manager')` — manager+owner geçer (hakediş iptal, tahsilat silme paterniyle aynı).
+2. **Tahsilat varsa davranış:** **engelle** — `409 Conflict` + Türkçe mesaj. Mevcut undo-closure flow'u önce çalıştırılır.
+3. **Düzenleme scope:** Sadece `tutar (alacak)` + `tarih` + `aciklama`. `uye_id`/`cari_hesap_id`/`islem_turu` sabit. Audit_logs delta otomatik trigger ile (cari_hareketler'de trg_audit_log mevcut — 20260510000007).
+
+## Görevler
+
+### Batch 1 — DB (migration) — commit `<b1>`
+- [ ] Yeni migration: `supabase/migrations/20260525170000_uyelik_baslangic_iptal_duzenle.sql`
+  - `fn_update_uyelik_baslangic_tahakkuk(p_id uuid, p_tutar numeric, p_tarih date, p_aciklama text, p_actor_id uuid)` SECURITY DEFINER
+    - Existence + tip kontrolü (`cari_hareketler.islem_turu='uyelik_baslangic' AND alacak > 0`) — yoksa P0002.
+    - **Tahsilat bağı kontrolü:** `EXISTS (SELECT 1 FROM cari_hareketler WHERE kaynak_tipi='baslangic_bedeli' AND kaynak_id=p_id)` → varsa P0001 + Türkçe mesaj.
+    - Tutar > 0, max `1_000_000_000` (TUTAR_UPPER_BOUND ile tutarlı).
+    - `set_config('app.actor_id', ...)` → audit trigger otomatik before/after diff'i audit_logs'a yazar.
+    - `UPDATE cari_hareketler SET alacak=p_tutar, tarih=COALESCE(p_tarih, tarih), aciklama=COALESCE(p_aciklama, aciklama) WHERE id=p_id` → güncellenmiş satırı JSONB döndür.
+  - `fn_delete_uyelik_baslangic_tahakkuk(p_id uuid, p_actor_id uuid)` SECURITY DEFINER
+    - Aynı varlık + tahsilat bağı kontrolü.
+    - Audit actor binding.
+    - `DELETE FROM cari_hareketler WHERE id=p_id` → trigger DELETE log'unu üretir; audit_log kaydı korunur (immutable).
+  - `GRANT EXECUTE ... TO authenticated`; `REVOKE ALL FROM PUBLIC`.
+- [ ] Migration timestamp test guard (`server/tests/unit/migrationTimestampUnique.test.ts`) pass.
+
+### Batch 2 — Backend service + route + schema — commit `<b2>`
+- [ ] `server/src/services/cariHesap.service.ts`'e iki yeni metod:
+  - `updateUyelikBaslangicTahakkuk(id, payload, actorId)` → `supabaseAdmin.rpc('fn_update_uyelik_baslangic_tahakkuk', ...)`. P0001 → `ApiError.conflict`, P0002 → `ApiError.notFound`.
+  - `deleteUyelikBaslangicTahakkuk(id, actorId)` → `supabaseAdmin.rpc('fn_delete_uyelik_baslangic_tahakkuk', ...)`. Aynı error mapping.
+- [ ] `server/src/schemas/cariHesap.schema.ts`'e yeni Zod schema `uyelikBaslangicUpdateSchema` — `{ tutar: positive max 1e9, tarih: ISO date, aciklama?: nullable }` `.strict()`.
+- [ ] `server/src/controllers/cariHesap.controller.ts`'e iki yeni controller.
+- [ ] `server/src/routes/cariHesap.routes.ts`'e iki yeni endpoint:
+  - `PATCH /cari-hareketler/baslangic-bedeli/:tahakkukId` — manager + Zod validate body.
+  - `DELETE /cari-hareketler/baslangic-bedeli/:tahakkukId` — manager.
+- [ ] `npm --prefix server run build` — clean.
+
+### Batch 3 — Frontend (UI) — commit `<b3>`
+- [ ] `client/src/pages/uyeler/components/BaslangicBedeliDuzenleModal.tsx` (yeni):
+  - AntD Modal + Form: `tutar` (InputNumber TL), `tarih` (DatePicker), `aciklama` (TextArea).
+  - Initial values prop'tan.
+  - `useMutation` PATCH → onSuccess: invalidate `['uye']`, `['uye-aidatlar']`, `['uye-odemeler']`, `['aidatlar']`, `['cari-ekstre']`, `['dashboard-ozet']`, `['aylik-rapor']`, `['yillik-rapor']`.
+- [ ] `client/src/pages/uyeler/UyeDetailPage.tsx`:
+  - `baslangicBedeliRows`'a orig `tutar`/`tarih`/`aciklama` yansıt.
+  - `aidatColumns` "İşlem" sütunu — `r.isStarter` ise: Düzenle (EditOutlined) + İptal (DeleteOutlined danger Popconfirm). Mevcut undo butonu korunur.
+  - `canDelete` (manager+) guard'ı tüm yıkıcı butonlarda.
+- [ ] `npm --prefix client run build` — clean.
+
+### Batch 4 — Test + sprint kapanış — commit `<b4>` + tag
+- [ ] `server/tests/unit/cariHesapService.uyelikBaslangic.test.ts` (yeni):
+  - update happy path, update P0001 (conflict), update P0002 (notFound).
+  - delete happy path, delete P0001, delete P0002.
+- [ ] `server/tests/unit/uyelikBaslangicUpdateSchema.test.ts` (yeni):
+  - Schema validation: tutar positive, tarih zorunlu, aciklama opsiyonel, üst sınır.
+- [ ] `npm --prefix server test` — 356 baseline + yeni testler yeşil.
+- [ ] `npm --prefix client run build` — clean.
+- [ ] `git tag -a sprint-uyelik-baslangic-iptal-duzenle -m "..."`.
+
+## Kapsam Dışı
+- `uye_id` transfer / başka üyenin kaydına aktarma.
+- Bulk işlem.
+- Tahsilat bağı varken otomatik kaskat undo+sil.
+- E2E (Playwright) testleri.
+
+## Bilinmesi Gereken
+
+- **Audit trigger:** `cari_hareketler` tablosunda `trg_audit_log` aktif. RPC içinde `set_config('app.actor_id', ...)` ile actor_id binding yeterli.
+- **PostgREST cache:** `CREATE OR REPLACE FUNCTION` sonrası schema reload otomatik.
+- **`kaynak_tipi='baslangic_bedeli'` sözleşmesi:** Tahsilat tahakkuka bağlandığında `kaynak_tipi='baslangic_bedeli' + kaynak_id=<tahakkuk_id>` set olur. Engelleme bu varlığa göre.
+- **Frontend invalidation kapsamı:** Tahakkuk `toplam_tahakkuk`'a sayılır (20260525160000) → aylik/yillik rapor + dashboard etkilenir.
+- **Hata mapping:** `errorHandler.ts` P0001 → 400, ama biz semantik olarak 409 conflict döndürmek için `ApiError.conflict` cast'i yapacağız (cariHesap.service.update'in `existing.kaynak_tipi` guard'ıyla simetrik — orada `ApiError.conflict(...)` zaten 409 dönüyor).
+
+## Doğrulanmış Sonuç
+
+| Batch | Commit | İçerik |
+|-------|--------|--------|
+| B1 — DB | `aa61cd4` | `20260525170000_uyelik_baslangic_iptal_duzenle.sql` — iki SECURITY DEFINER RPC: `fn_update_uyelik_baslangic_tahakkuk` (tutar/tarih/aciklama update; tahsilat bağı P0001), `fn_delete_uyelik_baslangic_tahakkuk` (cari_hareketler DELETE; aynı guard'lar). `set_config('app.actor_id', ...)` ile trg_audit_log otomatik diff yazımı. |
+| B2 — Backend | `b373eb1` | `cariHesap.service.ts` iki yeni metod (update/delete, P0001→409, P0002→404). `cariHesap.schema.ts` `uyelikBaslangicUpdateSchema` (strict, tutar/tarih/aciklama + proje_id passthrough). `cariHesap.controller.ts` iki controller; `cariHesap.routes.ts` PATCH+DELETE `/baslangic-bedeli/:tahakkukId` (manager) — generic `:id` route'tan ÖNCE konumlandı. |
+| B3 — Frontend | `376bc56` | `BaslangicBedeliDuzenleModal.tsx` (yeni AntD Form modal). `UyeDetailPage.tsx` aidat tab "İşlem" sütununda isStarter satırlarına Düzenle (EditOutlined) + İptal (DeleteOutlined Popconfirm) butonları; mevcut Kapama Geri Al korunur. Virtual row'a `_baslangic` (orig id/tutar/tarih/aciklama) yansıtıldı. `deleteBaslangicMutation` 409 Türkçe mesaj. invalidateAllPaymentCaches aylık/yıllık rapor invalid'i eklendi. Tüm yıkıcı butonlar canDelete (manager+) guard'lı. |
+| B4 — Test | `0a0dc26` | `cariHesapService.uyelikBaslangic.test.ts` (+9): update/delete happy + P0001 conflict + P0002 notFound + payload mapping + actorId null. `uyelikBaslangicUpdateSchema.test.ts` (+14): strict mode mass-assignment reject, tutar/tarih validasyon, aciklama opsiyonel/sınır. |
+| Tag | `sprint-uyelik-baslangic-iptal-duzenle` | Sprint kapanışı annotated tag. |
+
+**Doğrulama:**
+- `npm --prefix server run build` — clean
+- `npm --prefix server test` — **379/379 yeşil** (356 baseline + 23 yeni)
+- `npm --prefix client run build` — clean (chunk warning pre-existing)
+- Migration timestamp test — pass
+
+## Durum
+
+**Tamamlandı.** Batch 1-4 commit + push edildi; sprint tag oluşturuldu.
+
+**Üretim deploy sonrası dikkat:**
+- Yeni RPC'ler Supabase'e deploy olduğunda PostgREST otomatik `NOTIFY pgrst, 'reload schema'` ile cache reload eder; ek aksiyon gerekmez.
+- `audit_logs` tablosunda yeni UPDATE/DELETE kayıtları `cari_hareketler` table_name + record_id altında listelenir; actor_id session var ile bağlanır.
+- 409 conflict response'u frontend tarafında `getErrorMessage` ile Türkçe gösterilir (backend tarafından gelen mesaj passtru).
+
+**İleri sprint adayı (opsiyonel):**
+- Audit_logs history için UI panel (UyeDetailPage altında "Geçmiş" sekmesi) — admin için tahakkuk düzenleme/iptal geçmişi görüntüleme. Şu an `fn_audit_history` RPC mevcut ama UI tüketici yok.
+
 
 
