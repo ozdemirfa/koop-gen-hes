@@ -15,7 +15,16 @@ export const createSozlesmeSchema = z.object({
 
 export const updateSozlesmeSchema = createSozlesmeSchema.partial()
 
+// proje_id alanı IDOR fix (PR #136) sonrası controller tarafından
+// extractProjeId(req) ile okunuyor; Zod default `.strip()` mode'unda olduğu için
+// schema'da tanımlanmazsa validate middleware body'den proje_id'yi siler ve
+// controller "proje_id zorunludur" 400 üretir (POST/PUT
+// /sozlesmeler/:id/is-kalemleri için reprodüksiyon: 2026-05-26).
+// Optional UUID olarak tanımlayıp pass-through ediyoruz; service tarafı zaten
+// requireProjeId() ile non-empty doğrulayıp .eq('proje_id') ile cross-check
+// yapar.
 export const isKalemiSchema = z.object({
+  proje_id: z.string().uuid('Geçerli bir proje ID gereklidir').optional(),
   poz_no: z.string().optional().nullable(),
   tanim: z.string().min(1, 'Tanım zorunlu'),
   birim: z.string().min(1, 'Birim zorunlu'),
