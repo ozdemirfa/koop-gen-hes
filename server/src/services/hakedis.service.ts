@@ -57,11 +57,21 @@ export const hakedisService = {
     return { data, pagination: paginationMeta(pagination, count || 0) }
   },
 
+  // IDOR fix (security-quality-sprint, 2026-05-26):
+  //   supabaseAdmin RLS bypass eder. Hakediş ID + projeId cross-check zorunlu —
+  //   A projesinin manager'ı B projesindeki hakediş'i okuyamamalı. RPC'ye yeni
+  //   p_proje_id parametresi eklendi (migration 20260526240001); pre-check
+  //   içerideki SELECT'i caller projesiyle sınırlar.
+  //
   // Sprint followup-pipeline-cleanup-perf B4 (2026-05-25):
   // 4+ seviye nested PostgREST select pattern yerine fn_get_hakedis_detail RPC.
   // RPC jsonb döndürür; tek round-trip + DB-side JSON komposizyon. P0002 → 404.
-  async getById(id: string) {
-    const { data, error } = await supabaseAdmin.rpc('fn_get_hakedis_detail', { p_id: id })
+  async getById(id: string, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
+    const { data, error } = await supabaseAdmin.rpc('fn_get_hakedis_detail', {
+      p_id: id,
+      p_proje_id: safeProjeId,
+    })
     if (error) {
       if ((error as any).code === 'P0002') throw ApiError.notFound('Hakediş bulunamadı')
       throw error
@@ -73,17 +83,19 @@ export const hakedisService = {
   // ===== İRSALİYE BAĞLAMA (Alternatif A: Manuel Toplu Seçim) =====
   // Bir hakediş taslağına açık irsaliye'leri toplu ata. Sadece taslakta çalışır;
   // hedef irsaliye'lerin tamamı boşta (hakedis_id IS NULL) ve aynı firmaya ait olmalı.
-  async attachIrsaliyeler(hakedisId: string, irsaliyeIds: string[]) {
+  async attachIrsaliyeler(hakedisId: string, irsaliyeIds: string[], projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
     if (!Array.isArray(irsaliyeIds) || irsaliyeIds.length === 0) {
       throw ApiError.badRequest('İrsaliye seçimi yapılmadı')
     }
 
-    // Hakediş + bağlı sözleşmenin firma_id'sini çek
+    // IDOR: hakediş caller projesinde mi?
     const { data: hakedis, error: hErr } = await supabaseAdmin
       .from('hakedisler')
       .select('id, durum, sozlesmeler(firma_id)')
       .eq('id', hakedisId)
-      .single()
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
 
     if (hErr || !hakedis) throw ApiError.notFound('Hakediş bulunamadı')
     if (hakedis.durum !== 'taslak') {
@@ -94,11 +106,12 @@ export const hakedisService = {
     const hakedisFirmaId = (sozlesme as any)?.firma_id
     if (!hakedisFirmaId) throw ApiError.badRequest('Hakediş sözleşmesinin firma bilgisi bulunamadı')
 
-    // Hedef irsaliye'leri çek; aynı firmaya ait ve boşta olduklarını doğrula
+    // IDOR: tüm irsaliyeler caller projesinde olmalı
     const { data: irsaliyeler, error: iErr } = await supabaseAdmin
       .from('irsaliyeler')
-      .select('id, firma_id, hakedis_id')
+      .select('id, firma_id, hakedis_id, proje_id')
       .in('id', irsaliyeIds)
+      .eq('proje_id', safeProjeId)
 
     if (iErr) throw iErr
     if (!irsaliyeler || irsaliyeler.length !== irsaliyeIds.length) {
@@ -118,19 +131,23 @@ export const hakedisService = {
       .from('irsaliyeler')
       .update({ hakedis_id: hakedisId })
       .in('id', irsaliyeIds)
+      .eq('proje_id', safeProjeId)
 
     if (uErr) throw uErr
 
-    return this.getById(hakedisId)
+    return this.getById(hakedisId, safeProjeId)
   },
 
-  async detachIrsaliye(hakedisId: string, irsaliyeId: string) {
-    // Sadece bağlı olduğu hakediş taslaktaysa serbest bırakılabilir.
+  async detachIrsaliye(hakedisId: string, irsaliyeId: string, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
+
+    // IDOR: hakediş caller projesinde mi?
     const { data: hakedis, error: hErr } = await supabaseAdmin
       .from('hakedisler')
       .select('id, durum')
       .eq('id', hakedisId)
-      .single()
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
 
     if (hErr || !hakedis) throw ApiError.notFound('Hakediş bulunamadı')
     if (hakedis.durum !== 'taslak') {
@@ -141,7 +158,8 @@ export const hakedisService = {
       .from('irsaliyeler')
       .select('id, hakedis_id')
       .eq('id', irsaliyeId)
-      .single()
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
 
     if (iErr || !irsaliye) throw ApiError.notFound('İrsaliye bulunamadı')
     if (irsaliye.hakedis_id !== hakedisId) {
@@ -152,14 +170,26 @@ export const hakedisService = {
       .from('irsaliyeler')
       .update({ hakedis_id: null })
       .eq('id', irsaliyeId)
+      .eq('proje_id', safeProjeId)
 
     if (uErr) throw uErr
 
-    return this.getById(hakedisId)
+    return this.getById(hakedisId, safeProjeId)
   },
 
   async create(body: Record<string, any>) {
     const sozlesmeId = body.sozlesme_id
+    const projeId = requireProjeId(body.proje_id)
+
+    // IDOR: sozlesme caller projesinde olmalı (hakediş'i sözleşmesiz yaratamazsın)
+    const { data: parent, error: pErr } = await supabaseAdmin
+      .from('sozlesmeler')
+      .select('id')
+      .eq('id', sozlesmeId)
+      .eq('proje_id', projeId)
+      .maybeSingle()
+    if (pErr) throw pErr
+    if (!parent) throw ApiError.badRequest('Sözleşme bulunamadı veya başka projeye ait')
 
     // Son hakediş no'yu bul
     const { data: sonHakedis } = await supabaseAdmin
@@ -225,26 +255,37 @@ export const hakedisService = {
     return data
   },
 
-  async update(id: string, body: Record<string, any>) {
+  async update(id: string, body: Record<string, any>, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
+
+    // Mass-assignment: caller proje_id/sozlesme_id'yi değiştiremez
+    const sanitized = { ...body }
+    delete sanitized.proje_id
+    delete sanitized.projeId
+
     const { data, error } = await supabaseAdmin
       .from('hakedisler')
-      .update(body)
+      .update(sanitized)
       .eq('id', id)
+      .eq('proje_id', safeProjeId)
       .select()
-      .single()
+      .maybeSingle()
 
     if (error) throw error
     if (!data) throw ApiError.notFound('Hakediş bulunamadı')
     return data
   },
 
-  async updateKalemler(hakedisId: string, kalemler: Array<Record<string, any>>) {
-    // Mevcut hakediş kontrolü
+  async updateKalemler(hakedisId: string, kalemler: Array<Record<string, any>>, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
+
+    // Mevcut hakediş kontrolü + IDOR
     const { data: hakedis, error: hErr } = await supabaseAdmin
       .from('hakedisler')
       .select('durum, diger_kesintiler, sozlesme_id, sozlesmeler(teminat_orani, stopaj_orani)')
       .eq('id', hakedisId)
-      .single()
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
 
     if (hErr || !hakedis) throw ApiError.notFound('Hakediş bulunamadı')
     if ((hakedis as any).durum !== 'taslak') throw ApiError.badRequest('Sadece taslak hakediş düzenlenebilir')
@@ -300,18 +341,21 @@ export const hakedisService = {
         net_tutar: netTutar
       })
       .eq('id', hakedisId)
+      .eq('proje_id', safeProjeId)
 
     return yeniKalemler
   },
 
-  async approve(id: string) {
+  async approve(id: string, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
     logger.info(`Hakediş onaylama işlemi başlatıldı: ${id}`)
-    
+
     const { data: hakedis, error: getErr } = await supabaseAdmin
       .from('hakedisler')
       .select('*, sozlesmeler(firma_id, teminat_orani, stopaj_orani), hakedis_kalemleri(*)')
       .eq('id', id)
-      .single()
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
 
     if (getErr || !hakedis) {
       logger.error(`Hakediş bulunamadı: ${id}`, getErr)
@@ -349,8 +393,8 @@ export const hakedisService = {
     // Hakediş'i güncelle ve onayla
     const { data, error } = await supabaseAdmin
       .from('hakedisler')
-      .update({ 
-        durum: 'onaylandi', 
+      .update({
+        durum: 'onaylandi',
         onay_tarihi: new Date().toISOString().split('T')[0],
         ara_toplam: araToplam,
         kdv_tutar: kdvToplam,
@@ -360,6 +404,7 @@ export const hakedisService = {
         net_tutar: netTutar
       })
       .eq('id', id)
+      .eq('proje_id', safeProjeId)
       .select()
       .single()
 
@@ -399,7 +444,11 @@ export const hakedisService = {
       if (movementError) {
         logger.error('Cari hareket oluşturma hatası:', movementError)
         // Hakediş onayını geri alma veya hatayı yönetme
-        await supabaseAdmin.from('hakedisler').update({ durum: 'taslak', onay_tarihi: null }).eq('id', id)
+        await supabaseAdmin
+          .from('hakedisler')
+          .update({ durum: 'taslak', onay_tarihi: null })
+          .eq('id', id)
+          .eq('proje_id', safeProjeId)
         throw movementError
       }
     }
@@ -407,28 +456,33 @@ export const hakedisService = {
     return data
   },
 
-  async unapprove(id: string) {
+  async unapprove(id: string, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
+
     const { data: hakedis, error: getErr } = await supabaseAdmin
       .from('hakedisler')
       .select('*')
       .eq('id', id)
-      .single()
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
 
     if (getErr || !hakedis) throw ApiError.notFound('Hakediş bulunamadı')
     if (hakedis.durum !== 'onaylandi') throw ApiError.badRequest('Sadece onaylı hakedişlerin onayı iptal edilebilir')
 
-    // İlişkili cari hareketi sil
+    // İlişkili cari hareketi sil (proje filter defense-in-depth)
     await supabaseAdmin
       .from('cari_hareketler')
       .delete()
       .eq('kaynak_tipi', 'hakedis')
       .eq('kaynak_id', id)
+      .eq('proje_id', safeProjeId)
 
     // Hakediş durumunu taslağa çek
     const { data, error } = await supabaseAdmin
       .from('hakedisler')
       .update({ durum: 'taslak', onay_tarihi: null })
       .eq('id', id)
+      .eq('proje_id', safeProjeId)
       .select()
       .single()
 
@@ -436,7 +490,9 @@ export const hakedisService = {
     return data
   },
 
-  async getPDFData(id: string) {
+  async getPDFData(id: string, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
+
     const { data: hakedis, error } = await supabaseAdmin
       .from('hakedisler')
       .select(`
@@ -466,7 +522,8 @@ export const hakedisService = {
         )
       `)
       .eq('id', id)
-      .single()
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
 
     if (error || !hakedis) throw ApiError.notFound('Hakediş bulunamadı')
 
