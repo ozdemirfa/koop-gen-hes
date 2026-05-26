@@ -21,6 +21,9 @@ import { useLayout } from '../contexts/LayoutContext'
 import { usePermissions } from '../hooks/usePermissions'
 import logo from '../assets/logo.png'
 import { InvitationBanner } from './InvitationBanner'
+// Sprint desktop-offline-mode (2026-05-26): proje çevrimdışı modda olduğunda
+// üst sticky banner — non-owner için read-only mesajı, owner için bilgi.
+import { OfflineProjectBanner } from './common/OfflineProjectBanner'
 
 const { Header, Sider, Content } = Layout
 const { useBreakpoint } = Grid
@@ -172,7 +175,9 @@ const MainHeader: React.FC<{
   // Sprint qa-review-bugfix-faz3 (2026-05-25, Batch 5): aktif projede role=user
   // (görüntüleyici/viewer alias) ise username yanında Tag göster → kullanıcı
   // davranışı kısıtlı olduğunu anlasın (silik butonlar + 403 oluşturmadan).
-  const { projectRole, hasActiveProject } = usePermissions()
+  // Sprint desktop-offline-mode (2026-05-26): offline modda non-owner için
+  // ek Tag "Çevrimdışı" — banner'a paralel kompakt görsel ipucu.
+  const { projectRole, hasActiveProject, isOfflineRestricted } = usePermissions()
   const isViewerOnly = hasActiveProject && projectRole === 'user'
 
   const displayName =
@@ -286,7 +291,17 @@ const MainHeader: React.FC<{
             {headerRightActions}
           </div>
         )}
-        {isViewerOnly && (
+        {isOfflineRestricted && (
+          <Tag
+            color="orange"
+            data-testid="offline-restricted-tag"
+            style={{ marginRight: 8 }}
+            title="Proje çevrimdışı modda — proje sahibi açana kadar kayıt değişiklik yapılamaz"
+          >
+            Çevrimdışı
+          </Tag>
+        )}
+        {isViewerOnly && !isOfflineRestricted && (
           <Tag
             color="default"
             data-testid="role-viewer-tag"
@@ -492,6 +507,13 @@ export const AdminLayout: React.FC = () => {
           onToggleCollapsed={() => setCollapsed(!collapsed)}
           settingsMenu={settingsMenu}
         />
+        {/*
+          Sprint desktop-offline-mode (2026-05-26): banner aktif proje offline
+          modda olduğunda görünür. Non-owner için warning + read-only mesaj;
+          owner için info + "masaüstüne dönüp yüklemeyi tamamla" hatırlatması.
+          InvitationBanner'ın üstüne koyduk — davet bildirimi daha az kritik.
+        */}
+        <OfflineProjectBanner />
         <InvitationBanner />
         {/*
          * 2026-05-24 (UI compaction): content margin daraltıldı (24 → 8) ve

@@ -4,6 +4,7 @@ import { projeService } from '../services/proje.service'
 import { catchAsync } from '../utils/catchAsync'
 import { supabaseAdmin } from '../config/supabase'
 import { ApiError } from '../utils/ApiError'
+import { invalidateOfflineGuardCache } from '../middleware/requireProjectAccess'
 
 export const getProjeler = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   // Sprint proje-silme-akisi (2026-05-24):
@@ -234,6 +235,10 @@ export const setOfflineMode = catchAsync(async (req: AuthRequest<any, any, any, 
   if (!req.user?.id) throw ApiError.unauthorized()
   const { offline_mode } = req.body as { offline_mode: boolean }
   const data = await projeService.setOfflineMode(req.params.id, offline_mode, req.user.id)
+  // Sprint desktop-offline-mode (2026-05-26): toggle sonrası requireProjectAccess
+  // middleware'inin in-memory offline cache'ini invalide et — bir sonraki
+  // mutation request'i bayat state'le 403 / 200 ikilemi yaşamasın.
+  invalidateOfflineGuardCache(req.params.id)
   res.json({
     success: true,
     data,

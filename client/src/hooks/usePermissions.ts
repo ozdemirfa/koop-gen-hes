@@ -72,6 +72,13 @@ export interface Permissions {
   /** Birim/poz ekleme + sistem parametresi düzenleme — admin, yetkili veya isManager. */
   canCreateGlobalDefs: boolean
 
+  // Sprint desktop-offline-mode (2026-05-26): proje çevrimdışı modda mı +
+  // çağıran kullanıcı için kısıtlanmış mı?
+  /** Aktif proje offline_mode = true mı? */
+  isOfflineMode: boolean
+  /** Offline modda ve çağıran non-owner → tüm write işlemleri engellenir. */
+  isOfflineRestricted: boolean
+
   // Convenience
   hasActiveProject: boolean
 }
@@ -117,19 +124,35 @@ export function usePermissions(): Permissions {
     const isOwner = projectRole === 'owner'
     const isManager = projectRole === 'owner' || projectRole === 'manager'
 
+    // Sprint desktop-offline-mode (2026-05-26): aktif proje çevrimdışı modda mı?
+    // Owner (proje sahibi) dışındaki herkes (manager + user) read-only düşer.
+    // Backend (requireProjectAccess) + RLS (can_write_offline_project) aynı
+    // kuralı dayatır; bu UI gating defansif (early-fail, daha iyi UX). Global
+    // admin (legacy) yine geçer çünkü projectRole 'owner' olarak normalize edilmişti.
+    //
+    // Davranış kullanıcının açık talebiyle eşleşir:
+    //   "olması gereken web ekranlarında proje çevrimdışı görünmesi.
+    //    sadece görüntüleme yapılabilir. proje sahibi açana kadar kayıt
+    //    değişiklik yapılamaz mesajı vermesi ve kayıt değişikliği engel olması."
+    const isOfflineMode = activeProject?.offline_mode === true
+    const isOfflineRestricted = isOfflineMode && !isOwner
+
     // canView: aktif projede herhangi bir rol var mı? (üye değilse false)
     const canView = projectRole !== null
     // canEdit: her üye form girişi yapabilir (POST/PUT). En düşük seviye olan
-    // 'user' rolü dahil.
-    const canEdit = projectRole !== null
-    // canDelete: yıkıcı işlemler — manager+
-    const canDelete = isManager
-    // canManageUsers: Kullanıcı Yönetimi sayfası erişimi — manager+
-    const canManageUsers = isManager
+    // 'user' rolü dahil. Offline modda non-owner için false.
+    const canEdit = projectRole !== null && !isOfflineRestricted
+    // canDelete: yıkıcı işlemler — manager+. Offline modda non-owner için false.
+    const canDelete = isManager && !isOfflineRestricted
+    // canManageUsers: Kullanıcı Yönetimi sayfası erişimi — manager+. Offline
+    // modda non-owner için false (üye ekleme/silme sync sırası bozar). Bu,
+    // kullanıcının açıkça vurguladığı "üye eklemek" senaryosunu da kapsar.
+    const canManageUsers = isManager && !isOfflineRestricted
 
     // Global referans veri (birim/poz/parametre) — sistem genelinde paylaşılan
     // tanımlar. Sil/düzenle yalnız global admin'e ayrılır; ekleme + parametre
     // güncelleme global admin + yetkili global rol + proje manager+'a açık.
+    // Offline restriction global tanımlar için uygulanmaz (proje-bazlı değil).
     const canManageGlobalDefs = isLegacyGlobalAdmin
     const canCreateGlobalDefs = isYetkili || isManager
 
@@ -151,6 +174,8 @@ export function usePermissions(): Permissions {
       canManageProject: isManager, // legacy alias
       canManageGlobalDefs,
       canCreateGlobalDefs,
+      isOfflineMode,
+      isOfflineRestricted,
       hasActiveProject: !!activeProject,
     }
   }, [userRole, isYetkili, isAdmin, session, activeProject, activeProjectRole])
