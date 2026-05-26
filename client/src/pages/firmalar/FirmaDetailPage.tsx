@@ -10,6 +10,7 @@ import { PageHeader } from '../../components/common/PageHeader'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { formatIBAN, getIBANRaw, trMoneyFormatter, formatPhone } from '../../lib/format'
 import { usePermissions } from '../../hooks/usePermissions'
+import { useProject } from '../../contexts/ProjectContext'
 
 interface Sozlesme {
   id: string
@@ -37,7 +38,8 @@ export const FirmaDetailPage: React.FC = () => {
   const queryClient = useQueryClient()
   const { canEdit, canDelete } = usePermissions()
   const { message: messageApi } = App.useApp()
-  const activeProjectId = localStorage.getItem('activeProjectId')
+  const { activeProject } = useProject()
+  const activeProjectId = activeProject?.id ?? null
 
   // --- Mutations ---
   

@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { supabase } from './supabase'
+import { getActiveProjectId } from './activeProjectStore'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
@@ -22,13 +23,10 @@ api.interceptors.request.use(async (config) => {
     config.headers.Authorization = `Bearer ${session.access_token}`
   }
 
-  // Aktif proje ID'sini ekle
-  let activeProjectId = localStorage.getItem('activeProjectId')
-  
-  // "undefined" veya "null" string'lerini temizle
-  if (activeProjectId === 'undefined' || activeProjectId === 'null') {
-    activeProjectId = null
-  }
+  // Aktif proje ID'si — tek kaynak: activeProjectStore.
+  // Store init/setter UUID/`"undefined"`/`"null"` temizliğini zaten yapıyor;
+  // burada ek defansif kontrol gereksiz (length kontrolü güvenlik amaçlı kalır).
+  const activeProjectId = getActiveProjectId()
 
   const isProjeEndpoint = config.url?.includes('/projeler')
   const isGlobalEndpoint =
@@ -37,7 +35,7 @@ api.interceptors.request.use(async (config) => {
     config.url?.includes('/admin/')
   const isSubResourceWithoutProject = config.url?.includes('/is-kalemleri')
 
-  if (activeProjectId && activeProjectId.length === 36 && !isProjeEndpoint && !isGlobalEndpoint && !isSubResourceWithoutProject) {
+  if (activeProjectId && !isProjeEndpoint && !isGlobalEndpoint && !isSubResourceWithoutProject) {
     if (config.method === 'get' || config.method === 'delete') {
       // Zaten projeId veya proje_id gönderilmişse müdahale etme
       if (!config.params?.proje_id && !config.params?.projeId) {

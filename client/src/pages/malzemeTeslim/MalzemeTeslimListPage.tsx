@@ -12,6 +12,7 @@ import { ConfirmDelete } from '../../components/common/ConfirmDelete'
 import { HeaderActionsToolbar } from '../../components/common/HeaderActionsToolbar'
 import { useDebounce } from '../../hooks/useDebounce'
 import { usePermissions } from '../../hooks/usePermissions'
+import { useProject } from '../../contexts/ProjectContext'
 
 const { Text } = Typography
 
@@ -49,7 +50,8 @@ export const MalzemeTeslimListPage: React.FC = () => {
   const debouncedSearch = useDebounce(searchTerm, 500)
   const [form] = Form.useForm()
 
-  const activeProjectId = localStorage.getItem('activeProjectId')
+  const { activeProject } = useProject()
+  const activeProjectId = activeProject?.id ?? null
 
   const { data: firmalar } = useQuery({
     queryKey: ['firmalar-select'],
