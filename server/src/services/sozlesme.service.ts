@@ -25,14 +25,21 @@ export const sozlesmeService = {
     return { data, pagination: paginationMeta(pagination, count || 0) }
   },
 
-  async getById(id: string) {
+  // IDOR fix (security-quality-sprint, 2026-05-26):
+  //   `supabaseAdmin` service-role RLS bypass eder. Tüm getById/update/delete +
+  //   alt-resource (is_kalemleri) metotları artık `projeId` zorunlu — saldırgan
+  //   başka projedeki sözleşme/kalem ID'sini öğrense de 404 alır (CWE-639).
+  async getById(id: string, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
     const { data, error } = await supabaseAdmin
       .from('sozlesmeler')
       .select('*, firmalar(unvan, firma_tipi), sozlesme_is_kalemleri(*)')
       .eq('id', id)
-      .single()
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
 
-    if (error) throw ApiError.notFound('Sözleşme bulunamadı')
+    if (error) throw error
+    if (!data) throw ApiError.notFound('Sözleşme bulunamadı')
     return data
   },
 
@@ -50,21 +57,34 @@ export const sozlesmeService = {
     return data
   },
 
-  async update(id: string, body: Record<string, any>) {
+  async update(id: string, body: Record<string, any>, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
+
+    // Mass-assignment guard: caller proje_id'yi değiştiremez (cross-project taşıma yasak)
+    const sanitized = { ...body }
+    delete sanitized.proje_id
+    delete sanitized.projeId
+
     const { data, error } = await supabaseAdmin
       .from('sozlesmeler')
-      .update(body)
+      .update(sanitized)
       .eq('id', id)
+      .eq('proje_id', safeProjeId)
       .select('*, firmalar(unvan)')
-      .single()
+      .maybeSingle()
 
     if (error) throw error
     if (!data) throw ApiError.notFound('Sözleşme bulunamadı')
     return data
   },
 
-  // İş kalemleri
-  async getIsKalemleri(sozlesmeId: string) {
+  // İş kalemleri — parent sözleşme proje_id'sine bağlanır
+  async getIsKalemleri(sozlesmeId: string, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
+
+    // IDOR pre-check: parent sözleşme caller'ın projesinde mi?
+    await assertSozlesmeInProje(sozlesmeId, safeProjeId)
+
     const { data, error } = await supabaseAdmin
       .from('sozlesme_is_kalemleri')
       .select('*')
@@ -75,10 +95,16 @@ export const sozlesmeService = {
     return data
   },
 
-  async addIsKalemi(sozlesmeId: string, body: Record<string, any>) {
+  async addIsKalemi(sozlesmeId: string, body: Record<string, any>, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
+    await assertSozlesmeInProje(sozlesmeId, safeProjeId)
+
+    const sanitized = { ...body }
+    delete sanitized.sozlesme_id  // server-side enforcement
+
     const { data, error } = await supabaseAdmin
       .from('sozlesme_is_kalemleri')
-      .insert([{ sozlesme_id: sozlesmeId, ...body }])
+      .insert([{ sozlesme_id: sozlesmeId, ...sanitized }])
       .select()
       .single()
 
@@ -86,20 +112,50 @@ export const sozlesmeService = {
     return data
   },
 
-  async updateIsKalemi(id: string, body: Record<string, any>) {
+  async updateIsKalemi(id: string, body: Record<string, any>, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
+
+    // IDOR pre-check: kalem ID → parent sözleşme → proje_id eşleşmeli
+    const { data: kalem, error: lookupErr } = await supabaseAdmin
+      .from('sozlesme_is_kalemleri')
+      .select('id, sozlesmeler!inner(proje_id)')
+      .eq('id', id)
+      .maybeSingle()
+    if (lookupErr) throw lookupErr
+    const parentProjeId = (kalem as any)?.sozlesmeler?.proje_id
+    if (!kalem || parentProjeId !== safeProjeId) {
+      throw ApiError.notFound('İş kalemi bulunamadı')
+    }
+
+    const sanitized = { ...body }
+    delete sanitized.sozlesme_id
+
     const { data, error } = await supabaseAdmin
       .from('sozlesme_is_kalemleri')
-      .update(body)
+      .update(sanitized)
       .eq('id', id)
       .select()
-      .single()
+      .maybeSingle()
 
     if (error) throw error
     if (!data) throw ApiError.notFound('İş kalemi bulunamadı')
     return data
   },
 
-  async deleteIsKalemi(id: string) {
+  async deleteIsKalemi(id: string, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
+
+    const { data: kalem, error: lookupErr } = await supabaseAdmin
+      .from('sozlesme_is_kalemleri')
+      .select('id, sozlesmeler!inner(proje_id)')
+      .eq('id', id)
+      .maybeSingle()
+    if (lookupErr) throw lookupErr
+    const parentProjeId = (kalem as any)?.sozlesmeler?.proje_id
+    if (!kalem || parentProjeId !== safeProjeId) {
+      throw ApiError.notFound('İş kalemi bulunamadı')
+    }
+
     const { error } = await supabaseAdmin
       .from('sozlesme_is_kalemleri')
       .delete()
@@ -108,12 +164,25 @@ export const sozlesmeService = {
     if (error) throw error
   },
 
-  async delete(id: string) {
+  async delete(id: string, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
+
+    // IDOR pre-check: sözleşme caller'ın projesinde mi?
+    const { data: existing, error: findErr } = await supabaseAdmin
+      .from('sozlesmeler')
+      .select('id')
+      .eq('id', id)
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
+    if (findErr) throw findErr
+    if (!existing) throw ApiError.notFound('Sözleşme bulunamadı')
+
     // Bağımlılık kontrolü: hakediş var mı?
     const { count: hakedisCount, error: hakedisError } = await supabaseAdmin
       .from('hakedisler')
       .select('id', { count: 'exact', head: true })
       .eq('sozlesme_id', id)
+      .eq('proje_id', safeProjeId)
 
     if (hakedisError) throw hakedisError
     if (hakedisCount && hakedisCount > 0) {
@@ -135,7 +204,23 @@ export const sozlesmeService = {
       .from('sozlesmeler')
       .delete()
       .eq('id', id)
+      .eq('proje_id', safeProjeId)
 
     if (error) throw error
   }
+}
+
+/**
+ * IDOR pre-check helper: sozlesmeId'nin parent proje_id'si beklenen ile eşleşiyor mu?
+ * Eşleşmiyorsa 404 (saldırgana varlık bilgisi sızdırılmaz).
+ */
+async function assertSozlesmeInProje(sozlesmeId: string, projeId: string): Promise<void> {
+  const { data, error } = await supabaseAdmin
+    .from('sozlesmeler')
+    .select('id')
+    .eq('id', sozlesmeId)
+    .eq('proje_id', projeId)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) throw ApiError.notFound('Sözleşme bulunamadı')
 }
