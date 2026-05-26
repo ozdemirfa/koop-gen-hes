@@ -31,14 +31,21 @@ export const malzemeTeslimService = {
     return { data, pagination: paginationMeta(pagination, count || 0) }
   },
 
-  async getById(id: string) {
+  // IDOR fix (security-quality-sprint, 2026-05-26):
+  //   supabaseAdmin RLS bypass eder. getById/update/delete metotları artık
+  //   `projeId` zorunlu + .eq('proje_id', projeId). update body'den proje_id
+  //   silinir (mass-assignment koruması).
+  async getById(id: string, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
     const { data, error } = await supabaseAdmin
       .from('irsaliyeler')
       .select('*, firmalar(unvan), hakedisler!irsaliyeler_hakedis_id_fkey(hakedis_no), irsaliye_kalemleri(*)')
       .eq('id', id)
-      .single()
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
 
-    if (error) throw ApiError.notFound('İrsaliye bulunamadı')
+    if (error) throw error
+    if (!data) throw ApiError.notFound('İrsaliye bulunamadı')
     return data
   },
 
@@ -53,45 +60,63 @@ export const malzemeTeslimService = {
 
     if (irsaliyeError) throw irsaliyeError
 
-    return this.getById(irsaliye.id)
+    return this.getById(irsaliye.id, masterData.proje_id)
   },
 
-  async update(id: string, body: Record<string, any>) {
+  async update(id: string, body: Record<string, any>, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
     const { kalemler, ...masterData } = body
 
-    // Update master record
+    // Mass-assignment koruması: caller proje_id'yi değiştiremez
+    delete masterData.proje_id
+    delete masterData.projeId
+
+    // IDOR pre-check + update
     const { data: irsaliye, error: irsaliyeError } = await supabaseAdmin
       .from('irsaliyeler')
       .update(masterData)
       .eq('id', id)
+      .eq('proje_id', safeProjeId)
       .select()
-      .single()
+      .maybeSingle()
 
     if (irsaliyeError) throw irsaliyeError
     if (!irsaliye) throw ApiError.notFound('İrsaliye bulunamadı')
 
-    // If kalemler are provided, we should ideally handle this in a single RPC as well for true atomicity.
-    // For now, we'll keep it as is but note it.
+    // Kalemler de IDOR korunmuş — parent zaten doğrulandı, FK CASCADE OK
     if (kalemler) {
       await supabaseAdmin.from('irsaliye_kalemleri').delete().eq('irsaliye_id', id)
-      const kalemlerWithId = kalemler.map((k: any) => ({ 
+      const kalemlerWithId = kalemler.map((k: any) => ({
         malzeme_adi: k.malzeme_adi,
         birim: k.birim,
         miktar: k.miktar,
         aciklama: k.aciklama,
-        irsaliye_id: id 
+        irsaliye_id: id
       }))
       await supabaseAdmin.from('irsaliye_kalemleri').insert(kalemlerWithId)
     }
-    
-    return this.getById(id)
+
+    return this.getById(id, safeProjeId)
   },
 
-  async delete(id: string) {
+  async delete(id: string, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
+
+    // IDOR pre-check
+    const { data: existing, error: lookupErr } = await supabaseAdmin
+      .from('irsaliyeler')
+      .select('id')
+      .eq('id', id)
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
+    if (lookupErr) throw lookupErr
+    if (!existing) throw ApiError.notFound('İrsaliye bulunamadı')
+
     const { error } = await supabaseAdmin
       .from('irsaliyeler')
       .delete()
       .eq('id', id)
+      .eq('proje_id', safeProjeId)
 
     if (error) throw error
   }
