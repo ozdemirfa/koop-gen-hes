@@ -7,6 +7,8 @@ let nextData: any = null
 let nextError: any = null
 let nextCount = 0
 
+// İlk maybeSingle çağrısı pre-check; sonraki çağrılar normal.
+let deleteError: any = null
 vi.mock('../../src/config/supabase', () => {
   const builder: any = {}
   builder.select = () => builder
@@ -16,10 +18,17 @@ vi.mock('../../src/config/supabase', () => {
   builder.or = () => builder
   builder.update = () => builder
   builder.insert = () => builder
-  builder.delete = () => builder // chainable: delete().eq() pattern
+  builder.delete = () => {
+    // delete chain'ini ayır: pre-check'in error'unu degil deleteError'i don.
+    const del: any = {}
+    del.eq = () => del
+    del.then = (r: any) => r({ error: deleteError ?? nextError })
+    return del
+  }
   builder.range = () => Promise.resolve({ data: nextData, error: nextError, count: nextCount })
   builder.order = () => builder
   builder.single = async () => ({ data: nextData, error: nextError })
+  builder.maybeSingle = async () => ({ data: nextData, error: null })  // pre-check error yok
   builder.then = (resolve: any) => resolve({ data: nextData, error: nextError })
   return {
     supabaseAdmin: {
@@ -37,6 +46,7 @@ beforeEach(() => {
   nextData = null
   nextError = null
   nextCount = 0
+  deleteError = null
 })
 
 const PROJE = 'a1111111-1111-4111-a111-111111111111'
@@ -74,8 +84,20 @@ describe('uyeService', () => {
 
   it('delete (soft) — durum=pasif update', async () => {
     nextData = { id: 'u1', durum: 'pasif' }
-    const r = await uyeService.delete('u1')
+    const r = await uyeService.delete('u1', PROJE)
     expect(r.durum).toBe('pasif')
+  })
+
+  it('delete — IDOR: projeId boşsa 400', async () => {
+    await expect(uyeService.delete('u1', '')).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it('getById — IDOR: projeId boşsa 400', async () => {
+    await expect(uyeService.getById('u1', '')).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it('getAidatlar — IDOR: proje_id query parametresi zorunlu', async () => {
+    await expect(uyeService.getAidatlar('u1', {})).rejects.toBeInstanceOf(ApiError)
   })
 
   it('matchPaymentsFIFO — fn_match_member_payments_fifo RPC çağrılır', async () => {
@@ -91,8 +113,22 @@ describe('uyeService', () => {
 
 describe('blokService', () => {
   it('delete — 23503 FK → ApiError.badRequest', async () => {
-    nextError = { code: '23503' }
-    await expect(blokService.delete('b1')).rejects.toThrow(/atanmış üyeler/)
+    nextData = { id: 'b1' }  // pre-check geçsin
+    deleteError = { code: '23503' }
+    await expect(blokService.delete('b1', PROJE)).rejects.toThrow(/atanmış üyeler/)
+  })
+
+  it('delete — IDOR: projeId boşsa 400', async () => {
+    await expect(blokService.delete('b1', '')).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it('delete — IDOR: kayıt başka projede → 404', async () => {
+    nextData = null  // pre-check yok
+    await expect(blokService.delete('b1', PROJE)).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it('update — IDOR: projeId boşsa 400', async () => {
+    await expect(blokService.update('b1', { blok_adi: 'B' }, '')).rejects.toBeInstanceOf(ApiError)
   })
 
   it('create — başarılı insert', async () => {

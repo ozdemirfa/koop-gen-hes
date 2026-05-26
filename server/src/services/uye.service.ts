@@ -57,17 +57,22 @@ export const uyeService = {
     return { data, pagination: paginationMeta(pagination, count || 0) }
   },
 
-  async getById(id: string) {
+  // IDOR fix (security-quality-sprint, 2026-05-26):
+  //   getById/delete/getAidatlar zorunlu projeId + .eq('proje_id', projeId).
+  async getById(id: string, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
     const { data, error } = await supabaseAdmin
       .from('uyeler')
       .select('*, serefiye_tablosu!serefiye_id(*, bloklar(blok_adi))')
       .eq('id', id)
-      .single()
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
 
     if (error) {
       logger.error(`Üye getirme hatası (ID: ${id}):`, error)
-      throw ApiError.notFound('Üye bulunamadı')
+      throw error
     }
+    if (!data) throw ApiError.notFound('Üye bulunamadı')
     return data
   },
 
@@ -110,31 +115,36 @@ export const uyeService = {
     return data
   },
 
-  async delete(id: string) {
+  async delete(id: string, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
     const { data, error } = await supabaseAdmin
       .from('uyeler')
       .update({ durum: 'pasif' })
       .eq('id', id)
+      .eq('proje_id', safeProjeId)
       .select()
-      .single()
+      .maybeSingle()
 
     if (error) {
       logger.error(`Üye silme (pasife alma) hatası (ID: ${id}):`, error)
       throw error
     }
     if (!data) throw ApiError.notFound('Üye bulunamadı')
-    
+
     logger.info(`Üye pasif yapıldı: ${id}`)
     return data
   },
 
   async getAidatlar(uyeId: string, query: Record<string, any>) {
+    // IDOR: proje_id zorunlu — aksi takdirde başka projedeki üye aidatları sızar.
+    const projeId = requireProjeId(query.proje_id)
+
     let q = supabaseAdmin
       .from('aidatlar')
       .select('*, aidat_tanimlari(yil, ay, katsayi_tutari)')
       .eq('uye_id', uyeId)
+      .eq('proje_id', projeId)
 
-    if (query.proje_id) q = q.eq('proje_id', query.proje_id)
     if (query.yil) q = q.eq('aidat_tanimlari.yil', query.yil)
 
     const { data, error } = await q.order('created_at', { ascending: true })
@@ -189,24 +199,46 @@ export const blokService = {
     return data
   },
 
-  async update(id: string, body: Record<string, any>) {
+  // IDOR fix (security-quality-sprint, 2026-05-26):
+  //   blokService.update/delete zorunlu projeId + .eq('proje_id', projeId).
+  //   body içinde proje_id silinir (mass-assignment: cross-project taşıma yasak).
+  async update(id: string, body: Record<string, any>, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
+    const sanitized = { ...body }
+    delete sanitized.proje_id
+    delete sanitized.projeId
+
     const { data, error } = await supabaseAdmin
       .from('bloklar')
-      .update(body)
+      .update(sanitized)
       .eq('id', id)
+      .eq('proje_id', safeProjeId)
       .select()
-      .single()
+      .maybeSingle()
 
     if (error) throw error
     if (!data) throw ApiError.notFound('Blok bulunamadı')
     return data
   },
 
-  async delete(id: string) {
+  async delete(id: string, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
+
+    // IDOR pre-check
+    const { data: existing, error: lookupErr } = await supabaseAdmin
+      .from('bloklar')
+      .select('id')
+      .eq('id', id)
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
+    if (lookupErr) throw lookupErr
+    if (!existing) throw ApiError.notFound('Blok bulunamadı')
+
     const { error } = await supabaseAdmin
       .from('bloklar')
       .delete()
       .eq('id', id)
+      .eq('proje_id', safeProjeId)
 
     if (error) {
       if (error.code === '23503') throw ApiError.badRequest('Bu bloka atanmış üyeler var, önce üyeleri çıkarın')
