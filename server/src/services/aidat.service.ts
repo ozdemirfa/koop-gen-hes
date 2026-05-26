@@ -93,13 +93,22 @@ export const aidatTanimiService = {
     return tanim
   },
 
-  async updateTanim(id: string, body: Partial<AidatTanimi>) {
-    // Önce durum kontrolü
+  // IDOR fix (security-quality-sprint, 2026-05-26):
+  //   updateTanim/deleteTanim zorunlu projeId + .eq('proje_id', projeId).
+  async updateTanim(id: string, body: Partial<AidatTanimi>, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
+
+    // Mass-assignment: caller proje_id'yi değiştiremez
+    const sanitized = { ...body } as any
+    delete sanitized.proje_id
+    delete sanitized.projeId
+
     const { data: existing } = await supabaseAdmin
       .from('aidat_tanimlari')
       .select('durum')
       .eq('id', id)
-      .single()
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
 
     if (!existing) throw ApiError.notFound('Aidat tanımı bulunamadı')
     if (existing.durum !== 'plan') {
@@ -108,10 +117,11 @@ export const aidatTanimiService = {
 
     const { data, error } = await supabaseAdmin
       .from('aidat_tanimlari')
-      .update(body)
+      .update(sanitized)
       .eq('id', id)
+      .eq('proje_id', safeProjeId)
       .select()
-      .single()
+      .maybeSingle()
 
     if (error) {
       logger.error('Aidat tanımı güncelleme hatası:', error)
@@ -120,12 +130,15 @@ export const aidatTanimiService = {
     return data
   },
 
-  async deleteTanim(id: string) {
+  async deleteTanim(id: string, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
+
     const { data: existing } = await supabaseAdmin
       .from('aidat_tanimlari')
       .select('durum')
       .eq('id', id)
-      .single()
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
 
     if (!existing) throw ApiError.notFound('Aidat tanımı bulunamadı')
     if (existing.durum !== 'plan') {
@@ -136,6 +149,7 @@ export const aidatTanimiService = {
       .from('aidat_tanimlari')
       .delete()
       .eq('id', id)
+      .eq('proje_id', safeProjeId)
 
     if (error) {
       logger.error('Aidat tanımı silme hatası:', error)
@@ -225,9 +239,10 @@ export const aidatTanimiService = {
     return data
   },
 
-  // Geriye dönük uyumluluk için takma adlar
+  // Geriye dönük uyumluluk için takma adlar.
+  // IDOR fix 2026-05-26: alias'lar da projeId zorunlu (signature simetrisi).
   async create(body: any) { return this.createTanim(body) },
-  async update(id: string, body: any) { return this.updateTanim(id, body) }
+  async update(id: string, body: any, projeId: string) { return this.updateTanim(id, body, projeId) }
 }
 
 export const aidatService = {
@@ -297,17 +312,22 @@ export const aidatService = {
     return { data: mappedData, pagination: paginationMeta(pagination, count || 0) }
   },
 
-  async getById(id: string) {
+  // IDOR fix (security-quality-sprint, 2026-05-26):
+  //   getById/recordPayment zorunlu projeId + .eq('proje_id', projeId).
+  async getById(id: string, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
     const { data, error } = await supabaseAdmin
       .from('aidat_detaylari')
       .select('*')
       .eq('id', id)
-      .single()
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
 
     if (error) {
       logger.error(`Aidat detayı çekme hatası (ID: ${id}):`, error)
-      throw ApiError.notFound('Aidat bulunamadı')
+      throw error
     }
+    if (!data) throw ApiError.notFound('Aidat bulunamadı')
 
     const toplamTahakkuk = Number(data.toplam_tahakkuk || data.toplam_borc || 0)
     const toplamOdenen = Number(data.toplam_odenen || data.dinamik_odenen_tutar || 0)
@@ -327,15 +347,19 @@ export const aidatService = {
     }
   },
 
-  async recordPayment(aidatId: string, body: Record<string, any>, actorId?: string) {
-    // Önce aidatın varlığını ve durumunu kontrol et
+  async recordPayment(aidatId: string, body: Record<string, any>, projeId: string, actorId?: string) {
+    const safeProjeId = requireProjeId(projeId)
+
+    // IDOR + var olma kontrolü: aidat caller projesinde mi?
     const { data: aidat, error: getError } = await supabaseAdmin
       .from('aidat_detaylari')
       .select('*')
       .eq('id', aidatId)
-      .single()
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
 
-    if (getError || !aidat) throw ApiError.notFound('Aidat bulunamadı')
+    if (getError) throw getError
+    if (!aidat) throw ApiError.notFound('Aidat bulunamadı')
     if (aidat.durum === 'odendi') throw ApiError.badRequest('Bu aidat zaten ödenmiş')
     if (aidat.durum === 'iptal') throw ApiError.badRequest('İptal edilmiş aidat için ödeme yapılamaz')
 

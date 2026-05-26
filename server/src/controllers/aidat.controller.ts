@@ -4,6 +4,15 @@ import { aidatTanimiService, aidatService } from '../services/aidat.service'
 import { catchAsync } from '../utils/catchAsync'
 import logger from '../utils/logger'
 
+// IDOR fix (security-quality-sprint, 2026-05-26): proje_id extract helper
+function extractProjeId(req: AuthRequest<any, any, any, any>): string {
+  const fromBody = req.body?.proje_id ?? req.body?.projeId
+  const fromQuery = (req.query as any)?.proje_id ?? (req.query as any)?.projeId
+  const fromParams = (req.params as any)?.projeId ?? (req.params as any)?.proje_id
+  const raw = fromBody ?? fromQuery ?? fromParams
+  return typeof raw === 'string' ? raw : ''
+}
+
 // === AİDAT TANIMLARI ===
 
 export const getAidatTanimlari = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
@@ -25,12 +34,12 @@ export const createYillikPlan = catchAsync(async (req: AuthRequest<any, any, any
 })
 
 export const updateAidatTanimi = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await aidatTanimiService.updateTanim(req.params.id, req.body)
+  const data = await aidatTanimiService.updateTanim(req.params.id, req.body, extractProjeId(req))
   res.json({ success: true, data })
 })
 
 export const deleteAidatTanimi = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await aidatTanimiService.deleteTanim(req.params.id)
+  const data = await aidatTanimiService.deleteTanim(req.params.id, extractProjeId(req))
   res.json({ success: true, data })
 })
 
@@ -79,11 +88,11 @@ export const toggleInterest = catchAsync(async (req: AuthRequest<any, any, any, 
 })
 
 export const getAidatById = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await aidatService.getById(req.params.id)
+  const data = await aidatService.getById(req.params.id, extractProjeId(req))
   res.json({ success: true, data })
 })
 
 export const recordPayment = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await aidatService.recordPayment(req.params.id, req.body, req.user?.id)
+  const data = await aidatService.recordPayment(req.params.id, req.body, extractProjeId(req), req.user?.id)
   res.json({ success: true, data })
 })
