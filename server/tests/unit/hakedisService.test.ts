@@ -80,25 +80,30 @@ describe('hakedisService.list', () => {
   // getById artık fn_get_hakedis_detail RPC kullanır. Eski PostgREST nested
   // select pattern kaldırıldı.
 
-  it('getById — fn_get_hakedis_detail RPC çağrılır', async () => {
+  it('getById — fn_get_hakedis_detail RPC çağrılır (IDOR: p_proje_id parametresi)', async () => {
     rpcResponse = {
       data: { id: 'h1', hakedis_no: 1, sozlesmeler: { id: 's1' }, hakedis_kalemleri: [], irsaliyeler: [] },
       error: null,
     }
-    const r = await hakedisService.getById('h1')
+    const r = await hakedisService.getById('h1', PROJE)
     expect(rpcCalls).toHaveLength(1)
     expect(rpcCalls[0].name).toBe('fn_get_hakedis_detail')
-    expect(rpcCalls[0].args).toEqual({ p_id: 'h1' })
+    // IDOR fix: RPC artık p_proje_id da alır
+    expect(rpcCalls[0].args).toEqual({ p_id: 'h1', p_proje_id: PROJE })
     expect((r as any).id).toBe('h1')
+  })
+
+  it('getById — projeId boşsa 400 (IDOR koruması)', async () => {
+    await expect(hakedisService.getById('h1', '')).rejects.toBeInstanceOf(ApiError)
   })
 
   it('getById — P0002 → ApiError.notFound', async () => {
     rpcResponse = { data: null, error: { code: 'P0002', message: 'Hakedis bulunamadi' } }
-    await expect(hakedisService.getById('h1')).rejects.toBeInstanceOf(ApiError)
+    await expect(hakedisService.getById('h1', PROJE)).rejects.toBeInstanceOf(ApiError)
   })
 
   it('getById — null data → ApiError.notFound', async () => {
     rpcResponse = { data: null, error: null }
-    await expect(hakedisService.getById('h1')).rejects.toBeInstanceOf(ApiError)
+    await expect(hakedisService.getById('h1', PROJE)).rejects.toBeInstanceOf(ApiError)
   })
 })
