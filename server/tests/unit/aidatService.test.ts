@@ -73,4 +73,30 @@ describe('aidatTanimiService', () => {
     })
     expect(r).toEqual(nextData)
   })
+
+  // IDOR fix testleri (security-quality-sprint 2026-05-26)
+  it('updateTanim — IDOR: projeId boşsa 400', async () => {
+    await expect(aidatTanimiService.updateTanim('t1', {}, '')).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it('updateTanim — IDOR: kayıt başka projede → 404', async () => {
+    existingRow = null  // pre-check kayıt yok
+    await expect(aidatTanimiService.updateTanim('t1', {}, PROJE)).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it('updateTanim — durum plan değilse badRequest', async () => {
+    existingRow = { durum: 'borclandi' }
+    await expect(aidatTanimiService.updateTanim('t1', {}, PROJE)).rejects.toMatchObject({
+      statusCode: 400,
+    })
+  })
+
+  it('deleteTanim — IDOR: projeId boşsa 400', async () => {
+    await expect(aidatTanimiService.deleteTanim('t1', '')).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it('deleteTanim — IDOR: kayıt başka projede → 404', async () => {
+    existingRow = null
+    await expect(aidatTanimiService.deleteTanim('t1', PROJE)).rejects.toBeInstanceOf(ApiError)
+  })
 })
