@@ -28,6 +28,7 @@ vi.mock('../../src/config/supabase', () => {
   }
   builder.order = () => Promise.resolve({ data: nextData, error: nextError })
   builder.single = async () => ({ data: nextData, error: nextError })
+  builder.maybeSingle = async () => ({ data: nextData, error: nextError })
   builder.then = (resolve: any) => resolve({ data: nextData, error: nextError })
   return {
     supabaseAdmin: {
@@ -67,8 +68,34 @@ describe('cekService', () => {
   })
 
   it('getById — kayıt yok → ApiError.notFound', async () => {
-    nextError = { code: 'PGRST116' }
-    await expect(cekService.getById('xx')).rejects.toBeInstanceOf(ApiError)
+    nextData = null
+    await expect(cekService.getById('xx', PROJE)).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it('getById — IDOR: projeId boşsa 400', async () => {
+    await expect(cekService.getById('xx', '')).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it('getById — IDOR: proje_id query filtresine eklenir', async () => {
+    nextData = { id: 'c1', proje_id: PROJE }
+    await cekService.getById('c1', PROJE)
+    expect(filterCalls).toContain(`id=c1`)
+    expect(filterCalls).toContain(`proje_id=${PROJE}`)
+  })
+
+  it('update — IDOR: body içindeki proje_id silinir', async () => {
+    nextData = { id: 'c1', durum: 'beklemede' }
+    await cekService.update('c1', { durum: 'iade', proje_id: 'other', id: 'attacker' }, PROJE)
+    // sanitize: update() çağrısında proje_id ve id olmamalı
+    expect(updateArgs[0]).not.toHaveProperty('proje_id')
+    expect(updateArgs[0]).not.toHaveProperty('id')
+    expect(updateArgs[0].durum).toBe('iade')
+  })
+
+  it('updateDurum — IDOR: proje_id WHERE filtresine eklenir', async () => {
+    nextData = { id: 'c1', durum: 'iade' }
+    await cekService.updateDurum('c1', 'iade', PROJE)
+    expect(filterCalls).toContain(`proje_id=${PROJE}`)
   })
 
   it('create — başarı durumu insert payload\'ını döner', async () => {
@@ -80,12 +107,16 @@ describe('cekService', () => {
 
   it('payCheck — zaten ödendi durumunda ApiError.badRequest', async () => {
     nextData = { id: '1', durum: 'odendi', tutar: 100, firma_id: 'f1', proje_id: PROJE }
-    await expect(cekService.payCheck('1', 'bh1')).rejects.toThrow(/zaten ödendi/)
+    await expect(cekService.payCheck('1', 'bh1', PROJE)).rejects.toThrow(/zaten ödendi/)
   })
 
   // Sprint revizyon-bugfix-paketi B4 (2026-05-25, madde 7 — production 400 fix)
   it('payCheck — banka_hesap_id eksikse 400 dondurur', async () => {
-    await expect(cekService.payCheck('1', '')).rejects.toThrow(/banka_hesap_id zorunlu/)
-    await expect(cekService.payCheck('1', undefined as any)).rejects.toThrow(/banka_hesap_id zorunlu/)
+    await expect(cekService.payCheck('1', '', PROJE)).rejects.toThrow(/banka_hesap_id zorunlu/)
+    await expect(cekService.payCheck('1', undefined as any, PROJE)).rejects.toThrow(/banka_hesap_id zorunlu/)
+  })
+
+  it('payCheck — IDOR: projeId boşsa 400', async () => {
+    await expect(cekService.payCheck('1', 'bh1', '')).rejects.toBeInstanceOf(ApiError)
   })
 })

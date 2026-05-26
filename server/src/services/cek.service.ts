@@ -33,14 +33,21 @@ export const cekService = {
     return data
   },
 
-  async getById(id: string) {
+  // IDOR fix (security-quality-sprint, 2026-05-26):
+  //   supabaseAdmin RLS bypass eder. getById/update/updateDurum/payCheck artık
+  //   `projeId` zorunlu + .eq('proje_id', projeId) ile filtre. update body
+  //   içindeki proje_id/firma_id mass-assignment koruması ile silinir.
+  async getById(id: string, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
     const { data, error } = await supabaseAdmin
       .from('cekler')
       .select('*, firmalar(unvan), projeler(proje_adi)')
       .eq('id', id)
-      .single()
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
 
-    if (error) throw ApiError.notFound('Çek bulunamadı')
+    if (error) throw error
+    if (!data) throw ApiError.notFound('Çek bulunamadı')
     return data
   },
 
@@ -57,32 +64,48 @@ export const cekService = {
     return cek
   },
 
-  async update(id: string, body: Record<string, any>) {
+  async update(id: string, body: Record<string, any>, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
+
+    // Mass-assignment koruması: caller cek'i başka projeye veya başka firmaya
+    // taşıyamaz (proje_id/firma_id immutable, cek_id sabit).
+    const sanitized = { ...body }
+    delete sanitized.proje_id
+    delete sanitized.projeId
+    delete sanitized.id
+
     const { data, error } = await supabaseAdmin
       .from('cekler')
-      .update(body)
+      .update(sanitized)
       .eq('id', id)
+      .eq('proje_id', safeProjeId)
       .select()
-      .single()
+      .maybeSingle()
 
     if (error) throw error
     if (!data) throw ApiError.notFound('Çek bulunamadı')
     return data
   },
 
-  async updateDurum(id: string, durum: string) {
+  async updateDurum(id: string, durum: string, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
+
     const { data, error } = await supabaseAdmin
       .from('cekler')
       .update({ durum })
       .eq('id', id)
+      .eq('proje_id', safeProjeId)
       .select()
-      .single()
+      .maybeSingle()
 
     if (error) throw error
+    if (!data) throw ApiError.notFound('Çek bulunamadı')
     return data
   },
 
-  async payCheck(id: string, bankaHesapId: string) {
+  async payCheck(id: string, bankaHesapId: string, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
+
     // Sprint revizyon-bugfix-paketi B4 (2026-05-25, madde 7):
     // banka_hesap_id frontend'den gelmiyor olabilir; defensive validation
     // (route'da schema yok; controller body'den okuyor — direkt buraya bind).
@@ -90,21 +113,23 @@ export const cekService = {
       throw ApiError.badRequest('banka_hesap_id zorunlu')
     }
 
-    // 1. Çeki bul
+    // 1. Çeki bul + IDOR cross-check
     const { data: cek, error: getErr } = await supabaseAdmin
       .from('cekler')
       .select('*')
       .eq('id', id)
-      .single()
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
 
     if (getErr || !cek) throw ApiError.notFound('Çek bulunamadı')
     if (cek.durum === 'odendi') throw ApiError.badRequest('Çek zaten ödendi olarak işaretlenmiş')
 
-    // 2. Çeki "ödendi" yap
+    // 2. Çeki "ödendi" yap (defense-in-depth proje_id eq)
     const { data: updatedCek, error: updateErr } = await supabaseAdmin
       .from('cekler')
       .update({ durum: 'odendi' })
       .eq('id', id)
+      .eq('proje_id', safeProjeId)
       .select()
       .single()
 
