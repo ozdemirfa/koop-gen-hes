@@ -7,19 +7,28 @@ let nextData: any = null
 let nextError: any = null
 let insertArgs: any[] = []
 
+const eqCalls: Array<{ col: string; val: unknown }> = []
+const updateArgs: any[] = []
 vi.mock('../../src/config/supabase', () => {
   const builder: any = {}
   builder.select = () => builder
-  builder.eq = () => builder
+  builder.eq = (col: string, val: unknown) => {
+    eqCalls.push({ col, val })
+    return builder
+  }
   builder.gte = () => builder
   builder.lte = () => builder
   builder.insert = (rows: any) => {
     insertArgs.push(rows)
     return builder
   }
-  builder.update = () => builder
+  builder.update = (rows: any) => {
+    updateArgs.push(rows)
+    return builder
+  }
   builder.order = () => Promise.resolve({ data: nextData, error: nextError })
   builder.single = async () => ({ data: nextData, error: nextError })
+  builder.maybeSingle = async () => ({ data: nextData, error: nextError })
   builder.then = (resolve: any) => resolve({ data: nextData, error: nextError })
   return {
     supabaseAdmin: {
@@ -37,6 +46,8 @@ beforeEach(() => {
   nextData = null
   nextError = null
   insertArgs = []
+  eqCalls.length = 0
+  updateArgs.length = 0
 })
 
 const PROJE = 'a1111111-1111-4111-a111-111111111111'
@@ -73,10 +84,25 @@ describe('bankaHesapService', () => {
   it('updateHesap — kayıt yok → ApiError.notFound', async () => {
     nextData = null
     nextError = null
-    await expect(bankaHesapService.updateHesap('xx', { banka_adi: 'A' })).rejects.toBeInstanceOf(ApiError)
+    await expect(bankaHesapService.updateHesap('xx', { banka_adi: 'A' }, PROJE)).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it('updateHesap — IDOR: projeId boşsa 400', async () => {
+    await expect(bankaHesapService.updateHesap('xx', {}, '')).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it('updateHesap — IDOR: body içindeki proje_id silinir (mass-assignment)', async () => {
+    nextData = { id: 'h1', banka_adi: 'New' }
+    await bankaHesapService.updateHesap('h1', { banka_adi: 'New', proje_id: 'other' }, PROJE)
+    expect(updateArgs[0]).not.toHaveProperty('proje_id')
+    expect(eqCalls).toContainEqual({ col: 'proje_id', val: PROJE })
   })
 
   it('listHareketler — proje_id zorunlu', async () => {
     await expect(bankaHesapService.listHareketler({})).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it('esle — IDOR: projeId boşsa 400', async () => {
+    await expect(bankaHesapService.esle('bh1', 'ch1', '')).rejects.toBeInstanceOf(ApiError)
   })
 })

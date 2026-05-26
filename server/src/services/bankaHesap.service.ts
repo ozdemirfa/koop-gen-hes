@@ -42,13 +42,24 @@ export const bankaHesapService = {
     return data
   },
 
-  async updateHesap(id: string, body: Record<string, any>) {
+  // IDOR fix (security-quality-sprint, 2026-05-26):
+  //   updateHesap zorunlu projeId parametresi + .eq('proje_id', projeId).
+  //   body içindeki proje_id silinir (mass-assignment: caller hesabı başka
+  //   projeye taşıyamaz).
+  async updateHesap(id: string, body: Record<string, any>, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
+
+    const sanitized = { ...body }
+    delete sanitized.proje_id
+    delete sanitized.projeId
+
     const { data, error } = await supabaseAdmin
       .from('banka_hesaplari')
-      .update(body)
+      .update(sanitized)
       .eq('id', id)
+      .eq('proje_id', safeProjeId)
       .select()
-      .single()
+      .maybeSingle()
 
     if (error) throw error
     if (!data) throw ApiError.notFound('Banka hesabı bulunamadı')
@@ -136,13 +147,41 @@ export const bankaHesapService = {
     return hareket
   },
 
-  async esle(id: string, cariHareketId: string) {
+  // IDOR fix (security-quality-sprint, 2026-05-26):
+  //   esle zorunlu projeId + iki kademe pre-check:
+  //   1. banka_hareketleri.id'nin parent hesabının proje_id'si caller projesi mi?
+  //   2. cariHareketId proje_id eşleşmesi (cross-project eşleştirme yasak).
+  async esle(id: string, cariHareketId: string, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
+
+    // Banka hareketinin parent hesabı caller projesinde mi?
+    const { data: bankaHareket, error: bhErr } = await supabaseAdmin
+      .from('banka_hareketleri')
+      .select('id, banka_hesaplari!inner(proje_id)')
+      .eq('id', id)
+      .maybeSingle()
+    if (bhErr) throw bhErr
+    const bhProjeId = (bankaHareket as any)?.banka_hesaplari?.proje_id
+    if (!bankaHareket || bhProjeId !== safeProjeId) {
+      throw ApiError.notFound('Banka hareketi bulunamadı')
+    }
+
+    // Cari hareket de aynı projede mi?
+    const { data: cariHareket, error: chErr } = await supabaseAdmin
+      .from('cari_hareketler')
+      .select('id')
+      .eq('id', cariHareketId)
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
+    if (chErr) throw chErr
+    if (!cariHareket) throw ApiError.notFound('Cari hareket bulunamadı')
+
     const { data, error } = await supabaseAdmin
       .from('banka_hareketleri')
       .update({ eslesen_cari_hareket_id: cariHareketId, eslesti: true })
       .eq('id', id)
       .select()
-      .single()
+      .maybeSingle()
 
     if (error) throw error
     if (!data) throw ApiError.notFound('Banka hareketi bulunamadı')
