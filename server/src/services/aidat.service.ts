@@ -485,17 +485,22 @@ export const aidatService = {
 
   async recordBulkPayment(uyeId: string, body: { proje_id?: string, tutar: number, odeme_tarihi: string, odeme_yontemi: string, makbuz_no?: string, aciklama?: string }, actorId?: string) {
     const { tutar, proje_id, ...odemeMeta } = body
+
+    // IDOR: proje_id body'den zorunlu; üyenin gerçekten o projede olduğu da
+    // doğrulanır (cross-project bulk payment yasak).
+    const finalProjeId = requireProjeId(proje_id)
+
+    const { data: uye } = await supabaseAdmin
+      .from('uyeler')
+      .select('id')
+      .eq('id', uyeId)
+      .eq('proje_id', finalProjeId)
+      .maybeSingle()
+    if (!uye) {
+      throw ApiError.notFound('Üye bu projede bulunamadı')
+    }
+
     let kalanTutar = tutar
-
-    let finalProjeId = proje_id
-    if (!finalProjeId) {
-      const { data: uye } = await supabaseAdmin.from('uyeler').select('proje_id').eq('id', uyeId).single()
-      finalProjeId = uye?.proje_id
-    }
-
-    if (!finalProjeId) {
-      throw ApiError.badRequest('proje_id belirlenemedi')
-    }
 
     // Açık aidatları view üzerinden çek
     const { data: acikAidatlar, error: getError } = await supabaseAdmin
