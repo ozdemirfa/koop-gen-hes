@@ -77,6 +77,15 @@ vi.mock('../../src/config/supabase', () => {
       }
       return { data: null, error: { code: 'PGRST116', message: 'Not found' } }
     }
+    // Sprint desktop-offline-mode (2026-05-26):
+    // requireProjectAccess offline guard'ı .maybeSingle() çağırır.
+    // Tüm mutation testleri online projede çalışmalı → offline_mode: false.
+    builder.maybeSingle = async () => {
+      if (table === 'projeler') {
+        return { data: { offline_mode: false, offline_mode_owner_id: null }, error: null }
+      }
+      return { data: null, error: null }
+    }
     builder.then = (resolve: (v: { data: unknown; error: unknown }) => void) =>
       resolve({ data: [], error: null })
     return builder
