@@ -158,7 +158,13 @@ export const cariHesapService = {
   // Sadece "açıklama, tarih, belge_no, tutar (borc/alacak)" gibi metadata alanlarına
   // izin verilir. Eşleştirme alanlarına (kaynak_tipi/kaynak_id) dokunulmaz —
   // kapatma bağı varsa kullanıcı önce A3/undo flow'unu kullanmalı.
-  async update(id: string, body: Record<string, any>) {
+  //
+  // IDOR fix (security-quality-sprint, 2026-05-26): zorunlu projeId + cross-check.
+  // supabaseAdmin RLS bypass ettiğinden başka projedeki cari hareket ID'si
+  // gönderildiğinde 404 dönülmeli.
+  async update(id: string, body: Record<string, any>, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
+
     // Whitelist: sadece güvenli alanlar
     const allowed = ['aciklama', 'tarih', 'belge_no', 'borc', 'alacak', 'odeme_turu', 'banka_hesap_id']
     const patch: Record<string, any> = {}
@@ -166,12 +172,12 @@ export const cariHesapService = {
       if (k in body) patch[k] = body[k]
     }
 
-    // B3: kapatılmış (eşleşmiş) hareket düzenlenemez — tutar değişikliği
-    // aidat/hakedis durumunu bozar.
+    // B3 + IDOR: kapatılmış (eşleşmiş) hareket düzenlenemez + proje cross-check
     const { data: existing, error: fetchErr } = await supabaseAdmin
       .from('cari_hareketler')
-      .select('id, kaynak_tipi, kaynak_id')
+      .select('id, kaynak_tipi, kaynak_id, proje_id')
       .eq('id', id)
+      .eq('proje_id', safeProjeId)
       .maybeSingle()
 
     if (fetchErr) throw fetchErr
@@ -190,10 +196,12 @@ export const cariHesapService = {
       .from('cari_hareketler')
       .update(patch)
       .eq('id', id)
+      .eq('proje_id', safeProjeId)
       .select()
-      .single()
+      .maybeSingle()
 
     if (error) throw error
+    if (!data) throw ApiError.notFound('Cari hareket bulunamadı')
     return data
   },
 
@@ -202,7 +210,23 @@ export const cariHesapService = {
   // riski. Migration 20260525120000 ile fn_delete_cari_hareket_with_banka RPC
   // tek tx icinde calistirir; kapali (kaynak_id NOT NULL) icin P0001 → 400 +
   // Turkce mesaj (errorHandler.ts:113-119); kayit yok ise P0002.
-  async delete(id: string) {
+  //
+  // IDOR fix (security-quality-sprint, 2026-05-26): RPC çağrılmadan önce
+  // service-level pre-check ile cari hareket caller projesinde mi doğrulanır.
+  // RPC'nin kendisi service-role context'inde çalışıyor (RLS bypass) — manuel
+  // proje doğrulaması zorunlu.
+  async delete(id: string, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
+
+    const { data: existing, error: lookupErr } = await supabaseAdmin
+      .from('cari_hareketler')
+      .select('id')
+      .eq('id', id)
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
+    if (lookupErr) throw lookupErr
+    if (!existing) throw ApiError.notFound('Cari hareket bulunamadi')
+
     const { error } = await supabaseAdmin.rpc('fn_delete_cari_hareket_with_banka', { p_id: id })
     if (error) {
       // P0002 (notFound) → 404; P0001 zaten errorHandler tarafindan 400 yapilir
@@ -219,11 +243,17 @@ export const cariHesapService = {
   // fn_update_uyelik_baslangic_tahakkuk tahsilat bagi varsa P0001 ile engeller;
   // semantik olarak 409 conflict (cariHesap.service.update'in `existing.kaynak_tipi`
   // guard'iyla simetrik). Yanlis tip / kayit yoksa P0002 → 404.
+  //
+  // IDOR fix (security-quality-sprint, 2026-05-26): service-level proje pre-check.
   async updateUyelikBaslangicTahakkuk(
     id: string,
     payload: { tutar: number; tarih: string; aciklama?: string | null },
+    projeId: string,
     actorId?: string,
   ) {
+    const safeProjeId = requireProjeId(projeId)
+    await assertCariHareketInProje(id, safeProjeId)
+
     const { data, error } = await supabaseAdmin.rpc('fn_update_uyelik_baslangic_tahakkuk', {
       p_id: id,
       p_tutar: payload.tutar,
@@ -247,7 +277,11 @@ export const cariHesapService = {
   },
 
   // Sprint uyelik-baslangic-iptal-duzenle (2026-05-25): tahakkuk iptal.
-  async deleteUyelikBaslangicTahakkuk(id: string, actorId?: string) {
+  // IDOR fix 2026-05-26: service-level proje pre-check.
+  async deleteUyelikBaslangicTahakkuk(id: string, projeId: string, actorId?: string) {
+    const safeProjeId = requireProjeId(projeId)
+    await assertCariHareketInProje(id, safeProjeId)
+
     const { error } = await supabaseAdmin.rpc('fn_delete_uyelik_baslangic_tahakkuk', {
       p_id: id,
       p_actor_id: actorId ?? null,
@@ -403,7 +437,13 @@ export const cariHesapService = {
     return hareket
   },
 
-  async undoClosure(id: string, actorId?: string) {
+  // IDOR fix (security-quality-sprint, 2026-05-26): service-level proje pre-check
+  // tüm undo* metotlarında. RPC'ler service-role context'inde çalıştığından RLS
+  // bypass eder; caller'in projesi ile hedef kaynağın projesi eşleşmiyorsa 404.
+  async undoClosure(id: string, projeId: string, actorId?: string) {
+    const safeProjeId = requireProjeId(projeId)
+    await assertCariHareketInProje(id, safeProjeId)
+
     const { data, error } = await supabaseAdmin.rpc('fn_undo_payment_match', {
       p_movement_id: id,
       p_actor_id: actorId ?? null
@@ -417,7 +457,19 @@ export const cariHesapService = {
     return data;
   },
 
-  async undoHakedisClosure(id: string, actorId?: string) {
+  async undoHakedisClosure(id: string, projeId: string, actorId?: string) {
+    const safeProjeId = requireProjeId(projeId)
+
+    // Hakediş caller projesinde mi?
+    const { data: hakedis, error: lookupErr } = await supabaseAdmin
+      .from('hakedisler')
+      .select('id')
+      .eq('id', id)
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
+    if (lookupErr) throw lookupErr
+    if (!hakedis) throw ApiError.notFound('Hakediş bulunamadı')
+
     const { data, error } = await supabaseAdmin.rpc('fn_undo_hakedis_closure', {
       p_hakedis_id: id,
       p_actor_id: actorId ?? null
@@ -434,7 +486,18 @@ export const cariHesapService = {
   // A3 (sprint 20260511-uye-tahsilat-firma-revisions): Aidat satırı bazında toplu undo.
   // RPC fn_undo_aidat_closure ile bir aidata bağlı tüm cari_hareketler eşleşmelerini
   // tek transaction'da temizler, aidat durumunu yeniden hesaplar.
-  async undoAidatClosure(aidatId: string, actorId?: string) {
+  async undoAidatClosure(aidatId: string, projeId: string, actorId?: string) {
+    const safeProjeId = requireProjeId(projeId)
+
+    const { data: aidat, error: lookupErr } = await supabaseAdmin
+      .from('aidatlar')
+      .select('id')
+      .eq('id', aidatId)
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
+    if (lookupErr) throw lookupErr
+    if (!aidat) throw ApiError.notFound('Aidat bulunamadı')
+
     const { data, error } = await supabaseAdmin.rpc('fn_undo_aidat_closure', {
       p_aidat_id: aidatId,
       p_actor_id: actorId ?? null,
@@ -452,7 +515,10 @@ export const cariHesapService = {
   // kaynak_tipi='baslangic_bedeli' filtresi kullanır. Bug: UyeDetailPage Aidat Hesapları
   // tab'inde başlangıç bedeli virtual row'unun "Geri Al" butonu aidat endpoint'ine
   // bb-<uuid> formatlı id yolluyordu → 400; bu endpoint doğru semantiği sağlar.
-  async undoBaslangicBedeliClosure(tahakkukId: string, actorId?: string) {
+  async undoBaslangicBedeliClosure(tahakkukId: string, projeId: string, actorId?: string) {
+    const safeProjeId = requireProjeId(projeId)
+    await assertCariHareketInProje(tahakkukId, safeProjeId)
+
     const { data, error } = await supabaseAdmin.rpc('fn_undo_baslangic_bedeli_closure', {
       p_tahakkuk_id: tahakkukId,
       p_actor_id: actorId ?? null,
@@ -467,6 +533,8 @@ export const cariHesapService = {
   },
 
   async performFifoClosure(projeId: string, actorId?: string) {
+    // IDOR: projeId middleware tarafından zaten doğrulandı; ekstra guard yok.
+    // Function body aşağıda kalır.
     try {
       const { data, error } = await supabaseAdmin.rpc('fn_match_project_payments_fifo', {
         p_proje_id: projeId,
@@ -504,4 +572,20 @@ export const cariHesapService = {
       throw err;
     }
   }
+}
+
+/**
+ * IDOR pre-check helper (security-quality-sprint 2026-05-26):
+ * cari_hareketler.id'nin caller projesinde olduğunu doğrular. Yoksa 404.
+ * Saldırgana bilgi sızdırılmaz (notFound semantiği).
+ */
+async function assertCariHareketInProje(id: string, projeId: string): Promise<void> {
+  const { data, error } = await supabaseAdmin
+    .from('cari_hareketler')
+    .select('id')
+    .eq('id', id)
+    .eq('proje_id', projeId)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) throw ApiError.notFound('Cari hareket bulunamadi')
 }

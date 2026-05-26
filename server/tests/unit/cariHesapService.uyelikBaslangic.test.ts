@@ -12,25 +12,38 @@
 //   P0002 → ApiError.notFound (404)
 //   Diger → pass-through (errorHandler default 500/400)
 
+// security-quality-sprint 2026-05-26: update/delete signature
+//   (id, payload|-, projeId, actorId?) — IDOR pre-check eklendi (assertCariHareketInProje).
+
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const rpcMock = vi.fn()
+let preCheckResult: any = { id: 'x' }  // varsayılan: kayıt bulunsun
 
-vi.mock('../../src/config/supabase', () => ({
-  supabaseAdmin: {
-    rpc: (...args: any[]) => rpcMock(...args),
-  },
-}))
+vi.mock('../../src/config/supabase', () => {
+  const builder: any = {}
+  builder.select = () => builder
+  builder.eq = () => builder
+  builder.maybeSingle = async () => ({ data: preCheckResult, error: null })
+  return {
+    supabaseAdmin: {
+      from: () => builder,
+      rpc: (...args: any[]) => rpcMock(...args),
+    },
+  }
+})
 
 import { cariHesapService } from '../../src/services/cariHesap.service'
 import { ApiError } from '../../src/utils/ApiError'
 
 beforeEach(() => {
   rpcMock.mockReset()
+  preCheckResult = { id: 'x' }
 })
 
 const TAHAKKUK_ID = 'aaaa1111-1111-4111-a111-111111111111'
 const ACTOR_ID = 'bbbb1111-1111-4111-a111-222222222222'
+const PROJE = 'cccc1111-1111-4111-a111-333333333333'
 
 describe('cariHesapService.updateUyelikBaslangicTahakkuk', () => {
   it('basarili update → RPC tek cagrildi, data doner', async () => {
@@ -40,6 +53,7 @@ describe('cariHesapService.updateUyelikBaslangicTahakkuk', () => {
     const result = await cariHesapService.updateUyelikBaslangicTahakkuk(
       TAHAKKUK_ID,
       { tutar: 5000, tarih: '2026-05-25', aciklama: 'X' },
+      PROJE,
       ACTOR_ID,
     )
 
@@ -60,6 +74,7 @@ describe('cariHesapService.updateUyelikBaslangicTahakkuk', () => {
     await cariHesapService.updateUyelikBaslangicTahakkuk(
       TAHAKKUK_ID,
       { tutar: 1000, tarih: '2026-05-01' },
+      PROJE,
     )
 
     expect(rpcMock).toHaveBeenCalledWith('fn_update_uyelik_baslangic_tahakkuk', {
@@ -71,6 +86,18 @@ describe('cariHesapService.updateUyelikBaslangicTahakkuk', () => {
     })
   })
 
+  it('IDOR: başka projedeki kayıt → 404, RPC çağrılmaz', async () => {
+    preCheckResult = null
+    await expect(
+      cariHesapService.updateUyelikBaslangicTahakkuk(
+        TAHAKKUK_ID,
+        { tutar: 1000, tarih: '2026-05-01' },
+        PROJE,
+      ),
+    ).rejects.toBeInstanceOf(ApiError)
+    expect(rpcMock).not.toHaveBeenCalled()
+  })
+
   it('P0001 (tahsilat bagi) → ApiError.conflict (409)', async () => {
     const pgErr = {
       code: 'P0001',
@@ -79,10 +106,11 @@ describe('cariHesapService.updateUyelikBaslangicTahakkuk', () => {
     rpcMock.mockResolvedValueOnce({ data: null, error: pgErr })
 
     await expect(
-      cariHesapService.updateUyelikBaslangicTahakkuk(TAHAKKUK_ID, {
-        tutar: 1000,
-        tarih: '2026-05-01',
-      }),
+      cariHesapService.updateUyelikBaslangicTahakkuk(
+        TAHAKKUK_ID,
+        { tutar: 1000, tarih: '2026-05-01' },
+        PROJE,
+      ),
     ).rejects.toMatchObject({
       statusCode: 409,
       message: expect.stringContaining('tahsilat'),
@@ -96,10 +124,7 @@ describe('cariHesapService.updateUyelikBaslangicTahakkuk', () => {
     })
 
     const err = await cariHesapService
-      .updateUyelikBaslangicTahakkuk(TAHAKKUK_ID, {
-        tutar: 1000,
-        tarih: '2026-05-01',
-      })
+      .updateUyelikBaslangicTahakkuk(TAHAKKUK_ID, { tutar: 1000, tarih: '2026-05-01' }, PROJE)
       .catch((e: any) => e)
 
     expect(err).toBeInstanceOf(ApiError)
@@ -111,10 +136,11 @@ describe('cariHesapService.updateUyelikBaslangicTahakkuk', () => {
     rpcMock.mockResolvedValueOnce({ data: null, error: err })
 
     await expect(
-      cariHesapService.updateUyelikBaslangicTahakkuk(TAHAKKUK_ID, {
-        tutar: 1000,
-        tarih: '2026-05-01',
-      }),
+      cariHesapService.updateUyelikBaslangicTahakkuk(
+        TAHAKKUK_ID,
+        { tutar: 1000, tarih: '2026-05-01' },
+        PROJE,
+      ),
     ).rejects.toMatchObject({ code: '42P01' })
   })
 })
@@ -123,7 +149,7 @@ describe('cariHesapService.deleteUyelikBaslangicTahakkuk', () => {
   it('basarili silme → RPC tek cagrildi, success mesaji doner', async () => {
     rpcMock.mockResolvedValueOnce({ data: null, error: null })
 
-    const result = await cariHesapService.deleteUyelikBaslangicTahakkuk(TAHAKKUK_ID, ACTOR_ID)
+    const result = await cariHesapService.deleteUyelikBaslangicTahakkuk(TAHAKKUK_ID, PROJE, ACTOR_ID)
 
     expect(rpcMock).toHaveBeenCalledTimes(1)
     expect(rpcMock).toHaveBeenCalledWith('fn_delete_uyelik_baslangic_tahakkuk', {
@@ -136,12 +162,20 @@ describe('cariHesapService.deleteUyelikBaslangicTahakkuk', () => {
   it('actorId undefined → p_actor_id null', async () => {
     rpcMock.mockResolvedValueOnce({ data: null, error: null })
 
-    await cariHesapService.deleteUyelikBaslangicTahakkuk(TAHAKKUK_ID)
+    await cariHesapService.deleteUyelikBaslangicTahakkuk(TAHAKKUK_ID, PROJE)
 
     expect(rpcMock).toHaveBeenCalledWith('fn_delete_uyelik_baslangic_tahakkuk', {
       p_id: TAHAKKUK_ID,
       p_actor_id: null,
     })
+  })
+
+  it('IDOR: başka projedeki kayıt → 404, RPC çağrılmaz', async () => {
+    preCheckResult = null
+    await expect(
+      cariHesapService.deleteUyelikBaslangicTahakkuk(TAHAKKUK_ID, PROJE),
+    ).rejects.toBeInstanceOf(ApiError)
+    expect(rpcMock).not.toHaveBeenCalled()
   })
 
   it('P0001 (tahsilat bagi) → ApiError.conflict (409)', async () => {
@@ -153,7 +187,7 @@ describe('cariHesapService.deleteUyelikBaslangicTahakkuk', () => {
       },
     })
 
-    await expect(cariHesapService.deleteUyelikBaslangicTahakkuk(TAHAKKUK_ID))
+    await expect(cariHesapService.deleteUyelikBaslangicTahakkuk(TAHAKKUK_ID, PROJE))
       .rejects.toMatchObject({ statusCode: 409 })
   })
 
@@ -163,7 +197,7 @@ describe('cariHesapService.deleteUyelikBaslangicTahakkuk', () => {
       error: { code: 'P0002', message: 'Baslangic bedeli tahakkuku bulunamadi' },
     })
 
-    await expect(cariHesapService.deleteUyelikBaslangicTahakkuk(TAHAKKUK_ID))
+    await expect(cariHesapService.deleteUyelikBaslangicTahakkuk(TAHAKKUK_ID, PROJE))
       .rejects.toMatchObject({ statusCode: 404 })
   })
 })

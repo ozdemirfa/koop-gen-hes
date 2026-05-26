@@ -49,10 +49,19 @@ export const performFifoClosure = catchAsync(
   }
 )
 
+// IDOR fix (security-quality-sprint, 2026-05-26): extractProjeId helper.
+function extractProjeId(req: AuthRequest<any, any, any, any>): string {
+  const fromBody = (req.body as any)?.proje_id ?? (req.body as any)?.projeId
+  const fromQuery = (req.query as any)?.proje_id ?? (req.query as any)?.projeId
+  const fromParams = (req.params as any)?.projeId ?? (req.params as any)?.proje_id
+  const raw = fromBody ?? fromQuery ?? fromParams
+  return typeof raw === 'string' ? raw : ''
+}
+
 export const undoClosure = catchAsync(
   async (req: AuthRequest<{ id: string }>, res: Response) => {
     const { id } = req.params
-    const data = await cariHesapService.undoClosure(id, req.user?.id)
+    const data = await cariHesapService.undoClosure(id, extractProjeId(req), req.user?.id)
     res.json(data)
   }
 )
@@ -60,7 +69,7 @@ export const undoClosure = catchAsync(
 export const undoHakedisClosure = catchAsync(
   async (req: AuthRequest<{ id: string }>, res: Response) => {
     const { id } = req.params
-    const data = await cariHesapService.undoHakedisClosure(id, req.user?.id)
+    const data = await cariHesapService.undoHakedisClosure(id, extractProjeId(req), req.user?.id)
     res.json(data)
   }
 )
@@ -69,7 +78,7 @@ export const undoHakedisClosure = catchAsync(
 export const undoAidatClosure = catchAsync(
   async (req: AuthRequest<{ aidatId: string }>, res: Response) => {
     const { aidatId } = req.params
-    const data = await cariHesapService.undoAidatClosure(aidatId, req.user?.id)
+    const data = await cariHesapService.undoAidatClosure(aidatId, extractProjeId(req), req.user?.id)
     res.json(data)
   }
 )
@@ -78,7 +87,7 @@ export const undoAidatClosure = catchAsync(
 export const undoBaslangicBedeliClosure = catchAsync(
   async (req: AuthRequest<{ tahakkukId: string }>, res: Response) => {
     const { tahakkukId } = req.params
-    const data = await cariHesapService.undoBaslangicBedeliClosure(tahakkukId, req.user?.id)
+    const data = await cariHesapService.undoBaslangicBedeliClosure(tahakkukId, extractProjeId(req), req.user?.id)
     res.json(data)
   }
 )
@@ -87,7 +96,7 @@ export const undoBaslangicBedeliClosure = catchAsync(
 export const updateCariHareket = catchAsync(
   async (req: AuthRequest<{ id: string }, unknown, Record<string, unknown>>, res: Response) => {
     const { id } = req.params
-    const data = await cariHesapService.update(id, req.body as Record<string, any>)
+    const data = await cariHesapService.update(id, req.body as Record<string, any>, extractProjeId(req))
     res.json({ success: true, data })
   }
 )
@@ -96,16 +105,12 @@ export const updateCariHareket = catchAsync(
 export const deleteCariHareket = catchAsync(
   async (req: AuthRequest<{ id: string }>, res: Response) => {
     const { id } = req.params
-    const data = await cariHesapService.delete(id)
+    const data = await cariHesapService.delete(id, extractProjeId(req))
     res.json(data)
   }
 )
 
 // Sprint uyelik-baslangic-iptal-duzenle (2026-05-25):
-// PATCH /cari-hareketler/baslangic-bedeli/:tahakkukId — uyelik baslangic
-// tahakkuk satirini duzenle. requireProjectAccess('manager') + Zod validate.
-// Body'deki proje_id/projeId interceptor'dan gelir (requireProjectAccess okur);
-// RPC payload'ina dahil edilmez (mass-assignment guard).
 export const updateUyelikBaslangicTahakkuk = catchAsync(
   async (
     req: AuthRequest<
@@ -120,6 +125,7 @@ export const updateUyelikBaslangicTahakkuk = catchAsync(
     const data = await cariHesapService.updateUyelikBaslangicTahakkuk(
       tahakkukId,
       { tutar, tarih, aciklama },
+      extractProjeId(req),
       req.user?.id,
     )
     res.json({ success: true, data })
@@ -132,6 +138,7 @@ export const deleteUyelikBaslangicTahakkuk = catchAsync(
     const { tahakkukId } = req.params
     const data = await cariHesapService.deleteUyelikBaslangicTahakkuk(
       tahakkukId,
+      extractProjeId(req),
       req.user?.id,
     )
     res.json(data)
