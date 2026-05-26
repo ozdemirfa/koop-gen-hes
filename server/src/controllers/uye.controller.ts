@@ -4,13 +4,22 @@ import { uyeService } from '../services/uye.service'
 import { aidatService } from '../services/aidat.service'
 import { catchAsync } from '../utils/catchAsync'
 
+// IDOR fix (security-quality-sprint, 2026-05-26): proje_id extract helper
+function extractProjeId(req: AuthRequest<any, any, any, any>): string {
+  const fromBody = req.body?.proje_id ?? req.body?.projeId
+  const fromQuery = (req.query as any)?.proje_id ?? (req.query as any)?.projeId
+  const fromParams = (req.params as any)?.projeId ?? (req.params as any)?.proje_id
+  const raw = fromBody ?? fromQuery ?? fromParams
+  return typeof raw === 'string' ? raw : ''
+}
+
 export const getUyes = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   const result = await uyeService.list(req.query)
   res.json({ success: true, ...result })
 })
 
 export const getUyeById = catchAsync(async (req: AuthRequest<{ id: string }, any, any, any>, res: Response) => {
-  const data = await uyeService.getById(req.params.id)
+  const data = await uyeService.getById(req.params.id, extractProjeId(req))
   res.json({ success: true, data })
 })
 
@@ -25,7 +34,7 @@ export const updateUye = catchAsync(async (req: AuthRequest<{ id: string }, any,
 })
 
 export const deleteUye = catchAsync(async (req: AuthRequest<{ id: string }, any, any, any>, res: Response) => {
-  await uyeService.delete(req.params.id)
+  await uyeService.delete(req.params.id, extractProjeId(req))
   res.json({ success: true, message: 'Üye pasif yapıldı' })
 })
 
