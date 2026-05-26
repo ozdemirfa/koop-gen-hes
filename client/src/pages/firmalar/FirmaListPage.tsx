@@ -10,6 +10,7 @@ import { getErrorMessage } from '../../lib/apiError'
 import { useDebounce } from '../../hooks/useDebounce'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { usePermissions } from '../../hooks/usePermissions'
+import { useProject } from '../../contexts/ProjectContext'
 import { formatIBAN, formatIBANInput, getIBANRaw, trMoneyFormatter, formatPhone, getPhoneRaw } from '../../lib/format'
 import { DataTable } from '../../components/common/DataTable'
 import { ErrorState } from '../../components/common/ErrorState'
@@ -53,7 +54,8 @@ export const FirmaListPage: React.FC = () => {
   const [editing, setEditing] = useState<Firma | null>(null)
   const [form] = Form.useForm()
 
-  const activeProjectId = localStorage.getItem('activeProjectId')
+  const { activeProject } = useProject()
+  const activeProjectId = activeProject?.id ?? null
 
   // Modal kapandığında verileri sıfırla
   useEffect(() => {

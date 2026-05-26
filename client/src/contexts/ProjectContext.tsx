@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useState, useEffect, use
 import api from '../lib/api'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
+import { getActiveProjectId, setActiveProjectId } from '../lib/activeProjectStore'
 
 // Sprint role-system-modernization (PR-C):
 // Backend 3-rol modeli (owner > manager > user) frontend'e taşındı.
@@ -73,24 +74,23 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (response.data.success) {
         setProjects(response.data.data)
 
-        // Restore from localStorage if possible. Sprint proje-silme-akisi
+        // Restore from store if possible. Sprint proje-silme-akisi
         // (2026-05-24): aktif proje arşivlenmiş/silinmişse listeden gelmez —
-        // başka projeye fallback yap; hiç proje yoksa aktif proje + localStorage
+        // başka projeye fallback yap; hiç proje yoksa aktif proje + store
         // temizle (aksi halde detay sayfaları kayıp ID ile 403/404 üretir).
-        const savedProjectId = localStorage.getItem('activeProjectId')
-        if (savedProjectId) {
-          const project = response.data.data.find((p: Project) => p.id === savedProjectId)
-          if (project) {
-            setActiveProjectState(project)
-          } else if (response.data.data.length > 0) {
-            setActiveProjectState(response.data.data[0])
-            localStorage.setItem('activeProjectId', response.data.data[0].id)
-          } else {
-            setActiveProjectState(null)
-            localStorage.removeItem('activeProjectId')
-          }
-        } else if (response.data.data.length > 0) {
-          setActiveProjectState(response.data.data[0])
+        // Sprint single-source-of-truth (2026-05-26): activeProjectStore tek
+        // kaynak; localStorage doğrudan erişimi kaldırıldı.
+        const savedProjectId = getActiveProjectId()
+        const list = response.data.data as Project[]
+        const matched = savedProjectId ? list.find((p) => p.id === savedProjectId) : undefined
+        if (matched) {
+          setActiveProjectState(matched)
+        } else if (list.length > 0) {
+          setActiveProjectState(list[0])
+          setActiveProjectId(list[0].id)
+        } else {
+          setActiveProjectState(null)
+          setActiveProjectId(null)
         }
       }
     } catch (error) {
@@ -107,6 +107,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } else {
       setProjects([])
       setActiveProjectState(null)
+      setActiveProjectId(null)
       setLoading(false)
     }
   }, [session, refreshProjects])
@@ -175,11 +176,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const setActiveProject = (project: Project | null) => {
     setActiveProjectState(project)
-    if (project) {
-      localStorage.setItem('activeProjectId', project.id)
-    } else {
-      localStorage.removeItem('activeProjectId')
-    }
+    setActiveProjectId(project ? project.id : null)
   }
 
   // Aktif projenin rolü:
