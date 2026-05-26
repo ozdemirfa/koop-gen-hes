@@ -28,13 +28,21 @@ export const faturaService = {
     return { data, pagination: paginationMeta(pagination, count || 0) }
   },
 
-  async getById(id: string) {
+  // IDOR fix (security-quality-sprint, 2026-05-26):
+  //   getById/update/delete metotları artık zorunlu `projeId` parametresi alır.
+  //   `supabaseAdmin` service-role RLS bypass ettiğinden, middleware'in
+  //   doğruladığı `proje_id` service katmanında da `.eq('proje_id', projeId)`
+  //   ile cross-check edilmeli. Aksi halde A projesinin üyesi B projesindeki
+  //   fatura ID'sini öğrendiğinde silebilir/güncelleyebilir (CWE-639).
+  async getById(id: string, projeId: string) {
     if (!id) throw ApiError.badRequest('Fatura ID belirtilmedi')
+    const safeProjeId = requireProjeId(projeId)
 
     const { data, error } = await supabaseAdmin
       .from('faturalar')
       .select('*, firmalar(unvan), fatura_kalemleri(*)')
       .eq('id', id)
+      .eq('proje_id', safeProjeId)
       .maybeSingle()
 
     if (error) throw error
@@ -56,14 +64,24 @@ export const faturaService = {
     return data
   },
 
-  async update(id: string, body: Record<string, any>, actorId?: string) {
+  async update(id: string, body: Record<string, any>, projeId: string, actorId?: string) {
     const { kalemler, ...masterData } = body
+    const safeProjeId = requireProjeId(projeId)
+
+    // IDOR fix: master body içindeki `proje_id`'yi (varsa) middleware'in
+    // doğruladığı `projeId` ile zorla — saldırgan body üzerinden fatura'yı
+    // başka projeye taşıyamasın. `fn_update_fatura_atomic` da pre-check ile
+    // cross-project erişimi engeller (migration 20260526240000).
+    if (masterData && typeof masterData === 'object') {
+      delete masterData.proje_id
+    }
 
     const { data, error } = await supabaseAdmin.rpc('fn_update_fatura_atomic', {
       p_id: id,
       p_master: masterData,
       p_kalemler: kalemler ?? null,
-      p_actor_id: actorId ?? null
+      p_actor_id: actorId ?? null,
+      p_proje_id: safeProjeId,
     })
 
     if (error) {
@@ -73,9 +91,33 @@ export const faturaService = {
     return data
   },
 
-  async delete(id: string) {
-    await supabaseAdmin.from('cari_hareketler').delete().eq('kaynak_tipi', 'fatura').eq('kaynak_id', id)
-    const { error } = await supabaseAdmin.from('faturalar').delete().eq('id', id)
+  async delete(id: string, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
+
+    // IDOR fix: önce fatura'nın projeye ait olduğunu doğrula. Yoksa 404.
+    // Bu pre-check service-role RLS bypass'ına karşı defense-in-depth katmanı.
+    const { data: existing, error: findErr } = await supabaseAdmin
+      .from('faturalar')
+      .select('id')
+      .eq('id', id)
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
+
+    if (findErr) throw findErr
+    if (!existing) throw ApiError.notFound('Fatura bulunamadı')
+
+    await supabaseAdmin
+      .from('cari_hareketler')
+      .delete()
+      .eq('kaynak_tipi', 'fatura')
+      .eq('kaynak_id', id)
+      .eq('proje_id', safeProjeId)
+
+    const { error } = await supabaseAdmin
+      .from('faturalar')
+      .delete()
+      .eq('id', id)
+      .eq('proje_id', safeProjeId)
     if (error) throw error
   }
 }
