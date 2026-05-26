@@ -8,6 +8,8 @@ import {
   NewProjectRole,
   ProjectRole,
 } from './projectAccessCache'
+import { supabaseAdmin } from '../config/supabase'
+import logger from '../utils/logger'
 
 /**
  * Proje-kapsamlı bir endpoint için kullanıcı erişim kontrolü.
@@ -65,10 +67,73 @@ function normalizeRequiredRole(role: RequireProjectAccessRole): NewProjectRole {
   }
 }
 
+// Sprint desktop-offline-mode (2026-05-26):
+//   Mutation method'larında (POST/PUT/PATCH/DELETE) varsayılan olarak offline
+//   guard çalışır. Eğer aktif proje çevrimdışı moddaysa ve çağıran kullanıcı
+//   offline_mode_owner_id değilse 403 + Türkçe mesaj döner.
+//
+//   Bu davranış default açıktır; özel route'lar (örn. /projeler/:id/offline-mode
+//   toggle endpoint'i) `{ skipOfflineCheck: true }` ile devre dışı bırakabilir.
+//   Toggle endpoint'i kendisi offline_mode'u DEĞİŞTİRDİĞİ için kilitlenmemeli;
+//   aksi halde owner online'a dönüş yapamaz (chicken-and-egg).
+//
+//   In-memory cache (30sn TTL) — controller toggle yaptıktan sonra
+//   invalidateOfflineGuardCache(projeId) çağrılarak invalide edilebilir
+//   (requireWritableProject.ts'deki ayrı cache ile aynı amaç; ileride tek
+//   modülde birleştirilebilir, V2).
+interface OfflineState {
+  offline_mode: boolean
+  offline_mode_owner_id: string | null
+  cachedAt: number
+}
+
+const offlineGuardCache = new Map<string, OfflineState>()
+const OFFLINE_TTL_MS = 30 * 1000
+const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+
+export function invalidateOfflineGuardCache(projeId: string): void {
+  offlineGuardCache.delete(projeId)
+}
+
+async function readOfflineState(projeId: string): Promise<OfflineState> {
+  const cached = offlineGuardCache.get(projeId)
+  if (cached && Date.now() - cached.cachedAt < OFFLINE_TTL_MS) {
+    return cached
+  }
+  const { data, error } = await supabaseAdmin
+    .from('projeler')
+    .select('offline_mode, offline_mode_owner_id')
+    .eq('id', projeId)
+    .maybeSingle()
+  if (error) {
+    logger.warn('requireProjectAccess offline guard: state okuma hatası', {
+      projeId,
+      error: error.message,
+    })
+    // Defansif: state okunamazsa "online" varsayıp normal akışa devam.
+    // Yanlış pozitif 403 vermektense gerçek mutation'ı RLS'e bırak.
+    return { offline_mode: false, offline_mode_owner_id: null, cachedAt: Date.now() }
+  }
+  const state: OfflineState = {
+    offline_mode: Boolean(data?.offline_mode),
+    offline_mode_owner_id: data?.offline_mode_owner_id ?? null,
+    cachedAt: Date.now(),
+  }
+  offlineGuardCache.set(projeId, state)
+  return state
+}
+
+export interface RequireProjectAccessOptions {
+  /** true ise offline_mode guard atlanır. Toggle endpoint'i için kullanılır. */
+  skipOfflineCheck?: boolean
+}
+
 export function requireProjectAccess(
   minRole: RequireProjectAccessRole = 'user',
+  options: RequireProjectAccessOptions = {},
 ): RequestHandler {
   const required = normalizeRequiredRole(minRole)
+  const skipOfflineCheck = options.skipOfflineCheck === true
 
   return async (req, _res, next) => {
     try {
@@ -104,6 +169,7 @@ export function requireProjectAccess(
 
       // Legacy: Global admin → projeye 'owner' seviyesinde erişim. Faz 3'te
       // kaldırılacak (proje-bazlı owner üyeliği zaten her projede mevcut olacak).
+      // Offline guard: global admin'i atlat — incident response erişimi korunsun.
       if (req.userRole === 'admin') {
         req.projectRole = 'owner' as ProjectRole
         return next()
@@ -126,6 +192,22 @@ export function requireProjectAccess(
       }
 
       req.projectRole = normalizedActual as ProjectRole
+
+      // Sprint desktop-offline-mode (2026-05-26): offline_mode guard.
+      // Mutation method ise ve route skipOfflineCheck ile opt-out etmediyse,
+      // proje offline'da ve çağıran owner değilse 403.
+      const isMutation = MUTATION_METHODS.has((req.method || '').toUpperCase())
+      if (!skipOfflineCheck && isMutation) {
+        const state = await readOfflineState(projeId)
+        if (state.offline_mode && state.offline_mode_owner_id !== req.user.id) {
+          return next(
+            ApiError.forbidden(
+              'Bu proje çevrimdışı modda — proje sahibi tekrar açana kadar değişiklik yapılamaz, yalnızca görüntüleyebilirsiniz.'
+            )
+          )
+        }
+      }
+
       return next()
     } catch (err) {
       return next(err)

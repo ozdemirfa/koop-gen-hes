@@ -106,7 +106,12 @@ router.delete('/:id', requireProjectAccess('owner'), validate({ body: kaliciSilP
 //    için desktop client absolute backend URL'sine ulaşır).
 router.patch(
   '/:id/offline-mode',
-  requireProjectAccess('owner'),
+  // Sprint desktop-offline-mode (2026-05-26): skipOfflineCheck zorunlu —
+  // toggle endpoint kendisi offline state'i DEĞİŞTİRİYOR. Default offline
+  // guard buradayken owner offline'a aldıktan sonra "online'a dön" çağrısı
+  // yapamazdı (chicken-and-egg). Owner kontrolü zaten yapılıyor; ekstra
+  // offline guard değişimi engelleyemez.
+  requireProjectAccess('owner', { skipOfflineCheck: true }),
   validate({ body: offlineModeSchema }),
   projelerController.setOfflineMode,
 )
