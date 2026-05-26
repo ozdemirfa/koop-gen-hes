@@ -1,7 +1,7 @@
 import { supabaseAdmin } from '../config/supabase'
 import { ApiError } from '../utils/ApiError'
 import { parsePagination, toSupabaseRange, paginationMeta } from '../utils/pagination'
-import { requireProjeId } from '../utils/projectGuard'
+import { requireProjeId, sanitizeSearchInput } from '../utils/projectGuard'
 import logger from '../utils/logger'
 
 export const firmaService = {
@@ -18,7 +18,11 @@ export const firmaService = {
     // Firmalar artık global, listelemede proje_id filtresi kaldırıldı
     if (query.firma_tipi) q = q.eq('firma_tipi', query.firma_tipi)
     if (query.aktif !== undefined) q = q.eq('aktif', query.aktif === 'true')
-    if (query.search) q = q.ilike('unvan', `%${query.search}%`)
+    // Sprint security-quality-audit 2026-05-26: search input sanitize
+    if (query.search) {
+      const safe = sanitizeSearchInput(query.search)
+      if (safe) q = q.ilike('unvan', `%${safe}%`)
+    }
 
     const { data, error, count } = await q
       .order('unvan')

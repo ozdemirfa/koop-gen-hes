@@ -1,7 +1,7 @@
 import { supabaseAdmin } from '../config/supabase'
 import { ApiError } from '../utils/ApiError'
 import { parsePagination, toSupabaseRange, paginationMeta } from '../utils/pagination'
-import { requireProjeId } from '../utils/projectGuard'
+import { requireProjeId, sanitizeSearchInput } from '../utils/projectGuard'
 import logger from '../utils/logger'
 
 export const uyeService = {
@@ -41,8 +41,15 @@ export const uyeService = {
       q = q.not('serefiye_id', 'is', null)
     }
 
+    // Sprint security-quality-audit (2026-05-26):
+    // User input PostgREST OR string'ine doğrudan gömülemez — `,` `%` `*` gibi
+    // karakterler delimiter/wildcard işlevi görüp pattern'i bozar veya geniş
+    // eşleşme üretir. sanitizeSearchInput tehlikeli karakterleri strip eder.
     if (query.search) {
-      q = q.or(`ad.ilike.%${query.search}%,soyad.ilike.%${query.search}%,uye_no.ilike.%${query.search}%`)
+      const safe = sanitizeSearchInput(query.search)
+      if (safe) {
+        q = q.or(`ad.ilike.%${safe}%,soyad.ilike.%${safe}%,uye_no.ilike.%${safe}%`)
+      }
     }
 
     const { data, error, count } = await q

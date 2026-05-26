@@ -57,3 +57,29 @@ export function requireProjeId(projeId: string | undefined | null): string {
   }
   return trimmed
 }
+
+/**
+ * PostgREST `.or()`/`.ilike()` arama input'u için güvenli escape helper.
+ *
+ * Sprint security-quality-audit (2026-05-26):
+ * `q.or(`ad.ilike.%${query.search}%,...`)` paterni user input'u doğrudan
+ * PostgREST OR string'ine gömüyordu. `,`, `(`, `)`, `%`, `_`, `*`, `\` gibi
+ * karakterler OR delimiter veya LIKE wildcard işlevi görüp pattern'i bozar
+ * veya beklenmedik geniş eşleşme üretir.
+ *
+ * Çözüm: kullanıcı girişinden tehlikeli karakterleri strip et (whitelist
+ * yaklaşımı yerine blacklist — Türkçe karakterler ve aksanlı harfler korunur).
+ *
+ * Returns: sanitize edilmiş string (max 100 karakter).
+ */
+export function sanitizeSearchInput(input: unknown): string {
+  if (typeof input !== 'string') return ''
+  // Tehlikeli karakterler: PostgREST OR delimiter ',', parens '()', LIKE wildcards
+  // '%' '_', glob '*', escape '\', quote '"' "'", semicolon ';', newline.
+  // Türkçe (ş ç ğ ü ö ı İ vb.) + boşluk + tire/nokta korunur.
+  const cleaned = input
+    .replace(/[,()%_*\\";'\r\n\t\0]/g, '')
+    .trim()
+  // DoS koruması: max 100 karakter
+  return cleaned.slice(0, 100)
+}

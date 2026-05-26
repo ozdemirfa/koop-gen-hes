@@ -2,7 +2,7 @@ import { supabaseAdmin } from '../config/supabase'
 import { ApiError } from '../utils/ApiError'
 import { parsePagination, toSupabaseRange, paginationMeta } from '../utils/pagination'
 import { makeAidatSonOdemeTarihi } from '../utils/formatters'
-import { requireProjeId } from '../utils/projectGuard'
+import { requireProjeId, sanitizeSearchInput } from '../utils/projectGuard'
 import logger from '../utils/logger'
 import { cariHesapService } from './cariHesap.service'
 
@@ -246,9 +246,12 @@ export const aidatService = {
     if (query.durum) q = q.eq('durum', String(query.durum))
     if (query.blok_id) q = q.eq('filter_blok_id', query.blok_id)
     
-    // Üye adı/soyadı/no araması
+    // Sprint security-quality-audit (2026-05-26): search input sanitize.
     if (query.uye_adi) {
-      q = q.or(`ad.ilike.%${query.uye_adi}%,soyad.ilike.%${query.uye_adi}%,uye_no.ilike.%${query.uye_adi}%`)
+      const safe = sanitizeSearchInput(query.uye_adi)
+      if (safe) {
+        q = q.or(`ad.ilike.%${safe}%,soyad.ilike.%${safe}%,uye_no.ilike.%${safe}%`)
+      }
     }
     
     // Daire atama durumuna göre filtreleme
@@ -258,9 +261,10 @@ export const aidatService = {
       q = q.not('uye_id', 'is', null)
     }
     
-    // Daire no araması
+    // Daire no araması — security-quality-audit 2026-05-26 sanitize
     if (query.daire_no) {
-      q = q.ilike('daire_no', `%${query.daire_no}%`)
+      const safeDaire = sanitizeSearchInput(query.daire_no)
+      if (safeDaire) q = q.ilike('daire_no', `%${safeDaire}%`)
     }
 
     if (query.yil) q = q.eq('yil', parseInt(query.yil))
