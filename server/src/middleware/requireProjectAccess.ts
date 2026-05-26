@@ -10,6 +10,16 @@ import {
 } from './projectAccessCache'
 import { supabaseAdmin } from '../config/supabase'
 import logger from '../utils/logger'
+import cache from '../lib/cache'
+
+// Sprint V2 — Redis cache hot-swap (2026-05-26):
+//   offline_mode durumu artık in-memory Map yerine cache.ts wrapper üzerinden
+//   saklanır. REDIS_URL yoksa davranış birebir aynı (in-memory fallback),
+//   REDIS_URL set ise cross-instance tutarlılık sağlanır.
+const CACHE_TTL_SECONDS = 30
+function offlineKey(projeId: string): string {
+  return `offline:${projeId}`
+}
 
 /**
  * Proje-kapsamlı bir endpoint için kullanıcı erişim kontrolü.
@@ -77,29 +87,35 @@ function normalizeRequiredRole(role: RequireProjectAccessRole): NewProjectRole {
 //   Toggle endpoint'i kendisi offline_mode'u DEĞİŞTİRDİĞİ için kilitlenmemeli;
 //   aksi halde owner online'a dönüş yapamaz (chicken-and-egg).
 //
-//   In-memory cache (30sn TTL) — controller toggle yaptıktan sonra
-//   invalidateOfflineGuardCache(projeId) çağrılarak invalide edilebilir
-//   (requireWritableProject.ts'deki ayrı cache ile aynı amaç; ileride tek
-//   modülde birleştirilebilir, V2).
+//   V2: cache.ts hot-swap wrapper — REDIS_URL varsa Redis, yoksa in-memory Map.
+//   Cross-instance invalidation pub/sub ile sağlanır.
 interface OfflineState {
   offline_mode: boolean
   offline_mode_owner_id: string | null
-  cachedAt: number
 }
 
-const offlineGuardCache = new Map<string, OfflineState>()
-const OFFLINE_TTL_MS = 30 * 1000
 const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
+/** Toggle endpoint'i çağrıldıktan sonra cache'i invalide eder. */
 export function invalidateOfflineGuardCache(projeId: string): void {
-  offlineGuardCache.delete(projeId)
+  // Fire-and-forget: invalidate async ama void context'te çalışır.
+  // Redis hatasında log'a düşer; uygulama flow'unu kesmez.
+  cache.invalidate(offlineKey(projeId)).catch((err) => {
+    logger.warn('requireProjectAccess: cache invalidate hatası', {
+      projeId,
+      err: String(err),
+    })
+  })
 }
 
 async function readOfflineState(projeId: string): Promise<OfflineState> {
-  const cached = offlineGuardCache.get(projeId)
-  if (cached && Date.now() - cached.cachedAt < OFFLINE_TTL_MS) {
-    return cached
+  // Önce cache'e bak
+  const cachedRaw = await cache.get(offlineKey(projeId))
+  if (cachedRaw !== undefined) {
+    return cachedRaw as OfflineState
   }
+
+  // Cache miss → DB'den oku
   const { data, error } = await supabaseAdmin
     .from('projeler')
     .select('offline_mode, offline_mode_owner_id')
@@ -112,14 +128,13 @@ async function readOfflineState(projeId: string): Promise<OfflineState> {
     })
     // Defansif: state okunamazsa "online" varsayıp normal akışa devam.
     // Yanlış pozitif 403 vermektense gerçek mutation'ı RLS'e bırak.
-    return { offline_mode: false, offline_mode_owner_id: null, cachedAt: Date.now() }
+    return { offline_mode: false, offline_mode_owner_id: null }
   }
   const state: OfflineState = {
     offline_mode: Boolean(data?.offline_mode),
     offline_mode_owner_id: data?.offline_mode_owner_id ?? null,
-    cachedAt: Date.now(),
   }
-  offlineGuardCache.set(projeId, state)
+  await cache.set(offlineKey(projeId), state, CACHE_TTL_SECONDS)
   return state
 }
 

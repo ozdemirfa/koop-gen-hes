@@ -9,6 +9,7 @@ import logger from './utils/logger'
 import apiRoutes from './routes/index'
 import publicInvitationsRoutes from './routes/publicInvitations.routes'
 import { errorHandler } from './middleware/errorHandler'
+import cache from './lib/cache'
 
 const app = express()
 const port = process.env.PORT || 3001
@@ -77,6 +78,14 @@ app.use(morgan(morganFormat, {
   stream: { write: (msg: string) => logger.info(msg.trim()) },
 }))
 
+// === HEALTH ===
+// GET /api/health — auth gerektirmez; Redis bağlantı durumunu da yansıtır.
+// Sprint V2 redis-cache-hot-swap (2026-05-26).
+app.get('/api/health', async (_req: Request, res: Response) => {
+  const redisStatus = await cache.health()
+  res.json({ ok: true, redis: redisStatus })
+})
+
 // Public invitation endpoint'leri — authMiddleware'i bypass eder.
 // /api/invitations/by-token/:token + /api/invitations/accept-by-token
 // IP rate-limit middleware (5/dk + 30/saat) içeride uygulanır.
@@ -98,9 +107,27 @@ app.use((req, res) => {
 app.use(errorHandler)
 
 if (process.env.NODE_ENV !== 'test' && (process.env.NODE_ENV !== 'production' || !process.env.VERCEL)) {
-  app.listen(port, () => {
-    logger.info(`[server]: Server is running at http://localhost:${port}`)
-  })
+  // Cache init — Redis bağlantısı REDIS_URL varsa kurulur; yoksa no-op.
+  cache.init()
+    .then(() => {
+      logger.info('[cache]: initialized')
+      app.listen(port, () => {
+        logger.info(`[server]: Server is running at http://localhost:${port}`)
+      })
+    })
+    .catch((err) => {
+      logger.error('[cache]: init failed', { err: String(err) })
+      process.exit(1)
+    })
+
+  // Graceful shutdown — connection leak önleme
+  const shutdown = async (signal: string) => {
+    logger.info(`[server]: ${signal} received, shutting down gracefully`)
+    await cache.shutdown()
+    process.exit(0)
+  }
+  process.on('SIGTERM', () => shutdown('SIGTERM'))
+  process.on('SIGINT', () => shutdown('SIGINT'))
 }
 
 export default app
