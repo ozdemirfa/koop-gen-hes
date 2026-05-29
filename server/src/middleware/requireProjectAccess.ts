@@ -169,7 +169,9 @@ export function requireProjectAccess(
       //   Global master-data route'ları (firmalar vb.) body/query'de proje_id
       //   taşımıyor; ama offline guard için aktif proje bilinmeli. Frontend
       //   interceptor `X-Active-Project-Id` header'ı her istekte gönderiyor.
-      const headerProjeId = req.headers['x-active-project-id']
+      //   `req.headers?` — birim testleri partial mock gönderir, üretimde Express
+      //   her zaman doldurur.
+      const headerProjeId = req.headers?.['x-active-project-id']
       const headerProjeIdStr = Array.isArray(headerProjeId) ? headerProjeId[0] : headerProjeId
 
       const projeIdRaw =
