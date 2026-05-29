@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Button, Modal, Form, Input, Space, Select, App, Typography } from 'antd'
+import { Button, Modal, Form, Input, Space, Select, App, Typography, Switch, Tag, Tooltip } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
@@ -8,6 +8,7 @@ import { usePageSettings } from '../../contexts/LayoutContext'
 import { ConfirmDelete } from '../../components/common/ConfirmDelete'
 import { DataTable } from '../../components/common/DataTable'
 import { usePermissions } from '../../hooks/usePermissions'
+import { useAuth } from '../../contexts/AuthContext'
 
 interface Poz {
   id: string
@@ -15,6 +16,7 @@ interface Poz {
   tanim: string
   birim_id?: string
   birimler?: { ad: string }
+  kullanici_id: string | null
 }
 
 export const PozListPage: React.FC = () => {
@@ -23,10 +25,12 @@ export const PozListPage: React.FC = () => {
   const [form] = Form.useForm()
   const queryClient = useQueryClient()
   const { message: messageApi } = App.useApp()
-  // Poz — sistem genelinde paylaşılan global tanım.
-  //   Ekleme       : admin + yetkili + isManager (canCreateGlobalDefs)
-  //   Düzenle/Sil  : yalnız sistem admin (canManageGlobalDefs)
+  // Sprint birim-poz-user-scope (2026-05-27):
+  //   Hibrit model — herkes kişisel poz ekleyebilir; global ekleme yetki gerektirir.
+  //   Sil/Düzenle: admin tüm kayıtlar; non-admin yalnız kendi kayıtları.
   const { canCreateGlobalDefs, canManageGlobalDefs } = usePermissions()
+  const { user } = useAuth()
+  const currentUserId = user?.id ?? null
 
   usePageSettings('Pozlar')
 
@@ -42,14 +46,16 @@ export const PozListPage: React.FC = () => {
     queryKey: ['settings-birimler'],
     queryFn: async () => {
       const { data } = await api.get('/settings/birimler')
-      return data.data as { id: string, ad: string }[]
+      return data.data as { id: string, ad: string, kullanici_id: string | null }[]
     }
   })
 
   const saveMutation = useMutation({
     mutationFn: async (values: any) => {
       if (editingPoz) {
-        return api.put(`/settings/pozlar/${editingPoz.id}`, values)
+        // Update'te is_global readonly — backend zaten drop ediyor; yine de gönderme
+        const { is_global, ...rest } = values
+        return api.put(`/settings/pozlar/${editingPoz.id}`, rest)
       }
       return api.post('/settings/pozlar', values)
     },
@@ -93,9 +99,26 @@ export const PozListPage: React.FC = () => {
     return formatted;
   }
 
+  /**
+   * Kullanıcı bu kaydı düzenleyebilir/silebilir mi?
+   *  - admin (canManageGlobalDefs) tüm kayıtlar
+   *  - non-admin yalnız kendi (kullanici_id = currentUserId) kayıtları
+   */
+  const canEditRecord = (record: Poz): boolean => {
+    if (canManageGlobalDefs) return true
+    return !!currentUserId && record.kullanici_id === currentUserId
+  }
+
   const handleEdit = (record: Poz) => {
     setEditingPoz(record)
     form.setFieldsValue(record)
+    setModalVisible(true)
+  }
+
+  const handleNewClick = () => {
+    setEditingPoz(null)
+    form.resetFields()
+    form.setFieldValue('is_global', false)
     setModalVisible(true)
   }
 
@@ -104,30 +127,50 @@ export const PozListPage: React.FC = () => {
     { title: 'Tanım', dataIndex: 'tanim', key: 'tanim' },
     { title: 'Birim', key: 'birim', width: 120, render: (_: any, r: Poz) => r.birimler?.ad || '-' },
     {
+      title: 'Kapsam',
+      key: 'scope',
+      width: 110,
+      render: (_: any, record: Poz) =>
+        record.kullanici_id === null ? (
+          <Tag color="blue">Genel</Tag>
+        ) : (
+          <Tag color="green">Kişisel</Tag>
+        ),
+    },
+    {
       title: 'İşlem',
       key: 'action',
       width: 120,
-      render: (_: any, record: Poz) => (
-        <Space>
-          <Button
-            icon={<EditOutlined />}
-            type="text"
-            onClick={() => handleEdit(record)}
-            disabled={!canManageGlobalDefs}
-            title={!canManageGlobalDefs ? 'Yalnız sistem admin düzenleyebilir' : undefined}
-          />
-          {canManageGlobalDefs ? (
-            <ConfirmDelete
-              title="Pozu silmek istediğinize emin misiniz?"
-              onConfirm={() => deleteMutation.mutate(record.id)}
-            >
-              <Button icon={<DeleteOutlined />} type="text" danger />
-            </ConfirmDelete>
-          ) : (
-            <Button icon={<DeleteOutlined />} type="text" danger disabled title="Yalnız sistem admin silebilir" />
-          )}
-        </Space>
-      )
+      render: (_: any, record: Poz) => {
+        const allowed = canEditRecord(record)
+        const tooltipText =
+          record.kullanici_id === null
+            ? 'Genel pozları yalnız sistem admin düzenleyebilir'
+            : 'Bu kayıt başka bir kullanıcıya ait'
+        return (
+          <Space>
+            {allowed ? (
+              <Button icon={<EditOutlined />} type="text" onClick={() => handleEdit(record)} />
+            ) : (
+              <Tooltip title={tooltipText}>
+                <Button icon={<EditOutlined />} type="text" disabled />
+              </Tooltip>
+            )}
+            {allowed ? (
+              <ConfirmDelete
+                title="Pozu silmek istediğinize emin misiniz?"
+                onConfirm={() => deleteMutation.mutate(record.id)}
+              >
+                <Button icon={<DeleteOutlined />} type="text" danger />
+              </ConfirmDelete>
+            ) : (
+              <Tooltip title={tooltipText}>
+                <Button icon={<DeleteOutlined />} type="text" danger disabled />
+              </Tooltip>
+            )}
+          </Space>
+        )
+      }
     }
   ]
 
@@ -137,17 +180,14 @@ export const PozListPage: React.FC = () => {
         <Button
           type="primary"
           icon={<PlusOutlined />}
-          onClick={() => setModalVisible(true)}
-          disabled={!canCreateGlobalDefs}
-          title={!canCreateGlobalDefs ? 'Yetki yok (yetkili/yönetici/admin gerekli)' : undefined}
+          onClick={handleNewClick}
         >
           Yeni Poz Ekle
         </Button>
-        {!canCreateGlobalDefs && (
-          <Typography.Text type="secondary">
-            Poz ekleme ya da düzenleme için proje yetkilisine başvurunuz.
-          </Typography.Text>
-        )}
+        <Typography.Text type="secondary">
+          Kişisel poz her kullanıcıya açıktır; yalnız sahibi görür.
+          {canCreateGlobalDefs && ' Genel pozu tüm kullanıcılar görür.'}
+        </Typography.Text>
       </div>
 
       <DataTable
@@ -168,7 +208,13 @@ export const PozListPage: React.FC = () => {
         destroyOnHidden
         width="min(520px, 95vw)"
       >
-        <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)} validateTrigger={["onBlur", "onChange"]} disabled={editingPoz ? !canManageGlobalDefs : !canCreateGlobalDefs}>
+        <Form
+          form={form}
+          layout="vertical"
+          initialValues={{ is_global: false }}
+          onFinish={(v) => saveMutation.mutate(v)}
+          validateTrigger={["onBlur", "onChange"]}
+        >
           <Form.Item
             name="poz_no"
             label="Poz No"
@@ -188,6 +234,17 @@ export const PozListPage: React.FC = () => {
               {birimler?.map(b => <Select.Option key={b.id} value={b.id}>{b.ad}</Select.Option>)}
             </Select>
           </Form.Item>
+          {/* is_global yalnız yeni kayıt + global ekleme yetkisi varsa görünür */}
+          {!editingPoz && canCreateGlobalDefs && (
+            <Form.Item
+              name="is_global"
+              label="Kapsam"
+              valuePropName="checked"
+              tooltip="Genel pozu tüm kullanıcılar görür; kişisel yalnız sahibine"
+            >
+              <Switch checkedChildren="Genel" unCheckedChildren="Kişisel" />
+            </Form.Item>
+          )}
         </Form>
       </Modal>
     </div>
