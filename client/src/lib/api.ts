@@ -28,6 +28,15 @@ api.interceptors.request.use(async (config) => {
   // burada ek defansif kontrol gereksiz (length kontrolü güvenlik amaçlı kalır).
   const activeProjectId = getActiveProjectId()
 
+  // Sprint firmalar-offline-lock (2026-05-26):
+  //   Global master-data route'ları (firmalar vb.) body/query'de proje_id
+  //   taşımıyor ama backend offline guard aktif proje'yi bilmek istiyor.
+  //   X-Active-Project-Id header'ını her istekte gönder. Header'ı body/query
+  //   override etmez — middleware son fallback olarak okur.
+  if (activeProjectId) {
+    config.headers['X-Active-Project-Id'] = activeProjectId
+  }
+
   const isProjeEndpoint = config.url?.includes('/projeler')
   const isGlobalEndpoint =
     config.url?.includes('/firmalar') ||
