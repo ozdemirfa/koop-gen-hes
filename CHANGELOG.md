@@ -3,6 +3,12 @@
 Bu dosya kullanıcı yüzü değişiklikleri kapsar. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versiyonlama: sprint adı + tarih.
 
+## [Unreleased]
+
+### Güvenlik
+- **RLS offline_mode coverage tamamlandı (7 tablo):** Prod audit'te tespit edilen gap kapatıldı. `cari_hesaplar`, `irsaliyeler`, `birikmis_teminatlar`, `serefiye_tablosu`, `yillik_harcama_planlari` (proje_id direkt) ve `fatura_kalemleri`, `irsaliye_kalemleri` (parent join) tablolarına `_offline_lock_ins/upd/del` policy'leri eklendi. Smoking gun: `faturalar` parent INSERT korumalıyken `fatura_kalemleri` child INSERT bloklenmıyordu — kapatıldı.
+- **Kapsam dışı (tasarım kararı):** `firmalar`, `birimler`, `pozlar` global tablolar; proje_id yok, per-proje offline lock uygulanamaz.
+
 ## [role-system-v2] — 2026-05-20
 
 Proje-bazlı 3 rol modeline (owner / manager / user) geçiş + şifre yenileme akışları.
