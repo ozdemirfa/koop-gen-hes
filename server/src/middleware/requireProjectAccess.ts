@@ -165,12 +165,20 @@ export function requireProjectAccess(
       // mount path'iyle bitiyorsa devreye alıyoruz.
       const isProjeAnchorMount = req.baseUrl?.endsWith('/projeler') ?? false
 
+      // Header fallback (Sprint firmalar-offline-lock, 2026-05-26):
+      //   Global master-data route'ları (firmalar vb.) body/query'de proje_id
+      //   taşımıyor; ama offline guard için aktif proje bilinmeli. Frontend
+      //   interceptor `X-Active-Project-Id` header'ı her istekte gönderiyor.
+      const headerProjeId = req.headers['x-active-project-id']
+      const headerProjeIdStr = Array.isArray(headerProjeId) ? headerProjeId[0] : headerProjeId
+
       const projeIdRaw =
         (req.body && (req.body.proje_id ?? req.body.projeId)) ??
         (req.query && (req.query.proje_id ?? req.query.projeId)) ??
         req.params?.projeId ??
         req.params?.proje_id ??
-        (isProjeAnchorMount ? req.params?.id : undefined)
+        (isProjeAnchorMount ? req.params?.id : undefined) ??
+        headerProjeIdStr
 
       const projeId = typeof projeIdRaw === 'string' ? projeIdRaw.trim() : ''
       if (!projeId || projeId === 'null' || projeId === 'undefined') {
