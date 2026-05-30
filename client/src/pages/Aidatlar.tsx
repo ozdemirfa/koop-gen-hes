@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Button, Modal, Form, InputNumber, Select, message, Card, Typography, Tag, Space, DatePicker, Input, Row, Col, Statistic, App, Popconfirm, Tooltip } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, DollarCircleOutlined, CalculatorOutlined, HistoryOutlined, WalletOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, DollarCircleOutlined, CalculatorOutlined, HistoryOutlined, WalletOutlined, RollbackOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api from '../lib/api'
@@ -87,7 +87,7 @@ export const Aidatlar: React.FC = () => {
 
   const queryClient = useQueryClient()
   const { activeProject } = useProject()
-  const { canEdit } = usePermissions()
+  const { canEdit, canDelete } = usePermissions()
   const { message: messageApi } = App.useApp()
 
   // OC-07 (sprint 20260511-ui-responsive-sprint extension):
@@ -233,6 +233,52 @@ export const Aidatlar: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['aidatlar'] })
     },
     onError: (err) => messageApi.error(getErrorMessage(err, 'Borçlandırma hatası'))
+  })
+
+  // Mutation: Aidat Tanımı Sil (yalnızca 'plan' durumunda)
+  const deleteTanimMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.delete(`/aidatlar/tanimlar/${id}`)
+      return data
+    },
+    onSuccess: () => {
+      messageApi.success('Aidat tanımı silindi')
+      queryClient.invalidateQueries({ queryKey: ['aidat-tanimlari'] })
+    },
+    onError: (err) => messageApi.error(getErrorMessage(err, 'Tanım silinemedi')),
+  })
+
+  // Mutation: Borçlandırmayı Geri Al (tanım → 'plan'a döner, ödeme yoksa)
+  const unchargeMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.post(`/aidatlar/tanimlar/${id}/borclandirma-geri-al`)
+      return data
+    },
+    onSuccess: () => {
+      messageApi.success('Borçlandırma geri alındı. Tanım artık düzenlenebilir/silinebilir.')
+      queryClient.invalidateQueries({ queryKey: ['aidat-tanimlari'] })
+      queryClient.invalidateQueries({ queryKey: ['aidatlar'] })
+      queryClient.invalidateQueries({ queryKey: ['aidat-ozet'] })
+      queryClient.invalidateQueries({ queryKey: ['cari-ekstre'] })
+      queryClient.invalidateQueries({ queryKey: ['cari-hareketler'] })
+    },
+    onError: (err) => messageApi.error(getErrorMessage(err, 'Borçlandırma geri alınamadı')),
+  })
+
+  // Mutation: Tekil aidat satırı sil (ödeme yoksa)
+  const deleteAidatMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.delete(`/aidatlar/${id}`)
+      return data
+    },
+    onSuccess: () => {
+      messageApi.success('Aidat kaydı silindi')
+      queryClient.invalidateQueries({ queryKey: ['aidatlar'] })
+      queryClient.invalidateQueries({ queryKey: ['aidat-ozet'] })
+      queryClient.invalidateQueries({ queryKey: ['cari-ekstre'] })
+      queryClient.invalidateQueries({ queryKey: ['cari-hareketler'] })
+    },
+    onError: (err) => messageApi.error(getErrorMessage(err, 'Aidat silinemedi')),
   })
 
   // Mutation: Faiz Toggle (Ekle/Sil)
@@ -612,6 +658,37 @@ export const Aidatlar: React.FC = () => {
         )
       },
     },
+    {
+      title: 'İşlem',
+      key: 'action',
+      width: 70,
+      align: 'center' as const,
+      render: (_: any, r: Aidat) => {
+        const odenmis = Number(r.dinamik_odenen_tutar || 0) > 0
+        return (
+          <Popconfirm
+            title="Aidatı Sil"
+            description="Bu aidat kaydı (ve tahakkuku) silinecek. Ödeme eşleştirmesi yapılmışsa işlem reddedilir. Emin misiniz?"
+            onConfirm={() => deleteAidatMutation.mutate(r.id)}
+            okText="Evet, Sil"
+            cancelText="Vazgeç"
+            okButtonProps={{ danger: true }}
+            disabled={!canDelete || odenmis}
+          >
+            <Tooltip title={!canDelete ? 'Yetki yok (manager+ gerekli)' : odenmis ? 'Ödeme yapılmış — önce eşleştirmeyi geri alın' : 'Aidatı Sil'}>
+              <Button
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                disabled={!canDelete || odenmis}
+                loading={deleteAidatMutation.isPending && deleteAidatMutation.variables === r.id}
+                aria-label="Aidatı sil"
+              />
+            </Tooltip>
+          </Popconfirm>
+        )
+      },
+    },
   ]
 
   const tanimColumns = [
@@ -641,6 +718,34 @@ export const Aidatlar: React.FC = () => {
             <Popconfirm title="Tüm aktif üyelere borç yansıtılacak. Emin misiniz?" onConfirm={() => chargeMutation.mutate(r.id)}>
               <Tooltip title="Aidat Borçlandır">
                 <Button size="small" type="primary" icon={<DollarCircleOutlined />} loading={chargeMutation.isPending} />
+              </Tooltip>
+            </Popconfirm>
+          )}
+          {r.durum === 'plan' && canDelete && (
+            <Popconfirm
+              title="Tanımı Sil"
+              description="Bu aidat tanımı silinecek. Emin misiniz?"
+              onConfirm={() => deleteTanimMutation.mutate(r.id)}
+              okText="Evet, Sil"
+              cancelText="Vazgeç"
+              okButtonProps={{ danger: true }}
+            >
+              <Tooltip title="Tanımı Sil">
+                <Button size="small" danger icon={<DeleteOutlined />} loading={deleteTanimMutation.isPending} />
+              </Tooltip>
+            </Popconfirm>
+          )}
+          {r.durum === 'borclandi' && canDelete && (
+            <Popconfirm
+              title="Borçlandırmayı Geri Al"
+              description="Bu aya ait tüm aidat tahakkukları kaldırılır ve tanım düzenlenebilir hale gelir. Ödeme eşleştirmesi yapılmışsa işlem reddedilir. Devam edilsin mi?"
+              onConfirm={() => unchargeMutation.mutate(r.id)}
+              okText="Evet, Geri Al"
+              cancelText="Vazgeç"
+              okButtonProps={{ danger: true }}
+            >
+              <Tooltip title="Borçlandırmayı Geri Al">
+                <Button size="small" danger icon={<RollbackOutlined />} loading={unchargeMutation.isPending} />
               </Tooltip>
             </Popconfirm>
           )}

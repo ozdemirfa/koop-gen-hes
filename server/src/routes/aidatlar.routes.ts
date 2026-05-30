@@ -20,6 +20,10 @@ const router = Router()
 // POST /api/aidatlar/tanimlar/:id/borclandir — manuel borçlandırma → manager
 router.post('/tanimlar/:id/borclandir', requireProjectAccess('manager'), aidatController.chargeTanim)
 
+// POST /api/aidatlar/tanimlar/:id/borclandirma-geri-al — borçlandırmayı geri al → manager.
+// Tanımı 'plan'a döndürür (ödeme eşleştirmesi yoksa). Sonra düzenle/sil mümkün olur.
+router.post('/tanimlar/:id/borclandirma-geri-al', requireProjectAccess('manager'), aidatController.unchargeTanim)
+
 router.get('/tanimlar', requireProjectAccess('user'), aidatController.getAidatTanimlari)
 router.post('/tanimlar', requireProjectAccess('user'), validate({ body: createAidatTanimiSchema }), aidatController.createAidatTanimi)
 router.post('/yillik-plan', requireProjectAccess('user'), validate({ body: yillikPlanSchema }), aidatController.createYillikPlan)
@@ -37,6 +41,10 @@ router.post('/gecikme-hesapla', requireProjectAccess('user'), aidatController.ca
 
 router.get('/', requireProjectAccess('user'), aidatController.getAidatlar)
 router.get('/:id', requireProjectAccess('user'), aidatController.getAidatById)
+
+// DELETE /api/aidatlar/:id — tekil aidat satırı sil → manager.
+// Ödeme eşleştirmesi yoksa siler; varsa 409 + yönlendirme mesajı.
+router.delete('/:id', requireProjectAccess('manager'), aidatController.deleteAidat)
 
 router.post('/:id/odeme', requireProjectAccess('user'), validate({ body: aidatOdemeSchema }), aidatController.recordPayment)
 router.post('/:id/gecikme-hesapla', requireProjectAccess('user'), aidatController.calculateSingleLateFee)

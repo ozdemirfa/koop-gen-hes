@@ -239,6 +239,40 @@ export const aidatTanimiService = {
     return data
   },
 
+  // Borçlandırmayı geri al (tanım/ay bazında). RPC fn_uncharge_aidat_tanimi tahakkuk/faiz
+  // cari hareketlerini + aidatları siler, tanımı 'plan'a döndürür. Ödeme eşleştirmesi
+  // varsa P0001 → 409. IDOR: tanım caller projesinde mi (updateTanim pattern'i).
+  async unchargeTanim(id: string, projeId: string, actorId?: string) {
+    const safeProjeId = requireProjeId(projeId)
+
+    const { data: existing } = await supabaseAdmin
+      .from('aidat_tanimlari')
+      .select('id')
+      .eq('id', id)
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
+    if (!existing) throw ApiError.notFound('Aidat tanımı bulunamadı')
+
+    const { data, error } = await supabaseAdmin.rpc('fn_uncharge_aidat_tanimi', {
+      p_tanim_id: id,
+      p_actor_id: actorId ?? null,
+    })
+
+    if (error) {
+      const code = (error as any).code
+      const message = (error as any).message ?? 'Borçlandırma geri alınamadı'
+      if (code === 'P0002') throw ApiError.notFound(message)
+      if (code === 'P0001') throw ApiError.conflict(message)
+      logger.error(`Borçlandırma geri alma hatası (ID: ${id}):`, error)
+      throw error
+    }
+
+    if (data?.success === false) throw ApiError.badRequest(data.message)
+
+    logger.info(`Aidat tanımı borçlandırması geri alındı: ${id}`)
+    return data
+  },
+
   // Geriye dönük uyumluluk için takma adlar.
   // IDOR fix 2026-05-26: alias'lar da projeId zorunlu (signature simetrisi).
   async create(body: any) { return this.createTanim(body) },
@@ -349,6 +383,39 @@ export const aidatService = {
       aidat_tanimlari: { yil: data.yil, ay: data.ay, tur: data.aidat_turu, katsayi_tutari: data.baz_tutar },
       serefiye_tablosu: { daire_no: data.daire_no, bloklar: { blok_adi: data.blok_adi }, serefiye_orani: data.serefiye_orani }
     }
+  },
+
+  // Tekil aidat satırı sil. RPC fn_delete_aidat_row tahakkuk/faiz cari hareketlerini de
+  // siler. Ödeme eşleştirmesi varsa P0001 → 409. IDOR: aidat caller projesinde mi.
+  async deleteAidat(id: string, projeId: string, actorId?: string) {
+    const safeProjeId = requireProjeId(projeId)
+
+    const { data: existing } = await supabaseAdmin
+      .from('aidat_detaylari')
+      .select('id')
+      .eq('id', id)
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
+    if (!existing) throw ApiError.notFound('Aidat bulunamadı')
+
+    const { data, error } = await supabaseAdmin.rpc('fn_delete_aidat_row', {
+      p_aidat_id: id,
+      p_actor_id: actorId ?? null,
+    })
+
+    if (error) {
+      const code = (error as any).code
+      const message = (error as any).message ?? 'Aidat silinemedi'
+      if (code === 'P0002') throw ApiError.notFound(message)
+      if (code === 'P0001') throw ApiError.conflict(message)
+      logger.error(`Aidat silme hatası (ID: ${id}):`, error)
+      throw error
+    }
+
+    if (data?.success === false) throw ApiError.badRequest(data.message)
+
+    logger.info(`Aidat satırı silindi: ${id}`)
+    return data
   },
 
   async recordPayment(aidatId: string, body: Record<string, any>, projeId: string, actorId?: string) {

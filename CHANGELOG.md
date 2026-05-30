@@ -6,7 +6,11 @@ Versiyonlama: sprint adı + tarih.
 ## [Unreleased]
 
 ### Eklendi
+- **Aidat hatalı girişleri artık düzeltilebilir/silinebilir:** Borçlandırılmış bir aidat tanımı için Aidat Tanımları sayfasına **"Borçlandırmayı Geri Al"** eklendi — o aya ait tahakkuklar kaldırılır ve tanım tekrar "plan" durumuna döner (düzenle/sil açılır). Ayrıca Aidat Listesi ve Üye Detay > Aidat Hesapları'nda **tekil aidat satırı silme** eklendi. Her iki işlem de yalnızca ilgili aidata **ödeme eşleştirmesi yapılmamışsa** çalışır; eşleştirme varsa işlem reddedilir ve kullanıcı önce "Tahsilat Eşleşmesini Geri Al" akışına yönlendirilir. Plan durumundaki tanımlar için "Sil" butonu da arayüze getirildi.
 - **Birimler ve Pozlar artık kişiselleştirilebilir (hibrit model):** Daha önce yalnızca global referans tablolar olan Birimler ve Pozlar'a artık her kullanıcı kendi tanımını ekleyebilir. NULL kapsam = global (admin/yetkili/manager ekler, herkese görünür), dolu = kişisel (yalnızca sahibine görünür). Listede "Kapsam" etiketi (Genel mavi / Kişisel yeşil) ve oluştururken "Genel/Kişisel" seçimi (yetkisi olanlara) gösterilir. Mevcut 9 birim + 200 poz global olarak korundu, geriye dönük uyumlu.
+
+### Değişti
+- **Aidat tutarları 100'e yukarı yuvarlanıyor (kuruşsuz):** Daire/üyeye yansıtılan aidat ana tutarı artık 100'ün katına **yukarı** yuvarlanır ve ondalık 0 olur (ör. 2.356,46 → 2.400,00). Yuvarlama hem üyeye yansıtılan tahakkukta hem gecikme faizinin taban tutarında uygulanır (faizin kendisi yine kuruşludur). Tüm hesaplama katmanları (borçlandırma, aidat görünümü, faiz hesapları, FIFO eşleştirme) tutarlı şekilde güncellendi. Not: önceden borçlandırılmış aidatlar yeni yuvarlamaya, ilgili tanım "Borçlandırmayı Geri Al → yeniden Borçlandır" ile yenilenerek geçer.
 
 ### Düzeltildi
 - **Üyelik başlangıç bedeli ödemesi listede yanlış üyeye birleşiyordu:** Para Hareketleri sayfasında, farklı üyelere ait aynı tarih/ödeme yöntemi/açıklamaya sahip "Başl. Bedeli" tahsilatları tek satırda, ilk üyenin adıyla ve tutarları toplanarak görünüyordu (kayıtlar veritabanında doğru üyeye yazılıyordu; sorun yalnızca görüntülemedeydi). FIFO parça birleştirme anahtarına (`groupCariParcalari`) `cari_hesap_id` eklenerek farklı cari'lerin asla birleşmemesi sağlandı. Regresyon için istemci tarafına vitest birim testi altyapısı kuruldu.
