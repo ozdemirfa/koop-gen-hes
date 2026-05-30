@@ -5,9 +5,13 @@ Versiyonlama: sprint adı + tarih.
 
 ## [Unreleased]
 
+### Eklendi
+- **Birimler ve Pozlar artık kişiselleştirilebilir (hibrit model):** Daha önce yalnızca global referans tablolar olan Birimler ve Pozlar'a artık her kullanıcı kendi tanımını ekleyebilir. NULL kapsam = global (admin/yetkili/manager ekler, herkese görünür), dolu = kişisel (yalnızca sahibine görünür). Listede "Kapsam" etiketi (Genel mavi / Kişisel yeşil) ve oluştururken "Genel/Kişisel" seçimi (yetkisi olanlara) gösterilir. Mevcut 9 birim + 200 poz global olarak korundu, geriye dönük uyumlu.
+
 ### Güvenlik
-- **RLS offline_mode coverage tamamlandı (7 tablo):** Prod audit'te tespit edilen gap kapatıldı. `cari_hesaplar`, `irsaliyeler`, `birikmis_teminatlar`, `serefiye_tablosu`, `yillik_harcama_planlari` (proje_id direkt) ve `fatura_kalemleri`, `irsaliye_kalemleri` (parent join) tablolarına `_offline_lock_ins/upd/del` policy'leri eklendi. Smoking gun: `faturalar` parent INSERT korumalıyken `fatura_kalemleri` child INSERT bloklenmıyordu — kapatıldı.
-- **Kapsam dışı (tasarım kararı):** `firmalar`, `birimler`, `pozlar` global tablolar; proje_id yok, per-proje offline lock uygulanamaz.
+- **RLS offline_mode coverage tamamlandı (toplam 22 tablo):** Prod audit'te tespit edilen gap kapatıldı. `cari_hesaplar`, `irsaliyeler`, `birikmis_teminatlar`, `serefiye_tablosu`, `yillik_harcama_planlari` (proje_id direkt) ve `fatura_kalemleri`, `irsaliye_kalemleri` (parent join) tablolarına `_offline_lock_ins/upd/del` policy'leri eklendi. Smoking gun: `faturalar` parent INSERT korumalıyken `fatura_kalemleri` child INSERT bloklenmıyordu — kapatıldı.
+- **Firmalar offline_mode yazma kilidi (middleware ile):** `firmalar` global tablo (proje_id yok) olduğu için per-proje RLS ile kilitlenemiyordu; offline projedeki non-owner kullanıcılar firma ekleyip güncelleyebiliyordu. POST/PUT route'larına `requireProjectAccess` middleware (X-Active-Project-Id header fallback) eklenerek server-side gating ile kapatıldı (defense in depth). GET serbest kaldı.
+- **Kapsam dışı (tasarım kararı):** `birimler`, `pozlar` global/kişisel hibrit tablolar; per-proje offline lock uygulanmaz (kişisel kayıtlar zaten sahibine özel, global kayıtlar yetki middleware'i ile korunur).
 
 ## [role-system-v2] — 2026-05-20
 
