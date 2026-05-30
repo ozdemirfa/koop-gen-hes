@@ -22,6 +22,8 @@ router.put('/:id', requireProjectAccess('manager'), validate({ body: updateHaked
 router.put('/:id/onayla', requireProjectAccess('manager'), hakedisController.approveHakedis)
 // Onay iptali finansal etki yaratır — manager+
 router.put('/:id/onay-iptal', requireProjectAccess('manager'), hakedisController.unapproveHakedis)
+// Hakediş silme — yıkıcı işlem (manager). Onaylı/ödenmiş hakediş service'te reddedilir.
+router.delete('/:id', requireProjectAccess('manager'), hakedisController.deleteHakedis)
 router.post('/:id/kalemler', requireProjectAccess('manager'), validate({ body: hakedisKalemlerBatchSchema }), hakedisController.updateKalemler)
 
 // Alternatif A: irsaliye → hakediş bağ kurma

@@ -10,6 +10,9 @@ export const createHakedisSchema = z.object({
 })
 
 export const updateHakedisSchema = z.object({
+  // proje_id interceptor tarafından body'ye enjekte edilir; validate strip etmesin diye
+  // şemada bulunmalı (yoksa extractProjeId boş döner → "proje_id zorunludur" 400).
+  proje_id: z.string().uuid().optional(),
   donem_baslangic: z.string().optional().nullable(),
   donem_bitis: z.string().optional().nullable(),
   diger_kesintiler: z.number().min(0).optional(),
@@ -25,5 +28,8 @@ export const hakedisKalemSchema = z.object({
 })
 
 export const hakedisKalemlerBatchSchema = z.object({
+  // proje_id interceptor tarafından body'ye enjekte edilir; validate strip etmesin diye
+  // şemada bulunmalı (yoksa extractProjeId boş döner → "proje_id zorunludur" 400).
+  proje_id: z.string().uuid().optional(),
   kalemler: z.array(hakedisKalemSchema).min(1, 'En az bir kalem gerekli')
 })
