@@ -256,7 +256,6 @@ export const FirmaListPage: React.FC = () => {
       dataIndex: 'unvan',
       key: 'unvan',
       sorter: true,
-      sortDirections: ['ascend', 'descend'] as const,
     },
     {
       title: 'Tip',
@@ -276,7 +275,6 @@ export const FirmaListPage: React.FC = () => {
       align: 'right' as const,
       width: 150,
       sorter: true,
-      sortDirections: ['ascend', 'descend'] as const,
       render: (v: number) => (
         <div style={{ 
           background: '#f0f9ff', 
@@ -296,7 +294,6 @@ export const FirmaListPage: React.FC = () => {
       align: 'right' as const,
       width: 150,
       sorter: true,
-      sortDirections: ['ascend', 'descend'] as const,
       render: (v: number) => (
         <div style={{
           background: '#f8fafc',
@@ -317,7 +314,6 @@ export const FirmaListPage: React.FC = () => {
       align: 'right' as const,
       width: 150,
       sorter: true,
-      sortDirections: ['ascend', 'descend'] as const,
       render: (v: number) => (
         <div style={{
           background: '#fff7ed',
