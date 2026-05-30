@@ -32,6 +32,7 @@ interface Firma {
   aktif: boolean
   guncel_bakiye?: number
   toplam_teminat?: number
+  fatura_acigi?: number
 }
 
 export const FirmaListPage: React.FC = () => {
@@ -45,6 +46,10 @@ export const FirmaListPage: React.FC = () => {
   const [search, setSearch] = useState('')
   const [filterTip, setFilterTip] = useState<string | undefined>(undefined)
   const [filterAktif, setFilterAktif] = useState<string | undefined>('true')
+  // Server-side sıralama + sayfalama (hesaplanan alanlar dahil; bkz. firma.service.list)
+  const [sortBy, setSortBy] = useState<string>('unvan')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const [page, setPage] = useState(1)
   // 2026-05-15 UX: 300ms çok agresif — her harfte query tetikleyip loading state
   // kullanıcının yazımını "duraklatma" hissi veriyordu. 1000ms ile yazma akışı bitince
   // bir kez arama yapılır.
@@ -198,13 +203,16 @@ export const FirmaListPage: React.FC = () => {
   usePageSettings('Firma Listesi', headerActions)
 
   const { data: firmaData, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['firmalar', debouncedSearch, filterTip, filterAktif, activeProjectId],
+    queryKey: ['firmalar', debouncedSearch, filterTip, filterAktif, activeProjectId, sortBy, sortDir, page],
     queryFn: async () => {
       const params: Record<string, string> = {}
       if (debouncedSearch) params.search = debouncedSearch
       if (filterTip) params.firma_tipi = filterTip
       if (filterAktif) params.aktif = filterAktif
       if (activeProjectId) params.proje_id = activeProjectId
+      params.sort_by = sortBy
+      params.sort_dir = sortDir
+      params.page = String(page)
       const { data } = await api.get('/firmalar', { params })
       return data
     },
@@ -243,11 +251,11 @@ export const FirmaListPage: React.FC = () => {
   }
 
   const columns = [
-    { 
-      title: 'Ünvan', 
-      dataIndex: 'unvan', 
+    {
+      title: 'Ünvan',
+      dataIndex: 'unvan',
       key: 'unvan',
-      sorter: true 
+      sorter: true,
     },
     {
       title: 'Tip',
@@ -266,6 +274,7 @@ export const FirmaListPage: React.FC = () => {
       key: 'bakiye',
       align: 'right' as const,
       width: 150,
+      sorter: true,
       render: (v: number) => (
         <div style={{ 
           background: '#f0f9ff', 
@@ -284,11 +293,12 @@ export const FirmaListPage: React.FC = () => {
       key: 'teminat',
       align: 'right' as const,
       width: 150,
+      sorter: true,
       render: (v: number) => (
-        <div style={{ 
-          background: '#f8fafc', 
-          padding: '4px 8px', 
-          borderRadius: '6px', 
+        <div style={{
+          background: '#f8fafc',
+          padding: '4px 8px',
+          borderRadius: '6px',
           border: '1px solid #e2e8f0',
           fontWeight: 600,
           color: '#475569'
@@ -297,8 +307,28 @@ export const FirmaListPage: React.FC = () => {
         </div>
       )
     },
-    { 
-      title: 'Telefon', 
+    {
+      title: 'Fatura Açığı',
+      dataIndex: 'fatura_acigi',
+      key: 'fatura_acigi',
+      align: 'right' as const,
+      width: 150,
+      sorter: true,
+      render: (v: number) => (
+        <div style={{
+          background: '#fff7ed',
+          padding: '4px 8px',
+          borderRadius: '6px',
+          border: '1px solid #fed7aa',
+          fontWeight: 600,
+          color: (v ?? 0) > 0 ? '#c2410c' : '#475569',
+        }}>
+          {trMoneyFormatter(v ?? 0)} TL
+        </div>
+      )
+    },
+    {
+      title: 'Telefon',
       dataIndex: 'telefon', 
       key: 'telefon', 
       width: 130,
@@ -463,7 +493,19 @@ export const FirmaListPage: React.FC = () => {
             rowKey="id"
             loading={isLoading}
             totalItems={firmaData?.pagination?.totalCount}
+            pagination={{ current: page }}
             stickyFirstColumn /* A2-03: firma adı kolonu sticky */
+            onChange={(pag, _filters, sorter) => {
+              // Server-side sıralama: sorter.field (dataIndex) → backend sort_by ile birebir.
+              const s = Array.isArray(sorter) ? sorter[0] : sorter
+              const newSortBy = s?.order ? String(s.field) : 'unvan'
+              const newSortDir: 'asc' | 'desc' = s?.order === 'descend' ? 'desc' : 'asc'
+              const sortChanged = newSortBy !== sortBy || newSortDir !== sortDir
+              setSortBy(newSortBy)
+              setSortDir(newSortDir)
+              // Sıralama değişince ilk sayfaya dön; aksi halde tıklanan sayfaya git.
+              setPage(sortChanged ? 1 : pag?.current ?? 1)
+            }}
             onRow={(record) => ({
               onClick: () => navigate(`/firmalar/${record.id}`),
               style: { cursor: 'pointer' }

@@ -8,13 +8,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const rpcMock = vi.fn()
 
+// Sprint firma-fatura-acigi-sort (2026-05-31): list() artık full set'i çekip
+// (range YOK) servis katmanında sıralayıp slice ediyor; sonucu .order() resolve eder.
 const buildListBuilder = (rows: any[], count: number) => {
   const b: any = {}
   b.select = () => b
   b.eq = () => b
   b.ilike = () => b
-  b.order = () => b
-  b.range = async () => ({ data: rows, error: null, count })
+  b.order = async () => ({ data: rows, error: null, count })
   return b
 }
 
@@ -50,8 +51,10 @@ describe('firmaService.list — bakiye RPC batch (P1 + perf)', () => {
       error: null,
     })
 
+    // limit:50 → tek sayfada hepsi (RPC yine full set = 50 id ile çağrılır).
     const result = await firmaService.list({
       proje_id: '11111111-1111-4111-a111-111111111111',
+      limit: '50',
     })
 
     expect(rpcMock).toHaveBeenCalledTimes(1)
@@ -60,6 +63,31 @@ describe('firmaService.list — bakiye RPC batch (P1 + perf)', () => {
     expect(result.data).toHaveLength(50)
     expect(result.data[0].guncel_bakiye).toBe(600) // 1000 - 400
     expect(result.data[0].toplam_teminat).toBe(200)
+  })
+
+  it('sort_by=fatura_acigi desc → açığa göre sıralar + fatura_acigi hesaplanır', async () => {
+    const firmalar = [
+      { id: 'aaaa1111-1111-4111-a111-111111111111', unvan: 'A' },
+      { id: 'bbbb1111-1111-4111-a111-111111111111', unvan: 'B' },
+    ]
+    currentBuilder = buildListBuilder(firmalar, 2)
+    rpcMock.mockResolvedValueOnce({
+      data: [
+        // A: fatura_acigi = 1000 - 400 = 600
+        { firma_id: 'aaaa1111-1111-4111-a111-111111111111', toplam_odeme: 0, toplam_kdvli: 400, birikmis_teminat: 0, toplam_fatura: 1000 },
+        // B: fatura_acigi = 5000 - 1000 = 4000 (daha büyük)
+        { firma_id: 'bbbb1111-1111-4111-a111-111111111111', toplam_odeme: 0, toplam_kdvli: 1000, birikmis_teminat: 0, toplam_fatura: 5000 },
+      ],
+      error: null,
+    })
+
+    const result = await firmaService.list({ sort_by: 'fatura_acigi', sort_dir: 'desc' })
+
+    // desc → B (4000) önce, A (600) sonra
+    expect(result.data[0].unvan).toBe('B')
+    expect(result.data[0].fatura_acigi).toBe(4000)
+    expect(result.data[1].unvan).toBe('A')
+    expect(result.data[1].fatura_acigi).toBe(600)
   })
 
   it('bos firma listesi → RPC cagrilmaz', async () => {
