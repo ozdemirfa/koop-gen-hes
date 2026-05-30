@@ -18,13 +18,18 @@ import { loginAs, hasViewerCreds, E2E_VIEWER_USER, E2E_VIEWER_PASSWORD } from '.
  *   Backend RBAC smoke (server/tests/integration/rbac.smoke.test.ts) HTTP seviyesini kapsar.
  */
 
-/** Bir liste sayfasına gidip primary "Yeni X" butonunun disabled olduğunu doğrular. */
-async function expectPrimaryActionDisabled(page: Page, path: string, buttonName: RegExp) {
+/**
+ * Bir liste sayfasında salt-okunur user'ın oluşturma yapamadığını doğrular.
+ * Sayfaya göre create butonu ya disabled gösterilir (inline pattern, ör. Fatura)
+ * ya da hiç render edilmez (HeaderActionsToolbar pattern, ör. Firma/Hakediş).
+ * Her iki durumda da ENABLED bir "Yeni X" butonu OLMAMALI → güvenlik-anlamlı kontrol.
+ */
+async function expectCannotCreate(page: Page, path: string, buttonName: RegExp) {
   await page.goto(path)
   await page.waitForLoadState('networkidle')
-  const btn = page.getByRole('button', { name: buttonName }).first()
-  await expect(btn).toBeVisible({ timeout: 15_000 })
-  await expect(btn).toBeDisabled()
+  // disabled:false → yalnızca tıklanabilir (enabled) butonu eşler.
+  const enabledBtn = page.getByRole('button', { name: buttonName, disabled: false })
+  await expect(enabledBtn).toHaveCount(0, { timeout: 15_000 })
 }
 
 test.describe('user salt-okunur perspektifi — gating', () => {
@@ -58,16 +63,16 @@ test.describe('user salt-okunur perspektifi — gating', () => {
     await expect(sider.getByText(/Kullanıcı Yönetimi/i)).toHaveCount(0)
   })
 
-  // Salt-okunur: oluşturma butonları DISABLED (canEdit = isManager → user için false).
-  test('FirmaListPage "Yeni Firma" disabled', async ({ page }) => {
-    await expectPrimaryActionDisabled(page, '/firmalar', /Yeni Firma/i)
+  // Salt-okunur: oluşturma aksiyonu tıklanabilir DEĞİL (canEdit = isManager → user false).
+  test('FirmaListPage — "Yeni Firma" tıklanabilir değil', async ({ page }) => {
+    await expectCannotCreate(page, '/firmalar', /Yeni Firma/i)
   })
 
-  test('FaturaListPage "Yeni Fatura" disabled', async ({ page }) => {
-    await expectPrimaryActionDisabled(page, '/faturalar', /Yeni Fatura/i)
+  test('FaturaListPage — "Yeni Fatura" tıklanabilir değil', async ({ page }) => {
+    await expectCannotCreate(page, '/faturalar', /Yeni Fatura/i)
   })
 
-  test('HakedisListPage "Yeni Hakediş" disabled', async ({ page }) => {
-    await expectPrimaryActionDisabled(page, '/hakedisler', /Yeni Hakediş/i)
+  test('HakedisListPage — "Yeni Hakediş" tıklanabilir değil', async ({ page }) => {
+    await expectCannotCreate(page, '/hakedisler', /Yeni Hakediş/i)
   })
 })
