@@ -76,7 +76,7 @@ export const bankaHesapService = {
 
     let q = supabaseAdmin
       .from('banka_hareketleri')
-      .select('*, banka_hesaplari!inner(banka_adi, proje_id), cari_hareketler!banka_hareket_id(cari_hesaplar(cari_turu, cari_adi))')
+      .select('*, banka_hesaplari!inner(banka_adi, proje_id), cari_hareketler!banka_hareket_id(islem_turu, cari_hesaplar(cari_turu, cari_adi))')
       .eq('banka_hesaplari.proje_id', projeId)
 
     if (query.banka_hesap_id) {

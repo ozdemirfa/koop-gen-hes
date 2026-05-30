@@ -44,7 +44,15 @@ const ISLEM_TURU_META: Record<string, { label: string; color: string }> = {
   giden_odeme: { label: 'Ödeme (Giden)', color: 'blue' },
   iade_odeme: { label: 'İade', color: 'orange' },
   uyelik_baslangic: { label: 'Başl. Bedeli', color: 'purple' },
+  // Yönetim ödemeleri (nakit + banka, gelen/giden)
+  yonetim_odeme_nakit_giris: { label: 'Yönetim Tahsilat (Nakit)', color: 'cyan' },
+  yonetim_odeme_nakit_cikis: { label: 'Yönetim Ödeme (Nakit)', color: 'geekblue' },
+  yonetim_odeme_banka_giris: { label: 'Yönetim Tahsilat (Banka)', color: 'cyan' },
+  yonetim_odeme_banka_cikis: { label: 'Yönetim Ödeme (Banka)', color: 'geekblue' },
 }
+
+// Yönetim ödeme satırları cari_hesaplar'a bağlı değil (cari_hesap_id=NULL).
+const isYonetimIslem = (t?: string) => !!t && t.startsWith('yonetim_odeme')
 
 const ODEME_TURU_LABELS: Record<string, string> = {
   nakit: 'Nakit',
@@ -101,7 +109,7 @@ export const TahsilatListPage: React.FC = () => {
       const params: any = {
         proje_id: activeProject.id,
         // Filter listesi: tahsilat + ödeme + iade + başlangıç (cari hareketin "ödeme" tarafı)
-        islem_turu_in: islemFilter || 'gelen_odeme,giden_odeme,iade_odeme,uyelik_baslangic',
+        islem_turu_in: islemFilter || 'gelen_odeme,giden_odeme,iade_odeme,uyelik_baslangic,yonetim_odeme_nakit_giris,yonetim_odeme_nakit_cikis,yonetim_odeme_banka_giris,yonetim_odeme_banka_cikis',
         // Sprint 20260519-para-hareketleri-improvements / US-1: üyelik başlangıç
         // tahakkuk satırlarını (`islem_turu='uyelik_baslangic' AND alacak > 0`) gizle.
         // Para hareketleri görünümünde yalnızca borc>0 (tahsilat) tarafı görünmeli.
@@ -189,7 +197,8 @@ export const TahsilatListPage: React.FC = () => {
       {
         title: 'Cari',
         key: 'cari',
-        render: (_: unknown, r: TahsilatRow) => r.cari_hesaplar?.cari_adi || '-',
+        render: (_: unknown, r: TahsilatRow) =>
+          isYonetimIslem(r.islem_turu) ? 'Yönetim' : (r.cari_hesaplar?.cari_adi || '-'),
       },
       {
         title: 'İşlem Türü',
@@ -251,12 +260,17 @@ export const TahsilatListPage: React.FC = () => {
         key: 'actions',
         width: 110,
         render: (_: unknown, r: TahsilatRow) => {
-          const locked = !!r.kaynak_id
+          // Yönetim ödemeleri buradan düzenlenemez/silinemez — yonetim_ekibi.alacak +
+          // banka senkronu bozulmasın diye Yönetim Ekibi akışından yönetilir.
+          const yonetim = isYonetimIslem(r.islem_turu)
+          const locked = !!r.kaynak_id || yonetim
           return (
             <Space size={4}>
               <Tooltip
                 title={
-                  locked
+                  yonetim
+                    ? 'Yönetim ödemesi — Yönetim Ekibi akışından yönetilir'
+                    : locked
                     ? 'Kilitli — Önce hesap kapamayı geri alın'
                     : 'Düzenle (tarih, belge no, açıklama)'
                 }
@@ -285,6 +299,8 @@ export const TahsilatListPage: React.FC = () => {
                   title={
                     !canDelete
                       ? 'Yetki yok (manager+ gerekli)'
+                      : yonetim
+                      ? 'Yönetim ödemesi — Yönetim Ekibi akışından yönetilir'
                       : locked
                       ? 'Önce hesap kapamayı geri alın'
                       : 'Sil'
