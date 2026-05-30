@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Row, Col, Card, Statistic, Tag, Button, Space, Divider, Typography, Collapse, Tooltip } from 'antd'
-import { CalendarOutlined, ArrowLeftOutlined, BarChartOutlined, HomeOutlined } from '@ant-design/icons'
+import { CalendarOutlined, ArrowLeftOutlined, BarChartOutlined, HomeOutlined, TeamOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { ProjeIsKalemiTree } from '../../components/projeler/ProjeIsKalemiTree'
@@ -81,6 +81,14 @@ export const ProjeDetailPage: React.FC = () => {
           icon={<BarChartOutlined />}
           onClick={() => navigate(`/projeler/${id}/yillik-plan/${selectedYear}`)}
           aria-label="Yıllık Plan"
+          style={{ background: 'white' }}
+        />
+      </Tooltip>
+      <Tooltip title="Yönetim Ekibi">
+        <Button
+          icon={<TeamOutlined />}
+          onClick={() => navigate(`/projeler/${id}/yonetim-ekibi`)}
+          aria-label="Yönetim Ekibi"
           style={{ background: 'white' }}
         />
       </Tooltip>

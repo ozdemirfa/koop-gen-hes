@@ -127,6 +127,9 @@ const SerefiyePage = lazy(() =>
 const YillikPlanPage = lazy(() =>
   import('./pages/projeler/YillikPlanPage').then((m) => ({ default: m.YillikPlanPage })),
 )
+const YonetimEkibiPage = lazy(() =>
+  import('./pages/yonetim/YonetimEkibiPage').then((m) => ({ default: m.YonetimEkibiPage })),
+)
 
 // Raporlar
 const AylikRaporPage = lazy(() =>
@@ -290,6 +293,7 @@ const App: React.FC = () => {
                           <Route path="projeler/:id" element={<ProjeDetailPage />} />
                           <Route path="projeler/:id/serefiye" element={<SerefiyePage />} />
                           <Route path="projeler/:id/yillik-plan/:yil" element={<YillikPlanPage />} />
+                          <Route path="projeler/:id/yonetim-ekibi" element={<YonetimEkibiPage />} />
                           <Route path="raporlar/aylik" element={<AylikRaporPage />} />
                           <Route path="raporlar/yillik" element={<YillikRaporPage />} />
                           <Route path="raporlar/uye-borc" element={<UyeBorcRaporPage />} />

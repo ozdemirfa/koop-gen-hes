@@ -9,6 +9,9 @@ export const projeSchema = z.object({
   toplam_butce: z.number().min(0).optional(),
   aktif: z.boolean().optional(),
   durum: z.enum(IS_KALEMI_DURUMLARI).optional(),
+  // Yönetim ekibi huzur hakkı oranı (%, 0-100, tam sayı). Hakediş onayında bu oran
+  // hakedis_toplam'a uygulanıp yönetim üyelerine dağıtılır. Bkz: yonetim-ekibi sprint.
+  huzur_hakki_orani: z.number().int().min(0).max(100).optional(),
   bloklar: z.array(z.object({
     id: z.string().uuid().optional(),
     blok_adi: z.string().min(1, 'Blok adı zorunlu'),

@@ -453,6 +453,30 @@ export const hakedisService = {
       }
     }
 
+    // Yönetim ekibi huzur hakkı dağıtımı (yonetim-ekibi sprint).
+    // hakedis_toplam (KDV dahil) × proje huzur_hakki_orani → yönetim üyelerine
+    // normalize oranlarına göre borç olarak dağıtılır. RPC idempotent + atomik.
+    const { error: huzurErr } = await supabaseAdmin.rpc('fn_yonetim_huzur_hakki_dagit', {
+      p_hakedis_id: id,
+      p_proje_id: safeProjeId,
+    })
+    if (huzurErr) {
+      logger.error('Huzur hakkı dağıtım hatası:', huzurErr)
+      // Telafi: onayı geri al — firma cari hareketini sil + hakedişi taslağa çek.
+      await supabaseAdmin
+        .from('cari_hareketler')
+        .delete()
+        .eq('kaynak_tipi', 'hakedis')
+        .eq('kaynak_id', id)
+        .eq('proje_id', safeProjeId)
+      await supabaseAdmin
+        .from('hakedisler')
+        .update({ durum: 'taslak', onay_tarihi: null })
+        .eq('id', id)
+        .eq('proje_id', safeProjeId)
+      throw huzurErr
+    }
+
     return data
   },
 
@@ -476,6 +500,16 @@ export const hakedisService = {
       .eq('kaynak_tipi', 'hakedis')
       .eq('kaynak_id', id)
       .eq('proje_id', safeProjeId)
+
+    // Yönetim ekibi huzur hakkı borçlarını geri al (defter tutarlarından — idempotent).
+    const { error: huzurIptalErr } = await supabaseAdmin.rpc('fn_yonetim_huzur_hakki_iptal', {
+      p_hakedis_id: id,
+      p_proje_id: safeProjeId,
+    })
+    if (huzurIptalErr) {
+      logger.error('Huzur hakkı iptal hatası:', huzurIptalErr)
+      throw huzurIptalErr
+    }
 
     // Hakediş durumunu taslağa çek
     const { data, error } = await supabaseAdmin
