@@ -63,6 +63,19 @@ export function getErrorMessage(err: unknown, fallback = 'Hata oluştu'): string
 }
 
 /**
+ * HTTP status kodunu hata nesnesinden çıkarır. api.ts response interceptor'ı
+ * server body'sine non-enumerable `statusCode` iliştirir; ham AxiosError'da ise
+ * `response.status` bulunur. Her iki şekli de ele alır.
+ */
+export function getErrorStatus(err: unknown): number | undefined {
+  if (err && typeof err === 'object') {
+    const e = err as { statusCode?: number; status?: number; response?: { status?: number } }
+    return e.statusCode ?? e.response?.status ?? e.status
+  }
+  return undefined
+}
+
+/**
  * Backend details array'ini AntD Form `setFields` formatına çevir.
  * Sadece gerçek field-level Zod/PG hatalarını döndürür, __debug skip edilir.
  *
