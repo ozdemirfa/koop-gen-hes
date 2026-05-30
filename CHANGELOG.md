@@ -9,6 +9,7 @@ Versiyonlama: sprint adı + tarih.
 - **Birimler ve Pozlar artık kişiselleştirilebilir (hibrit model):** Daha önce yalnızca global referans tablolar olan Birimler ve Pozlar'a artık her kullanıcı kendi tanımını ekleyebilir. NULL kapsam = global (admin/yetkili/manager ekler, herkese görünür), dolu = kişisel (yalnızca sahibine görünür). Listede "Kapsam" etiketi (Genel mavi / Kişisel yeşil) ve oluştururken "Genel/Kişisel" seçimi (yetkisi olanlara) gösterilir. Mevcut 9 birim + 200 poz global olarak korundu, geriye dönük uyumlu.
 
 ### Düzeltildi
+- **Sözleşme iş kalemi ekleme/güncelleme 500 hatası:** Sözleşme detayında "İş Kalemi Ekle" sırasında `proje_id`, kolonu olmayan `sozlesme_is_kalemleri` tablosuna yazılmaya çalışıldığı için PostgREST `PGRST204` → 500 ("Veritabanı hatası oluştu") üretiyordu. Servis artık insert/update öncesi `proje_id`'yi strip ediyor; proje izolasyonu zaten parent sözleşme üzerinden cross-check ediliyor.
 - **CORS preflight `X-Active-Project-Id` header'ını reddediyordu:** Axios interceptor her isteğe `X-Active-Project-Id` header'ı ekliyor ancak backend CORS `allowedHeaders` listesinde bu header yoktu. Sonuç: prod ortamında (`vercel.app` → `onrender.com`) tüm `/api/projeler`, `/api/auth/me` vb. istekleri preflight'ta "Request header field x-active-project-id is not allowed" hatasıyla bloklanıyordu. Header `allowedHeaders` listesine eklendi.
 
 ### Güvenlik
