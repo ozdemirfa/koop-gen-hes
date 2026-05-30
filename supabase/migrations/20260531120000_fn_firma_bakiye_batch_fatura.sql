@@ -7,7 +7,14 @@
 --   fatura_acigi = toplam_fatura - toplam_kdvli
 -- toplam_fatura = SUM(faturalar.toplam_tutar WHERE fatura_tipi='gelen' [+ proje_id])
 -- Hesaplama service katmanında yapılır; RPC ham toplam_fatura'yı döndürür.
+--
+-- NOT: RETURNS TABLE'a yeni kolon (toplam_fatura) eklendiği için dönüş tipi
+-- değişir; CREATE OR REPLACE bunu yapamaz (PostgreSQL 42P13 "cannot change
+-- return type"). Önce DROP, sonra yeniden oluştur. Fonksiyon yalnız RPC ile
+-- çağrılır (firma.service.list); DROP+CREATE migration transaction'ında atomiktir.
 -- ============================================================================
+
+DROP FUNCTION IF EXISTS public.fn_firma_bakiye_batch(uuid[], uuid);
 
 CREATE OR REPLACE FUNCTION fn_firma_bakiye_batch(
   p_firma_ids uuid[],
