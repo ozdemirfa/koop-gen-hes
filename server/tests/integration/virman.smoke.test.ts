@@ -152,9 +152,9 @@ describe('Virman smoke', () => {
   })
 
   describe('POST /api/virmanlar', () => {
-    // PR-B: POST → user level. Legacy 'viewer' → 'user' normalize edilir; viewer
-    // artık virman ekleyebilir. (Eski beklenti 403'tü; yeni davranış 201.)
-    it('viewer (legacy → user) happy path → 201', async () => {
+    // Sprint user-role-readonly (2026-05-30): yazma manager+'a daraltıldı.
+    // 'user' (legacy viewer) salt-okunur → virman ekleyemez → 403.
+    it('viewer (legacy → user) → 403 (salt-okunur, yazma manager+)', async () => {
       currentUser = { id: 'u-viewer', role: 'staff', projectRole: 'viewer' }
       const res = await request(app)
         .post('/api/virmanlar')
@@ -166,7 +166,7 @@ describe('Virman smoke', () => {
           tutar: 1500,
           tarih: '2026-05-20',
         })
-      expect(res.status).toBe(201)
+      expect(res.status).toBe(403)
     })
 
     it('proje üyesi olmayan → 403', async () => {

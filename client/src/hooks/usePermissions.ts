@@ -139,9 +139,11 @@ export function usePermissions(): Permissions {
 
     // canView: aktif projede herhangi bir rol var mı? (üye değilse false)
     const canView = projectRole !== null
-    // canEdit: her üye form girişi yapabilir (POST/PUT). En düşük seviye olan
-    // 'user' rolü dahil. Offline modda non-owner için false.
-    const canEdit = projectRole !== null && !isOfflineRestricted
+    // canEdit: kayıt oluşturma/düzenleme (POST/PUT) — manager+ (owner + manager).
+    // Sprint user-role-readonly (2026-05-30): 'user' rolü artık SALT-OKUNUR;
+    // yalnız canView'a sahiptir. Yazma yetkisi manager+'a daraltıldı (backend
+    // requireProjectAccess('manager') ile birebir). Offline modda non-owner için false.
+    const canEdit = isManager && !isOfflineRestricted
     // canDelete: yıkıcı işlemler — manager+. Offline modda non-owner için false.
     const canDelete = isManager && !isOfflineRestricted
     // canManageUsers: Kullanıcı Yönetimi sayfası erişimi — manager+. Offline

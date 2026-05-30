@@ -12,8 +12,8 @@ const router = Router()
 router.get('/', requireProjectAccess('user'), malzemeTeslimController.getMalzemeTeslim)
 router.get('/:id', requireProjectAccess('user'), malzemeTeslimController.getMalzemeTeslimById)
 
-router.post('/', requireProjectAccess('user'), validate({ body: irsaliyeSchema }), malzemeTeslimController.createMalzemeTeslim)
-router.put('/:id', requireProjectAccess('user'), validate({ body: updateIrsaliyeSchema }), malzemeTeslimController.updateMalzemeTeslim)
+router.post('/', requireProjectAccess('manager'), validate({ body: irsaliyeSchema }), malzemeTeslimController.createMalzemeTeslim)
+router.put('/:id', requireProjectAccess('manager'), validate({ body: updateIrsaliyeSchema }), malzemeTeslimController.updateMalzemeTeslim)
 router.delete('/:id', requireProjectAccess('manager'), malzemeTeslimController.deleteMalzemeTeslim)
 
 export default router

@@ -10,8 +10,8 @@ const router = Router()
 //   GET/POST/PUT → user
 //   DELETE       → manager
 router.get('/', requireProjectAccess('user'), blokController.getBloklar)
-router.post('/', requireProjectAccess('user'), validate({ body: blokSchema }), blokController.createBlok)
-router.put('/:id', requireProjectAccess('user'), validate({ body: blokSchema.partial() }), blokController.updateBlok)
+router.post('/', requireProjectAccess('manager'), validate({ body: blokSchema }), blokController.createBlok)
+router.put('/:id', requireProjectAccess('manager'), validate({ body: blokSchema.partial() }), blokController.updateBlok)
 router.delete('/:id', requireProjectAccess('manager'), blokController.deleteBlok)
 
 export default router

@@ -53,29 +53,29 @@ router.post('/serefiye-actions/olustur', requireProjectAccess('manager'), projel
 // 2. Statik / Spesifik Rotalar
 // GET /projeler — controller kullanıcı üyeliğine göre filtreler (Faz 1.4)
 router.get('/', projelerController.getProjeler)
-router.post('/yillik-plan-kalemleri/bulk', requireProjectAccess('user'), validate({ body: yillikPlanKalemleriBulkSchema }), projelerController.createYillikPlanKalemleriBulk)
+router.post('/yillik-plan-kalemleri/bulk', requireProjectAccess('manager'), validate({ body: yillikPlanKalemleriBulkSchema }), projelerController.createYillikPlanKalemleriBulk)
 // Global "aktif proje" sorgusu — proje_id gerektirmez
 router.get('/aktif/bloklar', projelerController.getAktifBloklar)
 router.get('/bloklar/:blokId/musait-daireler', requireProjectAccess('user'), projelerController.getMusaitDaireler)
 
 // 3. Proje İş Kalemi Rotaları (proje_id query'den gelir)
-router.put('/is-kalemleri/:id', requireProjectAccess('user'), validate({ body: projeIsKalemiSchema.partial() }), projelerController.updateIsKalemi)
+router.put('/is-kalemleri/:id', requireProjectAccess('manager'), validate({ body: projeIsKalemiSchema.partial() }), projelerController.updateIsKalemi)
 router.delete('/is-kalemleri/:id', requireProjectAccess('manager'), projelerController.deleteIsKalemi)
 
 // 4. Şerefiye / Daire Rotaları
 router.get('/:id/serefiye/export', requireProjectAccess('user'), projelerController.exportSerefiye)
 // İçe aktarma yapısal dataset replace; manager+
 router.post('/:id/serefiye/import', requireProjectAccess('manager'), upload.single('file'), projelerController.importSerefiye)
-router.put('/serefiye/:serefiyeId', requireProjectAccess('user'), projelerController.updateSerefiye)
+router.put('/serefiye/:serefiyeId', requireProjectAccess('manager'), projelerController.updateSerefiye)
 
 // 5. Yıllık Plan Kalemi Rotaları
-router.put('/yillik-plan-kalemleri/:id', requireProjectAccess('user'), validate({ body: yillikPlanKalemiSchema }), projelerController.updatePlanKalemi)
+router.put('/yillik-plan-kalemleri/:id', requireProjectAccess('manager'), validate({ body: yillikPlanKalemiSchema }), projelerController.updatePlanKalemi)
 router.delete('/yillik-plan-kalemleri/:planId/:isKalemiId', requireProjectAccess('manager'), projelerController.deletePlanKalemleri)
 
 // 6. Proje Alt Kaynak Rotaları (:id = proje_id)
 router.get('/:id/yillik-plan/:yil', requireProjectAccess('user'), projelerController.getYillikPlan)
-router.post('/:id/yillik-plan', requireProjectAccess('user'), validate({ body: yillikPlanSchema }), projelerController.createYillikPlan)
-router.post('/:id/is-kalemleri', requireProjectAccess('user'), validate({ body: projeIsKalemiSchema }), projelerController.createIsKalemi)
+router.post('/:id/yillik-plan', requireProjectAccess('manager'), validate({ body: yillikPlanSchema }), projelerController.createYillikPlan)
+router.post('/:id/is-kalemleri', requireProjectAccess('manager'), validate({ body: projeIsKalemiSchema }), projelerController.createIsKalemi)
 router.get('/:id/serefiye', requireProjectAccess('user'), projelerController.getSerefiye)
 
 // 7. Proje Temel Rotaları

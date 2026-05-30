@@ -91,7 +91,9 @@ const validKalem = (overrides: Partial<Record<string, unknown>> = {}) => ({
 
 describe('POST /api/projeler/yillik-plan-kalemleri/bulk — validation (P0 fix)', () => {
   beforeEach(() => {
-    currentUser = { id: 'u-user', role: 'staff', projectRole: 'user' }
+    // Sprint user-role-readonly (2026-05-30): bulk yazma manager+ gerektirir.
+    // Validation davranışını test etmek için actor manager (user → 403 alırdı).
+    currentUser = { id: 'u-manager', role: 'staff', projectRole: 'manager' }
   })
 
   it('anon → 401', async () => {

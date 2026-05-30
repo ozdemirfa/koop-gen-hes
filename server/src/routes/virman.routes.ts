@@ -11,7 +11,7 @@ const router = Router()
 //   POST   → user    (form girişi user'a açık)
 //   DELETE → manager (yıkıcı işlem)
 router.get('/', requireProjectAccess('user'), virmanController.listVirmanlar)
-router.post('/', requireProjectAccess('user'), validate({ body: virmanCreateSchema }), virmanController.createVirman)
+router.post('/', requireProjectAccess('manager'), validate({ body: virmanCreateSchema }), virmanController.createVirman)
 router.delete('/:id', requireProjectAccess('manager'), virmanController.deleteVirman)
 
 export default router

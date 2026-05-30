@@ -23,8 +23,8 @@ router.get(
   cariHesapController.getCariHareketler,
 )
 router.get('/accounts', requireProjectAccess('user'), cariHesapController.getCariHesaplar)
-router.post('/', requireProjectAccess('user'), validate({ body: cariHareketSchema }), cariHesapController.createCariHareket)
-router.post('/payment', requireProjectAccess('user'), validate({ body: cariPaymentSchema }), cariHesapController.createPayment)
+router.post('/', requireProjectAccess('manager'), validate({ body: cariHareketSchema }), cariHesapController.createCariHareket)
+router.post('/payment', requireProjectAccess('manager'), validate({ body: cariPaymentSchema }), cariHesapController.createPayment)
 // FIFO ve undo işlemleri finansal yapıyı değiştirir — manager+
 router.post('/fifo-kapama', requireProjectAccess('manager'), cariHesapController.performFifoClosure)
 router.post('/:id/undo-closure', requireProjectAccess('manager'), cariHesapController.undoClosure)
@@ -51,7 +51,7 @@ router.delete(
 )
 // B1+B2+B3 (sprint 20260511-uye-tahsilat-firma-revisions): tahsilat satırı düzenle/sil
 // (kilit kontrolü servis katmanında 409 ile döner).
-router.patch('/:id', requireProjectAccess('user'), cariHesapController.updateCariHareket)
+router.patch('/:id', requireProjectAccess('manager'), cariHesapController.updateCariHareket)
 router.delete('/:id', requireProjectAccess('manager'), cariHesapController.deleteCariHareket)
 
 export default router

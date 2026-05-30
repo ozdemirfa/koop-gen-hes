@@ -12,11 +12,11 @@ const router = Router()
 //   PUT    → user    (form düzenleme)
 //   Eşleme → manager (banka↔cari eşlemesi yıkıcı/etki yaratan işlem)
 router.get('/hesaplar', requireProjectAccess('user'), bankaHesapController.getHesaplar)
-router.post('/hesaplar', requireProjectAccess('user'), validate({ body: bankaHesapSchema }), bankaHesapController.createHesap)
-router.put('/hesaplar/:id', requireProjectAccess('user'), validate({ body: bankaHesapSchema }), bankaHesapController.updateHesap)
+router.post('/hesaplar', requireProjectAccess('manager'), validate({ body: bankaHesapSchema }), bankaHesapController.createHesap)
+router.put('/hesaplar/:id', requireProjectAccess('manager'), validate({ body: bankaHesapSchema }), bankaHesapController.updateHesap)
 
 router.get('/hareketler', requireProjectAccess('user'), bankaHesapController.getHareketler)
-router.post('/hareketler', requireProjectAccess('user'), validate({ body: bankaHareketiSchema }), bankaHesapController.createHareket)
+router.post('/hareketler', requireProjectAccess('manager'), validate({ body: bankaHareketiSchema }), bankaHesapController.createHareket)
 // Eşleme iptal/değiştirme manager seviyesi
 router.put('/hareketler/:id/esle', requireProjectAccess('manager'), validate({ body: bankaEsleSchema }), bankaHesapController.esleHareket)
 

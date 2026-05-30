@@ -176,6 +176,9 @@ export const PozListPage: React.FC = () => {
 
   return (
     <div>
+      {/* Sprint user-role-readonly (2026-05-30): poz ekleme manager+/yetkili'ye
+          (canCreateGlobalDefs) ayrıldı; salt-okunur 'user' kişisel dahil ekleyemez. */}
+      {canCreateGlobalDefs && (
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Button
           type="primary"
@@ -189,6 +192,7 @@ export const PozListPage: React.FC = () => {
           {canCreateGlobalDefs && ' Genel pozu tüm kullanıcılar görür.'}
         </Typography.Text>
       </div>
+      )}
 
       <DataTable
         columns={columns}

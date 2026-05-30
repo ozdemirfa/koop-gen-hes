@@ -22,8 +22,8 @@ router.get('/', firmaController.getFirmalar)
 router.get('/stats', firmaController.getStats)
 router.get('/:id/stats', firmaController.getFirmaStats)
 router.get('/:id', firmaController.getFirmaById)
-router.post('/', requireProjectAccess('user'), validate({ body: createFirmaSchema }), firmaController.createFirma)
-router.put('/:id', requireProjectAccess('user'), validate({ body: updateFirmaSchema }), firmaController.updateFirma)
+router.post('/', requireProjectAccess('manager'), validate({ body: createFirmaSchema }), firmaController.createFirma)
+router.put('/:id', requireProjectAccess('manager'), validate({ body: updateFirmaSchema }), firmaController.updateFirma)
 // Sprint revizyon-bugfix-paketi B2 (2026-05-25, P0): cari-ekstre proje-bagli;
 // requireProjectAccess proje_id'yi query'den dogrular ve uyelik kontrolu yapar.
 router.get('/:id/cari-ekstre', requireProjectAccess('user'), firmaController.getCariEkstre)

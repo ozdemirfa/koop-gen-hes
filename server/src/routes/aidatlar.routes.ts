@@ -25,9 +25,9 @@ router.post('/tanimlar/:id/borclandir', requireProjectAccess('manager'), aidatCo
 router.post('/tanimlar/:id/borclandirma-geri-al', requireProjectAccess('manager'), aidatController.unchargeTanim)
 
 router.get('/tanimlar', requireProjectAccess('user'), aidatController.getAidatTanimlari)
-router.post('/tanimlar', requireProjectAccess('user'), validate({ body: createAidatTanimiSchema }), aidatController.createAidatTanimi)
-router.post('/yillik-plan', requireProjectAccess('user'), validate({ body: yillikPlanSchema }), aidatController.createYillikPlan)
-router.put('/tanimlar/:id', requireProjectAccess('user'), validate({ body: updateAidatTanimiSchema }), aidatController.updateAidatTanimi)
+router.post('/tanimlar', requireProjectAccess('manager'), validate({ body: createAidatTanimiSchema }), aidatController.createAidatTanimi)
+router.post('/yillik-plan', requireProjectAccess('manager'), validate({ body: yillikPlanSchema }), aidatController.createYillikPlan)
+router.put('/tanimlar/:id', requireProjectAccess('manager'), validate({ body: updateAidatTanimiSchema }), aidatController.updateAidatTanimi)
 router.delete('/tanimlar/:id', requireProjectAccess('manager'), aidatController.deleteAidatTanimi)
 
 // Toplu borçlandırma + toplu faiz — manager+
@@ -37,7 +37,7 @@ router.post('/bulk-charge-interest', requireProjectAccess('manager'), aidatContr
 // === AİDATLAR ===
 
 router.get('/ozet', requireProjectAccess('user'), aidatController.getAidatOzet)
-router.post('/gecikme-hesapla', requireProjectAccess('user'), aidatController.calculateLateFees)
+router.post('/gecikme-hesapla', requireProjectAccess('manager'), aidatController.calculateLateFees)
 
 router.get('/', requireProjectAccess('user'), aidatController.getAidatlar)
 router.get('/:id', requireProjectAccess('user'), aidatController.getAidatById)
@@ -46,8 +46,8 @@ router.get('/:id', requireProjectAccess('user'), aidatController.getAidatById)
 // Ödeme eşleştirmesi yoksa siler; varsa 409 + yönlendirme mesajı.
 router.delete('/:id', requireProjectAccess('manager'), aidatController.deleteAidat)
 
-router.post('/:id/odeme', requireProjectAccess('user'), validate({ body: aidatOdemeSchema }), aidatController.recordPayment)
-router.post('/:id/gecikme-hesapla', requireProjectAccess('user'), aidatController.calculateSingleLateFee)
+router.post('/:id/odeme', requireProjectAccess('manager'), validate({ body: aidatOdemeSchema }), aidatController.recordPayment)
+router.post('/:id/gecikme-hesapla', requireProjectAccess('manager'), aidatController.calculateSingleLateFee)
 
 // Toggle faiz — finansal manipülasyon; manager+
 router.post('/:id/toggle-faiz', requireProjectAccess('manager'), aidatController.toggleInterest)
