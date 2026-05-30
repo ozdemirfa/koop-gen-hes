@@ -8,6 +8,9 @@ Versiyonlama: sprint adı + tarih.
 ### Eklendi
 - **Birimler ve Pozlar artık kişiselleştirilebilir (hibrit model):** Daha önce yalnızca global referans tablolar olan Birimler ve Pozlar'a artık her kullanıcı kendi tanımını ekleyebilir. NULL kapsam = global (admin/yetkili/manager ekler, herkese görünür), dolu = kişisel (yalnızca sahibine görünür). Listede "Kapsam" etiketi (Genel mavi / Kişisel yeşil) ve oluştururken "Genel/Kişisel" seçimi (yetkisi olanlara) gösterilir. Mevcut 9 birim + 200 poz global olarak korundu, geriye dönük uyumlu.
 
+### Düzeltildi
+- **CORS preflight `X-Active-Project-Id` header'ını reddediyordu:** Axios interceptor her isteğe `X-Active-Project-Id` header'ı ekliyor ancak backend CORS `allowedHeaders` listesinde bu header yoktu. Sonuç: prod ortamında (`vercel.app` → `onrender.com`) tüm `/api/projeler`, `/api/auth/me` vb. istekleri preflight'ta "Request header field x-active-project-id is not allowed" hatasıyla bloklanıyordu. Header `allowedHeaders` listesine eklendi.
+
 ### Güvenlik
 - **RLS offline_mode coverage tamamlandı (toplam 22 tablo):** Prod audit'te tespit edilen gap kapatıldı. `cari_hesaplar`, `irsaliyeler`, `birikmis_teminatlar`, `serefiye_tablosu`, `yillik_harcama_planlari` (proje_id direkt) ve `fatura_kalemleri`, `irsaliye_kalemleri` (parent join) tablolarına `_offline_lock_ins/upd/del` policy'leri eklendi. Smoking gun: `faturalar` parent INSERT korumalıyken `fatura_kalemleri` child INSERT bloklenmıyordu — kapatıldı.
 - **Firmalar offline_mode yazma kilidi (middleware ile):** `firmalar` global tablo (proje_id yok) olduğu için per-proje RLS ile kilitlenemiyordu; offline projedeki non-owner kullanıcılar firma ekleyip güncelleyebiliyordu. POST/PUT route'larına `requireProjectAccess` middleware (X-Active-Project-Id header fallback) eklenerek server-side gating ile kapatıldı (defense in depth). GET serbest kaldı.
