@@ -101,6 +101,11 @@ export const sozlesmeService = {
 
     const sanitized = { ...body }
     delete sanitized.sozlesme_id  // server-side enforcement
+    // proje_id schema'dan pass-through geliyor (PR #136) ama sozlesme_is_kalemleri'nde
+    // böyle bir kolon YOK (parent sözleşme üzerinden izole). Insert'e sızarsa
+    // PGRST204 → 500. Strip et.
+    delete sanitized.proje_id
+    delete sanitized.projeId
 
     const { data, error } = await supabaseAdmin
       .from('sozlesme_is_kalemleri')
@@ -129,6 +134,8 @@ export const sozlesmeService = {
 
     const sanitized = { ...body }
     delete sanitized.sozlesme_id
+    delete sanitized.proje_id  // sozlesme_is_kalemleri'nde kolon yok → PGRST204 önle
+    delete sanitized.projeId
 
     const { data, error } = await supabaseAdmin
       .from('sozlesme_is_kalemleri')
