@@ -24,7 +24,7 @@ interface BankaHareketi {
   eslesti: boolean
   firma_id?: string
   banka_hesaplari?: { banka_adi: string }
-  cari_hareketler?: { cari_hesaplar?: CariHesapRef } | Array<{ cari_hesaplar?: CariHesapRef }>
+  cari_hareketler?: { islem_turu?: string; cari_hesaplar?: CariHesapRef } | Array<{ islem_turu?: string; cari_hesaplar?: CariHesapRef }>
 }
 
 export const BankaHareketleriPage: React.FC = () => {
@@ -70,6 +70,8 @@ export const BankaHareketleriPage: React.FC = () => {
       key: 'cari',
       render: (_: any, r: any) => {
         const cari = Array.isArray(r.cari_hareketler) ? r.cari_hareketler[0] : r.cari_hareketler
+        // Yönetim ödemeleri cari_hesap'a bağlı değil; bağlı cari hareketin islem_turu'ndan tanı.
+        if (cari?.islem_turu && String(cari.islem_turu).startsWith('yonetim_odeme')) return 'Yönetim'
         const ch = cari?.cari_hesaplar
         if (!ch?.cari_adi) return '-'
         const prefix = ch.cari_turu === 'firma' ? 'Firma' : ch.cari_turu === 'uye' ? 'Üye' : null

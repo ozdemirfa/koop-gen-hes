@@ -16,6 +16,11 @@ const ISLEM_TURU_WHITELIST = new Set<string>([
   'gecikme_faizi',
   'fatura',
   'odeme',
+  // Yönetim ödemeleri (para hareketlerinde görünür — cari_hesap_id=NULL)
+  'yonetim_odeme_nakit_giris',
+  'yonetim_odeme_nakit_cikis',
+  'yonetim_odeme_banka_giris',
+  'yonetim_odeme_banka_cikis',
 ])
 const MAX_ISLEM_TURU_IN = 12
 
