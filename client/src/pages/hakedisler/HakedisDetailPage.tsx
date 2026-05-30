@@ -75,11 +75,15 @@ export const HakedisDetailPage: React.FC = () => {
   const [selectedIrsaliyeIds, setSelectedIrsaliyeIds] = useState<React.Key[]>([])
 
   const { data: hakedis, isLoading } = useQuery({
-    queryKey: ['hakedis', id],
+    queryKey: ['hakedis', id, activeProject?.id],
     queryFn: async () => {
-      const { data } = await api.get(`/hakedisler/${id}`)
+      // proje_id açıkça geçilir + enabled guard: aktif proje hidre olmadan istek
+      // atılırsa interceptor proje_id ekleyemez → backend "proje_id zorunludur" 400
+      // (hidrasyon race). Bkz #158 gated-route race.
+      const { data } = await api.get(`/hakedisler/${id}`, { params: { proje_id: activeProject?.id } })
       return data.data
     },
+    enabled: !!id && !!activeProject?.id,
   })
 
   const isTaslak = hakedis?.durum === 'taslak'
