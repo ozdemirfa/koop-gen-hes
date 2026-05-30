@@ -524,6 +524,45 @@ export const hakedisService = {
     return data
   },
 
+  async delete(id: string, projeId: string) {
+    const safeProjeId = requireProjeId(projeId)
+
+    const { data: hakedis, error: getErr } = await supabaseAdmin
+      .from('hakedisler')
+      .select('id, durum')
+      .eq('id', id)
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
+
+    if (getErr) throw getErr
+    if (!hakedis) throw ApiError.notFound('Hakediş bulunamadı')
+
+    // Onaylı/ödenmiş hakediş silinemez — cari hareket + huzur hakkı dağıtımı içerir.
+    // Önce onay iptal edilmeli. (Frontend de butonu disable eder; bu defense-in-depth.)
+    if (hakedis.durum === 'onaylandi' || hakedis.durum === 'odendi') {
+      throw ApiError.badRequest('Onaylı veya ödenmiş hakediş silinemez. Önce onayı iptal edin.')
+    }
+
+    // Defansif: ilişkili cari hareketleri temizle (taslakta olmamalı; iptal vb. için güvenlik).
+    // hakedis_kalemleri + yonetim_huzur_hakki_kayitlari FK'leri ON DELETE CASCADE;
+    // irsaliyeler.hakedis_id ON DELETE SET NULL (irsaliyeler silinmez, bağ kopar).
+    await supabaseAdmin
+      .from('cari_hareketler')
+      .delete()
+      .eq('kaynak_tipi', 'hakedis')
+      .eq('kaynak_id', id)
+      .eq('proje_id', safeProjeId)
+
+    const { error } = await supabaseAdmin
+      .from('hakedisler')
+      .delete()
+      .eq('id', id)
+      .eq('proje_id', safeProjeId)
+
+    if (error) throw error
+    return { id, deleted: true }
+  },
+
   async getPDFData(id: string, projeId: string) {
     const safeProjeId = requireProjeId(projeId)
 

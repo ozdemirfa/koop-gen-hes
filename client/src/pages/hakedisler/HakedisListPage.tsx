@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Button, Select, Space, Tag, Modal, Form, DatePicker, Input, Popconfirm, Tooltip, App } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { PlusOutlined, EyeOutlined, RollbackOutlined } from '@ant-design/icons'
+import { PlusOutlined, EyeOutlined, RollbackOutlined, DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { getErrorMessage } from '../../lib/apiError'
@@ -173,6 +173,16 @@ export const HakedisListPage: React.FC = () => {
     onError: (err) => message.error(getErrorMessage(err, 'İşlem başarısız')),
   })
 
+  const deleteMutation = useMutation({
+    // proje_id, api.ts interceptor tarafından DELETE query'sine eklenir.
+    mutationFn: async (id: string) => api.delete(`/hakedisler/${id}`),
+    onSuccess: () => {
+      message.success('Hakediş silindi')
+      queryClient.invalidateQueries({ queryKey: ['hakedisler'] })
+    },
+    onError: (err) => message.error(getErrorMessage(err, 'Silme başarısız')),
+  })
+
   const handleFirmaChange = (val: string) => {
     setSelectedFirmaId(val)
     createForm.setFieldsValue({ sozlesme_id: undefined })
@@ -240,29 +250,57 @@ export const HakedisListPage: React.FC = () => {
     {
       title: 'İşlem',
       key: 'action',
-      width: 100,
-      render: (_: unknown, r: Hakedis) => (
-        <Space>
-          <Button icon={<EyeOutlined />} type="text" onClick={() => navigate(`/hakedisler/${r.id}`)} />
-          {r.durum === 'onaylandi' && canDelete && (
-            <Popconfirm
-              title="Hakediş onayı iptal edilecek ve cari hareketi silinecek. Emin misiniz?"
-              onConfirm={() => unapproveMutation.mutate(r.id)}
-              okText="Evet"
-              cancelText="Hayır"
-            >
-              <Tooltip title="Onay İptal (Revizyona Aç)">
-                <Button
-                  icon={<RollbackOutlined />}
-                  type="text"
-                  danger
-                  loading={unapproveMutation.isPending}
-                />
-              </Tooltip>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
+      width: 130,
+      render: (_: unknown, r: Hakedis) => {
+        // Onaylı/ödenmiş hakediş silinemez (cari hareket + huzur hakkı dağıtımı içerir).
+        const silinebilir = r.durum !== 'onaylandi' && r.durum !== 'odendi'
+        return (
+          <Space>
+            <Button icon={<EyeOutlined />} type="text" onClick={() => navigate(`/hakedisler/${r.id}`)} />
+            {r.durum === 'onaylandi' && canDelete && (
+              <Popconfirm
+                title="Hakediş onayı iptal edilecek ve cari hareketi silinecek. Emin misiniz?"
+                onConfirm={() => unapproveMutation.mutate(r.id)}
+                okText="Evet"
+                cancelText="Hayır"
+              >
+                <Tooltip title="Onay İptal (Revizyona Aç)">
+                  <Button
+                    icon={<RollbackOutlined />}
+                    type="text"
+                    danger
+                    loading={unapproveMutation.isPending}
+                  />
+                </Tooltip>
+              </Popconfirm>
+            )}
+            {canDelete && (
+              silinebilir ? (
+                <Popconfirm
+                  title="Hakediş kalıcı olarak silinecek. Emin misiniz?"
+                  onConfirm={() => deleteMutation.mutate(r.id)}
+                  okText="Evet, sil"
+                  cancelText="Hayır"
+                  okButtonProps={{ danger: true }}
+                >
+                  <Tooltip title="Sil">
+                    <Button
+                      icon={<DeleteOutlined />}
+                      type="text"
+                      danger
+                      loading={deleteMutation.isPending}
+                    />
+                  </Tooltip>
+                </Popconfirm>
+              ) : (
+                <Tooltip title="Onaylı/ödenmiş hakediş silinemez — önce onayı iptal edin">
+                  <Button icon={<DeleteOutlined />} type="text" danger disabled />
+                </Tooltip>
+              )
+            )}
+          </Space>
+        )
+      },
     },
   ]
 

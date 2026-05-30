@@ -70,3 +70,8 @@ export const detachIrsaliye = catchAsync(async (req: AuthRequest<any, any, any, 
   const data = await hakedisService.detachIrsaliye(req.params.id, req.params.irsaliyeId, extractProjeId(req))
   res.json({ success: true, data })
 })
+
+export const deleteHakedis = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const data = await hakedisService.delete(req.params.id, extractProjeId(req))
+  res.json({ success: true, data })
+})
