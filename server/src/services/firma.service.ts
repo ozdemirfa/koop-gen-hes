@@ -7,9 +7,18 @@ import logger from '../utils/logger'
 export const firmaService = {
   async list(query: Record<string, any>) {
     const pagination = parsePagination(query)
-    const { from, to } = toSupabaseRange(pagination)
 
     logger.info(`Firma listeleme isteği - Global list, Balance ProjectID: ${query.proje_id}`)
+
+    // Sprint firma-fatura-acigi-sort (2026-05-31): Hesaplanan alanlara (cari
+    // bakiye / birikmiş teminat / fatura açığı) göre doğru sıralama, full set'in
+    // RPC ile zenginleştirilip sonra sıralanıp sayfalanmasını gerektirir
+    // (bu alanlar firmalar tablosunda yok, RPC sonrası hesaplanır). Firma sayısı
+    // düzinelerce mertebesinde olduğundan full fetch kabul edilebilir.
+    const SORTABLE = ['unvan', 'guncel_bakiye', 'toplam_teminat', 'fatura_acigi'] as const
+    type SortKey = (typeof SORTABLE)[number]
+    const sortBy: SortKey = SORTABLE.includes(query.sort_by) ? query.sort_by : 'unvan'
+    const sortDir: 'asc' | 'desc' = query.sort_dir === 'desc' ? 'desc' : 'asc'
 
     let q = supabaseAdmin
       .from('firmalar')
@@ -24,9 +33,8 @@ export const firmaService = {
       if (safe) q = q.ilike('unvan', `%${safe}%`)
     }
 
-    const { data, error, count } = await q
-      .order('unvan')
-      .range(from, to)
+    // Full set (range YOK) — sıralama hesaplanan alanlar üzerinde olabildiği için.
+    const { data, error, count } = await q.order('unvan')
 
     if (error) throw error
 
@@ -43,7 +51,7 @@ export const firmaService = {
     const firmaIds = (data || []).map((f) => f.id)
     let balanceMap = new Map<
       string,
-      { toplam_odeme: number; toplam_kdvli: number; birikmis_teminat: number }
+      { toplam_odeme: number; toplam_kdvli: number; birikmis_teminat: number; toplam_fatura: number }
     >()
 
     if (firmaIds.length > 0) {
@@ -67,23 +75,45 @@ export const firmaService = {
             toplam_odeme: Number(r.toplam_odeme || 0),
             toplam_kdvli: Number(r.toplam_kdvli || 0),
             birikmis_teminat: Number(r.birikmis_teminat || 0),
+            toplam_fatura: Number(r.toplam_fatura || 0),
           },
         ]),
       )
     }
 
-    const updatedData = (data || []).map((firma) => {
+    const enriched = (data || []).map((firma) => {
       const b = balanceMap.get(firma.id) ?? {
         toplam_odeme: 0,
         toplam_kdvli: 0,
         birikmis_teminat: 0,
+        toplam_fatura: 0,
       }
       // Project perspective: (+) fazla odedik, (-) borcluyuz
       const bakiye = b.toplam_odeme - b.toplam_kdvli
-      return { ...firma, guncel_bakiye: bakiye, toplam_teminat: b.birikmis_teminat }
+      // Fatura açığı: kesilen (gelen) fatura − onaylanan/ödenen hakediş.
+      // getIndividualStats / fn_dashboard_ozet (fatura_farki) ile birebir.
+      const faturaAcigi = b.toplam_fatura - b.toplam_kdvli
+      return {
+        ...firma,
+        guncel_bakiye: bakiye,
+        toplam_teminat: b.birikmis_teminat,
+        fatura_acigi: faturaAcigi,
+      }
     })
 
-    return { data: updatedData, pagination: paginationMeta(pagination, count || 0) }
+    // Server-side sıralama (hesaplanan alanlar dahil) → sonra sayfala.
+    const dir = sortDir === 'desc' ? -1 : 1
+    enriched.sort((a, b) => {
+      if (sortBy === 'unvan') {
+        return dir * String(a.unvan ?? '').localeCompare(String(b.unvan ?? ''), 'tr')
+      }
+      return dir * (((a as any)[sortBy] ?? 0) - ((b as any)[sortBy] ?? 0))
+    })
+
+    const { from, to } = toSupabaseRange(pagination)
+    const pageData = enriched.slice(from, to + 1)
+
+    return { data: pageData, pagination: paginationMeta(pagination, count || 0) }
   },
 
   async getById(id: string) {
