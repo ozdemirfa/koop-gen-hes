@@ -5,6 +5,17 @@ export const E2E_PASSWORD = process.env.E2E_PASSWORD
 
 export const hasCreds = Boolean(E2E_USER && E2E_PASSWORD)
 
+// Perspektif testleri için dedicated rol fixture'ları (manager / viewer).
+// Bu kullanıcılar seed migration ile test projesine `manager` / `user` (viewer)
+// rolüyle bağlanmalıdır. Tanımlı değilse ilgili perspektif suite'i skip eder.
+export const E2E_MANAGER_USER = process.env.E2E_MANAGER_USER
+export const E2E_MANAGER_PASSWORD = process.env.E2E_MANAGER_PASSWORD
+export const hasManagerCreds = Boolean(E2E_MANAGER_USER && E2E_MANAGER_PASSWORD)
+
+export const E2E_VIEWER_USER = process.env.E2E_VIEWER_USER
+export const E2E_VIEWER_PASSWORD = process.env.E2E_VIEWER_PASSWORD
+export const hasViewerCreds = Boolean(E2E_VIEWER_USER && E2E_VIEWER_PASSWORD)
+
 export async function login(page: Page) {
   if (!hasCreds) throw new Error('E2E_USER / E2E_PASSWORD ortam değişkenleri tanımlı değil')
   await page.goto('/login')
@@ -49,6 +60,31 @@ export async function login(page: Page) {
   
   // Ensure a project is selected
   await ensureProject(page)
+}
+
+/**
+ * Parametrik, "sessiz" login — belirtilen kullanıcıyla giriş yapar ve aktif
+ * projeyi seçer. Başarılıysa `true`, login/seed altyapısı eksikse `false` döner
+ * (perspektif suite'leri bu durumda graceful skip eder).
+ *
+ * role-system-v2.spec.ts'teki loginQuiet pattern'inin paylaşılan hâli:
+ * helpers.ts:login içindeki checkSession interval'i login fail edince
+ * temizlenmediği için burada sade ve idempotent bir akış kullanılır.
+ */
+export async function loginAs(page: Page, user: string, password: string): Promise<boolean> {
+  try {
+    await page.goto('/login')
+    await page.waitForLoadState('networkidle')
+    await page.getByPlaceholder('ornek@kooperatif.com').fill(user)
+    await page.getByPlaceholder('Şifre').fill(password)
+    await page.getByRole('button', { name: /giriş yap/i }).click()
+    await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 30_000 })
+    await page.waitForLoadState('networkidle')
+    await ensureProject(page)
+    return true
+  } catch {
+    return false
+  }
 }
 
 export async function navigateTo(page: Page, menuText: string, subMenuText?: string) {
