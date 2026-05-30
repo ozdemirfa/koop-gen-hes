@@ -39,7 +39,7 @@ export const updateAidatTanimi = catchAsync(async (req: AuthRequest<any, any, an
 })
 
 export const deleteAidatTanimi = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await aidatTanimiService.deleteTanim(req.params.id, extractProjeId(req))
+  const data = await aidatTanimiService.deleteTanim(req.params.id, extractProjeId(req), req.user?.id)
   res.json({ success: true, data })
 })
 

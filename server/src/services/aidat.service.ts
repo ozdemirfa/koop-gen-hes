@@ -130,7 +130,7 @@ export const aidatTanimiService = {
     return data
   },
 
-  async deleteTanim(id: string, projeId: string) {
+  async deleteTanim(id: string, projeId: string, actorId?: string) {
     const safeProjeId = requireProjeId(projeId)
 
     const { data: existing } = await supabaseAdmin
@@ -141,8 +141,23 @@ export const aidatTanimiService = {
       .maybeSingle()
 
     if (!existing) throw ApiError.notFound('Aidat tanımı bulunamadı')
-    if (existing.durum !== 'plan') {
-      throw ApiError.badRequest('Sadece plan durumundaki tanımlar silinebilir')
+
+    // Borçlandırılmış tanımda Sil = geri al + sil: önce fn_uncharge_aidat_tanimi
+    // ile üretilen aidatlar + tahakkuk/faiz cari hareketleri silinir (ödeme
+    // eşleşmesi varsa P0001 → conflict), tanım 'plan'a döner; sonra tanım silinir.
+    if (existing.durum === 'borclandi') {
+      const { error: uncErr } = await supabaseAdmin.rpc('fn_uncharge_aidat_tanimi', {
+        p_tanim_id: id,
+        p_actor_id: actorId ?? null,
+      })
+      if (uncErr) {
+        const code = (uncErr as any).code
+        const message = (uncErr as any).message ?? 'Borçlandırma geri alınamadı'
+        if (code === 'P0002') throw ApiError.notFound(message)
+        if (code === 'P0001') throw ApiError.conflict(message)
+        logger.error('Aidat tanımı silme (uncharge) hatası:', uncErr)
+        throw uncErr
+      }
     }
 
     const { error } = await supabaseAdmin
