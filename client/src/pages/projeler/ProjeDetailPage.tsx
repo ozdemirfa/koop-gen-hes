@@ -9,6 +9,7 @@ import { ProjeIsKalemiTree } from '../../components/projeler/ProjeIsKalemiTree'
 import { LoadingState } from '../../components/common/LoadingState'
 import { EmptyState } from '../../components/common/EmptyState'
 import { ErrorState } from '../../components/common/ErrorState'
+import { getErrorStatus } from '../../lib/apiError'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { trMoneyFormatter } from '../../lib/format'
 
@@ -105,7 +106,18 @@ export const ProjeDetailPage: React.FC = () => {
   }, [proje])
 
   if (isLoading) return <LoadingState fullHeight />
-  if (isError) return <ErrorState error={error} onRetry={() => refetch()} />
+  if (isError) {
+    const status = getErrorStatus(error)
+    if (status === 403) {
+      return (
+        <EmptyState description="Bu projeye erişim yetkiniz yok. Görüntülemek için proje sahibinden davet isteyin." />
+      )
+    }
+    if (status === 404) {
+      return <EmptyState description="Bu proje bulunamadı veya silinmiş olabilir." />
+    }
+    return <ErrorState error={error} onRetry={() => refetch()} />
+  }
   if (!proje) return (
     <EmptyState
       description="Bu proje bulunamadı veya silinmiş olabilir."
