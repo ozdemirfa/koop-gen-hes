@@ -133,6 +133,19 @@ export const UyeDetailPage: React.FC = () => {
     onError: (err) => messageApi.error(getErrorMessage(err, 'Kapama iptal edilemedi'))
   })
 
+  // Tekil aidat satırı sil (ödeme eşleştirmesi yoksa). Backend P0001 → 409 + mesaj.
+  const deleteAidatMutation = useMutation({
+    mutationFn: async (aidatId: string) => {
+      const { data } = await api.delete(`/aidatlar/${aidatId}`)
+      return data
+    },
+    onSuccess: () => {
+      messageApi.success('Aidat kaydı silindi')
+      invalidateAllPaymentCaches()
+    },
+    onError: (err) => messageApi.error(getErrorMessage(err, 'Aidat silinemedi'))
+  })
+
   // Üye detaylarını getir
   // U-8 (2026-05-11): isError + error + refetch eklendi; aşağıda erken-return
   // guard pattern'iyle Result + retry button gösteriliyor.
@@ -486,17 +499,30 @@ export const UyeDetailPage: React.FC = () => {
           )
         }
 
+        // Ödeme eşleşmesi yoksa → Sil (tahakkukla birlikte). Eşleşme varsa → Kapama Geri Al
+        // (önce eşleştirme kaldırılmalı; silme backend'de 409 ile reddedilir).
         if (odenen <= 0) {
           return (
-            <Tooltip
-              trigger={isTouchDevice ? ['click', 'hover'] : ['hover']}
-              title="Bu aidata henüz bir ödeme eşleştirilmemiş, geri alınacak kapama yok."
+            <Popconfirm
+              title="Aidatı Sil"
+              description="Bu aidat kaydı ve tahakkuku silinecek. Emin misiniz?"
+              onConfirm={() => deleteAidatMutation.mutate(r.id)}
+              okText="Evet, Sil"
+              cancelText="Vazgeç"
+              okButtonProps={{ danger: true }}
+              disabled={!canDelete}
             >
-              <InfoCircleOutlined
-                style={{ color: '#bfbfbf', cursor: isTouchDevice ? 'pointer' : 'help' }}
-                aria-label="Bu aidat için kapama iptal edilemez"
+              <Button
+                type="text"
+                size="small"
+                danger
+                disabled={!canDelete}
+                icon={<DeleteOutlined />}
+                loading={deleteAidatMutation.isPending && deleteAidatMutation.variables === r.id}
+                title={!canDelete ? 'Yetki yok (manager+ gerekli)' : 'Aidatı sil'}
+                aria-label="Aidatı sil"
               />
-            </Tooltip>
+            </Popconfirm>
           )
         }
         return (

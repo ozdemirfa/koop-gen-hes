@@ -53,6 +53,11 @@ export const executeCharging = catchAsync(async (req: AuthRequest<any, any, any,
   res.json({ success: true, data })
 })
 
+export const unchargeTanim = catchAsync(async (req: AuthRequest<{ id: string }, any, any, any>, res: Response) => {
+  const data = await aidatTanimiService.unchargeTanim(req.params.id, extractProjeId(req), req.user?.id)
+  res.json({ success: true, data })
+})
+
 export const bulkChargeInterest = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   const { aidat_ids } = req.body
   const data = await aidatTanimiService.bulkChargeInterest(aidat_ids, req.user?.id)
@@ -94,5 +99,10 @@ export const getAidatById = catchAsync(async (req: AuthRequest<any, any, any, an
 
 export const recordPayment = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
   const data = await aidatService.recordPayment(req.params.id, req.body, extractProjeId(req), req.user?.id)
+  res.json({ success: true, data })
+})
+
+export const deleteAidat = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const data = await aidatService.deleteAidat(req.params.id, extractProjeId(req), req.user?.id)
   res.json({ success: true, data })
 })
