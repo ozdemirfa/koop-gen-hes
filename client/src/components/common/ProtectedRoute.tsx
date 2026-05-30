@@ -34,7 +34,7 @@ interface ProtectedRouteProps {
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireRole }) => {
   const { session, loading } = useAuth()
   const { initialized: projectInitialized } = useProject()
-  const { isOwner, isManager, canEdit } = usePermissions()
+  const { isOwner, isManager, canView } = usePermissions()
 
   if (loading) {
     return (
@@ -80,7 +80,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requir
     return <Navigate to="/forbidden" replace />
   }
 
-  if (normalized === 'user' && !canEdit) {
+  // 'user' route'u = en az üyelik (görüntüleme). canEdit DEĞİL (Sprint
+  // user-role-readonly sonrası canEdit=manager+; salt-okunur user view-level
+  // route'lara erişebilmeli), canView (= projectRole !== null) kontrol edilir.
+  if (normalized === 'user' && !canView) {
     return <Navigate to="/forbidden" replace />
   }
 

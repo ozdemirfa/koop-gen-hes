@@ -12,8 +12,8 @@ const router = Router()
 router.get('/', requireProjectAccess('user'), faturaController.getFaturalar)
 router.get('/:id', requireProjectAccess('user'), faturaController.getFaturaById)
 
-router.post('/', requireProjectAccess('user'), validate({ body: createFaturaSchema }), faturaController.createFatura)
-router.put('/:id', requireProjectAccess('user'), validate({ body: updateFaturaSchema }), faturaController.updateFatura)
+router.post('/', requireProjectAccess('manager'), validate({ body: createFaturaSchema }), faturaController.createFatura)
+router.put('/:id', requireProjectAccess('manager'), validate({ body: updateFaturaSchema }), faturaController.updateFatura)
 router.delete('/:id', requireProjectAccess('manager'), faturaController.deleteFatura)
 
 export default router

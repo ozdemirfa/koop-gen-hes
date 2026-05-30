@@ -13,9 +13,9 @@ const router = Router()
 router.get('/', requireProjectAccess('user'), ceklerController.getCekler)
 router.get('/:id', requireProjectAccess('user'), ceklerController.getCekById)
 
-router.post('/', requireProjectAccess('user'), validate({ body: cekSchema }), ceklerController.createCek)
-router.put('/:id', requireProjectAccess('user'), validate({ body: updateCekSchema }), ceklerController.updateCek)
-router.patch('/:id/durum', requireProjectAccess('user'), validate({ body: cekDurumSchema }), ceklerController.updateCekDurum)
-router.patch('/:id/pay', requireProjectAccess('user'), ceklerController.payCek)
+router.post('/', requireProjectAccess('manager'), validate({ body: cekSchema }), ceklerController.createCek)
+router.put('/:id', requireProjectAccess('manager'), validate({ body: updateCekSchema }), ceklerController.updateCek)
+router.patch('/:id/durum', requireProjectAccess('manager'), validate({ body: cekDurumSchema }), ceklerController.updateCekDurum)
+router.patch('/:id/pay', requireProjectAccess('manager'), ceklerController.payCek)
 
 export default router

@@ -95,7 +95,9 @@ const SOZLESME_ID = 'sozlesme-1'
 
 describe('POST /api/sozlesmeler/:id/is-kalemleri — Zod strip regression (2026-05-26)', () => {
   beforeEach(() => {
-    currentUser = { id: 'u-1', role: 'staff', projectRole: 'user' }
+    // Sprint user-role-readonly (2026-05-30): is-kalemleri yazma manager+ gerektirir.
+    // Zod-strip davranışını test etmek için actor manager (user → 403 alırdı).
+    currentUser = { id: 'u-1', role: 'staff', projectRole: 'manager' }
   })
 
   it('body.proje_id Zod tarafından strip edilmemeli; 400 dönmemeli', async () => {

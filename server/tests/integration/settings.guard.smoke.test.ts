@@ -115,22 +115,24 @@ describe('Settings guard smoke (P0 fix + user-scope)', () => {
     ownerLookup = null
   })
 
-  describe('POST /api/settings/birimler — kişisel ekleme her authenticated\'a açık', () => {
+  describe('POST /api/settings/birimler — kişisel ekleme de manager+/yetkili gerektirir (user-role-readonly)', () => {
     it('anon → 401', async () => {
       const res = await request(app).post('/api/settings/birimler').send({ ad: 'm2' })
       expect(res.status).toBe(401)
     })
 
-    it('staff kişisel (is_global yok) → 201', async () => {
+    // Sprint user-role-readonly (2026-05-30): kişisel ekleme de requireCreateGlobalDefs
+    // gerektirir; proje manager+'ı olmayan global 'staff' → 403.
+    it('staff (manager+ değil) kişisel (is_global yok) → 403', async () => {
       currentUser = { id: 'u-staff', role: 'staff' }
       const res = await request(app).post('/api/settings/birimler').send({ ad: 'Paket' })
-      expect(res.status).toBe(201)
+      expect(res.status).toBe(403)
     })
 
-    it('staff kişisel (is_global=false explicit) → 201', async () => {
+    it('staff (manager+ değil) kişisel (is_global=false explicit) → 403', async () => {
       currentUser = { id: 'u-staff', role: 'staff' }
       const res = await request(app).post('/api/settings/birimler').send({ ad: 'Paket', is_global: false })
-      expect(res.status).toBe(201)
+      expect(res.status).toBe(403)
     })
   })
 
@@ -182,11 +184,13 @@ describe('Settings guard smoke (P0 fix + user-scope)', () => {
       expect(res.status).toBe(403)
     })
 
-    it('non-admin kendi kaydı → 200', async () => {
+    // Sprint user-role-readonly (2026-05-30): silme requireCreateGlobalDefs ister;
+    // manager+ olmayan staff route guard'ında 403 (service ownership'e ulaşmadan).
+    it('manager+ olmayan staff (kendi kaydı bile) → 403', async () => {
       currentUser = { id: 'u-owner-self', role: 'staff' }
       ownerLookup = { kullanici_id: 'u-owner-self' }
       const res = await request(app).delete('/api/settings/birimler/abc')
-      expect(res.status).toBe(200)
+      expect(res.status).toBe(403)
     })
 
     it('admin global → 200', async () => {
@@ -214,13 +218,15 @@ describe('Settings guard smoke (P0 fix + user-scope)', () => {
       expect(res.status).toBe(403)
     })
 
-    it('non-admin kendi kayıt → 200', async () => {
+    // Sprint user-role-readonly (2026-05-30): güncelleme requireCreateGlobalDefs ister;
+    // manager+ olmayan staff route guard'ında 403 (kendi kaydı bile).
+    it('manager+ olmayan staff (kendi kaydı bile) → 403', async () => {
       currentUser = { id: 'u-self', role: 'staff' }
       ownerLookup = { kullanici_id: 'u-self' }
       const res = await request(app)
         .put('/api/settings/pozlar/abc')
         .send({ poz_no: 'P-1', tanim: 'Yeni Poz' })
-      expect(res.status).toBe(200)
+      expect(res.status).toBe(403)
     })
 
     it('admin global → 200', async () => {

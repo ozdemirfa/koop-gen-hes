@@ -14,13 +14,13 @@ const router = Router()
 router.get('/', requireProjectAccess('user'), uyeController.getUyes)
 router.get('/:id', requireProjectAccess('user'), uyeController.getUyeById)
 
-router.post('/', requireProjectAccess('user'), validate({ body: createUyeSchema }), uyeController.createUye)
-router.put('/:id', requireProjectAccess('user'), validate({ body: updateUyeSchema }), uyeController.updateUye)
+router.post('/', requireProjectAccess('manager'), validate({ body: createUyeSchema }), uyeController.createUye)
+router.put('/:id', requireProjectAccess('manager'), validate({ body: updateUyeSchema }), uyeController.updateUye)
 router.delete('/:id', requireProjectAccess('manager'), uyeController.deleteUye)
 
 router.get('/:id/aidatlar', requireProjectAccess('user'), uyeController.getUyeAidatlar)
 
-router.post('/:id/toplu-odeme', requireProjectAccess('user'), uyeController.bulkPayment)
+router.post('/:id/toplu-odeme', requireProjectAccess('manager'), uyeController.bulkPayment)
 router.post('/:id/match-payments', requireProjectAccess('manager'), uyeController.matchPaymentsFIFO)
 
 export default router

@@ -139,14 +139,12 @@ describe('Project isolation smoke', () => {
       expect(res.status).not.toBe(403)
     })
 
-    it('POST /api/faturalar (viewer → user) → not 401/403 (form girişi user level)', async () => {
-      // Sprint role-system-modernization (PR-B): viewer legacy alias → user'a
-      // normalize edilir; user fatura girişi yapabilir. Yıkıcı işlem (DELETE)
-      // hâlâ manager+ gerektirir (ayrı test).
+    it('POST /api/faturalar (viewer → user) → 403 (salt-okunur, yazma manager+)', async () => {
+      // Sprint user-role-readonly (2026-05-30): 'user' (legacy viewer) salt-okunur;
+      // yazma (POST/PUT) manager+ gerektirir → 403.
       currentUser = { id: 'u-viewer', role: 'staff', projectRole: 'viewer' }
       const res = await request(app).post('/api/faturalar').send({ proje_id: PROJE_ID })
-      expect(res.status).not.toBe(401)
-      expect(res.status).not.toBe(403)
+      expect(res.status).toBe(403)
     })
 
     it('DELETE /api/faturalar (viewer → user) → 403 (DELETE manager+ gerektirir)', async () => {

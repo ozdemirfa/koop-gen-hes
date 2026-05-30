@@ -1,26 +1,38 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, Page } from '@playwright/test'
 import { loginAs, hasViewerCreds, E2E_VIEWER_USER, E2E_VIEWER_PASSWORD } from '../helpers'
 
 /**
- * Sprint qa-review-bugfix-faz3 (2026-05-25, Batch 6) — `user` (görüntüleyici-alias) perspektifi
+ * Sprint qa-review-bugfix-faz3 (2026-05-25, Batch 6) — `user` salt-okunur perspektifi
  *
  * Dedicated fixture (E2E_VIEWER_USER / E2E_VIEWER_PASSWORD): test projesine `user`
  * rolüyle bağlı, global rolü olmayan bir kullanıcı. Creds yoksa suite graceful skip
  * eder (CI'da E2E_VIEWER_* secret'ları eklenince aktive olur).
  *
- * ÖNEMLİ — gerçek izin modeli (usePermissions.ts):
- *   `user` rolü için `canEdit = true` (her üye POST/PUT yapabilir). Yani oluşturma
- *   ("Yeni X") butonları ENABLED'dır. Kısıtlamalar yalnızca:
- *     - canDelete      = false (yıkıcı işlemler manager+)
- *     - canManageUsers = false (Kullanıcı Yönetimi erişimi manager+)
- *   AdminLayout ayrıca `projectRole === 'user'` iken "Görüntüleyici" tag'i (UI ipucu)
- *   gösterir — ancak bu tag oluşturmayı engellemez (tag metni "sadece görüntüleme"
- *   dese de canEdit aktif; UX tutarsızlığı ayrı bir konu, bu spec gerçek davranışı kilitler).
- *
- * Backend RBAC smoke (server/tests/integration/rbac.smoke.test.ts) HTTP seviyesini kapsar.
+ * İzin modeli (Sprint user-role-readonly, 2026-05-30):
+ *   `user` rolü artık KATI SALT-OKUNUR — yalnız `canView`. `canEdit/canDelete/
+ *   canManageUsers = isManager` (owner+manager). Yani:
+ *     - "Yeni X" / Düzenle / Sil butonları DISABLED.
+ *     - Kullanıcı Yönetimi erişilemez (/forbidden).
+ *     - "Görüntüleyici" tag'i görünür ve artık doğru (gerçekten salt-okunur).
+ *   Backend birebir: yazma route'ları requireProjectAccess('manager'); user POST → 403.
+ *   Backend RBAC smoke (server/tests/integration/rbac.smoke.test.ts) HTTP seviyesini kapsar.
  */
 
-test.describe('user (görüntüleyici-alias) perspektifi — kısıtlı yetki gating', () => {
+/**
+ * Bir liste sayfasında salt-okunur user'ın oluşturma yapamadığını doğrular.
+ * Sayfaya göre create butonu ya disabled gösterilir (inline pattern, ör. Fatura)
+ * ya da hiç render edilmez (HeaderActionsToolbar pattern, ör. Firma/Hakediş).
+ * Her iki durumda da ENABLED bir "Yeni X" butonu OLMAMALI → güvenlik-anlamlı kontrol.
+ */
+async function expectCannotCreate(page: Page, path: string, buttonName: RegExp) {
+  await page.goto(path)
+  await page.waitForLoadState('networkidle')
+  // disabled:false → yalnızca tıklanabilir (enabled) butonu eşler.
+  const enabledBtn = page.getByRole('button', { name: buttonName, disabled: false })
+  await expect(enabledBtn).toHaveCount(0, { timeout: 15_000 })
+}
+
+test.describe('user salt-okunur perspektifi — gating', () => {
   // Dedicated viewer fixture yoksa tüm suite skip.
   test.skip(!hasViewerCreds, 'E2E_VIEWER_USER / E2E_VIEWER_PASSWORD tanımlı değil — dedicated viewer fixture gerekli')
 
@@ -51,12 +63,16 @@ test.describe('user (görüntüleyici-alias) perspektifi — kısıtlı yetki ga
     await expect(sider.getByText(/Kullanıcı Yönetimi/i)).toHaveCount(0)
   })
 
-  test('Oluşturma serbest — /firmalar "Yeni Firma" enabled (canEdit=true)', async ({ page }) => {
-    // user rolü düşük yetkili olsa da form girişi (POST) yapabilir → buton enabled.
-    await page.goto('/firmalar')
-    await page.waitForLoadState('networkidle')
-    const btn = page.getByRole('button', { name: /Yeni Firma/i }).first()
-    await expect(btn).toBeVisible({ timeout: 15_000 })
-    await expect(btn).toBeEnabled()
+  // Salt-okunur: oluşturma aksiyonu tıklanabilir DEĞİL (canEdit = isManager → user false).
+  test('FirmaListPage — "Yeni Firma" tıklanabilir değil', async ({ page }) => {
+    await expectCannotCreate(page, '/firmalar', /Yeni Firma/i)
+  })
+
+  test('FaturaListPage — "Yeni Fatura" tıklanabilir değil', async ({ page }) => {
+    await expectCannotCreate(page, '/faturalar', /Yeni Fatura/i)
+  })
+
+  test('HakedisListPage — "Yeni Hakediş" tıklanabilir değil', async ({ page }) => {
+    await expectCannotCreate(page, '/hakedisler', /Yeni Hakediş/i)
   })
 })

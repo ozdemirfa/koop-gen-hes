@@ -128,19 +128,18 @@ describe('RBAC + project isolation integration smoke', () => {
     })
   })
 
-  describe('POST /api/cekler (proje user+ erişimi — form girişi)', () => {
-    // PR-B: form girişi user'a açık; viewer (legacy alias → user) artık POST yapabilir.
+  describe('POST /api/cekler (yazma — manager+ gerektirir)', () => {
+    // Sprint user-role-readonly (2026-05-30): yazma manager+'a daraltıldı.
+    // 'user' (legacy viewer) artık POST yapamaz → 403.
     it('anon → 401', async () => {
       const res = await request(app).post('/api/cekler').send({ proje_id: PROJE_ID })
       expect(res.status).toBe(401)
     })
 
-    it('proje user (legacy viewer) → not 401/403 (form girişi user level)', async () => {
+    it('proje user (legacy viewer) → 403 (salt-okunur, yazma manager+)', async () => {
       currentUser = { id: 'u-viewer', role: 'staff', projectRole: 'viewer' }
       const res = await request(app).post('/api/cekler').send({ proje_id: PROJE_ID })
-      // Auth/yetki geçer; downstream schema validation veya server hatası kabul edilir.
-      expect(res.status).not.toBe(401)
-      expect(res.status).not.toBe(403)
+      expect(res.status).toBe(403)
     })
 
     it('proje staff (legacy manager) → not 401/403', async () => {

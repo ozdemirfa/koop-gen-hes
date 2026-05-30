@@ -11,14 +11,14 @@ const router = Router()
 //   DELETE       → manager
 router.get('/', requireProjectAccess('user'), sozlesmeController.getSozlesmeler)
 router.get('/:id', requireProjectAccess('user'), sozlesmeController.getSozlesmeById)
-router.post('/', requireProjectAccess('user'), validate({ body: createSozlesmeSchema }), sozlesmeController.createSozlesme)
-router.put('/:id', requireProjectAccess('user'), validate({ body: updateSozlesmeSchema }), sozlesmeController.updateSozlesme)
+router.post('/', requireProjectAccess('manager'), validate({ body: createSozlesmeSchema }), sozlesmeController.createSozlesme)
+router.put('/:id', requireProjectAccess('manager'), validate({ body: updateSozlesmeSchema }), sozlesmeController.updateSozlesme)
 router.delete('/:id', requireProjectAccess('manager'), sozlesmeController.deleteSozlesme)
 
 // İş kalemleri — proje_id query üzerinden gelir
 router.get('/:id/is-kalemleri', requireProjectAccess('user'), sozlesmeController.getIsKalemleri)
-router.post('/:id/is-kalemleri', requireProjectAccess('user'), validate({ body: isKalemiSchema }), sozlesmeController.addIsKalemi)
-router.put('/is-kalemleri/:id', requireProjectAccess('user'), validate({ body: isKalemiSchema.partial() }), sozlesmeController.updateIsKalemi)
+router.post('/:id/is-kalemleri', requireProjectAccess('manager'), validate({ body: isKalemiSchema }), sozlesmeController.addIsKalemi)
+router.put('/is-kalemleri/:id', requireProjectAccess('manager'), validate({ body: isKalemiSchema.partial() }), sozlesmeController.updateIsKalemi)
 router.delete('/is-kalemleri/:id', requireProjectAccess('manager'), sozlesmeController.deleteIsKalemi)
 
 export default router

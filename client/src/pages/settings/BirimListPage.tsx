@@ -120,6 +120,9 @@ export const BirimListPage: React.FC = () => {
 
   return (
     <Card variant="borderless" className="shadow-sm">
+      {/* Sprint user-role-readonly (2026-05-30): birim ekleme manager+/yetkili'ye
+          (canCreateGlobalDefs) ayrıldı; salt-okunur 'user' kişisel dahil ekleyemez. */}
+      {canCreateGlobalDefs && (
       <div style={{ marginBottom: 24, padding: '16px', background: '#f8fafc', borderRadius: '8px' }}>
         <Typography.Title level={5} style={{ marginTop: 0 }}>Yeni Birim Ekle</Typography.Title>
         <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
@@ -163,6 +166,7 @@ export const BirimListPage: React.FC = () => {
           </Form.Item>
         </Form>
       </div>
+      )}
 
       <DataTable
         hideCard
