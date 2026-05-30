@@ -149,8 +149,9 @@ export const CariEkstrePage: React.FC = () => {
 
   // Fatura dışı işlemleri filtrele + FIFO parça grouping (US-3, sprint 20260519).
   // Cari ekstre muhasebe görünümü olduğundan `exclude_tahakkuk` GÖNDERİLMEZ (US-2):
-  // tahakkuk + tahsilat satırları aynı tabloda görünür. Grouping anahtarına
-  // `cari_hesap_id` dahil edilir — farklı cari'lere giden parçalar birleşmez.
+  // tahakkuk + tahsilat satırları aynı tabloda görünür. Grouping anahtarı default'tur;
+  // `cari_hesap_id` artık DEFAULT_KEY_FIELDS içinde — farklı cari'lere giden parçalar
+  // birleşmez (bkz. groupCariParcalari.ts 2026-05-30 bugfix).
   const hareketler = useMemo(() => {
     if (!rawHareketler) return []
     const filtered = rawHareketler.filter(h =>
@@ -158,15 +159,7 @@ export const CariEkstrePage: React.FC = () => {
       h.islem_turu === 'giden_odeme' ||
       h.islem_turu === 'odeme'
     )
-    return groupCariParcalari(filtered, [
-      'tarih',
-      'odeme_turu',
-      'banka_hesap_id',
-      'belge_no',
-      'aciklama',
-      'islem_turu',
-      'cari_hesap_id',
-    ])
+    return groupCariParcalari(filtered)
   }, [rawHareketler])
 
   // Birikmiş Teminat ve Hakediş Detayları Sorgusu

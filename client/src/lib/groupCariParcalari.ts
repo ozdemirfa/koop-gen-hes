@@ -3,8 +3,15 @@
 // FIFO eşleştirme (`fn_match_member_payments_fifo`) bir tahsilatı N aidat tahakkukuna
 // eşleştirirken `cari_hareketler` tablosundaki orijinal satırı parçalıyor → para
 // hareketleri sayfaları aynı tahsilatı N kez gösteriyor. Bu helper, aynı
-// (tarih, odeme_turu, banka_hesap_id, belge_no, aciklama, islem_turu) anahtarına
-// sahip parça satırları tek satıra konsolide eder.
+// (cari_hesap_id, tarih, odeme_turu, banka_hesap_id, belge_no, aciklama, islem_turu)
+// anahtarına sahip parça satırları tek satıra konsolide eder.
+//
+// BUGFIX (2026-05-30): `cari_hesap_id` anahtara dahil edilmeli. FIFO parçaları zaten
+// aynı cari'ye ait olduğundan konsolidasyon davranışı değişmez; ancak proje geneli
+// listede (TahsilatListPage) farklı üyelerin aynı tarih/yöntem/açıklamalı
+// `uyelik_baslangic` tahsilatları yanlışlıkla tek satıra birleşip ilk üyenin adıyla
+// (ve toplanmış tutarla) görünüyordu. CariEkstrePage bu alanı zaten elle ekliyordu;
+// default'a taşındı ki tüm çağıranlar güvende olsun.
 //
 // Davranış:
 //   - `borc` ve `alacak` parça toplamlarına eşitlenir.
@@ -38,6 +45,7 @@ export type GroupedRow<T> = T & {
 }
 
 const DEFAULT_KEY_FIELDS: GroupKey = [
+  'cari_hesap_id',
   'tarih',
   'odeme_turu',
   'banka_hesap_id',
