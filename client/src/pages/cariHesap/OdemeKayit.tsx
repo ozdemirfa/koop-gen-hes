@@ -22,7 +22,8 @@ export const OdemeKayit: React.FC = () => {
   const { canEdit } = usePermissions()
   const queryClient = useQueryClient()
   const { message } = App.useApp()
-  const [filterCariTuru, setFilterCariTuru] = useState<'uye' | 'firma'>('uye')
+  const [filterCariTuru, setFilterCariTuru] = useState<'uye' | 'firma' | 'yonetim'>('uye')
+  const isYonetim = filterCariTuru === 'yonetim'
 
   // Form değerlerini izle — useWatch reaktif, Ant Design Form internal'ı ile sync.
   const islemTuru = Form.useWatch('islem_turu', form)
@@ -70,6 +71,18 @@ export const OdemeKayit: React.FC = () => {
     if (filterCariTuru === 'uye' && form.getFieldValue('odeme_turu') === 'cek') {
       form.setFieldValue('odeme_turu', 'banka')
     }
+    // Yönetim cari: işlem türü yalnız gelen/giden ödeme; ödeme aracı yalnız nakit/banka
+    // (kullanıcı kuralı). Geçersiz seçili değerleri geçerliye çevir + cari seçimi sıfırla.
+    if (filterCariTuru === 'yonetim') {
+      if (islemTuru === 'iade_odeme' || islemTuru === 'uyelik_baslangic') {
+        form.setFieldValue('islem_turu', 'giden_odeme')
+      }
+      const ot = form.getFieldValue('odeme_turu')
+      if (ot !== 'nakit' && ot !== 'banka') {
+        form.setFieldValue('odeme_turu', 'banka')
+      }
+      form.setFieldValue('cari_hesap_id', undefined)
+    }
   }, [filterCariTuru, islemTuru, form])
 
   // Cari Hesaplar (Üyeler + Firmalar) Fetch
@@ -90,11 +103,42 @@ export const OdemeKayit: React.FC = () => {
     enabled: !!activeProject?.id
   })
 
+  // Yönetim ekibi carileri (standalone — cari_hesaplar'dan ayrı). yonetim-ekibi sprint.
+  const { data: yonetimList, isLoading: yonetimLoading } = useQuery({
+    queryKey: ['yonetim-ekibi', activeProject?.id],
+    queryFn: async () => {
+      if (!activeProject?.id) return []
+      const { data } = await api.get('/yonetim-ekibi', { params: { proje_id: activeProject.id } })
+      return (data.data ?? []) as { id: string; ad_soyad: string; bakiye?: number }[]
+    },
+    enabled: !!activeProject?.id,
+  })
+
   // Filtrelenmiş hesaplar
   const filteredAccounts = useMemo(() => {
     if (!accounts) return []
     return accounts.filter(acc => acc.cari_turu === filterCariTuru)
   }, [accounts, filterCariTuru])
+
+  // Cari Hesap Select seçenekleri — yönetim seçiliyse yonetim_ekibi satırları,
+  // aksi halde üye/firma cari hesapları.
+  const cariOptions = useMemo<
+    { value: string; label: string; cariTuru: 'uye' | 'firma' | 'yonetim'; display: string }[]
+  >(() => {
+    if (isYonetim) {
+      return (yonetimList ?? []).map(m => ({
+        value: m.id,
+        label: m.ad_soyad,
+        cariTuru: 'yonetim',
+        display: m.ad_soyad,
+      }))
+    }
+    return (filteredAccounts ?? []).map(acc => {
+      const uyeNo = acc.uyeler?.uye_no
+      const display = acc.cari_turu === 'uye' && uyeNo ? `${uyeNo} - ${acc.cari_adi}` : acc.cari_adi
+      return { value: acc.id, label: display, cariTuru: acc.cari_turu, display }
+    })
+  }, [isYonetim, yonetimList, filteredAccounts])
 
   // Banka Hesapları Fetch
   const { data: bankaHesaplari, isLoading: bankalarLoading } = useQuery({
@@ -131,6 +175,21 @@ export const OdemeKayit: React.FC = () => {
   // Ödeme Kaydı Mutation
   const saveMutation = useMutation({
     mutationFn: async (values: any) => {
+      // yonetim-ekibi sprint: Yönetim cari ödemesi ayrı endpoint'e gider — cari_hareketler
+      // değil yonetim_ekibi.alacak'a işlenir; gelir/gider'e yazılmaz, kasa/banka etkilenir.
+      if (filterCariTuru === 'yonetim') {
+        const yonetimPayload = {
+          proje_id: activeProject?.id,
+          yonetim_id: values.cari_hesap_id,
+          islem_turu: values.islem_turu,
+          odeme_turu: values.odeme_turu,
+          banka_hesap_id: values.odeme_turu === 'banka' ? values.banka_hesap_id : null,
+          tutar: values.tutar,
+          tarih: values.tarih.format('YYYY-MM-DD'),
+          aciklama: values.aciklama ?? null,
+        }
+        return await api.post('/yonetim-ekibi/payment', yonetimPayload)
+      }
       // 2026-05-15 hotfix: Önceki versiyon `kaynak_tipi` raw string olarak gönderiyordu;
       // ancak server'daki cariPaymentSchema bu alanı whitelist'lemediği için Zod payload'tan
       // strip ediyordu (mass-assignment koruması, TASK-BE-08 SEC-014). Sonuç olarak DB'ye
@@ -162,6 +221,7 @@ export const OdemeKayit: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['banka-hareketleri'] })
       queryClient.invalidateQueries({ queryKey: ['banka-hesaplari'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard-ozet'] })
+      queryClient.invalidateQueries({ queryKey: ['yonetim-ekibi'] })
       form.resetFields()
       setFilterCariTuru('uye')
     },
@@ -242,6 +302,7 @@ export const OdemeKayit: React.FC = () => {
             >
               <Radio.Button value="uye">Üyeler</Radio.Button>
               <Radio.Button value="firma">Firmalar</Radio.Button>
+              <Radio.Button value="yonetim">Yönetim</Radio.Button>
             </Radio.Group>
           </div>
 
@@ -255,31 +316,20 @@ export const OdemeKayit: React.FC = () => {
                 <Select
                   showSearch
                   placeholder="İsim veya unvan ile arayın..."
-                  loading={accountsLoading}
+                  loading={accountsLoading || (isYonetim && yonetimLoading)}
                   optionFilterProp="label"
                   allowClear
                   className="w-full"
                   suffixIcon={<AuditOutlined />}
                   // REV-PAY-04 (2026-05-12): Üye için "U-No - Ad Soyad", Firma için
-                  // sadece unvan (cari_adi). Badge görsel ayrımı korur, label string
-                  // search/filter için unique kalır.
-                  options={filteredAccounts?.map(acc => {
-                    const uyeNo = acc.uyeler?.uye_no
-                    const display = acc.cari_turu === 'uye' && uyeNo
-                      ? `${uyeNo} - ${acc.cari_adi}`
-                      : acc.cari_adi
-                    return {
-                      value: acc.id,
-                      label: display,
-                      cariTuru: acc.cari_turu,
-                      display,
-                    }
-                  })}
+                  // sadece unvan (cari_adi). yonetim-ekibi: Yönetim için ad_soyad.
+                  // Badge görsel ayrımı korur, label string search/filter için unique kalır.
+                  options={cariOptions}
                   optionRender={({ data }) => (
                     <Space>
                       <Badge
-                        status={data.cariTuru === 'uye' ? 'processing' : 'warning'}
-                        text={data.cariTuru === 'uye' ? 'Üye' : 'Firma'}
+                        status={data.cariTuru === 'uye' ? 'processing' : data.cariTuru === 'yonetim' ? 'success' : 'warning'}
+                        text={data.cariTuru === 'uye' ? 'Üye' : data.cariTuru === 'yonetim' ? 'Yönetim' : 'Firma'}
                       />
                       <span>{data.display}</span>
                     </Space>
@@ -305,12 +355,14 @@ export const OdemeKayit: React.FC = () => {
                   <Option value="gelen_odeme">
                     <Space><MoneyCollectOutlined className="text-green-500" /> Gelen Ödeme (Tahsilat Yapıldı)</Space>
                   </Option>
-                  {filterCariTuru !== 'firma' && (
+                  {/* Üyelik bedeli iadesi / başlangıç bedeli yalnız üye carilerinde anlamlı
+                      (firma ve yönetim için gizli). */}
+                  {filterCariTuru === 'uye' && (
                     <Option value="iade_odeme">
                       <Space><RollbackOutlined className="text-blue-500" /> Üyelik Bedeli İadesi</Space>
                     </Option>
                   )}
-                  {filterCariTuru !== 'firma' && (
+                  {filterCariTuru === 'uye' && (
                     <Option value="uyelik_baslangic">
                       <Space><UserAddOutlined className="text-orange-500" /> Üyelik Başlangıç Bedeli</Space>
                     </Option>
@@ -334,7 +386,8 @@ export const OdemeKayit: React.FC = () => {
                   <Option value="banka" disabled={noBankAccounts}>
                     Banka (EFT/Havale){noBankAccounts ? ' — banka hesabı tanımsız' : ''}
                   </Option>
-                  <Option value="kredi_karti">Kredi Kartı</Option>
+                  {/* Yönetim ödemelerinde yalnız nakit/banka (kullanıcı kuralı). */}
+                  {!isYonetim && <Option value="kredi_karti">Kredi Kartı</Option>}
                   {/* Sprint revizyon-bugfix-paketi B3 (2026-05-25, madde 4):
                       Cari turu uye iken cek odeme araci anlamsiz; uyenin ciktigi
                       cek kabul edilmiyor. Sadece firma carilerde gosterilir. */}

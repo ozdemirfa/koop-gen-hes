@@ -19,6 +19,7 @@ import ceklerRoutes from './cekler.routes'
 import adminRoutes from './admin.routes'
 import projeUyelikleriRoutes from './projeUyelikleri.routes'
 import virmanRoutes from './virman.routes'
+import yonetimEkibiRoutes from './yonetimEkibi.routes'
 import invitationsRoutes from './invitations.routes'
 import meInvitationsRoutes from './meInvitations.routes'
 
@@ -68,6 +69,7 @@ router.use('/raporlar', raporlarRoutes)
 router.use('/cekler', ceklerRoutes)
 router.use('/admin', adminRoutes)
 router.use('/virmanlar', virmanRoutes)
+router.use('/yonetim-ekibi', yonetimEkibiRoutes)
 router.use('/me/invitations', meInvitationsRoutes)
 
 export default router

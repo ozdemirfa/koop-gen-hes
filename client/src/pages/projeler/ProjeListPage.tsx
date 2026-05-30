@@ -576,12 +576,33 @@ export const ProjeListPage: React.FC = () => {
                 label={<span style={{ fontWeight: 500 }}>Toplam Bütçe</span>}
                 style={{ marginBottom: 12 }}
               >
-                <InputNumber 
-                  style={{ width: '100%' }} 
-                  min={0} 
+                <InputNumber
+                  style={{ width: '100%' }}
+                  min={0}
                   formatter={trNumberFormatter}
                   parser={trNumberParser}
                   placeholder="0,00"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={12}>
+            <Col span={8}>
+              <Form.Item
+                name="huzur_hakki_orani"
+                label={<span style={{ fontWeight: 500 }}>Huzur Hakkı Oranı (%)</span>}
+                tooltip="Hakediş onayında bu oran kadar tutar yönetim ekibine paylarına göre dağıtılır (0-100, tam sayı)."
+                style={{ marginBottom: 12 }}
+              >
+                <InputNumber
+                  style={{ width: '100%' }}
+                  min={0}
+                  max={100}
+                  precision={0}
+                  step={1}
+                  placeholder="0"
+                  size="small"
                 />
               </Form.Item>
             </Col>
