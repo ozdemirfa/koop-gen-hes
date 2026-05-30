@@ -33,7 +33,7 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireRole }) => {
   const { session, loading } = useAuth()
-  const { loading: projectLoading } = useProject()
+  const { initialized: projectInitialized } = useProject()
   const { isOwner, isManager, canEdit } = usePermissions()
 
   if (loading) {
@@ -53,8 +53,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requir
   // listesi async fetch edilirken activeProject/Role henüz null olur. Global admin
   // OLMAYAN kullanıcılar için bu, rol gelmeden isManager/isOwner=false görünüp
   // hatalı /forbidden redirect'ine yol açıyordu (redirect sonrası rol gelse de
-  // geri dönülmüyordu). Proje context'i yüklenene kadar bekle (spinner).
-  if (projectLoading) {
+  // geri dönülmüyordu). İlk proje fetch'i bitene (initialized) kadar bekle.
+  // NOT: `loading` kullanılamaz — oturum gelmeden no-session dalında erkenden
+  // false'a düşüyor ve fetch sırasında true'ya dönmüyor.
+  if (!projectInitialized) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
         <Spin size="large" />
