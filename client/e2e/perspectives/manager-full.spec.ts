@@ -27,6 +27,29 @@ async function expectPrimaryActionEnabled(page: Page, path: string, buttonName: 
   await expect(btn).toBeEnabled()
 }
 
+/**
+ * Rol-gated bir route'a (ProtectedRoute requireRole) güvenli navigasyon.
+ *
+ * Global admin OLMAYAN manager fixture'ı için `projectRole`, ProjectContext'in
+ * ASYNC hydrate ettiği `activeProjectRole`'e bağlıdır (usePermissions.ts). Doğrudan
+ * `page.goto('/admin/kullanicilar')` ile gidildiğinde, context henüz hydrate olmadan
+ * ProtectedRoute `isManager=false` görüp tek seferlik /forbidden'a redirect edebilir
+ * ve rol sonradan gelince geri dönmez (hydration race).
+ *
+ * NOT (app follow-up): bu, gerçek bir UX latent bug'ıdır — non-admin manager direkt
+ * URL ile gated sayfaya girince /forbidden'a takılabilir. Kalıcı çözüm ProtectedRoute'un
+ * proje-context loading'ini de beklemesidir. Bu helper testi race'e karşı sağlamlaştırır.
+ */
+async function gotoGatedPage(page: Page, path: string) {
+  await expect(async () => {
+    await page.goto(path)
+    await page.waitForLoadState('networkidle')
+    if (new URL(page.url()).pathname.endsWith('/forbidden')) {
+      throw new Error('Henüz /forbidden — projectRole hydrate olmadı, retry')
+    }
+  }).toPass({ timeout: 30_000, intervals: [500, 1000, 2000, 3000, 5000] })
+}
+
 test.describe('Manager perspective — full operasyonel + sınırlı yönetim', () => {
   // Dedicated manager fixture yoksa tüm suite skip.
   test.skip(!hasManagerCreds, 'E2E_MANAGER_USER / E2E_MANAGER_PASSWORD tanımlı değil — dedicated manager fixture gerekli')
@@ -45,8 +68,7 @@ test.describe('Manager perspective — full operasyonel + sınırlı yönetim', 
   })
 
   test('KullaniciYonetimi erişilebilir (canManageUsers=true)', async ({ page }) => {
-    await page.goto('/admin/kullanicilar')
-    await page.waitForLoadState('networkidle')
+    await gotoGatedPage(page, '/admin/kullanicilar')
     await checkHeader(page, 'Kullanıcı Yönetimi')
     // Üye listesi tablosu yüklenmeli
     await expect(page.locator('.ant-table-tbody')).toBeVisible({ timeout: 15_000 })
@@ -65,8 +87,7 @@ test.describe('Manager perspective — full operasyonel + sınırlı yönetim', 
   })
 
   test('Davet modal aç + role select görünür', async ({ page }) => {
-    await page.goto('/admin/kullanicilar')
-    await page.waitForLoadState('networkidle')
+    await gotoGatedPage(page, '/admin/kullanicilar')
 
     const inviteBtn = page.getByRole('button', { name: /Üye Davet Et/i }).first()
     await expect(inviteBtn).toBeVisible({ timeout: 15_000 })

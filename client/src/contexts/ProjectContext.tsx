@@ -50,6 +50,14 @@ interface ProjectContextType {
   activeProjectRole: ProjectRole
   setActiveProject: (project: Project | null) => void
   loading: boolean
+  /**
+   * İlk proje listesi fetch'i (oturum geldikten sonra) tamamlandı mı.
+   * `loading` arka-plan refresh'lerde (Realtime/focus) dalgalanabildiği ve
+   * oturum gelmeden no-session dalında erkenden false'a düştüğü için, rol-gated
+   * route guard'ları bu flag'e bakmalı (hydration race önlemi). Bir kez true
+   * olunca arka-plan refresh'lerde tekrar false olmaz.
+   */
+  initialized: boolean
   refreshProjects: () => Promise<void>
 }
 
@@ -60,6 +68,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [projects, setProjects] = useState<Project[]>([])
   const [activeProject, setActiveProjectState] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
+  const [initialized, setInitialized] = useState(false)
 
   // refreshProjects'i useCallback ile sarıyoruz — useEffect/listener'ların
   // bağımlılıklarında stable referans gerekir (yoksa Realtime cleanup loop'a girer).
@@ -97,6 +106,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
       console.error('Projeler yüklenirken hata:', error)
     } finally {
       setLoading(false)
+      setInitialized(true)
     }
   }, [session])
 
@@ -193,7 +203,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   return (
     <ProjectContext.Provider
-      value={{ projects, activeProject, activeProjectRole, setActiveProject, loading, refreshProjects }}
+      value={{ projects, activeProject, activeProjectRole, setActiveProject, loading, initialized, refreshProjects }}
     >
       {children}
     </ProjectContext.Provider>

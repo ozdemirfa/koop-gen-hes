@@ -2,6 +2,7 @@ import React from 'react'
 import { Navigate } from 'react-router-dom'
 import { Spin } from 'antd'
 import { useAuth } from '../../contexts/AuthContext'
+import { useProject } from '../../contexts/ProjectContext'
 import { usePermissions } from '../../hooks/usePermissions'
 
 // Sprint role-system-modernization (PR-C, 2026-05-20):
@@ -32,6 +33,7 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireRole }) => {
   const { session, loading } = useAuth()
+  const { initialized: projectInitialized } = useProject()
   const { isOwner, isManager, canEdit } = usePermissions()
 
   if (loading) {
@@ -45,6 +47,22 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requir
   if (!session) return <Navigate to="/login" replace />
 
   if (!requireRole) return <>{children}</>
+
+  // Hydration race fix: rol kontrolü aktif projenin rolüne (ProjectContext) dayanır.
+  // Tam sayfa yenilemede (örn. gated route'a direkt URL/bookmark ile giriş) proje
+  // listesi async fetch edilirken activeProject/Role henüz null olur. Global admin
+  // OLMAYAN kullanıcılar için bu, rol gelmeden isManager/isOwner=false görünüp
+  // hatalı /forbidden redirect'ine yol açıyordu (redirect sonrası rol gelse de
+  // geri dönülmüyordu). İlk proje fetch'i bitene (initialized) kadar bekle.
+  // NOT: `loading` kullanılamaz — oturum gelmeden no-session dalında erkenden
+  // false'a düşüyor ve fetch sırasında true'ya dönmüyor.
+  if (!projectInitialized) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <Spin size="large" />
+      </div>
+    )
+  }
 
   // Legacy aliasing
   const normalized: 'owner' | 'manager' | 'user' =
