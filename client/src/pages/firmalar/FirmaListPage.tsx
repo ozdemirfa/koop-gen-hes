@@ -276,7 +276,7 @@ export const FirmaListPage: React.FC = () => {
       dataIndex: 'guncel_bakiye',
       key: 'bakiye',
       align: 'right' as const,
-      width: 150,
+      width: 180,
       sorter: true,
       render: (v: number) => (
         <div style={{ 
@@ -295,7 +295,7 @@ export const FirmaListPage: React.FC = () => {
       dataIndex: 'toplam_teminat',
       key: 'teminat',
       align: 'right' as const,
-      width: 150,
+      width: 180,
       sorter: true,
       render: (v: number) => (
         <div style={{
@@ -315,7 +315,7 @@ export const FirmaListPage: React.FC = () => {
       dataIndex: 'fatura_acigi',
       key: 'fatura_acigi',
       align: 'right' as const,
-      width: 150,
+      width: 180,
       sorter: true,
       render: (v: number) => (
         <div style={{
@@ -341,7 +341,7 @@ export const FirmaListPage: React.FC = () => {
       title: 'IBAN',
       dataIndex: 'iban',
       key: 'iban',
-      width: 250,
+      width: 280,
       render: (v: string) => v ? (
         <Typography.Text copyable={{ text: getIBANRaw(v), tooltips: ['Kopyala (Sadece Rakamlar)', 'Kopyalandı!'] }}>
           {formatIBAN(v)}
