@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import api from '../lib/api'
+import { setActiveProjectId } from '../lib/activeProjectStore'
 import type { Session, User } from '@supabase/supabase-js'
 
 // Sprint 20260520-frontend-role-awareness (Faz 3a):
@@ -39,10 +41,29 @@ const AuthContext = createContext<AuthContextType>({
 })
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const queryClient = useQueryClient()
   const [session, setSession] = useState<Session | null>(null)
   const [user, setUser] = useState<User | null>(null)
   const [userRole, setUserRole] = useState<GlobalRole>(null)
   const [loading, setLoading] = useState(true)
+
+  // Kullanıcı kimliği değişimini (A → B veya X → çıkış) yakalamak için son
+  // görülen user id'yi tutarız. `undefined` = henüz hiç session resolve
+  // edilmedi (ilk mount). Bu sayede ilk yüklemede gereksiz cache temizliği +
+  // refetch storm tetiklenmez; yalnızca gerçek kimlik değişiminde temizleriz.
+  const lastUserIdRef = useRef<string | null | undefined>(undefined)
+
+  // Oturum değişiminde başka kullanıcıdan kalan veri sızmasın diye:
+  //   - React Query cache tamamen temizlenir (eski kullanıcının ['projeler']
+  //     vb. tüm listeleri),
+  //   - aktif proje seçimi (localStorage) sıfırlanır.
+  // Aksi halde yeni kullanıcı, erişimi olmayan eski projeleri listede görür ve
+  // içine girince backend 403 döner (gördüğümüz "yetkiniz yok" senaryosu).
+  // TOKEN_REFRESHED gibi aynı kullanıcının olaylarında temizlik YAPILMAZ.
+  const resetUserScopedState = useCallback(() => {
+    setActiveProjectId(null)
+    queryClient.clear()
+  }, [queryClient])
 
   // /api/auth/me — session token Authorization header'ına axios interceptor
   // tarafından eklenir; burada sadece çağırıp role'ı state'e yansıt.
@@ -60,6 +81,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [])
 
+  // Session'ı state'e uygula + kimlik değiştiyse kullanıcıya özel state'i sıfırla.
+  // getSession (ilk mount), onAuthStateChange ve signIn bu tek noktadan geçer.
+  const applySession = useCallback(
+    (nextSession: Session | null) => {
+      const nextUserId = nextSession?.user?.id ?? null
+      const identityChanged =
+        lastUserIdRef.current !== undefined && lastUserIdRef.current !== nextUserId
+      if (identityChanged) {
+        resetUserScopedState()
+        setUserRole(null)
+      }
+      lastUserIdRef.current = nextUserId
+      setSession(nextSession)
+      setUser(nextSession?.user ?? null)
+      setLoading(false)
+      // Fire-and-forget — role daha sonra gelir, UI engellenmez.
+      fetchUserRole(nextSession)
+    },
+    [fetchUserRole, resetUserScopedState],
+  )
+
   useEffect(() => {
     // Sprint 20260520-perf hotfix: setLoading(false) ASLA `await
     // fetchUserRole(...)` arkasında bloklanmamalı. /api/auth/me yavaş veya hang
@@ -68,11 +110,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     supabase.auth
       .getSession()
       .then(({ data: { session } }) => {
-        setSession(session)
-        setUser(session?.user ?? null)
-        setLoading(false)
-        // Fire-and-forget — role daha sonra gelir, UI engellenmez.
-        fetchUserRole(session)
+        applySession(session)
       })
       .catch(() => {
         setLoading(false)
@@ -81,14 +119,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
-      fetchUserRole(session)
+      applySession(session)
     })
 
     return () => subscription.unsubscribe()
-  }, [fetchUserRole])
+  }, [applySession])
 
   const signIn = useCallback(
     async (email: string, password: string) => {
@@ -97,10 +132,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (error) throw error
 
         if (data.session) {
-          setSession(data.session)
-          setUser(data.session.user)
-          // Login → loading=false hemen, role arkadan gelir.
-          fetchUserRole(data.session)
+          // applySession kimlik değişimini yakalar; başka kullanıcıyla giriş
+          // yapıldığında eski cache + aktif proje temizlenir.
+          applySession(data.session)
         }
         setLoading(false)
         return { error: null }
@@ -108,15 +142,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error: error as Error }
       }
     },
-    [fetchUserRole],
+    [applySession],
   )
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut()
+    // Çıkışta da kullanıcıya özel state'i hemen temizle (onAuthStateChange
+    // SIGNED_OUT da applySession ile aynısını yapar; idempotent).
+    resetUserScopedState()
+    lastUserIdRef.current = null
     setSession(null)
     setUser(null)
     setUserRole(null)
-  }, [])
+  }, [resetUserScopedState])
 
   const isAdmin = userRole === 'admin'
   const isYetkili = userRole === 'admin' || userRole === 'yetkili'
