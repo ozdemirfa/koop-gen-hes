@@ -18,10 +18,14 @@ const router = Router()
 //   canEdit zaten butonu disable ediyor; bu MW backend cap'i koyar).
 //   proje_id `X-Active-Project-Id` header'ından okunur (interceptor her istekte
 //   gönderir). Firma kaydı global kalır; sadece WRITE gating proje-aware'dir.
-router.get('/', firmaController.getFirmalar)
-router.get('/stats', firmaController.getStats)
-router.get('/:id/stats', firmaController.getFirmaStats)
-router.get('/:id', firmaController.getFirmaById)
+// Sprint firma-owner-scope (2026-05-31): Firmalar owner-bazlı oldu. Tüm
+// okuma route'ları proje-aware (proje_id query/header zorunlu) ve üyelik
+// kontrolü için requireProjectAccess('user') ile korunur. Servis ayrıca
+// firmaları aktif projenin owner'ına göre filtreler.
+router.get('/', requireProjectAccess('user'), firmaController.getFirmalar)
+router.get('/stats', requireProjectAccess('user'), firmaController.getStats)
+router.get('/:id/stats', requireProjectAccess('user'), firmaController.getFirmaStats)
+router.get('/:id', requireProjectAccess('user'), firmaController.getFirmaById)
 router.post('/', requireProjectAccess('manager'), validate({ body: createFirmaSchema }), firmaController.createFirma)
 router.put('/:id', requireProjectAccess('manager'), validate({ body: updateFirmaSchema }), firmaController.updateFirma)
 // Sprint revizyon-bugfix-paketi B2 (2026-05-25, P0): cari-ekstre proje-bagli;

@@ -74,11 +74,15 @@ export const FirmaDetailPage: React.FC = () => {
   // --- Queries ---
 
   const { data: firma, isLoading: firmaLoading } = useQuery({
-    queryKey: ['firma', id],
+    queryKey: ['firma', id, activeProjectId],
     queryFn: async () => {
-      const { data } = await api.get(`/firmalar/${id}`)
+      // Owner-bazlı: proje_id ile sahiplik doğrulanır (başka owner'ın firması → 404).
+      const params: any = {}
+      if (activeProjectId) params.proje_id = activeProjectId
+      const { data } = await api.get(`/firmalar/${id}`, { params })
       return data.data
     },
+    enabled: !!activeProjectId,
   })
 
   const { data: sozlesmeler, isLoading: sozlesmeLoading } = useQuery({
