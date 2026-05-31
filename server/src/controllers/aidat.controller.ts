@@ -2,7 +2,6 @@ import { Response } from 'express'
 import { AuthRequest } from '../middleware/auth'
 import { aidatTanimiService, aidatService } from '../services/aidat.service'
 import { catchAsync } from '../utils/catchAsync'
-import logger from '../utils/logger'
 
 // IDOR fix (security-quality-sprint, 2026-05-26): proje_id extract helper
 function extractProjeId(req: AuthRequest<any, any, any, any>): string {
@@ -16,9 +15,11 @@ function extractProjeId(req: AuthRequest<any, any, any, any>): string {
 // === AİDAT TANIMLARI ===
 
 export const getAidatTanimlari = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  // Verileri listelemeden önce varsa bekleyen borçlandırmaları çalıştır
-  await aidatTanimiService.executeCharging(undefined, req.user?.id).catch((err) => logger.error('Charging error', { err }))
-
+  // NOT: Eskiden burada otomatik borçlandırma (executeCharging) çalıştırılırdı.
+  // Bu yan etki, manuel "Borçlandırmayı Geri Al" işlemini anında bozuyordu
+  // (geri alınan 'plan' tanım, liste yenilenince tekrar borçlandırılıyordu).
+  // Borçlandırma artık yalnızca manuel "Borçlandır" butonu (/borclandir) veya
+  // açık toplu /execute-charging endpoint'i ile yapılır.
   const data = await aidatTanimiService.list(req.query as Record<string, any>)
   res.json({ success: true, data })
 })
