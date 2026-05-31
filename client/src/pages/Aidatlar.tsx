@@ -85,6 +85,10 @@ export const Aidatlar: React.FC = () => {
   const [editingTanim, setEditingTanim] = useState<AidatTanimi | null>(null)
   const [form] = Form.useForm()
 
+  // Aidat satırı düzenleme modalı (tutar + son ödeme tarihi)
+  const [editingAidat, setEditingAidat] = useState<Aidat | null>(null)
+  const [editAidatForm] = Form.useForm()
+
   const queryClient = useQueryClient()
   const { activeProject } = useProject()
   const { canEdit, canDelete } = usePermissions()
@@ -265,20 +269,28 @@ export const Aidatlar: React.FC = () => {
     onError: (err) => messageApi.error(getErrorMessage(err, 'Borçlandırma geri alınamadı')),
   })
 
-  // Mutation: Tekil aidat satırı sil (ödeme yoksa)
-  const deleteAidatMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { data } = await api.delete(`/aidatlar/${id}`)
+  // Mutation: Aidat satırı düzenle (tutar + son ödeme tarihi)
+  const updateAidatMutation = useMutation({
+    mutationFn: async ({ id, tutar, son_odeme_tarihi }: { id: string; tutar?: number; son_odeme_tarihi: string }) => {
+      // Ödenmiş aidatta tutar gönderilmez (backend P0001 reddeder); yalnızca vade.
+      const body: { tutar?: number; son_odeme_tarihi: string } = { son_odeme_tarihi }
+      if (tutar !== undefined) body.tutar = tutar
+      const { data } = await api.put(`/aidatlar/${id}`, body, {
+        params: { proje_id: activeProject?.id },
+      })
       return data
     },
     onSuccess: () => {
-      messageApi.success('Aidat kaydı silindi')
+      messageApi.success('Aidat güncellendi')
       queryClient.invalidateQueries({ queryKey: ['aidatlar'] })
       queryClient.invalidateQueries({ queryKey: ['aidat-ozet'] })
       queryClient.invalidateQueries({ queryKey: ['cari-ekstre'] })
       queryClient.invalidateQueries({ queryKey: ['cari-hareketler'] })
+      queryClient.invalidateQueries({ queryKey: ['uye-aidatlar'] })
+      setEditingAidat(null)
+      editAidatForm.resetFields()
     },
-    onError: (err) => messageApi.error(getErrorMessage(err, 'Aidat silinemedi')),
+    onError: (err) => messageApi.error(getErrorMessage(err, 'Aidat güncellenemedi')),
   })
 
   // Mutation: Faiz Toggle (Ekle/Sil)
@@ -666,26 +678,29 @@ export const Aidatlar: React.FC = () => {
       render: (_: any, r: Aidat) => {
         const odenmis = Number(r.dinamik_odenen_tutar || 0) > 0
         return (
-          <Popconfirm
-            title="Aidatı Sil"
-            description="Bu aidat kaydı (ve tahakkuku) silinecek. Ödeme eşleştirmesi yapılmışsa işlem reddedilir. Emin misiniz?"
-            onConfirm={() => deleteAidatMutation.mutate(r.id)}
-            okText="Evet, Sil"
-            cancelText="Vazgeç"
-            okButtonProps={{ danger: true }}
-            disabled={!canDelete || odenmis}
+          <Tooltip
+            title={
+              !canEdit
+                ? 'Yetki yok (manager+ gerekli)'
+                : odenmis
+                  ? 'Ödeme yapılmış — tutar değiştirilemez (yalnızca vade düzenlenebilir)'
+                  : 'Aidatı Düzenle'
+            }
           >
-            <Tooltip title={!canDelete ? 'Yetki yok (manager+ gerekli)' : odenmis ? 'Ödeme yapılmış — önce eşleştirmeyi geri alın' : 'Aidatı Sil'}>
-              <Button
-                size="small"
-                danger
-                icon={<DeleteOutlined />}
-                disabled={!canDelete || odenmis}
-                loading={deleteAidatMutation.isPending && deleteAidatMutation.variables === r.id}
-                aria-label="Aidatı sil"
-              />
-            </Tooltip>
-          </Popconfirm>
+            <Button
+              size="small"
+              icon={<EditOutlined />}
+              disabled={!canEdit || !r.ad}
+              onClick={() => {
+                setEditingAidat(r)
+                editAidatForm.setFieldsValue({
+                  tutar: Number(r.hesaplanan_tutar || 0),
+                  son_odeme_tarihi: r.son_odeme_tarihi ? dayjs(r.son_odeme_tarihi) : null,
+                })
+              }}
+              aria-label="Aidatı düzenle"
+            />
+          </Tooltip>
         )
       },
     },
@@ -902,6 +917,77 @@ export const Aidatlar: React.FC = () => {
             </Col>
           </Row>
         </Form>
+      </Modal>
+
+      {/* Aidat satırı düzenleme modalı (tutar + son ödeme tarihi).
+          Ödeme yapılmış aidatlarda tutar alanı kilitlenir; yalnızca vade düzenlenir
+          (backend ödenmiş aidatta tutar değişimini 409 ile reddeder). */}
+      <Modal
+        title="Aidat Düzenle"
+        open={!!editingAidat}
+        onCancel={() => { setEditingAidat(null); editAidatForm.resetFields() }}
+        onOk={() => editAidatForm.submit()}
+        confirmLoading={updateAidatMutation.isPending}
+        destroyOnHidden
+        width="min(420px, 95vw)"
+        okText="Kaydet"
+        cancelText="İptal"
+      >
+        {editingAidat && (() => {
+          const odenmis = Number(editingAidat.dinamik_odenen_tutar || 0) > 0
+          return (
+            <Form
+              form={editAidatForm}
+              layout="vertical"
+              size="small"
+              autoComplete="off"
+              onFinish={(values) => {
+                if (!editingAidat) return
+                updateAidatMutation.mutate({
+                  id: editingAidat.id,
+                  // Ödenmişse tutar gönderme (kilitli + backend reddeder)
+                  tutar: odenmis ? undefined : Number(values.tutar),
+                  son_odeme_tarihi: values.son_odeme_tarihi
+                    ? (values.son_odeme_tarihi as dayjs.Dayjs).format('YYYY-MM-DD')
+                    : dayjs(editingAidat.son_odeme_tarihi).format('YYYY-MM-DD'),
+                })
+              }}
+            >
+              <div style={{ marginBottom: 12, color: '#64748b', fontSize: 12 }}>
+                <Text type="secondary">
+                  {editingAidat.ad} {editingAidat.soyad} — Dönem {editingAidat.ay}/{editingAidat.yil}
+                </Text>
+              </div>
+              {odenmis && (
+                <Tag color="gold" style={{ marginBottom: 12 }}>
+                  Ödeme yapılmış — tutar değiştirilemez, yalnızca vade düzenlenebilir
+                </Tag>
+              )}
+              <Form.Item
+                name="tutar"
+                label="Aidat Tutarı (Ana Borç)"
+                rules={odenmis ? [] : [{ required: true, message: 'Tutar giriniz' }]}
+              >
+                <InputNumber
+                  style={{ width: '100%' }}
+                  min={0}
+                  step={0.01}
+                  formatter={trMoneyFormatter}
+                  parser={trNumberParser}
+                  decimalSeparator=","
+                  disabled={odenmis}
+                />
+              </Form.Item>
+              <Form.Item
+                name="son_odeme_tarihi"
+                label="Son Ödeme Tarihi"
+                rules={[{ required: true, message: 'Tarih giriniz' }]}
+              >
+                <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+              </Form.Item>
+            </Form>
+          )
+        })()}
       </Modal>
     </div>
   )

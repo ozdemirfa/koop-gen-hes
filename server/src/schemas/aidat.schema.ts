@@ -35,6 +35,17 @@ export const aidatOdemeSchema = z.object({
   aciklama: z.string().optional().nullable()
 })
 
+// Aidat satırı düzenleme (tutar + son ödeme tarihi). proje_id query'den okunur
+// (validate body proje_id'yi strip eder); en az bir alan zorunlu.
+export const updateAidatRowSchema = z
+  .object({
+    tutar: z.number().positive('Tutar pozitif olmalı').optional(),
+    son_odeme_tarihi: z.string().optional(),
+  })
+  .refine((d) => d.tutar !== undefined || d.son_odeme_tarihi !== undefined, {
+    message: 'Düzenlenecek en az bir alan (tutar veya son ödeme tarihi) gerekli',
+  })
+
 export const aidatQuerySchema = z.object({
   proje_id: z.string().uuid().optional(),
   uye_id: z.string().uuid().optional(),

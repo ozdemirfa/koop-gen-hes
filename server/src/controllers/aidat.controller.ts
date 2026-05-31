@@ -107,3 +107,8 @@ export const deleteAidat = catchAsync(async (req: AuthRequest<any, any, any, any
   const data = await aidatService.deleteAidat(req.params.id, extractProjeId(req), req.user?.id)
   res.json({ success: true, data })
 })
+
+export const updateAidatRow = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const data = await aidatService.updateAidatRow(req.params.id, req.body, extractProjeId(req), req.user?.id)
+  res.json({ success: true, data })
+})
