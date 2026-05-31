@@ -19,9 +19,11 @@ test.describe('Yönetim Ekibi', () => {
   async function gotoYonetimEkibi(page: import('@playwright/test').Page) {
     await page.goto('/projeler')
     await page.waitForLoadState('networkidle')
-    const firstRow = page.locator('.ant-table-row').first()
-    if ((await firstRow.count()) === 0) return false
-    await firstRow.click()
+    // Projeler kart (Card) grid'i olarak render edilir; detaya "görüntüle" (göz)
+    // aksiyonu ile gidilir. Kart yoksa (veri yok) smoke geç.
+    const viewBtn = page.locator('[data-testid^="view-project-"]').first()
+    if ((await viewBtn.count()) === 0) return false
+    await viewBtn.click()
     // Proje detay yüklendi mi? Header'daki Yönetim Ekibi ikonunu bekle.
     const ikon = page.getByRole('button', { name: 'Yönetim Ekibi' })
     await ikon.waitFor({ state: 'visible', timeout: 15_000 })
@@ -34,8 +36,8 @@ test.describe('Yönetim Ekibi', () => {
   test('proje detayından Yönetim Ekibi sayfasına erişilir', async ({ page }) => {
     const ok = await gotoYonetimEkibi(page)
     if (!ok) {
-      // Proje yoksa smoke geç
-      await expect(page.locator('.ant-table')).toBeVisible()
+      // Proje yoksa smoke geç (projeler kart grid'i; tablo yok)
+      await expect(page).toHaveURL(/\/projeler/)
       return
     }
     // Bilgilendirme alert'i (Proje Huzur Hakkı Oranı) görünür
@@ -45,7 +47,7 @@ test.describe('Yönetim Ekibi', () => {
   test('yönetim carisi eklenir ve tabloda borç/alacak/bakiye gösterilir', async ({ page }) => {
     const ok = await gotoYonetimEkibi(page)
     if (!ok) {
-      await expect(page.locator('.ant-table')).toBeVisible()
+      await expect(page).toHaveURL(/\/projeler/)
       return
     }
 
