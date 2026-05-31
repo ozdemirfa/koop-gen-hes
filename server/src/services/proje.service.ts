@@ -156,7 +156,12 @@ export const projeService = {
     // Arşiv listesinde ek bir kısıt: non-admin kullanıcı sadece OWNER olduğu
     // arşivdeki projeleri görebilir (manager/user arşivi göremez).
     let roleByProje = new Map<string, 'admin' | 'staff' | 'viewer'>()
-    if (!opts.isAdmin && opts.userId) {
+    if (!opts.isAdmin) {
+      // Kimlik yoksa hiçbir proje dönme (savunma: aksi halde q filtresiz kalıp
+      // TÜM projeleri sızdırır). Sadece global admin tüm projeleri görebilir.
+      if (!opts.userId) {
+        return []
+      }
       const membershipQ = supabaseAdmin
         .from('proje_uyelikleri')
         .select('proje_id, rol')
