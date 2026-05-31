@@ -341,7 +341,7 @@ export const FirmaListPage: React.FC = () => {
       title: 'IBAN',
       dataIndex: 'iban',
       key: 'iban',
-      width: 280,
+      width: 320,
       render: (v: string) => v ? (
         <Typography.Text copyable={{ text: getIBANRaw(v), tooltips: ['Kopyala (Sadece Rakamlar)', 'Kopyalandı!'] }}>
           {formatIBAN(v)}

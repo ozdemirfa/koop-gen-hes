@@ -152,7 +152,7 @@ export const YonetimEkibiPage: React.FC = () => {
       title: 'Borç',
       dataIndex: 'borc',
       key: 'borc',
-      width: 120,
+      width: 150,
       align: 'right' as const,
       responsive: ['sm'] as ('sm')[],
       render: (v: number) => `${formatMoney(v)} TL`,
@@ -161,7 +161,7 @@ export const YonetimEkibiPage: React.FC = () => {
       title: 'Alacak',
       dataIndex: 'alacak',
       key: 'alacak',
-      width: 120,
+      width: 150,
       align: 'right' as const,
       responsive: ['sm'] as ('sm')[],
       render: (v: number) => `${formatMoney(v)} TL`,
@@ -170,7 +170,7 @@ export const YonetimEkibiPage: React.FC = () => {
       title: 'Bakiye',
       dataIndex: 'bakiye',
       key: 'bakiye',
-      width: 130,
+      width: 150,
       align: 'right' as const,
       render: (_: unknown, r: YonetimCari) => {
         const bakiye = Number(r.borc || 0) - Number(r.alacak || 0)
