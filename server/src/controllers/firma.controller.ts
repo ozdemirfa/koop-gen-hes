@@ -3,13 +3,26 @@ import { AuthRequest } from '../middleware/auth'
 import { firmaService } from '../services/firma.service'
 import { catchAsync } from '../utils/catchAsync'
 
+// Aktif proje_id'yi query / X-Active-Project-Id header / body'den çöz
+// (requireProjectAccess ile aynı kaynak sırası). Firma artık owner-bazlı
+// olduğundan owner çözümü için proje_id gerekir.
+function extractProjeId(req: AuthRequest<any, any, any, any>): string {
+  const header = req.headers?.['x-active-project-id']
+  const headerStr = Array.isArray(header) ? header[0] : header
+  const raw =
+    (req.query?.proje_id ?? req.query?.projeId) ??
+    headerStr ??
+    (req.body?.proje_id ?? req.body?.projeId)
+  return typeof raw === 'string' ? raw.trim() : ''
+}
+
 export const getFirmalar = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const result = await firmaService.list(req.query as Record<string, any>)
+  const result = await firmaService.list({ ...(req.query as Record<string, any>), proje_id: extractProjeId(req) })
   res.json({ success: true, ...result })
 })
 
 export const getFirmaById = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await firmaService.getById(req.params.id)
+  const data = await firmaService.getById(req.params.id, extractProjeId(req) || undefined)
   res.json({ success: true, data })
 })
 
@@ -33,7 +46,11 @@ export const getFirmaStats = catchAsync(async (req: AuthRequest, res: Response) 
 })
 
 export const createFirma = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
-  const data = await firmaService.create(req.body)
+  const projeId = extractProjeId(req)
+  if (!projeId) {
+    return res.status(400).json({ success: false, error: 'proje_id zorunludur' })
+  }
+  const data = await firmaService.create(req.body, projeId)
   res.status(201).json({ success: true, data })
 })
 

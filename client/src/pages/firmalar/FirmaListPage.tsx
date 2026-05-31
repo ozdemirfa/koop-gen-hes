@@ -216,6 +216,9 @@ export const FirmaListPage: React.FC = () => {
       const { data } = await api.get('/firmalar', { params })
       return data
     },
+    // Firmalar owner-bazlı: backend proje_id (aktif proje) zorunlu kılar.
+    // Aktif proje yokken istek atma (aksi halde 400).
+    enabled: !!activeProjectId,
   })
 
   const { data: stats } = useQuery({

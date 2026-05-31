@@ -4,11 +4,37 @@ import { parsePagination, toSupabaseRange, paginationMeta } from '../utils/pagin
 import { requireProjeId, sanitizeSearchInput } from '../utils/projectGuard'
 import logger from '../utils/logger'
 
+// Sprint firma-owner-scope (2026-05-31): Firmalar artık owner-bazlı. Bir projenin
+// owner'ını (proje_uyelikleri rol='owner') döndürür; firma listesi/oluşturma bu
+// owner'a göre filtrelenir/atanır.
+async function getProjectOwnerId(projeId: string): Promise<string | null> {
+  const { data, error } = await supabaseAdmin
+    .from('proje_uyelikleri')
+    .select('user_id')
+    .eq('proje_id', projeId)
+    .eq('rol', 'owner')
+    .limit(1)
+    .maybeSingle()
+  if (error) {
+    logger.error('getProjectOwnerId hatası', { projeId, error: error.message })
+    return null
+  }
+  return data?.user_id ?? null
+}
+
 export const firmaService = {
   async list(query: Record<string, any>) {
     const pagination = parsePagination(query)
 
-    logger.info(`Firma listeleme isteği - Global list, Balance ProjectID: ${query.proje_id}`)
+    // Owner-bazlı: proje_id zorunlu; firmalar aktif projenin owner'ına göre filtrelenir.
+    const projeId = requireProjeId(query.proje_id)
+    const ownerId = await getProjectOwnerId(projeId)
+    if (!ownerId) {
+      // Proje sahibi bulunamadı → gösterilecek firma yok.
+      return { data: [], pagination: paginationMeta(pagination, 0) }
+    }
+
+    logger.info(`Firma listeleme isteği - owner=${ownerId}, ProjectID: ${projeId}`)
 
     // Sprint firma-fatura-acigi-sort (2026-05-31): Hesaplanan alanlara (cari
     // bakiye / birikmiş teminat / fatura açığı) göre doğru sıralama, full set'in
@@ -23,8 +49,8 @@ export const firmaService = {
     let q = supabaseAdmin
       .from('firmalar')
       .select('*', { count: 'exact' })
+      .eq('owner_id', ownerId)
 
-    // Firmalar artık global, listelemede proje_id filtresi kaldırıldı
     if (query.firma_tipi) q = q.eq('firma_tipi', query.firma_tipi)
     if (query.aktif !== undefined) q = q.eq('aktif', query.aktif === 'true')
     // Sprint security-quality-audit 2026-05-26: search input sanitize
@@ -43,10 +69,7 @@ export const firmaService = {
     // fn_firma_bakiye_batch RPC tek pass'te tum bakiyeleri hesaplar.
     // Silent catch de kaldirildi — RPC fail → hata UI'da gorunur (eski:
     // 0 dondurup yanlis mali tablo gosterirdi).
-    const pId =
-      query.proje_id && query.proje_id !== 'null' && query.proje_id !== 'undefined'
-        ? query.proje_id
-        : null
+    const pId = projeId
 
     const firmaIds = (data || []).map((f) => f.id)
     let balanceMap = new Map<
@@ -116,21 +139,35 @@ export const firmaService = {
     return { data: pageData, pagination: paginationMeta(pagination, count || 0) }
   },
 
-  async getById(id: string) {
+  async getById(id: string, projeId?: string) {
     const { data, error } = await supabaseAdmin
       .from('firmalar')
       .select('*')
       .eq('id', id)
       .single()
 
-    if (error) throw ApiError.notFound('Firma bulunamadı')
+    if (error || !data) throw ApiError.notFound('Firma bulunamadı')
+
+    // Owner-bazlı sahiplik kontrolü: aktif proje verildiyse, firma o projenin
+    // owner'ına ait olmalı (başka owner'ların firmaları görüntülenemez).
+    if (projeId) {
+      const ownerId = await getProjectOwnerId(projeId)
+      if (!ownerId || data.owner_id !== ownerId) {
+        throw ApiError.notFound('Firma bulunamadı')
+      }
+    }
     return data
   },
 
-  async create(body: Record<string, any>) {
+  async create(body: Record<string, any>, projeId: string) {
+    // owner_id server-side: aktif projenin owner'ı. Frontend owner_id göndermez.
+    const ownerId = await getProjectOwnerId(projeId)
+    if (!ownerId) throw ApiError.badRequest('Proje sahibi bulunamadı; firma oluşturulamaz')
+
+    const { owner_id: _ignore, ...safe } = body
     const { data, error } = await supabaseAdmin
       .from('firmalar')
-      .insert([body])
+      .insert([{ ...safe, owner_id: ownerId }])
       .select()
       .single()
 
