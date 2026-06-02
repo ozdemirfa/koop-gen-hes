@@ -55,6 +55,9 @@ export const HeaderSearchPortal: React.FC<HeaderSearchPortalProps> = ({ children
 
   useEffect(() => {
     const el = document.getElementById('admin-header-search-slot')
+    // Mount-anı harici DOM lookup (slot AdminLayout'ta, ref'le erişilemez); tek
+    // sefer çalışır, loop yok. react-compiler kuralı bu meşru deseni flag'liyor.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTarget(el)
   }, [])
 

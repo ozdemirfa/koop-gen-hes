@@ -114,6 +114,9 @@ export const CariEkstrePage: React.FC = () => {
       // Direkt cari_hesap_id geldiyse, listedeki ile doğrula
       const found = accounts.find((a) => a.id === initialCariHesapId)
       if (found) {
+        // defaultApplied guard'ı tek-sefer çalışmayı garanti eder (loop yok):
+        // accounts async yüklendikten sonra URL param'ını state'e uygula.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setCariHesapId(found.id)
         setDefaultApplied(true)
         return

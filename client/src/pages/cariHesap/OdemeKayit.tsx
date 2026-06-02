@@ -35,6 +35,9 @@ export const OdemeKayit: React.FC = () => {
   // banka/nakit=tahsilat). Banka alanları artık temizlenmez — kullanıcı seçer.
   useEffect(() => {
     if (islemTuru === 'iade_odeme' || islemTuru === 'uyelik_baslangic') {
+      // Form alanı cascade: kullanıcı islem_turu değiştirince bağımlı alanları
+      // sıfırla. islemTuru dep'te → loop yok (reaktif form sync).
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFilterCariTuru('uye')
       // cari_hesap'i sıfırla (filter degisince cari listesi farklilasir)
       form.setFieldValue('cari_hesap_id', undefined)

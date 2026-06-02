@@ -102,6 +102,9 @@ export const HakedisDetailPage: React.FC = () => {
         birim: k.sozlesme_is_kalemleri?.birim || '',
         sozlesme_miktar: Number(k.sozlesme_is_kalemleri?.miktar || 0),
       }))
+      // Fetch sonrası düzenlenebilir kopyayı başlat (kullanıcı sonra değiştirir →
+      // saf türetilemez). hakedis dep'te, tek init → loop yok.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setEditableKalemler(kalemler)
       setHasChanges(false)
     }

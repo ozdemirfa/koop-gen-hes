@@ -198,8 +198,9 @@ export const Aidatlar: React.FC = () => {
     enabled: !!activeProject?.id && !isTanimlarPage
   })
 
-  // Filtreler değişince başa dön
+  // Filtreler değişince başa dön (pagination dep'te DEĞİL → loop yok).
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPagination(prev => ({ ...prev, current: 1 }))
   }, [filterYil, filterAy, filterDurum, filterBlokId, filterHasDaire, debouncedUyeAdi, activeProject?.id])
 
