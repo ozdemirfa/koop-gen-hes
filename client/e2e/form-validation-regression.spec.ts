@@ -102,8 +102,8 @@ test.describe('Regression: UyeFormPage form validasyonu', () => {
     // TC kolonu var mı kontrol et
     const tcColumn = page.locator('.ant-table-thead th').filter({ hasText: /TC/i })
     if (await tcColumn.count() === 0) {
-      // TC kolonu yok, test atla
-      test.skip()
+      // E2E-1 (sahte-yeşil): data-conditional skip — sabit fixture ile seed edilmeli.
+      test.skip(true, 'TC kolonu yok — üye seed verisi gerekli (E2E-1 fixed-fixture TODO)')
       return
     }
 
@@ -111,8 +111,8 @@ test.describe('Regression: UyeFormPage form validasyonu', () => {
     const existingTc = await firstRowTcCell.innerText()
 
     if (!existingTc || existingTc === '-' || existingTc.length !== 11) {
-      // Geçerli TC verisi yok
-      test.skip()
+      // E2E-1 (sahte-yeşil): data-conditional skip — sabit fixture ile seed edilmeli.
+      test.skip(true, 'Geçerli 11-hane TC verisi yok — seed gerekli (E2E-1 fixed-fixture TODO)')
       return
     }
 
@@ -185,7 +185,8 @@ test.describe('Regression: BankaHareketleriPage "Yeni Hareket" butonu kaldırıl
     if (actionCount > 0) {
       await actionButtons.first().click()
     } else {
-      test.skip() // No action buttons found, skip
+      // E2E-1 (sahte-yeşil): data-conditional skip — sabit fixture ile seed edilmeli.
+      test.skip(true, 'Banka hesabı satırında aksiyon butonu yok — seed gerekli (E2E-1 fixed-fixture TODO)')
       return
     }
 
@@ -207,7 +208,8 @@ test.describe('Regression: BankaHareketleriPage "Yeni Hareket" butonu kaldırıl
     const rowCount = await tableRows.count()
 
     if (rowCount === 0) {
-      test.skip()
+      // E2E-1 (sahte-yeşil): data-conditional skip — sabit fixture ile seed edilmeli.
+      test.skip(true, 'Banka hesabı listesi boş — seed gerekli (E2E-1 fixed-fixture TODO)')
       return
     }
 
@@ -215,7 +217,8 @@ test.describe('Regression: BankaHareketleriPage "Yeni Hareket" butonu kaldırıl
     const firstRow = page.locator('.ant-table-row').first()
     const actionButtons = firstRow.locator('.ant-btn')
     if (await actionButtons.count() === 0) {
-      test.skip()
+      // E2E-1 (sahte-yeşil): data-conditional skip — sabit fixture ile seed edilmeli.
+      test.skip(true, 'Banka hesabı satırında aksiyon butonu yok — seed gerekli (E2E-1 fixed-fixture TODO)')
       return
     }
     await actionButtons.first().click()

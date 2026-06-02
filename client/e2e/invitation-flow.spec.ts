@@ -33,7 +33,11 @@ test.describe('Davet akışı — public smoke', () => {
 
 test.describe('Davet akışı — authenticated smoke (test infra fix sonrası)', () => {
   test.beforeEach(async () => {
-    test.skip(true, 'Authenticated suite — issue #78 (signInWithPassword fetch) fix sonrası açılacak')
+    // issue #78 (signInWithPassword fetch) ÇÖZÜLDÜ (CLOSED). Ancak aşağıdaki
+    // testler henüz implemente edilmedi (boş stub gövde) — un-skip edilirse
+    // assertion'sız trivial "pass" verir (sahte-yeşil). Implementasyona kadar
+    // bilinçli skip. E2E-1 (kalite-guvenlik-2026-06).
+    test.skip(true, 'Authenticated invitation suite implemente edilmedi (stub) — #78 çözüldü ama test gövdeleri yazılmadı')
   })
 
   test('login sonrası InvitationBanner pending davet için görünür', async () => {
