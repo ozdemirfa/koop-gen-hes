@@ -74,12 +74,30 @@ describe('uyeService', () => {
     await expect(uyeService.create({ proje_id: PROJE, ad: 'A' })).rejects.toThrow(/zaten kayıtlı/)
   })
 
-  it('update — fn_update_member_atomic RPC çağrılır', async () => {
+  it('update — fn_update_member_atomic RPC proje_id ile çağrılır', async () => {
     rpcMock.mockResolvedValueOnce({ data: { id: 'u1' }, error: null })
-    await uyeService.update('u1', { ad: 'C' })
+    await uyeService.update('u1', { ad: 'C' }, PROJE, 'actor-1')
     expect(rpcMock).toHaveBeenCalledWith('fn_update_member_atomic', expect.objectContaining({
       p_member_id: 'u1',
+      p_proje_id: PROJE,
+      p_actor_id: 'actor-1',
     }))
+  })
+
+  it('update — IDOR: projeId boşsa 400 (RPC çağrılmaz)', async () => {
+    await expect(uyeService.update('u1', { ad: 'C' }, '')).rejects.toBeInstanceOf(ApiError)
+    expect(rpcMock).not.toHaveBeenCalled()
+  })
+
+  it('update — IDOR: yabancı proje üyesi → RPC NULL → 404', async () => {
+    // RPC proje_id guard'ı eşleşmezse NULL döner; service 404'e çevirir.
+    rpcMock.mockResolvedValueOnce({ data: null, error: null })
+    await expect(uyeService.update('u1', { ad: 'C' }, PROJE)).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it('update — 23505 dup → ApiError.conflict', async () => {
+    rpcMock.mockResolvedValueOnce({ data: null, error: { code: '23505' } })
+    await expect(uyeService.update('u1', { uye_no: 'U1' }, PROJE)).rejects.toThrow(/zaten kayıtlı/)
   })
 
   it('delete (soft) — durum=pasif update', async () => {

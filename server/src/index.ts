@@ -26,6 +26,16 @@ const allowedOrigins = (process.env.CORS_ORIGINS ?? '')
   .map(s => s.trim())
   .filter(Boolean)
 
+// SEC-4 (kalite-guvenlik-2026-06): production'da CORS_ORIGINS boşsa allowlist
+// fail-closed davranır (tüm cross-origin istekleri reddeder) — bu güvenli ama
+// sessizdir ve yanlışlıkla unutulursa frontend kırılır. Operatör görsün diye uyar.
+if (process.env.NODE_ENV === 'production' && allowedOrigins.length === 0) {
+  logger.warn(
+    '[cors]: NODE_ENV=production ancak CORS_ORIGINS tanımsız — tüm cross-origin istekleri reddedilecek. ' +
+    'İzin verilen origin listesini CORS_ORIGINS env değişkeniyle tanımlayın.'
+  )
+}
+
 app.use(cors({
   origin: (origin, cb) => {
     // origin undefined (curl/server-to-server) ise izin ver

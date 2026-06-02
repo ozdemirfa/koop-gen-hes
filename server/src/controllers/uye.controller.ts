@@ -4,12 +4,18 @@ import { uyeService } from '../services/uye.service'
 import { aidatService } from '../services/aidat.service'
 import { catchAsync } from '../utils/catchAsync'
 
-// IDOR fix (security-quality-sprint, 2026-05-26): proje_id extract helper
+// IDOR fix (security-quality-sprint, 2026-05-26): proje_id extract helper.
+// SEC-2 (2026-06-02): X-Active-Project-Id header fallback'i eklendi —
+//   requireProjectAccess ile AYNI çözüm sırası (body → query → params → header).
+//   Aksi halde yalnız header gönderen client'larda middleware geçerken controller
+//   400 verir veya IDOR guard'ı middleware'in doğruladığından farklı projeye bakar.
 function extractProjeId(req: AuthRequest<any, any, any, any>): string {
   const fromBody = req.body?.proje_id ?? req.body?.projeId
   const fromQuery = (req.query as any)?.proje_id ?? (req.query as any)?.projeId
   const fromParams = (req.params as any)?.projeId ?? (req.params as any)?.proje_id
-  const raw = fromBody ?? fromQuery ?? fromParams
+  const headerRaw = req.headers?.['x-active-project-id']
+  const fromHeader = Array.isArray(headerRaw) ? headerRaw[0] : headerRaw
+  const raw = fromBody ?? fromQuery ?? fromParams ?? fromHeader
   return typeof raw === 'string' ? raw : ''
 }
 
@@ -29,7 +35,7 @@ export const createUye = catchAsync(async (req: AuthRequest<any, any, any, any>,
 })
 
 export const updateUye = catchAsync(async (req: AuthRequest<{ id: string }, any, any, any>, res: Response) => {
-  const data = await uyeService.update(req.params.id, req.body, req.user?.id)
+  const data = await uyeService.update(req.params.id, req.body, extractProjeId(req), req.user?.id)
   res.json({ success: true, data })
 })
 
