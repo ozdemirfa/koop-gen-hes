@@ -13,7 +13,7 @@ import { HeaderActionsToolbar } from '../../components/common/HeaderActionsToolb
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { useProject } from '../../contexts/ProjectContext'
 import { usePermissions } from '../../hooks/usePermissions'
-import { trNumberFormatter, trNumberParser } from '../../lib/format'
+
 
 interface Hakedis {
   id: string

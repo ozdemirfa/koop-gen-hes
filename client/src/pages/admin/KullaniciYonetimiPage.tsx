@@ -145,7 +145,6 @@ export const KullaniciYonetimiPage: React.FC = () => {
   const {
     data: sistemKullanicilar,
     isLoading: sistemLoading,
-    refetch: refetchSistem,
   } = useQuery({
     queryKey: ['admin-users'],
     queryFn: async () => {

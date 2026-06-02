@@ -27,9 +27,7 @@ test.describe('Project Management E2E Tests', () => {
     await createProject(page, name)
 
     const card = page.locator('.ant-card').filter({ hasText: name })
-    const cardId = await card.getAttribute('data-testid')
-    const id = cardId?.replace('project-card-', '')
-    
+
     // a) Başlığa tıklama
     await card.locator('[data-testid="card-title"]').click()
     await page.waitForURL(/\/projeler\/[a-zA-Z0-9-]+/)

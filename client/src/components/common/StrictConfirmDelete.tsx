@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Modal, Input, Button, Typography, Space, message } from 'antd'
 import { DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 
-const { Text, Title } = Typography
+const { Text } = Typography
 
 interface StrictConfirmDeleteProps {
   title: string

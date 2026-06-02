@@ -17,7 +17,7 @@ import { useProject } from '../../contexts/ProjectContext'
 import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 import { LoadingState } from '../../components/common/LoadingState'
 import { ErrorState } from '../../components/common/ErrorState'
-import { trNumberFormatter, trMoneyFormatter } from '../../lib/format'
+import { trMoneyFormatter } from '../../lib/format'
 import { downloadCsv } from '../../lib/csvExport'
 import dayjs from 'dayjs'
 

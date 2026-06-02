@@ -75,7 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const { data } = await api.get('/auth/me')
       setUserRole((data?.data?.role as GlobalRole) ?? null)
-    } catch (err) {
+    } catch {
       // Network / 401 → role unknown; defensive null (yetki yok varsay)
       setUserRole(null)
     }

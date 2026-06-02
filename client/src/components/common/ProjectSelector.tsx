@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Select, Space, Typography, Card, Button, Divider, message } from 'antd'
+import { Select, Space, Typography, Card, Button, message } from 'antd'
 import { ProjectOutlined, CheckCircleOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import { useProject } from '../../contexts/ProjectContext'
 import { useQueryClient } from '@tanstack/react-query'
