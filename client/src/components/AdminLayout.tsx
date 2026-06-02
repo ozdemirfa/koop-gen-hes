@@ -418,7 +418,6 @@ export const AdminLayout: React.FC = () => {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setOpenKeys(prev => (prev.includes(parentKey) && prev.length === 1 ? prev : [parentKey]));
     } else {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setOpenKeys(prev => (prev.length === 0 ? prev : []));
     }
   }, [parentKey]);
