@@ -25,6 +25,13 @@ export default defineConfig({
             if (id.includes('react-router') || id.includes('/react/') || id.includes('/react-dom/')) {
               return 'react-vendor'
             }
+            // PERF-1 (kalite-guvenlik-2026-06): antd chunk'ı 1.5MB'ydi (tek
+            // chunk >800KB uyarısı). İkon paketi (@ant-design/icons) ve antd'nin
+            // rc-* internal'leri ayrı chunk'lara bölünür → paralel indirme +
+            // ayrı cache (ikon seti nadir değişir, antd core'dan bağımsız).
+            if (id.includes('@ant-design/icons')) {
+              return 'antd-icons'
+            }
             if (id.includes('antd') || id.includes('@ant-design')) {
               return 'antd'
             }

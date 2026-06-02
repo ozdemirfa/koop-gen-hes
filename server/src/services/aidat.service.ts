@@ -668,6 +668,16 @@ export const aidatService = {
       paidMap.set(h.kaynak_id, current + Number(h.borc))
     })
 
+    // PERF-2 (kalite-guvenlik-2026-06): cari hesap (proje_id + uye_id) döngü
+    // boyunca DEĞİŞMEZ — döngü öncesi tek sefer çek. Önceki kod her açık aidat
+    // için aynı sorguyu tekrarlıyordu (N+1: N açık aidat → N cari sorgusu).
+    const { data: cari } = await supabaseAdmin
+      .from('cari_hesaplar')
+      .select('id')
+      .eq('proje_id', finalProjeId)
+      .eq('uye_id', uyeId)
+      .single()
+
     const sonuclar = []
 
     for (const aidat of acikAidatlar) {
@@ -676,18 +686,10 @@ export const aidatService = {
       const aidatToplamBorc = Number(aidat.toplam_borc)
       const aidatOdenen = paidMap.get(aidat.id) || 0
       const aidatKalanBorc = Math.max(0, aidatToplamBorc - aidatOdenen)
-      
+
       if (aidatKalanBorc <= 0) continue
 
       const odenecekTutar = Math.min(kalanTutar, aidatKalanBorc)
-      
-      // Cari hesabı bul
-      const { data: cari } = await supabaseAdmin
-        .from('cari_hesaplar')
-        .select('id')
-        .eq('proje_id', finalProjeId)
-        .eq('uye_id', uyeId)
-        .single()
 
       if (cari) {
         // Cari hareket oluştur (gelen_odeme -> borc olarak işlenecek)
