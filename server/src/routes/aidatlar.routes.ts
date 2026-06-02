@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { validate } from '../middleware/validate'
 import { requireProjectAccess } from '../middleware/requireProjectAccess'
-import { createAidatTanimiSchema, updateAidatTanimiSchema, aidatOdemeSchema, yillikPlanSchema } from '../schemas/aidat.schema'
+import { createAidatTanimiSchema, updateAidatTanimiSchema, aidatOdemeSchema, yillikPlanSchema, updateAidatRowSchema } from '../schemas/aidat.schema'
 import * as aidatController from '../controllers/aidat.controller'
 
 const router = Router()
@@ -45,6 +45,10 @@ router.get('/:id', requireProjectAccess('user'), aidatController.getAidatById)
 // DELETE /api/aidatlar/:id — tekil aidat satırı sil → manager.
 // Ödeme eşleştirmesi yoksa siler; varsa 409 + yönlendirme mesajı.
 router.delete('/:id', requireProjectAccess('manager'), aidatController.deleteAidat)
+
+// PUT /api/aidatlar/:id — aidat satırı düzenle (tutar + son ödeme tarihi) → manager.
+// proje_id query param'dan okunur. Ödeme yapılmışsa tutar değişimi 409.
+router.put('/:id', requireProjectAccess('manager'), validate({ body: updateAidatRowSchema }), aidatController.updateAidatRow)
 
 router.post('/:id/odeme', requireProjectAccess('manager'), validate({ body: aidatOdemeSchema }), aidatController.recordPayment)
 router.post('/:id/gecikme-hesapla', requireProjectAccess('manager'), aidatController.calculateSingleLateFee)

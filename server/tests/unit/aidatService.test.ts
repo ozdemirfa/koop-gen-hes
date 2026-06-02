@@ -5,6 +5,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 let nextData: any = null
 let nextError: any = null
 let existingRow: any = null
+let nextRpcData: any = null
+let nextRpcError: any = null
 
 vi.mock('../../src/config/supabase', () => {
   const builder: any = {}
@@ -19,17 +21,20 @@ vi.mock('../../src/config/supabase', () => {
   return {
     supabaseAdmin: {
       from: () => builder,
+      rpc: async () => ({ data: nextRpcData, error: nextRpcError }),
     },
   }
 })
 
-import { aidatTanimiService } from '../../src/services/aidat.service'
+import { aidatTanimiService, aidatService } from '../../src/services/aidat.service'
 import { ApiError } from '../../src/utils/ApiError'
 
 beforeEach(() => {
   nextData = null
   nextError = null
   existingRow = null
+  nextRpcData = null
+  nextRpcError = null
 })
 
 const PROJE = 'a1111111-1111-4111-a111-111111111111'
@@ -98,5 +103,40 @@ describe('aidatTanimiService', () => {
   it('deleteTanim — IDOR: kayıt başka projede → 404', async () => {
     existingRow = null
     await expect(aidatTanimiService.deleteTanim('t1', PROJE)).rejects.toBeInstanceOf(ApiError)
+  })
+})
+
+// Sprint aidat-satir-duzenle (2026-05-31): fn_update_aidat_row RPC sarmalayıcısı.
+describe('aidatService.updateAidatRow', () => {
+  it('IDOR: projeId boşsa 400', async () => {
+    await expect(
+      aidatService.updateAidatRow('aid1', { tutar: 100 }, ''),
+    ).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it('IDOR: aidat başka projede → 404', async () => {
+    existingRow = null // pre-check kayıt yok
+    await expect(
+      aidatService.updateAidatRow('aid1', { tutar: 100 }, PROJE),
+    ).rejects.toMatchObject({ statusCode: 404 })
+  })
+
+  it('ödeme yapılmış aidatta tutar değişimi → P0001 → 409', async () => {
+    existingRow = { id: 'aid1' }
+    nextRpcError = { code: 'P0001', message: 'Bu aidata ödeme yapılmış; tutar değiştirilemez.' }
+    await expect(
+      aidatService.updateAidatRow('aid1', { tutar: 100 }, PROJE),
+    ).rejects.toMatchObject({ statusCode: 409 })
+  })
+
+  it('başarılı düzenleme → RPC sonucu döner', async () => {
+    existingRow = { id: 'aid1' }
+    nextRpcData = { success: true }
+    const r = await aidatService.updateAidatRow(
+      'aid1',
+      { tutar: 1500, son_odeme_tarihi: '2026-06-15' },
+      PROJE,
+    )
+    expect(r).toEqual({ success: true })
   })
 })

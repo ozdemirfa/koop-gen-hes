@@ -421,6 +421,48 @@ export const aidatService = {
     return data
   },
 
+  // Aidat satırı düzenle (tutar + son ödeme tarihi). RPC fn_update_aidat_row
+  // tutar_override + son_odeme_tarihi günceller, cari tahakkuku yeni tutara
+  // eşitler. Ödeme yapılmışsa tutar değişimi P0001 → 409. IDOR: aidat caller
+  // projesinde mi (deleteAidat pattern'i).
+  async updateAidatRow(
+    id: string,
+    body: { tutar?: number; son_odeme_tarihi?: string },
+    projeId: string,
+    actorId?: string,
+  ) {
+    const safeProjeId = requireProjeId(projeId)
+
+    const { data: existing } = await supabaseAdmin
+      .from('aidatlar')
+      .select('id')
+      .eq('id', id)
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
+    if (!existing) throw ApiError.notFound('Aidat bulunamadı')
+
+    const { data, error } = await supabaseAdmin.rpc('fn_update_aidat_row', {
+      p_aidat_id: id,
+      p_tutar: body.tutar ?? null,
+      p_son_odeme_tarihi: body.son_odeme_tarihi ?? null,
+      p_actor_id: actorId ?? null,
+    })
+
+    if (error) {
+      const code = (error as any).code
+      const message = (error as any).message ?? 'Aidat güncellenemedi'
+      if (code === 'P0002') throw ApiError.notFound(message)
+      if (code === 'P0001') throw ApiError.conflict(message)
+      logger.error(`Aidat güncelleme hatası (ID: ${id}):`, error)
+      throw error
+    }
+
+    if (data?.success === false) throw ApiError.badRequest(data.message)
+
+    logger.info(`Aidat satırı düzenlendi: ${id}`)
+    return data
+  },
+
   async recordPayment(aidatId: string, body: Record<string, any>, projeId: string, actorId?: string) {
     const safeProjeId = requireProjeId(projeId)
 
