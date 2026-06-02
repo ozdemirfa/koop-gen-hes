@@ -68,6 +68,14 @@ jobs:
         working-directory: client
         run: npm ci
 
+      # Lint gate (QUAL kalite-guvenlik-2026-06): `eslint .` yalnız ERROR'da
+      # exit!=0 verir; warning'ler (no-explicit-any, react-compiler/refresh
+      # advisory'leri) bloklamaz. Error sayisi 0'a indirildikten sonra eklendi —
+      # yeni error'lar (unused-vars, hatali hook bagimligi vb.) artik CI'yi kirar.
+      - name: Lint (eslint — 0 error gate)
+        working-directory: client
+        run: npm run lint
+
       # client/vite.config.ts envDir: '../' (root .env okur). CI'da gercek
       # Supabase URL/Key yok; build-time bundle'a placeholder inject etmek
       # yeterli (runtime'da prod env'de farkli value gelecek). Bu env vars
