@@ -117,7 +117,7 @@ jobs:
 
       - name: Upload Playwright artifacts on failure
         if: failure() && steps.precheck.outputs.skip == 'false'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-offline-gating-report
           path: |
