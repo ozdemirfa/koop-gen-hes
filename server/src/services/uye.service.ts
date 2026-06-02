@@ -104,9 +104,14 @@ export const uyeService = {
     return data
   },
 
-  async update(id: string, body: Record<string, any>, actorId?: string) {
+  // IDOR fix (SEC-2, 2026-06-02): zorunlu projeId — RPC proje_id guard'lar.
+  //   Yabancı/yanlış proje → RPC NULL döner → 404. service-role RLS bypass
+  //   ettiğinden bu kontrol şart (aksi halde başka projenin üyesi güncellenebilir).
+  async update(id: string, body: Record<string, any>, projeId: string, actorId?: string) {
+    const safeProjeId = requireProjeId(projeId)
     const { data, error } = await supabaseAdmin.rpc('fn_update_member_atomic', {
       p_member_id: id,
+      p_proje_id: safeProjeId,
       p_update_data: body,
       p_actor_id: actorId ?? null
     })
