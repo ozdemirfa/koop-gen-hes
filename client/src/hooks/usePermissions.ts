@@ -87,7 +87,7 @@ export interface Permissions {
  * Backend'in döndürebileceği eski rol değerlerini yeni modele normalize eder.
  * server/src/middleware/projectAccessCache.normalizeProjectRole ile aynı mantık.
  */
-function normalizeProjectRole(role: ProjectRole): NewProjectRole | null {
+export function normalizeProjectRole(role: ProjectRole): NewProjectRole | null {
   if (!role) return null
   switch (role) {
     case 'owner':
@@ -105,11 +105,21 @@ function normalizeProjectRole(role: ProjectRole): NewProjectRole | null {
   }
 }
 
-export function usePermissions(): Permissions {
-  const { userRole, isYetkili, isAdmin, session } = useAuth()
-  const { activeProject, activeProjectRole } = useProject()
+export interface PermissionsInput {
+  userRole: GlobalRole
+  isYetkili: boolean
+  isAdmin: boolean
+  session: unknown
+  activeProject: { offline_mode?: boolean | null } | null | undefined
+  activeProjectRole: ProjectRole
+}
 
-  return useMemo<Permissions>(() => {
+/**
+ * Saf izin hesaplaması — hook'tan ayrı, test edilebilir (TEST-5, 2026-06-02).
+ * usePermissions bunu useMemo içinde çağırır; rol matrisi mantığı burada.
+ */
+export function computePermissions(input: PermissionsInput): Permissions {
+  const { userRole, isYetkili, isAdmin, session, activeProject, activeProjectRole } = input
     const isLegacyGlobalAdmin = userRole === 'admin'
     const isAuthenticated = !!session
 
@@ -180,5 +190,14 @@ export function usePermissions(): Permissions {
       isOfflineRestricted,
       hasActiveProject: !!activeProject,
     }
-  }, [userRole, isYetkili, isAdmin, session, activeProject, activeProjectRole])
+}
+
+export function usePermissions(): Permissions {
+  const { userRole, isYetkili, isAdmin, session } = useAuth()
+  const { activeProject, activeProjectRole } = useProject()
+
+  return useMemo<Permissions>(
+    () => computePermissions({ userRole, isYetkili, isAdmin, session, activeProject, activeProjectRole }),
+    [userRole, isYetkili, isAdmin, session, activeProject, activeProjectRole],
+  )
 }
