@@ -65,6 +65,8 @@ export const FirmaListPage: React.FC = () => {
   // Modal kapandığında verileri sıfırla
   useEffect(() => {
     if (!isModalOpen) {
+      // Modal kapanınca düzenleme state'ini temizle. isModalOpen dep'te → loop yok.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setEditing(null)
       form.resetFields()
     }
