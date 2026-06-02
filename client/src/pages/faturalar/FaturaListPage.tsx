@@ -2,9 +2,9 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { Button, Select, Space, Tag, Modal, Form, Input, InputNumber, DatePicker, App, Row, Col, Divider, Typography, Tooltip } from 'antd'
 
 const { RangePicker } = DatePicker
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { PlusOutlined, DeleteOutlined, ScheduleOutlined, EditOutlined } from '@ant-design/icons'
+import { PlusOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { getErrorMessage } from '../../lib/apiError'
@@ -49,7 +49,6 @@ const tipLabel: Record<string, string> = { gelen: 'Gelen', giden: 'Giden' }
 
 export const FaturaListPage: React.FC = () => {
   const { message } = App.useApp()
-  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const queryClient = useQueryClient()
   const { activeProject } = useProject()

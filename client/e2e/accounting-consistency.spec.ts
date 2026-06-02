@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { login, navigateTo, ensureProject } from './helpers'
+import { login, navigateTo } from './helpers'
 
 test.describe('Accounting Consistency (Pano vs. List vs. Detail)', () => {
   test.beforeEach(async ({ page }) => {

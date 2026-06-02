@@ -44,8 +44,6 @@ export const ResetPasswordPage: React.FC = () => {
   // SifreBelirlePage ile aynı yapı — iki akış da updateUser({password}) ile biter,
   // tek fark UI/copy.
   useEffect(() => {
-    let unsub: (() => void) | undefined
-
     supabase.auth
       .getSession()
       .then(({ data }) => {
@@ -64,9 +62,8 @@ export const ResetPasswordPage: React.FC = () => {
         setSessionLoaded(true)
       }
     })
-    unsub = () => sub.subscription.unsubscribe()
 
-    return () => unsub?.()
+    return () => sub.subscription.unsubscribe()
   }, [])
 
   const handleSubmit = async (values: FormValues) => {

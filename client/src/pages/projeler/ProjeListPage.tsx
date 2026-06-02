@@ -208,7 +208,7 @@ export const ProjeListPage: React.FC = () => {
           bitis_tarihi: fullProje.bitis_tarihi ? dayjs(fullProje.bitis_tarihi) : null,
         })
       }, 0)
-    } catch (err) {
+    } catch {
       messageApi.error('Proje detayları yüklenemedi')
     }
   }

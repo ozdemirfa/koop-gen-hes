@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Button, Modal, Form, Input, InputNumber, DatePicker, Select, Space, message, Tag, Card, Row, Col, Statistic, Radio, Tooltip } from 'antd'
-import { PlusOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined, DollarCircleOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, CloseCircleOutlined, DollarCircleOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api, { payCheck } from '../../lib/api'

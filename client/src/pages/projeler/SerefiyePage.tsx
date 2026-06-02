@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Button, Modal, Form, Input, InputNumber, Tag, Space, Card, Row, Col, Select, Typography, App, Tooltip } from 'antd'
+import { Button, Modal, Form, Input, InputNumber, Tag, Space, Row, Col, Select, Typography, App, Tooltip } from 'antd'
 import { EditOutlined, ArrowLeftOutlined, UserAddOutlined, UserDeleteOutlined, DownloadOutlined, UploadOutlined, AppstoreAddOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams, useNavigate } from 'react-router-dom'
@@ -7,7 +7,7 @@ import api from '../../lib/api'
 import { getErrorMessage } from '../../lib/apiError'
 import { usePageSettings } from '../../contexts/LayoutContext'
 import { DataTable } from '../../components/common/DataTable'
-import { trNumberFormatter, trNumberParser, trMoneyFormatter } from '../../lib/format'
+import { trNumberParser, trMoneyFormatter } from '../../lib/format'
 
 const { Text } = Typography
 
@@ -38,14 +38,6 @@ export const SerefiyePage: React.FC = () => {
   const [form] = Form.useForm()
   const [uyeForm] = Form.useForm()
   const { message: messageApi, modal } = App.useApp()
-
-  const { data: proje } = useQuery({
-    queryKey: ['proje', projeId],
-    queryFn: async () => {
-      const { data } = await api.get(`/projeler/${projeId}`)
-      return data.data
-    },
-  })
 
   const { data: serefiyeList, isLoading: serefiyeLoading } = useQuery({
     queryKey: ['serefiye-list', projeId],
@@ -92,25 +84,6 @@ export const SerefiyePage: React.FC = () => {
     },
     onError: (err) => messageApi.error(getErrorMessage(err))
   })
-
-  const handleRefresh = () => {
-    modal.confirm({
-      title: 'Tabloyu Yenile',
-      content: 'Bu işlem mevcut TÜM şerefiye kayıtlarını silecek ve blok tanımlarına göre yeniden oluşturacaktır. Manuel girdiğiniz tüm oranlar, kat ve yön bilgileri KAYBOLACAKTIR. Emin misiniz?',
-      okText: 'Evet, Yenile',
-      okType: 'danger',
-      cancelText: 'Vazgeç',
-      onOk: async () => {
-        try {
-          await api.post(`/projeler/serefiye-actions/yenile`, { projeId })
-          messageApi.success('Şerefiye tablosu yenilendi')
-          queryClient.invalidateQueries({ queryKey: ['serefiye-list', projeId] })
-        } catch (err) {
-          messageApi.error(getErrorMessage(err))
-        }
-      }
-    })
-  }
 
   const handleClear = () => {
     modal.confirm({

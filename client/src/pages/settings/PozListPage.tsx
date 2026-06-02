@@ -54,6 +54,7 @@ export const PozListPage: React.FC = () => {
     mutationFn: async (values: any) => {
       if (editingPoz) {
         // Update'te is_global readonly — backend zaten drop ediyor; yine de gönderme
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { is_global, ...rest } = values
         return api.put(`/settings/pozlar/${editingPoz.id}`, rest)
       }

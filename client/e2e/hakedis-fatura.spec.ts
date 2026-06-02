@@ -22,7 +22,6 @@ test.describe('Sprint revisions: Hakediş + Fatura + Locale', () => {
     await page.waitForLoadState('networkidle')
 
     // Başlangıç tarihi DatePicker'ı aç
-    const datepicker = page.locator('input[placeholder]').filter({ has: page.locator('xpath=ancestor::div[contains(@class, "ant-picker")]') }).first()
     const dpInput = page.locator('.ant-picker input').first()
     await dpInput.waitFor({ state: 'visible', timeout: 10_000 })
     await dpInput.click()

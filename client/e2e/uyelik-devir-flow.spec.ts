@@ -23,7 +23,7 @@
  */
 
 import { test, expect } from '@playwright/test'
-import { hasCreds, checkHeader, E2E_USER, E2E_PASSWORD } from './helpers'
+import { hasCreds, E2E_USER, E2E_PASSWORD } from './helpers'
 
 /**
  * Lightweight login that doesn't call ensureProject — avoids the shared helper race condition.

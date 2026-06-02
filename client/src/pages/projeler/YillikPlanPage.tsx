@@ -93,18 +93,6 @@ export const YillikPlanPage: React.FC = () => {
     onError: (err) => messageApi.error(getErrorMessage(err))
   })
 
-  const updateKalemMutation = useMutation({
-    mutationFn: async ({ id, values }: { id: string, values: any }) => {
-      return await api.put(`/projeler/yillik-plan-kalemleri/${id}`, values)
-    },
-    onSuccess: () => {
-      messageApi.success('Plan güncellendi')
-      queryClient.invalidateQueries({ queryKey: ['proje-plan', projeId, yil] })
-      setEditingValues({})
-    },
-    onError: (err) => messageApi.error(getErrorMessage(err))
-  })
-
   const deleteRowMutation = useMutation({
     mutationFn: async (isKalemiId: string) => {
       return await api.delete(`/projeler/yillik-plan-kalemleri/${plan.id}/${isKalemiId}`)

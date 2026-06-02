@@ -67,9 +67,7 @@ test.describe('Sprint revisions: Sözleşme form', () => {
     const modal = page.locator('[role="dialog"]').filter({ hasText: /İş Kalemi/i }).first()
     await modal.waitFor({ state: 'visible', timeout: 10_000 })
 
-    // Sıra No input'u: AntD InputNumber → input.ant-input-number-input
-    const siraInput = modal.locator('input').filter({ hasNot: page.locator('[role="combobox"]') }).first()
-    // Pratik yol: id="sira_no" — AntD Form.Item name'i id verir
+    // Sıra No input'u — id="sira_no" (AntD Form.Item name'i id verir)
     const siraById = modal.locator('input#sira_no')
 
     // input#sira_no veya genel input - disabled mı?

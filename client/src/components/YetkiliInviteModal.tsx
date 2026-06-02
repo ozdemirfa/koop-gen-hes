@@ -6,7 +6,7 @@
  */
 
 import React from 'react'
-import { App, Button, Form, Input, Modal } from 'antd'
+import { App, Form, Input, Modal } from 'antd'
 import { MailOutlined } from '@ant-design/icons'
 import { useMutation } from '@tanstack/react-query'
 import { invitationsApi } from '../lib/invitationsApi'

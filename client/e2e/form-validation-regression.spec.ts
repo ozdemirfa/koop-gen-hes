@@ -175,9 +175,7 @@ test.describe('Regression: BankaHareketleriPage "Yeni Hareket" butonu kaldırıl
     // Hareketler butonuna tıkla (AntD Tooltip wraps the button; try by aria-label or button role)
     // The button has a tooltip "Hareketler" — use the icon button within the first row
     const firstRow = page.locator('.ant-table-row').first()
-    // Try Tooltip title attribute on the button wrapper
-    const hareketlerBtn = firstRow.locator('[aria-label*="transaction"], button').filter({ hasText: '' }).last()
-    // More reliable: navigate directly via row click to get the ID, then navigate
+    // Navigate directly via row click to get the ID, then navigate
     const firstRowCells = firstRow.locator('td')
     await firstRowCells.first().waitFor({ state: 'visible', timeout: 5_000 })
 

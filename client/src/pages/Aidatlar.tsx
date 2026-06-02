@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Button, Modal, Form, InputNumber, Select, message, Card, Typography, Tag, Space, DatePicker, Input, Row, Col, Statistic, App, Popconfirm, Tooltip } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, DollarCircleOutlined, CalculatorOutlined, HistoryOutlined, WalletOutlined, RollbackOutlined } from '@ant-design/icons'
+import { Button, Modal, Form, InputNumber, Select, Card, Typography, Tag, Space, DatePicker, Input, Row, Col, Statistic, App, Popconfirm, Tooltip } from 'antd'
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, DollarCircleOutlined, HistoryOutlined, RollbackOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import api from '../lib/api'
@@ -12,12 +12,10 @@ import { HeaderActionsToolbar } from '../components/common/HeaderActionsToolbar'
 import { usePageSettings } from '../contexts/LayoutContext'
 import { useProject } from '../contexts/ProjectContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { trNumberFormatter, trNumberParser, formatMoney, trMoneyFormatter } from '../lib/format'
-import { LoadingState } from '../components/common/LoadingState'
-import { ErrorState } from '../components/common/ErrorState'
+import { trNumberParser, formatMoney, trMoneyFormatter } from '../lib/format'
 import { useDebounce } from '../hooks/useDebounce'
 
-const { Text, Title } = Typography
+const { Text } = Typography
 
 interface Aidat {
   id: string
@@ -77,8 +75,8 @@ export const Aidatlar: React.FC = () => {
 
   // Filtre state'leri (Aidat Tanımları)
   const [filterTanimYil, setFilterTanimYil] = useState<number | undefined>(undefined)
-  const [filterTanimAy, setFilterTanimAy] = useState<number | undefined>(undefined)
-  const [filterTanimTur, setFilterTanimTur] = useState<string | undefined>(undefined)
+  const [filterTanimAy] = useState<number | undefined>(undefined)
+  const [filterTanimTur] = useState<string | undefined>(undefined)
 
   // Modal state'leri
   const [modalVisible, setModalVisible] = useState(false)
@@ -145,7 +143,7 @@ export const Aidatlar: React.FC = () => {
   const { data: tanimlar, isLoading: tanimLoading } = useQuery({
     queryKey: ['aidat-tanimlari', activeProject?.id, filterTanimYil, filterTanimAy, filterTanimTur],
     queryFn: async () => {
-      const params: Record<string, string> = { proje_id: activeProject?.id! }
+      const params: Record<string, string> = { proje_id: activeProject?.id ?? '' }
       if (filterTanimYil) params.yil = String(filterTanimYil)
       if (filterTanimAy) params.ay = String(filterTanimAy)
       if (filterTanimTur) params.tur = filterTanimTur
