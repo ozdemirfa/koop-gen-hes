@@ -148,7 +148,9 @@ describe('cache — Redis backend (REDIS_URL set, ioredis mocked)', () => {
     // ioredis'i mock et — dynamic import yolunu intercept et
     vi.doMock('ioredis', () => {
       let callCount = 0
-      const RedisCtor = vi.fn().mockImplementation(() => {
+      // vitest 4: `new`'lenen vi.fn() mock'unun implementation'ı normal `function`
+      // olmalı (arrow function constructor olamaz → TypeError).
+      const RedisCtor = vi.fn().mockImplementation(function () {
         // İlk çağrı ana client, ikincisi subscriber
         callCount++
         return callCount === 1 ? redisMock : subMock
