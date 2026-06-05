@@ -1,3 +1,7 @@
+// realtime-js (supabase-js 2.106+) eager WebSocket init throw'unu onler.
+// CI Node 20'de global WebSocket yok → config/supabase & auth import-aninda patlar.
+import '../../src/lib/websocketPolyfill'
+
 // Test ortam değişkenleri — vitest setupFiles ile her test öncesi yüklenir.
 // Gerçek Supabase'e bağlanmadan modüllerin import sırasında throw etmemesi için
 // fake URL ve key'ler set edilir. Auth ve veritabanı çağrıları test'lerde mock'lanır.
