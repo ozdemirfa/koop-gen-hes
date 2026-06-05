@@ -1,3 +1,6 @@
+// realtime-js eager WebSocket init throw'unu onler — client olusturan her
+// modulden ONCE calismalidir (bkz. lib/websocketPolyfill.ts).
+import './lib/websocketPolyfill'
 import './config/env'
 
 import express, { Request, Response } from 'express'
