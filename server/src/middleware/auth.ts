@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
 import { createClient } from '@supabase/supabase-js'
-import { jwtVerify, createRemoteJWKSet } from 'jose'
+import type * as Jose from 'jose' with { 'resolution-mode': 'import' }
 import { ApiError } from '../utils/ApiError'
 import logger from '../utils/logger'
 import { getUserRole } from './roleCache'
@@ -41,10 +41,26 @@ const jwtSecretBytes = supabaseJwtSecret
   ? new TextEncoder().encode(supabaseJwtSecret)
   : null
 
+// jose v6 saf ESM — server CJS (module:node16) statik import edemez (TS1479).
+// Bu yuzden dynamic import ile lazy yuklenir; modul promise cache'lenir.
+type JoseModule = typeof Jose
+let josePromise: Promise<JoseModule> | null = null
+function loadJose(): Promise<JoseModule> {
+  if (!josePromise) josePromise = import('jose')
+  return josePromise
+}
+
 // Supabase JWKS endpoint — asymmetric key rotation otomatik handle edilir.
-const jwks = supabaseUrl
-  ? createRemoteJWKSet(new URL(`${supabaseUrl}/auth/v1/.well-known/jwks.json`))
-  : null
+// jose lazy yuklendigi icin JWKS de ilk verify cagrisinda olusturulup cache'lenir.
+let jwksFn: ReturnType<JoseModule['createRemoteJWKSet']> | null = null
+async function getJwks(): Promise<ReturnType<JoseModule['createRemoteJWKSet']> | null> {
+  if (!supabaseUrl) return null
+  if (!jwksFn) {
+    const { createRemoteJWKSet } = await loadJose()
+    jwksFn = createRemoteJWKSet(new URL(`${supabaseUrl}/auth/v1/.well-known/jwks.json`))
+  }
+  return jwksFn
+}
 
 const authClient = createClient(supabaseUrl, supabaseAnonKey, {
   auth: { persistSession: false, autoRefreshToken: false }
@@ -59,6 +75,7 @@ export async function verifyJwtLocal(token: string): Promise<{ id: string; email
   // 1. HS256 legacy path (SUPABASE_JWT_SECRET set ise + test ortami)
   if (jwtSecretBytes) {
     try {
+      const { jwtVerify } = await loadJose()
       const { payload } = await jwtVerify(token, jwtSecretBytes, {
         algorithms: ['HS256'],
       })
@@ -72,8 +89,10 @@ export async function verifyJwtLocal(token: string): Promise<{ id: string; email
   }
 
   // 2. JWKS asymmetric path (modern Supabase, ES256/RS256)
+  const jwks = await getJwks()
   if (jwks) {
     try {
+      const { jwtVerify } = await loadJose()
       const { payload } = await jwtVerify(token, jwks, {
         algorithms: ['ES256', 'RS256'],
       })
