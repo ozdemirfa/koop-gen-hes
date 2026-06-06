@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react'
-import { Card, Descriptions, Tabs, Tag, Row, Col, Statistic, Button, Space, App, Popconfirm, Tooltip } from 'antd'
+import { Card, Descriptions, Tabs, Tag, Row, Col, Statistic, Button, Space, App, Popconfirm, Tooltip, InputNumber } from 'antd'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { DollarOutlined, HistoryOutlined, UserOutlined, AuditOutlined, RollbackOutlined, PercentageOutlined, InfoCircleOutlined, UserAddOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { DollarOutlined, HistoryOutlined, UserOutlined, AuditOutlined, RollbackOutlined, PercentageOutlined, InfoCircleOutlined, UserAddOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined, ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { getErrorMessage } from '../../lib/apiError'
@@ -65,6 +65,10 @@ export const UyeDetailPage: React.FC = () => {
     tarih: string
     aciklama?: string | null
   }>({ open: false, tahakkukId: '', tutar: 0, tarih: '', aciklama: null })
+  // Sprint aidat-satir-duzenle-sifirla (2026-06-06): Aidat Hesapları tab'inde
+  // satır içi tutar düzenleme. editingAidatId === r.id iken Aidat hücresi input olur.
+  const [editingAidatId, setEditingAidatId] = useState<string | null>(null)
+  const [editTutar, setEditTutar] = useState<number | null>(null)
   const { message: messageApi } = App.useApp()
   const isTouchDevice = useIsTouchDevice()
 
@@ -133,17 +137,36 @@ export const UyeDetailPage: React.FC = () => {
     onError: (err) => messageApi.error(getErrorMessage(err, 'Kapama iptal edilemedi'))
   })
 
-  // Tekil aidat satırı sil (ödeme eşleştirmesi yoksa). Backend P0001 → 409 + mesaj.
-  const deleteAidatMutation = useMutation({
-    mutationFn: async (aidatId: string) => {
-      const { data } = await api.delete(`/aidatlar/${aidatId}`)
+  // Sprint aidat-satir-duzenle-sifirla (2026-06-06): aidat satırı tutarını düzenle.
+  // PUT /aidatlar/:id { tutar } → backend tutar_override yazar. Ödeme yapılmışsa 409.
+  const editAidatMutation = useMutation({
+    mutationFn: async ({ aidatId, tutar }: { aidatId: string; tutar: number }) => {
+      const { data } = await api.put(`/aidatlar/${aidatId}`, { tutar })
       return data
     },
     onSuccess: () => {
-      messageApi.success('Aidat kaydı silindi')
+      messageApi.success('Aidat tutarı güncellendi')
+      setEditingAidatId(null)
+      setEditTutar(null)
       invalidateAllPaymentCaches()
     },
-    onError: (err) => messageApi.error(getErrorMessage(err, 'Aidat silinemedi'))
+    onError: (err) => messageApi.error(getErrorMessage(err, 'Aidat tutarı güncellenemedi')),
+  })
+
+  // Tutarı aidat tanımı varsayılanına sıfırla. POST /aidatlar/:id/reset-tutar →
+  // backend tutar_override = NULL. Ödeme yapılmışsa 409.
+  const resetAidatMutation = useMutation({
+    mutationFn: async (aidatId: string) => {
+      const { data } = await api.post(`/aidatlar/${aidatId}/reset-tutar`)
+      return data
+    },
+    onSuccess: () => {
+      messageApi.success('Aidat tutarı varsayılana sıfırlandı')
+      setEditingAidatId(null)
+      setEditTutar(null)
+      invalidateAllPaymentCaches()
+    },
+    onError: (err) => messageApi.error(getErrorMessage(err, 'Aidat tutarı sıfırlanamadı')),
   })
 
   // Üye detaylarını getir
@@ -344,7 +367,24 @@ export const UyeDetailPage: React.FC = () => {
       title: 'Aidat',
       dataIndex: 'baz_tutar',
       key: 'baz_tutar',
-      render: (v: number) => <MoneyDisplay amount={v} />
+      render: (v: number, r: AidatOdeme) =>
+        editingAidatId === r.id ? (
+          <InputNumber
+            size="small"
+            min={0.01}
+            step={1}
+            value={editTutar ?? undefined}
+            onChange={(val) => setEditTutar(typeof val === 'number' ? val : null)}
+            onPressEnter={() => {
+              if (editTutar && editTutar > 0) editAidatMutation.mutate({ aidatId: r.id, tutar: editTutar })
+            }}
+            style={{ width: 110 }}
+            autoFocus
+            aria-label="Aidat tutarı"
+          />
+        ) : (
+          <MoneyDisplay amount={v} />
+        ),
     },
     {
       title: 'Faiz',
@@ -499,15 +539,81 @@ export const UyeDetailPage: React.FC = () => {
           )
         }
 
-        // Ödeme eşleşmesi yoksa → Sil (tahakkukla birlikte). Eşleşme varsa → Kapama Geri Al
-        // (önce eşleştirme kaldırılmalı; silme backend'de 409 ile reddedilir).
+        // Ödeme eşleşmesi YOKSA → satır içi tutar düzenleme (Düzenle/Kaydet/Sıfırla).
+        // Sil kaldırıldı: aidat kayıtları bu sayfadan silinemez.
         if (odenen <= 0) {
+          // Düzenleme modundaysa: Kaydet + Sıfırla + Vazgeç.
+          if (editingAidatId === r.id) {
+            return (
+              <Space size={4}>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<CheckOutlined />}
+                  style={{ color: '#52c41a' }}
+                  disabled={!editTutar || editTutar <= 0}
+                  loading={editAidatMutation.isPending}
+                  onClick={() => editTutar && editAidatMutation.mutate({ aidatId: r.id, tutar: editTutar })}
+                  title="Kaydet"
+                  aria-label="Aidat tutarını kaydet"
+                />
+                <Popconfirm
+                  title="Varsayılana Sıfırla"
+                  description="Aidat tutarı tanımdaki varsayılan değere döndürülecek. Emin misiniz?"
+                  onConfirm={() => resetAidatMutation.mutate(r.id)}
+                  okText="Evet, Sıfırla"
+                  cancelText="Vazgeç"
+                >
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<ReloadOutlined />}
+                    loading={resetAidatMutation.isPending && resetAidatMutation.variables === r.id}
+                    title="Aidat tanımı varsayılanına sıfırla"
+                    aria-label="Aidat tutarını sıfırla"
+                  />
+                </Popconfirm>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<CloseOutlined />}
+                  onClick={() => { setEditingAidatId(null); setEditTutar(null) }}
+                  title="Vazgeç"
+                  aria-label="Düzenlemeden vazgeç"
+                />
+              </Space>
+            )
+          }
+          // Normal: Düzenle butonu.
           return (
+            <Button
+              type="text"
+              size="small"
+              disabled={!canEdit}
+              icon={<EditOutlined />}
+              onClick={() => { setEditingAidatId(r.id); setEditTutar(Number(r.baz_tutar) || null) }}
+              title={!canEdit ? 'Yetki yok (manager+ gerekli)' : 'Aidat tutarını düzenle'}
+              aria-label="Aidat tutarını düzenle"
+            />
+          )
+        }
+        // Ödeme eşleşmesi VARSA (kapama yapılmış) → düzenle/sıfırla pasif; Kapama Geri Al aktif.
+        return (
+          <Space size={4}>
+            <Tooltip title="Ödeme yapılmış aidat düzenlenemez (önce kapamayı geri alın)">
+              <Button
+                type="text"
+                size="small"
+                disabled
+                icon={<EditOutlined />}
+                aria-label="Aidat tutarını düzenle (pasif)"
+              />
+            </Tooltip>
             <Popconfirm
-              title="Aidatı Sil"
-              description="Bu aidat kaydı ve tahakkuku silinecek. Emin misiniz?"
-              onConfirm={() => deleteAidatMutation.mutate(r.id)}
-              okText="Evet, Sil"
+              title="Aidat Kapamayı Geri Al"
+              description="Bu aidata bağlı tüm ödeme eşleşmeleri kaldırılacak ve durum yeniden hesaplanacak. Emin misiniz?"
+              onConfirm={() => undoAidatMutation.mutate(r.id)}
+              okText="Evet, Geri Al"
               cancelText="Vazgeç"
               okButtonProps={{ danger: true }}
               disabled={!canDelete}
@@ -517,35 +623,13 @@ export const UyeDetailPage: React.FC = () => {
                 size="small"
                 danger
                 disabled={!canDelete}
-                icon={<DeleteOutlined />}
-                loading={deleteAidatMutation.isPending && deleteAidatMutation.variables === r.id}
-                title={!canDelete ? 'Yetki yok (manager+ gerekli)' : 'Aidatı sil'}
-                aria-label="Aidatı sil"
+                icon={<RollbackOutlined />}
+                loading={undoAidatMutation.isPending && undoAidatMutation.variables === r.id}
+                title={!canDelete ? 'Yetki yok (manager+ gerekli)' : 'Kapama Geri Al'}
+                aria-label="Aidat kapamayı geri al"
               />
             </Popconfirm>
-          )
-        }
-        return (
-          <Popconfirm
-            title="Aidat Kapamayı Geri Al"
-            description="Bu aidata bağlı tüm ödeme eşleşmeleri kaldırılacak ve durum yeniden hesaplanacak. Emin misiniz?"
-            onConfirm={() => undoAidatMutation.mutate(r.id)}
-            okText="Evet, Geri Al"
-            cancelText="Vazgeç"
-            okButtonProps={{ danger: true }}
-            disabled={!canDelete}
-          >
-            <Button
-              type="text"
-              size="small"
-              danger
-              disabled={!canDelete}
-              icon={<RollbackOutlined />}
-              loading={undoAidatMutation.isPending && undoAidatMutation.variables === r.id}
-              title={!canDelete ? 'Yetki yok (manager+ gerekli)' : 'Kapama Geri Al'}
-              aria-label="Aidat kapamayı geri al"
-            />
-          </Popconfirm>
+          </Space>
         )
       },
     },

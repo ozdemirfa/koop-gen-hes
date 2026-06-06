@@ -47,8 +47,12 @@ router.get('/:id', requireProjectAccess('user'), aidatController.getAidatById)
 router.delete('/:id', requireProjectAccess('manager'), aidatController.deleteAidat)
 
 // PUT /api/aidatlar/:id — aidat satırı düzenle (tutar + son ödeme tarihi) → manager.
-// proje_id query param'dan okunur. Ödeme yapılmışsa tutar değişimi 409.
+// proje_id body'de taşınır (şema strip etmez). Ödeme yapılmışsa tutar değişimi 409.
 router.put('/:id', requireProjectAccess('manager'), validate({ body: updateAidatRowSchema }), aidatController.updateAidatRow)
+
+// POST /api/aidatlar/:id/reset-tutar — tutarı aidat tanımı varsayılanına sıfırla
+// (tutar_override=NULL) → manager. Ödeme yapılmışsa 409.
+router.post('/:id/reset-tutar', requireProjectAccess('manager'), aidatController.resetAidatRow)
 
 router.post('/:id/odeme', requireProjectAccess('manager'), validate({ body: aidatOdemeSchema }), aidatController.recordPayment)
 router.post('/:id/gecikme-hesapla', requireProjectAccess('manager'), aidatController.calculateSingleLateFee)
