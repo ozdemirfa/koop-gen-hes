@@ -463,6 +463,40 @@ export const aidatService = {
     return data
   },
 
+  // Aidat satırı tutarını "aidat tanımı varsayılanı"na sıfırla (tutar_override=NULL).
+  // RPC fn_reset_aidat_tutar cari tahakkuku da varsayılana eşitler; ödeme yapılmışsa
+  // P0001 ile reddeder (→ 409). IDOR: aidat caller projesinde mi kontrol edilir.
+  async resetAidatTutar(id: string, projeId: string, actorId?: string) {
+    const safeProjeId = requireProjeId(projeId)
+
+    const { data: existing } = await supabaseAdmin
+      .from('aidatlar')
+      .select('id')
+      .eq('id', id)
+      .eq('proje_id', safeProjeId)
+      .maybeSingle()
+    if (!existing) throw ApiError.notFound('Aidat bulunamadı')
+
+    const { data, error } = await supabaseAdmin.rpc('fn_reset_aidat_tutar', {
+      p_aidat_id: id,
+      p_actor_id: actorId ?? null,
+    })
+
+    if (error) {
+      const code = (error as any).code
+      const message = (error as any).message ?? 'Aidat sıfırlanamadı'
+      if (code === 'P0002') throw ApiError.notFound(message)
+      if (code === 'P0001') throw ApiError.conflict(message)
+      logger.error(`Aidat sıfırlama hatası (ID: ${id}):`, error)
+      throw error
+    }
+
+    if (data?.success === false) throw ApiError.badRequest(data.message)
+
+    logger.info(`Aidat satırı varsayılana sıfırlandı: ${id}`)
+    return data
+  },
+
   async recordPayment(aidatId: string, body: Record<string, any>, projeId: string, actorId?: string) {
     const safeProjeId = requireProjeId(projeId)
 

@@ -140,3 +140,32 @@ describe('aidatService.updateAidatRow', () => {
     expect(r).toEqual({ success: true })
   })
 })
+
+// Sprint aidat-satir-duzenle-sifirla (2026-06-06): fn_reset_aidat_tutar sarmalayıcısı.
+describe('aidatService.resetAidatTutar', () => {
+  it('IDOR: projeId boşsa 400', async () => {
+    await expect(aidatService.resetAidatTutar('aid1', '')).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it('IDOR: aidat başka projede → 404', async () => {
+    existingRow = null // pre-check kayıt yok
+    await expect(aidatService.resetAidatTutar('aid1', PROJE)).rejects.toMatchObject({
+      statusCode: 404,
+    })
+  })
+
+  it('ödeme yapılmış aidatta sıfırlama → P0001 → 409', async () => {
+    existingRow = { id: 'aid1' }
+    nextRpcError = { code: 'P0001', message: 'Bu aidata ödeme yapılmış; tutar sıfırlanamaz.' }
+    await expect(aidatService.resetAidatTutar('aid1', PROJE)).rejects.toMatchObject({
+      statusCode: 409,
+    })
+  })
+
+  it('başarılı sıfırlama → varsayılan tutar döner', async () => {
+    existingRow = { id: 'aid1' }
+    nextRpcData = { success: true, varsayilan_tutar: 1200 }
+    const r = await aidatService.resetAidatTutar('aid1', PROJE)
+    expect(r).toEqual({ success: true, varsayilan_tutar: 1200 })
+  })
+})

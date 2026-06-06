@@ -112,3 +112,10 @@ export const updateAidatRow = catchAsync(async (req: AuthRequest<any, any, any, 
   const data = await aidatService.updateAidatRow(req.params.id, req.body, extractProjeId(req), req.user?.id)
   res.json({ success: true, data })
 })
+
+// Aidat tutarını varsayılana sıfırla (tutar_override=NULL). Body gerekmez; proje_id
+// interceptor tarafından body'ye enjekte edilir → extractProjeId okur.
+export const resetAidatRow = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const data = await aidatService.resetAidatTutar(req.params.id, extractProjeId(req), req.user?.id)
+  res.json({ success: true, data })
+})
