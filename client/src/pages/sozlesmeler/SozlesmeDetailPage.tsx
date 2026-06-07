@@ -177,16 +177,16 @@ export const SozlesmeDetailPage: React.FC = () => {
   }
 
   const isKalemiColumns = [
-    { title: 'Sıra', dataIndex: 'sira_no', key: 'sira_no', width: 60 },
-    { title: 'Poz No', dataIndex: 'poz_no', key: 'poz_no', width: 100 },
-    { title: 'Tanım', dataIndex: 'tanim', key: 'tanim' },
-    { title: 'Birim', dataIndex: 'birim', key: 'birim', width: 80 },
+    { title: 'Sıra', dataIndex: 'sira_no', key: 'sira_no', width: 25 },
+    { title: 'Poz No', dataIndex: 'poz_no', key: 'poz_no', width: 80 },
+    { title: 'Tanım', dataIndex: 'tanim', key: 'tanim', width: 200 },
+    { title: 'Birim', dataIndex: 'birim', key: 'birim', width: 40 },
     {
       title: 'Miktar',
       dataIndex: 'miktar',
       key: 'miktar',
       align: 'right' as const,
-      width: 100,
+      width: 90,
       render: (v: number) => trNumberFormatter(v),
     },
     {
@@ -194,7 +194,7 @@ export const SozlesmeDetailPage: React.FC = () => {
       dataIndex: 'teslim_edilen',
       key: 'teslim_edilen',
       align: 'right' as const,
-      width: 110,
+      width: 90,
       render: (v: number) => trNumberFormatter(Number(v || 0)),
     },
     {
@@ -202,7 +202,7 @@ export const SozlesmeDetailPage: React.FC = () => {
       dataIndex: 'kalan',
       key: 'kalan',
       align: 'right' as const,
-      width: 100,
+      width: 90,
       render: (_: unknown, record: IsKalemi) => {
         const kalan = Number(record.kalan ?? record.miktar ?? 0)
         const tamamlandi = kalan <= 0.0009
@@ -218,7 +218,7 @@ export const SozlesmeDetailPage: React.FC = () => {
       dataIndex: 'birim_fiyat',
       key: 'birim_fiyat',
       align: 'right' as const,
-      width: 120,
+      width: 100,
       render: (v: number) => <MoneyDisplay amount={v} />,
     },
     {
@@ -226,7 +226,7 @@ export const SozlesmeDetailPage: React.FC = () => {
       dataIndex: 'toplam_tutar',
       key: 'toplam_tutar',
       align: 'right' as const,
-      width: 130,
+      width: 120,
       render: (v: number) => <MoneyDisplay amount={v} />,
     },
     {
