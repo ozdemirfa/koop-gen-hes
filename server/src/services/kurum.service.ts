@@ -205,4 +205,25 @@ export const kurumService = {
     }
     return data
   },
+
+  // Kurum ödemesini geri al / sil (hesap kapamayı çöz): gider+ödeme çifti + banka +
+  // huzur hakkı (DELETE trigger ile). p_group_id = cari_hareketler.kaynak_id (kurum_odeme).
+  async deletePayment(groupId: string, projeId: string, actorId?: string) {
+    const safeProjeId = requireProjeId(projeId)
+
+    const { data, error } = await supabaseAdmin.rpc('fn_delete_kurum_payment', {
+      p_group_id: groupId,
+      p_proje_id: safeProjeId,
+      p_actor_id: actorId ?? null,
+    })
+
+    if (error) {
+      const code = (error as any).code
+      const message = (error as any).message ?? 'Kurum ödemesi geri alınamadı'
+      if (code === 'P0002') throw ApiError.notFound(message)
+      logger.error('Kurum ödemesi silme RPC hatası', { code, message })
+      throw error
+    }
+    return data
+  },
 }

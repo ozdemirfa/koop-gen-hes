@@ -14,6 +14,8 @@ router.get('/:id', requireProjectAccess('user'), kurumController.getKurumById)
 router.get('/:id/cari-ekstre', requireProjectAccess('user'), kurumController.getKurumCariEkstre)
 router.post('/', requireProjectAccess('manager'), validate({ body: createKurumSchema }), kurumController.createKurum)
 router.post('/odeme', requireProjectAccess('manager'), validate({ body: kurumPaymentSchema }), kurumController.createKurumPayment)
+// Kurum ödemesini geri al (hesap kapamayı çöz) — :id route'larından önce (literal segment).
+router.delete('/odeme/:groupId', requireProjectAccess('manager'), kurumController.deleteKurumPayment)
 router.put('/:id', requireProjectAccess('manager'), validate({ body: updateKurumSchema }), kurumController.updateKurum)
 router.delete('/:id', requireProjectAccess('manager'), kurumController.deleteKurum)
 
