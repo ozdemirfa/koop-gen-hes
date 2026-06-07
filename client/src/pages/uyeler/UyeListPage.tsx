@@ -136,6 +136,13 @@ export const UyeListPage: React.FC = () => {
     return count
   }, [search, filterDurum, filterBlok, filterDaire])
 
+  // useMemo deps'inde tüm `matchAllMutation` objesini KULLANMA: useMutation her
+  // render'da yeni referans döndürür → primaryAction → actions → usePageSettings
+  // (LayoutContext) sonsuz render döngüsü → sayfa kilitlenir. Kararlı `mutate` ve
+  // primitive `isPending` ile memoize et.
+  const runMatchAll = matchAllMutation.mutate
+  const matchAllPending = matchAllMutation.isPending
+
   const primaryAction = useMemo(() => (
     <Space size="small">
       <Popconfirm
@@ -144,13 +151,13 @@ export const UyeListPage: React.FC = () => {
         okText="Evet, kapat"
         cancelText="Vazgeç"
         placement="bottomRight"
-        onConfirm={() => matchAllMutation.mutate()}
-        disabled={!canEdit || matchAllMutation.isPending}
+        onConfirm={() => runMatchAll()}
+        disabled={!canEdit || matchAllPending}
       >
         <Button
           icon={<ReconciliationOutlined />}
           size="small"
-          loading={matchAllMutation.isPending}
+          loading={matchAllPending}
           disabled={!canEdit}
           title={!canEdit ? 'Yetki yok (sadece görüntüleme)' : 'Tüm üyeler için FIFO hesap kapatma'}
         >
@@ -168,7 +175,7 @@ export const UyeListPage: React.FC = () => {
         Yeni Üye
       </Button>
     </Space>
-  ), [navigate, canEdit, matchAllMutation])
+  ), [navigate, canEdit, runMatchAll, matchAllPending])
 
   // secondaryActions — search HARİÇ (search portal ile page-owned subtree'de).
   const secondaryActions = useMemo(() => (
