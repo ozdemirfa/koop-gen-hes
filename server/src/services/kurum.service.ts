@@ -44,7 +44,28 @@ export const kurumService = {
 
     const { data, error, count } = await q.order('kurum_adi').range(from, to)
     if (error) throw error
-    return { data, pagination: paginationMeta(pagination, count || 0) }
+
+    // Her kurum için aktif projede yapılan toplam ödeme (giden_odeme alacak).
+    // Tablo "Toplam Ödeme" sütunu için. Kurum sayısı az → JS aggregation kabul edilebilir
+    // (firma.service.list ile aynı yaklaşım).
+    const kurumIds = (data || []).map((k) => k.id)
+    const odemeMap = new Map<string, number>()
+    if (kurumIds.length > 0) {
+      const { data: rows, error: rErr } = await supabaseAdmin
+        .from('cari_hareketler')
+        .select('alacak, cari_hesaplar!inner(kurum_id, cari_turu)')
+        .eq('proje_id', projeId)
+        .eq('islem_turu', 'giden_odeme')
+        .eq('cari_hesaplar.cari_turu', 'kurumsal')
+      if (rErr) throw rErr
+      for (const r of rows || []) {
+        const kid = (r as any).cari_hesaplar?.kurum_id as string | undefined
+        if (kid) odemeMap.set(kid, (odemeMap.get(kid) || 0) + Number((r as any).alacak || 0))
+      }
+    }
+
+    const enriched = (data || []).map((k) => ({ ...k, toplam_odeme: odemeMap.get(k.id) || 0 }))
+    return { data: enriched, pagination: paginationMeta(pagination, count || 0) }
   },
 
   async getById(id: string, projeId: string) {
