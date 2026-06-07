@@ -25,6 +25,7 @@ import { DataTable } from '../../components/common/DataTable'
 import { ConfirmDelete } from '../../components/common/ConfirmDelete'
 import { EmptyState } from '../../components/common/EmptyState'
 import { trMoneyFormatter, trNumberParser, formatMoney } from '../../lib/format'
+import { MoneyDisplay } from '../../components/common/MoneyDisplay'
 
 interface Kurum {
   id: string
@@ -34,6 +35,7 @@ interface Kurum {
   telefon?: string | null
   aciklama?: string | null
   aktif: boolean
+  toplam_odeme?: number
 }
 
 export const KurumListPage: React.FC = () => {
@@ -162,7 +164,14 @@ export const KurumListPage: React.FC = () => {
       render: (v: string) => (v ? <Tag>{v}</Tag> : '-'),
       responsive: ['sm'],
     },
-    { title: 'Vergi No', dataIndex: 'vergi_no', key: 'vergi_no', responsive: ['md'], render: (v: string) => v || '-' },
+    {
+      title: 'Toplam Ödeme',
+      dataIndex: 'toplam_odeme',
+      key: 'toplam_odeme',
+      align: 'right',
+      width: 140,
+      render: (v: number) => <MoneyDisplay amount={Number(v || 0)} />,
+    },
     { title: 'Telefon', dataIndex: 'telefon', key: 'telefon', responsive: ['lg'], render: (v: string) => v || '-' },
     {
       title: 'İşlem',
@@ -176,9 +185,9 @@ export const KurumListPage: React.FC = () => {
             icon={<DollarOutlined />}
             onClick={() => openOdeme(record)}
             disabled={!canEdit}
-          >
-            Ödeme Yap
-          </Button>
+            title="Ödeme Yap"
+            aria-label="Ödeme Yap"
+          />
           <Button icon={<EditOutlined />} type="text" onClick={() => openEditKurum(record)} disabled={!canEdit} />
           <ConfirmDelete
             title="Kurum silinecek, emin misiniz?"
