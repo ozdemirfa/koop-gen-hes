@@ -707,6 +707,17 @@ export const Aidatlar: React.FC = () => {
 
   const tanimColumns = [
     { title: 'Yıl/Ay', key: 'donem', render: (_: any, r: AidatTanimi) => `${r.yil}/${r.ay}` },
+    {
+      title: 'Tür',
+      dataIndex: 'tur',
+      key: 'tur',
+      responsive: ['sm'] as const,
+      render: (v: string) => {
+        if (v === 'baslangic_bedeli') return <Tag color="purple">Başlangıç Bedeli</Tag>
+        if (v === 'ara_odeme') return <Tag color="blue">Ara Ödeme</Tag>
+        return <Tag>Normal</Tag>
+      },
+    },
     { title: 'Katsayı Tutarı', dataIndex: 'katsayi_tutari', key: 'tutar', render: (v: number) => formatMoney(v) },
     { title: 'Son Ödeme Günü', dataIndex: 'son_odeme_gunu', key: 'gun', responsive: ['sm'] as const, render: (v: number) => `${v}. Gün` },
     { title: 'Gecikme Faizi', dataIndex: 'gecikme_faiz_orani', key: 'faiz', responsive: ['sm'] as const, render: (v: number) => `% ${v}` },
@@ -898,6 +909,7 @@ export const Aidatlar: React.FC = () => {
                 <Select>
                   <Select.Option value="normal">Normal Aidat</Select.Option>
                   <Select.Option value="ara_odeme">Ara Ödeme / Ek Ödeme</Select.Option>
+                  <Select.Option value="baslangic_bedeli">Başlangıç Bedeli</Select.Option>
                 </Select>
               </Form.Item>
             </Col>

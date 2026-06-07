@@ -162,7 +162,16 @@ export const aidatTanimiService = {
   },
 
   async chargeTanim(id: string, actorId?: string) {
-    const { data, error } = await supabaseAdmin.rpc('fn_charge_aidat_tanimi', {
+    // 2026-06-07: tür'e göre dispatch. baslangic_bedeli → tüm dairelere uyelik_baslangic
+    // tahakkuku (fn_charge_baslangic_tanimi); diğerleri → aidat tahakkuku.
+    const { data: tanim } = await supabaseAdmin
+      .from('aidat_tanimlari')
+      .select('tur')
+      .eq('id', id)
+      .maybeSingle()
+    const rpcName = tanim?.tur === 'baslangic_bedeli' ? 'fn_charge_baslangic_tanimi' : 'fn_charge_aidat_tanimi'
+
+    const { data, error } = await supabaseAdmin.rpc(rpcName, {
       p_tanim_id: id,
       p_actor_id: actorId ?? null
     })
@@ -176,7 +185,7 @@ export const aidatTanimiService = {
       throw ApiError.badRequest(data.message)
     }
 
-    logger.info(`Aidat tanımı manuel borçlandırıldı: ${id}`)
+    logger.info(`Aidat tanımı manuel borçlandırıldı: ${id} (${rpcName})`)
     return data
   },
 
@@ -250,13 +259,18 @@ export const aidatTanimiService = {
 
     const { data: existing } = await supabaseAdmin
       .from('aidat_tanimlari')
-      .select('id')
+      .select('id, tur')
       .eq('id', id)
       .eq('proje_id', safeProjeId)
       .maybeSingle()
     if (!existing) throw ApiError.notFound('Aidat tanımı bulunamadı')
 
-    const { data, error } = await supabaseAdmin.rpc('fn_uncharge_aidat_tanimi', {
+    // 2026-06-07: tür'e göre dispatch (başlangıç bedeli ayrı geri-al RPC).
+    const rpcName = existing.tur === 'baslangic_bedeli'
+      ? 'fn_uncharge_baslangic_tanimi'
+      : 'fn_uncharge_aidat_tanimi'
+
+    const { data, error } = await supabaseAdmin.rpc(rpcName, {
       p_tanim_id: id,
       p_actor_id: actorId ?? null,
     })
