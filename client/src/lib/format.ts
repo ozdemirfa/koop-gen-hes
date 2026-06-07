@@ -72,13 +72,12 @@ export const formatIBAN = (iban: string | null | undefined): string => {
     clean = 'TR' + clean
   }
 
-  // TR'den sonrasını 4-4-4-4-4-4-2 şeklinde grupla
-  // IBAN TR dahil 26 hane (2 + 24)
-  const prefix = clean.substring(0, 2) // TR
-  const rest = clean.substring(2, 26) // Maksimum 24 hane rakam
-  
-  const parts = rest.match(/.{1,4}/g) || []
-  return (prefix + ' ' + parts.join(' ')).trim()
+  // Standart IBAN baskı formatı: TÜM dizi (TR + 24) baştan 4'erli gruplanır →
+  // "TR12 3123 1231 2312 4455 1231 23". (Önceki sürüm TR'yi ayırıp "TR 1231 ..."
+  // üretiyordu; bu hem JSDoc'a hem standart formata aykırıydı.)
+  const full = clean.substring(0, 26) // TR + 24 hane
+  const parts = full.match(/.{1,4}/g) || []
+  return parts.join(' ').trim()
 }
 
 /**
