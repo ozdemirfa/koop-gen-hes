@@ -1,25 +1,21 @@
-// Sprint 20260519-para-hareketleri-improvements / US-3:
+// Para hareketleri gösterim konsolidasyonu.
 //
-// FIFO eşleştirme (`fn_match_member_payments_fifo`) bir tahsilatı N aidat tahakkukuna
-// eşleştirirken `cari_hareketler` tablosundaki orijinal satırı parçalıyor → para
-// hareketleri sayfaları aynı tahsilatı N kez gösteriyor. Bu helper, aynı
-// (cari_hesap_id, tarih, odeme_turu, banka_hesap_id, belge_no, aciklama, islem_turu)
-// anahtarına sahip parça satırları tek satıra konsolide eder.
+// FIFO eşleştirme (`fn_match_member_payments_fifo`) bir tahsilatı N tahakkuka eşleştirirken
+// `cari_hareketler` tablosundaki orijinal satırı parçalar → aynı ödeme N satır olur. Bu
+// helper, AYNI ödemeden türeyen parçaları tek satıra konsolide eder.
 //
-// BUGFIX (2026-05-30): `cari_hesap_id` anahtara dahil edilmeli. FIFO parçaları zaten
-// aynı cari'ye ait olduğundan konsolidasyon davranışı değişmez; ancak proje geneli
-// listede (TahsilatListPage) farklı üyelerin aynı tarih/yöntem/açıklamalı
-// `uyelik_baslangic` tahsilatları yanlışlıkla tek satıra birleşip ilk üyenin adıyla
-// (ve toplanmış tutarla) görünüyordu. CariEkstrePage bu alanı zaten elle ekliyordu;
-// default'a taşındı ki tüm çağıranlar güvende olsun.
+// AKILLI GRUPLAMA (2026-06-07): Konsolidasyon yalnız `parca_grup_id` üzerinden yapılır.
+// FIFO bölmesi tek ödemeden türeyen tüm parçalara ortak `parca_grup_id` damgalar
+// (migration 20260607000009). `parca_grup_id` taşımayan satırlar (yönetim ödemeleri
+// cari_hesap_id=NULL, kurum ödemeleri, parçalanmamış ayrı ödemeler) ASLA birleşmez — her
+// biri kendi satırı. Önceki (cari_hesap_id+tarih+...) heuristiği, aynı alanlı ayrı girişleri
+// yanlışlıkla birleştirdiği için kaldırıldı.
 //
 // Davranış:
-//   - `borc` ve `alacak` parça toplamlarına eşitlenir.
-//   - `_parcaIds` parça id listesini, `_parcaCount` parça sayısını saklar.
-//   - Tekil (parçalanmamış) satırlar için `_parcaCount=1`, `_parcaIds=[row.id]`.
-//   - `kaynak_id` parçalardan herhangi birinde varsa grup matched sayılır
-//     (UyeDetailPage REV-PAY-14 pattern'iyle aynı).
-//   - Sıralama korunur: grouping fetched data üzerinde uygulanır, UI sıralaması sonra.
+//   - `borc`/`alacak` grup parçalarının toplamına eşitlenir.
+//   - `_parcaIds` parça id listesi, `_parcaCount` parça sayısı.
+//   - parca_grup_id null satırlar: `_parcaCount=1`, `_parcaIds=[row.id]`.
+//   - `kaynak_id` parçalardan birinde varsa grup matched sayılır.
 //
 // Test: `groupCariParcalari.test.ts`.
 
@@ -32,44 +28,32 @@ export interface CariParcaRow {
   aciklama?: string | null
   islem_turu?: string | null
   cari_hesap_id?: string | null
+  parca_grup_id?: string | null
   borc?: number | null
   alacak?: number | null
   kaynak_id?: string | null
 }
-
-export type GroupKey = Array<keyof CariParcaRow>
 
 export type GroupedRow<T> = T & {
   _parcaIds: string[]
   _parcaCount: number
 }
 
-const DEFAULT_KEY_FIELDS: GroupKey = [
-  'cari_hesap_id',
-  'tarih',
-  'odeme_turu',
-  'banka_hesap_id',
-  'belge_no',
-  'aciklama',
-  'islem_turu',
-]
-
 export function groupCariParcalari<T extends CariParcaRow>(
   rows: T[] | null | undefined,
-  keyFields: GroupKey = DEFAULT_KEY_FIELDS,
 ): GroupedRow<T>[] {
   if (!rows || rows.length === 0) return []
 
   const groups = new Map<string, GroupedRow<T>>()
   for (const row of rows) {
-    const key = keyFields.map((f) => (row[f] ?? '') as string | number | boolean).join('|')
+    // Yalnız parca_grup_id paylaşan FIFO parçaları birleşir; aksi halde her satır tekildir.
+    const key = row.parca_grup_id ? `g:${row.parca_grup_id}` : `i:${row.id}`
     const existing = groups.get(key)
     if (existing) {
       existing.borc = Number(existing.borc || 0) + Number(row.borc || 0)
       existing.alacak = Number(existing.alacak || 0) + Number(row.alacak || 0)
       existing._parcaIds.push(row.id)
       existing._parcaCount = existing._parcaIds.length
-      // Parçalardan biri matched ise grup matched sayılır (UyeDetailPage REV-PAY-14 pattern)
       if (row.kaynak_id && !existing.kaynak_id) {
         existing.kaynak_id = row.kaynak_id
       }
