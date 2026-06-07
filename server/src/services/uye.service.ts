@@ -182,6 +182,24 @@ export const uyeService = {
     }
 
     return data
+  },
+
+  // Toplu hesap kapatma (2026-06-07): proje genelinde tüm üyeler için FIFO
+  // (aidat + başlangıç bedeli). Üye Yönetimi sayfasındaki "Hesap Kapatma" butonu.
+  async matchAllPaymentsFIFO(projeId: string, actorId?: string) {
+    if (!projeId) throw ApiError.badRequest('proje_id zorunludur')
+
+    const { data, error } = await supabaseAdmin.rpc('fn_match_all_members_fifo', {
+      p_proje_id: projeId,
+      p_actor_id: actorId ?? null,
+    })
+
+    if (error) {
+      logger.error(`Toplu FIFO eşleştirme hatası (ProjeID: ${projeId}):`, error)
+      throw error
+    }
+
+    return data
   }
 }
 

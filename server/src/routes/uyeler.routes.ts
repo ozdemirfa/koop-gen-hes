@@ -20,6 +20,8 @@ router.delete('/:id', requireProjectAccess('manager'), uyeController.deleteUye)
 
 router.get('/:id/aidatlar', requireProjectAccess('user'), uyeController.getUyeAidatlar)
 
+// Toplu hesap kapatma — :id'li route'lardan önce (literal path, çakışma yok)
+router.post('/match-payments-all', requireProjectAccess('manager'), uyeController.matchAllPaymentsFIFO)
 router.post('/:id/toplu-odeme', requireProjectAccess('manager'), uyeController.bulkPayment)
 router.post('/:id/match-payments', requireProjectAccess('manager'), uyeController.matchPaymentsFIFO)
 

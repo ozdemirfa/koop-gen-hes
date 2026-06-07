@@ -5,7 +5,7 @@ export const createAidatTanimiSchema = z.object({
   proje_id: z.string().uuid('Geçerli bir proje ID gereklidir'),
   yil: z.number().int().min(2020).max(2100),
   ay: z.number().int().min(1).max(12),
-  tur: z.enum(['normal', 'ara_odeme']).default('normal'),
+  tur: z.enum(['normal', 'ara_odeme', 'baslangic_bedeli']).default('normal'),
   katsayi_tutari: z.number().nonnegative('Katsayı tutarı tanımsız olamaz'),
   son_odeme_gunu: z.number().int().min(1).max(28).optional(),
   gecikme_faiz_orani: z.number().min(0).max(100).optional(),

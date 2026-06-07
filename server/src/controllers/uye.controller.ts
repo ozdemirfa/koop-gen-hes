@@ -60,3 +60,9 @@ export const matchPaymentsFIFO = catchAsync(async (req: AuthRequest<{ id: string
   res.json({ success: true, data })
 })
 
+export const matchAllPaymentsFIFO = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const projeId = (req.query?.proje_id as string) || (req.body?.proje_id as string)
+  const data = await uyeService.matchAllPaymentsFIFO(projeId, req.user?.id)
+  res.json({ success: true, data })
+})
+

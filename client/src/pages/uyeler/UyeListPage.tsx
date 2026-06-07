@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react'
-import { Button, Input, Select, Space, Tag, App, Grid } from 'antd'
+import { Button, Input, Select, Space, Tag, App, Grid, Popconfirm } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { PlusOutlined, EditOutlined, SearchOutlined, EyeOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, SearchOutlined, EyeOutlined, ReconciliationOutlined } from '@ant-design/icons'
 
 const { useBreakpoint } = Grid
 import api from '../../lib/api'
@@ -90,6 +90,29 @@ export const UyeListPage: React.FC = () => {
     onError: (err) => messageApi.error(getErrorMessage(err)),
   })
 
+  // Toplu Hesap Kapatma (2026-06-07): proje genelinde tüm üyeler için FIFO
+  // (aidat + başlangıç bedeli). Tek tek üye sayfasına girmeye gerek kalmaz.
+  const matchAllMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post('/uyeler/match-payments-all', { proje_id: activeProject?.id })
+      return data.data as { matched_count?: number; uye_sayisi?: number }
+    },
+    onSuccess: (res) => {
+      messageApi.success(
+        `Hesap kapatma tamamlandı: ${res?.matched_count ?? 0} eşleştirme (${res?.uye_sayisi ?? 0} üye).`,
+      )
+      // FIFO aidat/başlangıç tahakkuklarını + bakiyeleri etkiler → ilgili cache'leri tazele.
+      queryClient.invalidateQueries({ queryKey: ['uyeler'] })
+      queryClient.invalidateQueries({ queryKey: ['aidatlar'] })
+      queryClient.invalidateQueries({ queryKey: ['aidat-ozet'] })
+      queryClient.invalidateQueries({ queryKey: ['cari-ekstre'] })
+      queryClient.invalidateQueries({ queryKey: ['cari-hareketler'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard-ozet'] })
+      queryClient.invalidateQueries({ queryKey: ['rapor-mizan'] })
+    },
+    onError: (err) => messageApi.error(getErrorMessage(err)),
+  })
+
   // OC-01 (sprint 20260511-ui-responsive-sprint extension):
   // Header action'lar HeaderActionsToolbar ile sarmalandı.
   // Mobile (<768px): "Yeni Üye" inline + Drawer içinde Search+3 Select.
@@ -114,17 +137,38 @@ export const UyeListPage: React.FC = () => {
   }, [search, filterDurum, filterBlok, filterDaire])
 
   const primaryAction = useMemo(() => (
-    <Button
-      type="primary"
-      icon={<PlusOutlined />}
-      onClick={() => navigate('/uyeler/yeni')}
-      size="small"
-      disabled={!canEdit}
-      title={!canEdit ? 'Yetki yok (sadece görüntüleme)' : undefined}
-    >
-      Yeni Üye
-    </Button>
-  ), [navigate, canEdit])
+    <Space size="small">
+      <Popconfirm
+        title="Toplu Hesap Kapatma"
+        description="Tüm üyeler için ödemeler (aidat + başlangıç bedeli) FIFO kuralıyla eşleştirilecek. Devam edilsin mi?"
+        okText="Evet, kapat"
+        cancelText="Vazgeç"
+        placement="bottomRight"
+        onConfirm={() => matchAllMutation.mutate()}
+        disabled={!canEdit || matchAllMutation.isPending}
+      >
+        <Button
+          icon={<ReconciliationOutlined />}
+          size="small"
+          loading={matchAllMutation.isPending}
+          disabled={!canEdit}
+          title={!canEdit ? 'Yetki yok (sadece görüntüleme)' : 'Tüm üyeler için FIFO hesap kapatma'}
+        >
+          Hesap Kapatma
+        </Button>
+      </Popconfirm>
+      <Button
+        type="primary"
+        icon={<PlusOutlined />}
+        onClick={() => navigate('/uyeler/yeni')}
+        size="small"
+        disabled={!canEdit}
+        title={!canEdit ? 'Yetki yok (sadece görüntüleme)' : undefined}
+      >
+        Yeni Üye
+      </Button>
+    </Space>
+  ), [navigate, canEdit, matchAllMutation])
 
   // secondaryActions — search HARİÇ (search portal ile page-owned subtree'de).
   const secondaryActions = useMemo(() => (
