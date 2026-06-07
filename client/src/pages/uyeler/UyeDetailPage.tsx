@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react'
 import { Card, Descriptions, Tabs, Tag, Row, Col, Statistic, Button, Space, App, Popconfirm, Tooltip, InputNumber } from 'antd'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { DollarOutlined, HistoryOutlined, UserOutlined, AuditOutlined, RollbackOutlined, PercentageOutlined, InfoCircleOutlined, UserAddOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined, ReloadOutlined } from '@ant-design/icons'
+import { DollarOutlined, HistoryOutlined, UserOutlined, ReconciliationOutlined, RollbackOutlined, PercentageOutlined, InfoCircleOutlined, UserAddOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined, ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../../lib/api'
 import { getErrorMessage } from '../../lib/apiError'
@@ -780,13 +780,13 @@ export const UyeDetailPage: React.FC = () => {
           <div className="uye-detail-actions">
             <Button
               className="uye-detail-action-btn"
-              icon={<AuditOutlined />}
+              icon={<ReconciliationOutlined />}
               onClick={() => matchMutation.mutate()}
               loading={matchMutation.isPending}
               disabled={!canEdit}
               title={!canEdit ? 'Yetki yok' : 'Mevcut eşleşmemiş ödemeleri borçlarla FIFO kuralına göre kapatır'}
             >
-              Hesap Kapatma (FIFO)
+              Hesap Kapatma
             </Button>
             <Button
               className="uye-detail-action-btn"
