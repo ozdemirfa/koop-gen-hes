@@ -143,6 +143,28 @@ export const TahsilatListPage: React.FC = () => {
     onError: (err) => messageApi.error(getErrorMessage(err, 'Silme başarısız')),
   })
 
+  // Kurum ödemesini geri al (hesap kapamayı çöz): gider+ödeme çifti + banka + huzur hakkı.
+  // groupId = cari hareketin kaynak_id'si (kurum_odeme grubu).
+  const deleteKurumMutation = useMutation({
+    mutationFn: async (groupId: string) => {
+      const { data } = await api.delete(`/kurumlar/odeme/${groupId}`, {
+        params: { proje_id: activeProject?.id },
+      })
+      return data
+    },
+    onSuccess: () => {
+      messageApi.success('Kurum ödemesi geri alındı (hesap kapaması çözüldü)')
+      queryClient.invalidateQueries({ queryKey: ['tahsilat-list'] })
+      queryClient.invalidateQueries({ queryKey: ['cari-ekstre'] })
+      queryClient.invalidateQueries({ queryKey: ['cari-hareketler'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard-ozet'] })
+      queryClient.invalidateQueries({ queryKey: ['kurumlar'] })
+      queryClient.invalidateQueries({ queryKey: ['banka-hesaplari'] })
+      queryClient.invalidateQueries({ queryKey: ['yonetim-ekibi'] })
+    },
+    onError: (err) => messageApi.error(getErrorMessage(err, 'Kurum ödemesi geri alınamadı')),
+  })
+
   // B2: düzenleme mutasyonu (whitelist alanlar)
   const updateMutation = useMutation({
     mutationFn: async ({ id, body }: { id: string; body: Record<string, any> }) => {
@@ -263,13 +285,22 @@ export const TahsilatListPage: React.FC = () => {
           // Yönetim ödemeleri buradan düzenlenemez/silinemez — yonetim_ekibi.alacak +
           // banka senkronu bozulmasın diye Yönetim Ekibi akışından yönetilir.
           const yonetim = isYonetimIslem(r.islem_turu)
-          const locked = !!r.kaynak_id || yonetim
+          // Kurum ödemesi (kaynak_tipi='kurum_odeme'): net-sıfır gider+ödeme çifti.
+          // Tekil silme yerine "geri al" — grup (kaynak_id) tamamen silinir.
+          const isKurum = r.kaynak_tipi === 'kurum_odeme'
+          // Kurum dışı eşleşmiş satırlar (FIFO kapama) kilitli; kurum satırı geri-al ile çözülür.
+          const locked = yonetim || (!!r.kaynak_id && !isKurum)
+          const deleting = isKurum
+            ? deleteKurumMutation.isPending && deleteKurumMutation.variables === r.kaynak_id
+            : deleteMutation.isPending && deleteMutation.variables === r.id
           return (
             <Space size={4}>
               <Tooltip
                 title={
                   yonetim
                     ? 'Yönetim ödemesi — Yönetim Ekibi akışından yönetilir'
+                    : isKurum
+                    ? 'Kurum ödemesi — düzenlemek için geri alıp yeniden girin'
                     : locked
                     ? 'Kilitli — Önce hesap kapamayı geri alın'
                     : 'Düzenle (tarih, belge no, açıklama)'
@@ -280,17 +311,23 @@ export const TahsilatListPage: React.FC = () => {
                   size="small"
                   icon={<EditOutlined />}
                   onClick={() => openEdit(r)}
-                  disabled={!canEdit}
+                  disabled={!canEdit || isKurum}
                   aria-label="Tahsilatı düzenle"
-                  // B3: kilitli satırlarda tutar/yöntem alanları zaten backend tarafında
-                  // bloklanır; düzenle ile sadece metadata değişebilir.
                 />
               </Tooltip>
               <Popconfirm
-                title="Tahsilatı Sil"
-                description="Bu tahsilat kalıcı olarak silinecek. Emin misiniz?"
-                onConfirm={() => deleteMutation.mutate(r.id)}
-                okText="Evet, Sil"
+                title={isKurum ? 'Kurum Ödemesini Geri Al' : 'Tahsilatı Sil'}
+                description={
+                  isKurum
+                    ? 'Kurum ödemesi (gider + ödeme) tamamen silinecek ve hesap kapaması geri alınacak. Emin misiniz?'
+                    : 'Bu tahsilat kalıcı olarak silinecek. Emin misiniz?'
+                }
+                onConfirm={() =>
+                  isKurum
+                    ? r.kaynak_id && deleteKurumMutation.mutate(r.kaynak_id)
+                    : deleteMutation.mutate(r.id)
+                }
+                okText={isKurum ? 'Evet, Geri Al' : 'Evet, Sil'}
                 cancelText="Vazgeç"
                 okButtonProps={{ danger: true }}
                 disabled={locked || !canDelete}
@@ -301,6 +338,8 @@ export const TahsilatListPage: React.FC = () => {
                       ? 'Yetki yok (manager+ gerekli)'
                       : yonetim
                       ? 'Yönetim ödemesi — Yönetim Ekibi akışından yönetilir'
+                      : isKurum
+                      ? 'Kurum ödemesini geri al (hesap kapamayı çöz)'
                       : locked
                       ? 'Önce hesap kapamayı geri alın'
                       : 'Sil'
@@ -312,8 +351,8 @@ export const TahsilatListPage: React.FC = () => {
                     danger
                     icon={<DeleteOutlined />}
                     disabled={locked || !canDelete}
-                    loading={deleteMutation.isPending && deleteMutation.variables === r.id}
-                    aria-label="Tahsilatı sil"
+                    loading={deleting}
+                    aria-label={isKurum ? 'Kurum ödemesini geri al' : 'Tahsilatı sil'}
                   />
                 </Tooltip>
               </Popconfirm>
@@ -322,7 +361,7 @@ export const TahsilatListPage: React.FC = () => {
         },
       },
     ],
-    [deleteMutation, isTouchDevice, openEdit, canEdit, canDelete],
+    [deleteMutation, deleteKurumMutation, isTouchDevice, openEdit, canEdit, canDelete],
   )
 
   if (isError) {

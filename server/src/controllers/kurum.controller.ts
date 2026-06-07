@@ -55,3 +55,10 @@ export const createKurumPayment = catchAsync(async (req: AuthRequest<any, any, a
   const data = await kurumService.createPayment(req.body, req.user?.id)
   res.status(201).json({ success: true, data })
 })
+
+export const deleteKurumPayment = catchAsync(async (req: AuthRequest<any, any, any, any>, res: Response) => {
+  const projeId = extractProjeId(req)
+  if (!projeId) return res.status(400).json({ success: false, error: 'proje_id zorunludur' })
+  const data = await kurumService.deletePayment(req.params.groupId, projeId, req.user?.id)
+  res.json({ success: true, data })
+})
