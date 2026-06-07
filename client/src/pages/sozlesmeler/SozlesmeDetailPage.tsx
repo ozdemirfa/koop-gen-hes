@@ -21,6 +21,9 @@ interface IsKalemi {
   birim_fiyat: number
   toplam_tutar: number
   sira_no: number
+  // Rev 4 (2026-06-07): onaylı/ödenmiş hakedişlerden teslim edilen + kalan miktar.
+  teslim_edilen?: number
+  kalan?: number
 }
 
 export const SozlesmeDetailPage: React.FC = () => {
@@ -187,6 +190,30 @@ export const SozlesmeDetailPage: React.FC = () => {
       render: (v: number) => trNumberFormatter(v),
     },
     {
+      title: 'Teslim Edilen',
+      dataIndex: 'teslim_edilen',
+      key: 'teslim_edilen',
+      align: 'right' as const,
+      width: 110,
+      render: (v: number) => trNumberFormatter(Number(v || 0)),
+    },
+    {
+      title: 'Kalan',
+      dataIndex: 'kalan',
+      key: 'kalan',
+      align: 'right' as const,
+      width: 100,
+      render: (_: unknown, record: IsKalemi) => {
+        const kalan = Number(record.kalan ?? record.miktar ?? 0)
+        const tamamlandi = kalan <= 0.0009
+        return (
+          <span style={{ color: tamamlandi ? '#16a34a' : '#dc2626', fontWeight: 500 }}>
+            {trNumberFormatter(kalan)}
+          </span>
+        )
+      },
+    },
+    {
       title: 'Birim Fiyat',
       dataIndex: 'birim_fiyat',
       key: 'birim_fiyat',
@@ -296,13 +323,13 @@ export const SozlesmeDetailPage: React.FC = () => {
           summary={() => (
             <Table.Summary fixed>
               <Table.Summary.Row>
-                <Table.Summary.Cell index={0} colSpan={6} align="right">
+                <Table.Summary.Cell index={0} colSpan={8} align="right">
                   <strong>Toplam:</strong>
                 </Table.Summary.Cell>
-                <Table.Summary.Cell index={6}>
+                <Table.Summary.Cell index={8}>
                   <strong><MoneyDisplay amount={toplamTutar} /></strong>
                 </Table.Summary.Cell>
-                <Table.Summary.Cell index={7} />
+                <Table.Summary.Cell index={9} />
               </Table.Summary.Row>
             </Table.Summary>
           )}

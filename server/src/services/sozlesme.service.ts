@@ -92,7 +92,23 @@ export const sozlesmeService = {
       .order('sira_no')
 
     if (error) throw error
-    return data
+
+    // Rev 4 (2026-06-07): iş kalemi bazında teslim edilen (onaylı/ödenmiş hakedişlerden)
+    // + kalan miktar. fn_sozlesme_kalem_teslimat RPC tek pass'te per-kalem toplamı döner.
+    const { data: teslimat, error: teslimatErr } = await supabaseAdmin.rpc('fn_sozlesme_kalem_teslimat', {
+      p_sozlesme_id: sozlesmeId,
+      p_proje_id: safeProjeId,
+    })
+    if (teslimatErr) throw teslimatErr
+
+    const teslimMap = new Map<string, number>(
+      ((teslimat as any[]) ?? []).map((r: any) => [r.is_kalemi_id as string, Number(r.teslim_edilen || 0)]),
+    )
+
+    return (data || []).map((k: any) => {
+      const teslim = teslimMap.get(k.id) ?? 0
+      return { ...k, teslim_edilen: teslim, kalan: Number(k.miktar || 0) - teslim }
+    })
   },
 
   async addIsKalemi(sozlesmeId: string, body: Record<string, any>, projeId: string) {
