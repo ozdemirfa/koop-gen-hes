@@ -6,6 +6,7 @@ import uyelerRoutes from './uyeler.routes'
 import bloklarRoutes from './bloklar.routes'
 import aidatlarRoutes from './aidatlar.routes'
 import firmalarRoutes from './firmalar.routes'
+import kurumlarRoutes from './kurumlar.routes'
 import sozlesmelerRoutes from './sozlesmeler.routes'
 import hakedislerRoutes from './hakedisler.routes'
 import faturalarRoutes from './faturalar.routes'
@@ -53,6 +54,7 @@ router.use('/uyeler', uyelerRoutes)
 router.use('/bloklar', bloklarRoutes)
 router.use('/aidatlar', aidatlarRoutes)
 router.use('/firmalar', firmalarRoutes)
+router.use('/kurumlar', kurumlarRoutes)
 router.use('/sozlesmeler', sozlesmelerRoutes)
 router.use('/hakedisler', hakedislerRoutes)
 router.use('/faturalar', faturalarRoutes)

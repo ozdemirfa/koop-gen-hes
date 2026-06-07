@@ -8,7 +8,8 @@ import {
   FileSearchOutlined,
   DownloadOutlined,
   TeamOutlined,
-  ShopOutlined
+  ShopOutlined,
+  ApartmentOutlined
 } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import api from '../../lib/api'
@@ -26,11 +27,13 @@ const { Text } = Typography
 interface MizanData {
   id: string
   cari_adi: string
-  cari_turu: 'uye' | 'firma'
+  cari_turu: 'uye' | 'firma' | 'kurumsal'
   toplam_borc: number
   toplam_alacak: number
   bakiye: number
 }
+
+const CARI_TURU_LABEL: Record<string, string> = { uye: 'ÜYE', firma: 'FİRMA', kurumsal: 'KURUM' }
 
 export const MizanPage: React.FC = () => {
   const { activeProject } = useProject()
@@ -55,7 +58,7 @@ export const MizanPage: React.FC = () => {
         headers: ['Cari Adı', 'Tür', 'Toplam Borç', 'Toplam Alacak', 'Bakiye', 'Bakiye Yönü'],
         rows: list.map((r) => [
           r.cari_adi,
-          r.cari_turu === 'uye' ? 'ÜYE' : 'FİRMA',
+          CARI_TURU_LABEL[r.cari_turu] ?? r.cari_turu.toUpperCase(),
           r.toplam_borc,
           r.toplam_alacak,
           r.bakiye,
@@ -125,16 +128,17 @@ export const MizanPage: React.FC = () => {
       width: 80,
       render: (tur: string) => (
         <Tag
-          color={tur === 'uye' ? 'blue' : 'orange'}
-          icon={tur === 'uye' ? <TeamOutlined /> : <ShopOutlined />}
+          color={tur === 'uye' ? 'blue' : tur === 'kurumsal' ? 'purple' : 'orange'}
+          icon={tur === 'uye' ? <TeamOutlined /> : tur === 'kurumsal' ? <ApartmentOutlined /> : <ShopOutlined />}
           style={{ borderRadius: '4px', padding: '2px 8px' }}
         >
-          {tur === 'uye' ? 'ÜYE' : 'FİRMA'}
+          {CARI_TURU_LABEL[tur] ?? tur.toUpperCase()}
         </Tag>
       ),
       filters: [
         { text: 'Üye', value: 'uye' },
         { text: 'Firma', value: 'firma' },
+        { text: 'Kurum', value: 'kurumsal' },
       ],
       onFilter: (value: any, record: MizanData) => record.cari_turu === value,
     },

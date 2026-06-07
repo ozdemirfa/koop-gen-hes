@@ -13,6 +13,7 @@ import {
   SettingOutlined,
   MenuOutlined,
   TeamOutlined,
+  ApartmentOutlined,
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
@@ -59,6 +60,7 @@ const getMenuItems = (canManageUsers: boolean): any[] => [
       { key: '/cari-hesaplar', label: 'Firma Ekstre' },
     ],
   },
+  { key: '/kurumlar', icon: <ApartmentOutlined />, label: 'Kurum Ödemeleri' },
   {
     key: 'payment-management-group',
     icon: <WalletOutlined />,

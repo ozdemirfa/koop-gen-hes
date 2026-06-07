@@ -62,6 +62,11 @@ const FirmaDetailPage = lazy(() =>
 const SozlesmeFormPage = lazy(() =>
   import('./pages/sozlesmeler/SozlesmeFormPage').then((m) => ({ default: m.SozlesmeFormPage })),
 )
+
+// Kurumsal cari
+const KurumListPage = lazy(() =>
+  import('./pages/kurumlar/KurumListPage').then((m) => ({ default: m.KurumListPage })),
+)
 const SozlesmeDetailPage = lazy(() =>
   import('./pages/sozlesmeler/SozlesmeDetailPage').then((m) => ({ default: m.SozlesmeDetailPage })),
 )
@@ -273,6 +278,7 @@ const App: React.FC = () => {
                           <Route path="aidatlar/yillik-plan" element={<AidatYillikPlanPage />} />
                           <Route path="firmalar" element={<FirmaListPage />} />
                           <Route path="firmalar/:id" element={<FirmaDetailPage />} />
+                          <Route path="kurumlar" element={<KurumListPage />} />
                           <Route path="cari-hesaplar" element={<CariEkstrePage />} />
                           <Route path="cari-hesaplar/odeme-kayit" element={<OdemeKayit />} />
                           <Route path="cari-hesaplar/tahsilatlar" element={<TahsilatListPage />} />

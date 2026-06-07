@@ -97,7 +97,6 @@ describe('hakedisService.approve', () => {
       { data: taslakHakedis(), error: null }, // get
       { data: { id: 'h1', hakedis_toplam: 1200 }, error: null }, // update sonucu
     ]
-    rpcResponses['fn_yonetim_huzur_hakki_dagit'] = { data: null, error: null }
 
     await hakedisService.approve('h1', PROJE)
 
@@ -109,19 +108,19 @@ describe('hakedisService.approve', () => {
     expect(upd!.payload.teminat_kesintisi).toBe(100) // 1000 × %10
     expect(upd!.payload.stopaj_kesintisi).toBe(50) // 1000 × %5
     expect(upd!.payload.net_tutar).toBe(1050) // 1200 - 100 - 50
-    // firma_id null → cari hareket yazılmaz, ama huzur hakkı RPC her zaman çağrılır
+    // firma_id null → cari hareket yazılmaz.
     expect(insertCalls.find((c) => c.table === 'cari_hareketler')).toBeUndefined()
-    expect(rpcCalls.map((c) => c.name)).toContain('fn_yonetim_huzur_hakki_dagit')
+    // Rev 2 (2026-06-07): huzur hakkı artık hakkediş onayında DAĞITILMAZ (ödeme bazlı trigger).
+    expect(rpcCalls.map((c) => c.name)).not.toContain('fn_yonetim_huzur_hakki_dagit')
   })
 
-  it('firma varsa: cari hareket yazılır + huzur hakkı dağıtılır', async () => {
+  it('firma varsa: cari hareket yazılır (huzur hakkı artık ödeme bazlı)', async () => {
     queues.hakedisler = [
       { data: taslakHakedis({ sozlesmeler: { firma_id: 'f1', teminat_orani: 0, stopaj_orani: 0 } }), error: null },
       { data: { id: 'h1', hakedis_toplam: 1200 }, error: null },
     ]
     queues.cari_hesaplar = [{ data: { id: 'c1' }, error: null }]
     queues.cari_hareketler = [{ data: null, error: null }] // insert ok
-    rpcResponses['fn_yonetim_huzur_hakki_dagit'] = { data: null, error: null }
 
     await hakedisService.approve('h1', PROJE)
 
@@ -129,7 +128,8 @@ describe('hakedisService.approve', () => {
     expect(ins).toBeTruthy()
     expect(ins!.rows[0].borc).toBe(1200)
     expect(ins!.rows[0].kaynak_tipi).toBe('hakedis')
-    expect(rpcCalls.map((c) => c.name)).toContain('fn_yonetim_huzur_hakki_dagit')
+    // Rev 2: onay artık huzur hakkı dağıtmaz.
+    expect(rpcCalls.map((c) => c.name)).not.toContain('fn_yonetim_huzur_hakki_dagit')
   })
 
   it('firma var ama cari hesap yoksa → 400', async () => {
@@ -139,15 +139,6 @@ describe('hakedisService.approve', () => {
     ]
     queues.cari_hesaplar = [{ data: null, error: null }] // cari yok
     await expect(hakedisService.approve('h1', PROJE)).rejects.toThrow(/cari hesap/i)
-  })
-
-  it('huzur hakkı RPC hatası → throw (rollback denenir)', async () => {
-    queues.hakedisler = [
-      { data: taslakHakedis(), error: null },
-      { data: { id: 'h1', hakedis_toplam: 1200 }, error: null },
-    ]
-    rpcResponses['fn_yonetim_huzur_hakki_dagit'] = { data: null, error: { message: 'huzur fail' } }
-    await expect(hakedisService.approve('h1', PROJE)).rejects.toBeTruthy()
   })
 })
 
@@ -166,27 +157,20 @@ describe('hakedisService.unapprove', () => {
     await expect(hakedisService.unapprove('h1', PROJE)).rejects.toThrow(/onaylı/)
   })
 
-  it('onaylıyı taslağa çeker: cari silinir + huzur iptal RPC + durum taslak', async () => {
+  it('onaylıyı taslağa çeker: cari silinir + durum taslak (huzur iptal artık ödeme bazlı)', async () => {
     queues.hakedisler = [
       { data: { id: 'h1', durum: 'onaylandi' }, error: null }, // get
       { data: { id: 'h1', durum: 'taslak' }, error: null }, // update
     ]
     queues.cari_hareketler = [{ data: null, error: null }] // delete ok
-    rpcResponses['fn_yonetim_huzur_hakki_iptal'] = { data: null, error: null }
 
     const r = await hakedisService.unapprove('h1', PROJE)
 
-    expect(rpcCalls.map((c) => c.name)).toContain('fn_yonetim_huzur_hakki_iptal')
+    // Rev 2 (2026-06-07): onay-iptalde huzur hakkı iptal RPC çağrılmaz (ödeme bazlı).
+    expect(rpcCalls.map((c) => c.name)).not.toContain('fn_yonetim_huzur_hakki_iptal')
     const upd = updateCalls.find((c) => c.table === 'hakedisler')
     expect(upd!.payload.durum).toBe('taslak')
     expect(upd!.payload.onay_tarihi).toBeNull()
     expect((r as any).durum).toBe('taslak')
-  })
-
-  it('huzur iptal RPC hatası → throw', async () => {
-    queues.hakedisler = [{ data: { id: 'h1', durum: 'onaylandi' }, error: null }]
-    queues.cari_hareketler = [{ data: null, error: null }]
-    rpcResponses['fn_yonetim_huzur_hakki_iptal'] = { data: null, error: { message: 'iptal fail' } }
-    await expect(hakedisService.unapprove('h1', PROJE)).rejects.toBeTruthy()
   })
 })
