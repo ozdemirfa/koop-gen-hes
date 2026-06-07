@@ -136,46 +136,21 @@ export const UyeListPage: React.FC = () => {
     return count
   }, [search, filterDurum, filterBlok, filterDaire])
 
-  // useMemo deps'inde tüm `matchAllMutation` objesini KULLANMA: useMutation her
-  // render'da yeni referans döndürür → primaryAction → actions → usePageSettings
-  // (LayoutContext) sonsuz render döngüsü → sayfa kilitlenir. Kararlı `mutate` ve
-  // primitive `isPending` ile memoize et.
-  const runMatchAll = matchAllMutation.mutate
-  const matchAllPending = matchAllMutation.isPending
-
+  // NOT: "Hesap Kapatma" butonu BİLEREK header'da değil, sayfa gövdesinde (tablo üstü).
+  // Header'a (usePageSettings/LayoutContext) konunca matchAllMutation'ın her render'da
+  // değişen referansı sonsuz render döngüsüne yol açıyordu. primaryAction stabil tutuldu.
   const primaryAction = useMemo(() => (
-    <Space size="small">
-      <Popconfirm
-        title="Toplu Hesap Kapatma"
-        description="Tüm üyeler için ödemeler (aidat + başlangıç bedeli) FIFO kuralıyla eşleştirilecek. Devam edilsin mi?"
-        okText="Evet, kapat"
-        cancelText="Vazgeç"
-        placement="bottomRight"
-        onConfirm={() => runMatchAll()}
-        disabled={!canEdit || matchAllPending}
-      >
-        <Button
-          icon={<ReconciliationOutlined />}
-          size="small"
-          loading={matchAllPending}
-          disabled={!canEdit}
-          title={!canEdit ? 'Yetki yok (sadece görüntüleme)' : 'Tüm üyeler için FIFO hesap kapatma'}
-        >
-          Hesap Kapatma
-        </Button>
-      </Popconfirm>
-      <Button
-        type="primary"
-        icon={<PlusOutlined />}
-        onClick={() => navigate('/uyeler/yeni')}
-        size="small"
-        disabled={!canEdit}
-        title={!canEdit ? 'Yetki yok (sadece görüntüleme)' : undefined}
-      >
-        Yeni Üye
-      </Button>
-    </Space>
-  ), [navigate, canEdit, runMatchAll, matchAllPending])
+    <Button
+      type="primary"
+      icon={<PlusOutlined />}
+      onClick={() => navigate('/uyeler/yeni')}
+      size="small"
+      disabled={!canEdit}
+      title={!canEdit ? 'Yetki yok (sadece görüntüleme)' : undefined}
+    >
+      Yeni Üye
+    </Button>
+  ), [navigate, canEdit])
 
   // secondaryActions — search HARİÇ (search portal ile page-owned subtree'de).
   const secondaryActions = useMemo(() => (
@@ -403,19 +378,42 @@ export const UyeListPage: React.FC = () => {
         isError ? (
           <ErrorState error={error} onRetry={() => refetch()} />
         ) : (
-          <DataTable
-            columns={columns}
-            dataSource={uyeData?.data}
-            rowKey="id"
-            loading={isLoading}
-            totalItems={uyeData?.pagination?.totalCount}
-            emptyDescription="Bu projede kayıtlı üye yok. Yeni Üye butonu ile başlayın."
-            stickyFirstColumn /* A2-03: üye no/adı kolonu sticky */
-            onRow={(record: Uye) => ({
-              onClick: () => navigate(`/uyeler/${record.id}`),
-              style: { cursor: 'pointer' }
-            })}
-          />
+          <>
+            {/* Toplu Hesap Kapatma — sayfa gövdesinde (header'da değil, loop önlemi). */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+              <Popconfirm
+                title="Toplu Hesap Kapatma"
+                description="Tüm üyeler için ödemeler (aidat + başlangıç bedeli) FIFO kuralıyla eşleştirilecek. Devam edilsin mi?"
+                okText="Evet, kapat"
+                cancelText="Vazgeç"
+                placement="bottomLeft"
+                onConfirm={() => matchAllMutation.mutate()}
+                disabled={!canEdit || matchAllMutation.isPending}
+              >
+                <Button
+                  icon={<ReconciliationOutlined />}
+                  loading={matchAllMutation.isPending}
+                  disabled={!canEdit}
+                  title={!canEdit ? 'Yetki yok (sadece görüntüleme)' : 'Tüm üyeler için FIFO hesap kapatma'}
+                >
+                  Hesap Kapatma
+                </Button>
+              </Popconfirm>
+            </div>
+            <DataTable
+              columns={columns}
+              dataSource={uyeData?.data}
+              rowKey="id"
+              loading={isLoading}
+              totalItems={uyeData?.pagination?.totalCount}
+              emptyDescription="Bu projede kayıtlı üye yok. Yeni Üye butonu ile başlayın."
+              stickyFirstColumn /* A2-03: üye no/adı kolonu sticky */
+              onRow={(record: Uye) => ({
+                onClick: () => navigate(`/uyeler/${record.id}`),
+                style: { cursor: 'pointer' }
+              })}
+            />
+          </>
         )
       )}
     </div>
